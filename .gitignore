@@ -32,6 +32,7 @@ ENV/
 # .vscode/  # 允许提交 VS Code 设置（项目配置）
 .vscode/*
 !.vscode/settings.json  # 允许提交 settings.json
+!.vscode/extensions.json  # 允许提交 extensions.json（推荐扩展列表）
 .idea/
 *.swp
 *.swo
