@@ -1,0 +1,286 @@
+# RiverEdge SaaS 多租户框架 - Cursor AI 开发规范
+
+## 项目概述
+
+这是 **RiverEdge SaaS 多租户框架 (RiverEdge SaaS Multi-tenant Framework)** 的开发规范。所有代码生成、建议和修改都必须严格遵循本规范。
+
+## 核心原则
+
+1. **技术栈统一**：严格使用框架确定的技术选型，不引入其他技术
+2. **命名规范**：遵循统一的命名规范，保持代码风格一致
+3. **注释完整**：所有代码必须包含完整的注释（使用中文）
+4. **多租户优先**：所有数据模型和查询必须包含租户隔离
+5. **类型安全**：使用类型提示，确保类型安全
+6. **错误处理**：统一错误处理，提供清晰的错误信息
+7. **测试覆盖**：核心功能测试覆盖率 > 80%
+8. **Git 规范**：遵循 Conventional Commits 提交规范
+
+## 通用规范
+
+### 文件编码
+- 所有文件必须使用 UTF-8 编码
+
+### 库选择优先级（必须按顺序检查）
+1. **Ant Design Pro Components** - 优先使用 Ant Design Pro 官方组件
+2. **React** - 使用 React 官方库或 React 生态成熟库
+3. **FastAPI** - 使用 FastAPI 官方扩展或 FastAPI 生态成熟库
+4. **Tortoise ORM** - 使用 Tortoise ORM 官方功能或扩展
+5. **PostgreSQL** - 使用 PostgreSQL 原生功能或官方扩展
+6. **其他成熟库** - 如果以上都无法满足，选择成熟稳定的第三方库
+7. **自定义实现** - 最后才考虑自己实现
+
+**禁止事项**：
+- ❌ 禁止跳过优先级检查
+- ❌ 禁止直接使用第三方库（必须先检查官方库）
+- ❌ 禁止使用不成熟的库
+- ❌ 禁止重复造轮子
+
+## 技术选型（必须严格遵循）
+
+### 后端技术栈 (riveredge-core)
+- **编程语言**: Python 3.13+
+- **Web 框架**: FastAPI 0.115+（禁止使用 Flask、Django 等）
+- **数据验证**: Pydantic v2.9+（禁止使用其他验证库）
+- **数据库**: PostgreSQL 15+（禁止使用 MySQL、MongoDB 等）
+- **ORM 框架**: Tortoise ORM 0.20+（禁止使用 SQLAlchemy、Django ORM 等）
+- **数据库迁移**: Aerich 0.7+（禁止使用 Alembic 等）
+- **缓存**: Redis 7.2+（禁止使用 Memcached 等）
+- **认证**: JWT (python-jose)（禁止使用其他认证方式）
+- **HTTP 客户端**: httpx（禁止使用 requests 等）
+- **日志**: loguru（禁止使用标准 logging）
+- **配置管理**: pydantic-settings（禁止使用其他配置库）
+- **测试框架**: pytest + pytest-asyncio（禁止使用 unittest 等）
+
+### 前端技术栈 (riveredge-shell)
+- **核心框架**: React 19.2+（禁止使用 Vue、Angular 等）
+- **应用框架**: Umi V4 (@umijs/max)（禁止使用 Next.js、Create React App 等）
+- **UI 组件库**: Ant Design v6 + Ant Design Pro Components 2.x（禁止使用 Material-UI、Element UI 等）
+- **状态管理**: Umi Model（禁止使用 Redux、Zustand 等）
+- **类型系统**: TypeScript 5.6+（必须使用 TypeScript，禁止使用 JavaScript）
+- **HTTP 客户端**: Umi Request（禁止使用 Axios、fetch 等）
+- **路由**: React Router 6 (Umi 内置)（禁止使用其他路由库）
+- **构建工具**: Vite (Umi 内置)（禁止使用 Webpack 等）
+- **图表库**: @ant-design/charts（禁止使用 ECharts、Chart.js 等）
+- **表单自定义字段**: Formily (@formily/core + @formily/react + @formily/antd-v5)（禁止使用其他表单库）
+- **打印模板设计**: react-to-print + jspdf + html2canvas（禁止使用其他打印库）
+- **图标库**: @ant-design/icons（禁止使用其他图标库）
+- **日期处理**: dayjs（禁止使用 moment.js 等）
+- **工具函数**: lodash-es（禁止使用其他工具库）
+
+### 数据库技术栈
+- **主数据库**: PostgreSQL 15+（禁止使用 MySQL、SQLite 等）
+- **缓存**: Redis 7.2+（禁止使用 Memcached 等）
+
+## 命名规范
+
+### 模块命名哲学
+- `riveredge-core` - 核心系统（根）
+- `riveredge-shell` - 前端框架（壳）
+- `riveredge-seeds` - 应用插件（种子）
+- `riveredge-land` - 着陆页/官网（土地）
+- `riveredge-leaf` - 移动端应用（叶子）
+
+### 后端命名规范（Python）
+- **文件命名**: 使用 `snake_case`（如 `user.py`, `users.py`, `user_service.py`）
+- **类命名**: 使用 `PascalCase`（如 `User`, `UserService`, `UserCreate`）
+- **函数命名**: 使用 `snake_case`，动词开头（如 `create_user`, `get_user_by_id`）
+- **变量命名**: 使用 `snake_case`（如 `user_id`, `total_amount`, `is_active`）
+- **常量命名**: 使用 `UPPER_SNAKE_CASE`（如 `MAX_RETRY_COUNT`, `DEFAULT_PAGE_SIZE`）
+
+### 前端命名规范（TypeScript）
+- **组件文件**: 使用 `PascalCase`（如 `UserList.tsx`）
+- **工具文件**: 使用 `camelCase`（如 `userUtils.ts`）
+- **API 文件**: 使用 `camelCase`（如 `userApi.ts`）
+- **组件命名**: 使用 `PascalCase`（如 `UserList`, `UserForm`）
+- **函数命名**: 使用 `camelCase`，动词开头（如 `getUserList`, `createUser`）
+- **变量命名**: 使用 `camelCase`（如 `userId`, `totalAmount`, `isActive`）
+- **类型命名**: 使用 `PascalCase`（如 `User`, `UserListResponse`）
+
+### 数据库命名规范
+- **表命名**: 使用 `snake_case`，复数形式，**必须包含模块前缀** ⭐ **重要**（符合框架命名哲学）
+  - 核心系统模块（core/根）：`core_` 前缀 ⭐ **符合框架哲学**
+    - 如 `core_users`, `core_roles`, `core_tenants`
+    - 属于 `riveredge-core` 模块（根系统）
+    - **命名哲学**：如同植物的根系，提供基础支撑和养分
+    - `sys_` 前缀作为兼容别名，推荐使用 `core_`
+  - 应用插件模块（seeds/种子）：`seed_插件名_` 前缀 ⭐ **符合框架哲学**
+    - 所有业务模块（MES、ERP、CRM 等）都属于 `riveredge-seeds`（应用插件集合）
+    - MES 系统：`seed_mes_` 前缀（如 `seed_mes_orders`）
+    - ERP 系统：`seed_erp_` 前缀（如 `seed_erp_invoices`）
+    - CRM 系统：`seed_crm_` 前缀（如 `seed_crm_customers`）
+    - 支付插件：`seed_payment_` 前缀（如 `seed_payment_records`）
+    - **命名哲学**：如同植物的种子，可以生长成不同的功能模块
+- **字段命名**: 使用 `snake_case`（如 `id`, `tenant_id`, `user_id`, `created_at`, `is_active`）
+- **索引命名**: 索引名中的表名必须包含模块前缀
+  - 普通索引：`idx_core_users_tenant_id`、`idx_seed_mes_orders_status`
+  - 唯一索引：`uk_core_users_email`、`uk_seed_mes_orders_order_no`
+
+## 注释规范
+
+### 注释语言
+**必须使用中文注释**，便于团队理解。
+
+### 后端注释规范（Python）
+- **类注释**: 使用三引号文档字符串，包含类说明、Attributes、Example
+- **函数注释**: 使用三引号文档字符串，包含函数说明、Args、Returns、Raises、Example
+
+### 前端注释规范（TypeScript）
+- **组件注释**: 使用 JSDoc 格式，包含组件说明、@param、@example
+- **函数注释**: 使用 JSDoc 格式，包含函数说明、@param、@returns、@example
+
+## 数据库规范
+
+### 表结构规范
+所有表必须包含以下标准字段：
+- `id` - 主键
+- `tenant_id` - 租户 ID（**所有表必须包含，用于多租户隔离**）
+- `created_at` - 创建时间
+- `updated_at` - 更新时间
+- `deleted_at` - 软删除时间（可选）
+
+### 多租户规范
+- **所有数据模型必须包含 `tenant_id` 字段**
+- **所有查询必须自动过滤租户**
+- **JWT Token 必须包含租户信息**
+- **API 请求必须验证租户权限**
+- **禁止跨租户数据访问**
+
+示例：
+```python
+# ✅ 正确：自动过滤租户
+users = await User.filter(tenant_id=current_tenant_id).all()
+
+# ❌ 错误：未过滤租户
+users = await User.all()
+```
+
+## 错误处理规范
+
+### 后端错误处理
+- 使用统一异常处理
+- 使用自定义异常类（如 `UserNotFoundError`, `PermissionDeniedError`）
+- API 层使用 `HTTPException`
+- 异常类型映射：
+  - `400`: 请求参数错误（ValidationError）
+  - `401`: 未授权（UnauthorizedError）
+  - `403`: 权限不足（PermissionDeniedError）
+  - `404`: 资源不存在（NotFoundError）
+  - `500`: 服务器内部错误（InternalServerError）
+
+### 前端错误处理
+- 使用 try-catch 处理错误
+- 使用 Umi Request 统一错误处理
+- 错误提示使用 Ant Design 的 message 组件
+
+## Git 提交规范
+
+遵循 Conventional Commits 规范：
+- `feat`: 新功能
+- `fix`: 修复问题
+- `docs`: 文档更新
+- `style`: 代码格式（不影响功能）
+- `refactor`: 重构
+- `test`: 测试相关
+- `chore`: 构建/工具相关
+- `perf`: 性能优化
+
+格式：`<type>(<scope>): <subject>`
+
+示例：
+- `feat(user): 添加用户批量导入功能`
+- `fix(auth): 修复 JWT Token 过期时间计算错误`
+- `docs(api): 更新用户管理 API 文档`
+
+## 测试规范
+
+### 后端测试
+- **测试框架**: pytest + pytest-asyncio
+- **测试文件命名**: `test_*.py` 或 `*_test.py`
+- **测试函数命名**: `test_功能描述`
+- **测试覆盖率要求**: 核心功能 > 80%，业务功能 > 70%，工具函数 > 90%
+
+### 前端测试
+- **测试框架**: Jest + React Testing Library
+- **测试文件命名**: `*.test.tsx` 或 `*.spec.tsx`
+- **测试覆盖率要求**: 组件 > 70%，工具函数 > 80%
+
+## 代码生成检查清单
+
+生成代码前必须检查：
+- [ ] 文件编码是否为 UTF-8？
+- [ ] 是否按照优先级顺序检查了库选择？
+- [ ] 是否使用了正确的技术栈？
+- [ ] 命名是否符合规范？
+- [ ] **表名是否包含模块前缀？**（核心系统：`core_`，应用插件：`seed_插件名_`，符合框架命名哲学）
+- [ ] **索引名中的表名是否包含模块前缀？**
+- [ ] 是否包含完整的注释（中文）？
+- [ ] 是否包含 `tenant_id` 字段？
+- [ ] 查询是否自动过滤租户？
+- [ ] 类型提示是否完整？
+- [ ] 错误处理是否完善？
+
+## 禁止事项
+
+### 工具和操作禁止
+- ❌ **绝对禁止使用 PowerShell 批量修改文件**（极易产生中文乱码问题）
+  - 禁止使用 PowerShell 的 `Get-Content`、`Set-Content`、`Out-File` 等命令批量处理包含中文的文件
+  - 禁止使用 PowerShell 脚本批量替换文件内容
+  - **为什么无法彻底解决**：
+    - PowerShell 默认编码不一致，不同命令编码行为不同
+    - BOM 问题、字符串处理和管道传递时编码可能变化
+    - 即使设置了 UTF-8，也无法保证在所有场景下都稳定
+  - **推荐替代方案**：
+    - ✅ 使用 Python 脚本进行批量操作（推荐，Python 3 默认 UTF-8）
+    - ✅ 使用专业的文本编辑器（如 VS Code、Notepad++）
+    - ✅ 直接使用文件编辑工具逐个修改
+  - 如需批量操作，必须使用 UTF-8 编码安全的工具
+
+### 技术栈禁止
+- ❌ 禁止使用 Flask、Django 等 Web 框架（必须使用 FastAPI）
+- ❌ 禁止使用 SQLAlchemy、Django ORM 等 ORM（必须使用 Tortoise ORM）
+- ❌ 禁止使用 MySQL、SQLite 等数据库（必须使用 PostgreSQL）
+- ❌ 禁止使用 Axios、fetch 等 HTTP 客户端（必须使用 Umi Request）
+- ❌ 禁止使用 Redux、Zustand 等状态管理（必须使用 Umi Model）
+- ❌ 禁止使用 Material-UI、Element UI 等 UI 库（必须使用 Ant Design）
+- ❌ 禁止使用 ECharts、Chart.js 等图表库（必须使用 @ant-design/charts）
+
+### 命名禁止
+- ❌ 禁止使用驼峰命名（Python 后端）（必须使用 snake_case）
+- ❌ 禁止使用下划线命名（TypeScript 前端）（必须使用 camelCase）
+- ❌ 禁止使用单数表名（必须使用复数形式）
+- ❌ 禁止表名缺少模块前缀（必须包含 `core_` 或 `seed_插件名_` 前缀，符合框架命名哲学）
+- ❌ 禁止省略 `tenant_id` 字段（所有表必须包含）
+
+### 注释禁止
+- ❌ 禁止生成无注释的代码
+- ❌ 禁止使用英文注释（必须使用中文注释）
+- ❌ 禁止省略函数参数说明
+- ❌ 禁止省略返回值说明
+
+## 开发流程规范
+
+创建新功能模块的步骤：
+1. 创建数据库模型（继承 `BaseModel`，包含 `tenant_id`）
+2. 创建 Pydantic Schema（Create、Update、Response）
+3. 创建 Service 类（包含 CRUD 方法，自动过滤租户）
+4. 创建 API 路由（使用 FastAPI Router）
+5. 创建前端类型定义
+6. 创建前端 API 服务
+7. 创建前端组件（使用 ProTable、ProForm 等）
+
+## 相关文档
+
+详细规范文档位于 `Farming Plan/2.rules/` 目录：
+- `AGENTS.md` - 完整开发规范
+- `1.框架命名哲学.md` - 框架模块命名哲学
+- `2.字段命名规范.md` - 统一命名规范
+- `3.数据库命名规范.md` - 数据库命名规范
+- `4.注释规范.md` - 完善注释规范
+- `5.项目结构规范.md` - 项目结构规范
+- `6.API设计规范.md` - API 设计规范
+- `7.错误处理规范.md` - 错误处理规范
+- `8.Git工作流规范.md` - Git 工作流规范
+- `9.品牌VI一致性规范.md` - 品牌VI一致性规范
+- `10.第三方依赖管理规范.md` - 第三方依赖管理规范
+
+**违反任何规范都将导致代码无法通过审查，必须立即修正。**
