@@ -208,6 +208,8 @@ users = await User.all()
 
 生成代码前必须检查：
 - [ ] 文件编码是否为 UTF-8？
+- [ ] **是否完全避免了使用 PowerShell？**（绝对禁止，全程严禁使用 PowerShell 进行任何操作）
+- [ ] **是否使用了 Git Bash 或 VS Code 进行 Git 操作？**（禁止使用 PowerShell）
 - [ ] 是否按照优先级顺序检查了库选择？
 - [ ] 是否使用了正确的技术栈？
 - [ ] 命名是否符合规范？
