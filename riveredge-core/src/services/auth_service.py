@@ -178,102 +178,8 @@ class AuthService:
         # 设置租户上下文（在查询租户列表之前设置，确保后续查询使用正确的租户上下文）
         set_current_tenant_id(final_tenant_id)
         
-        # 更新最后登录时间
-        try:
-            user.last_login = datetime.utcnow()
-            await user.save()
-        except Exception as e:
-            logger.warning(f"更新最后登录时间失败: {e}")
-            # 不影响登录流程，继续执行
-        
-        # 获取用户可访问的租户列表
-        tenants = []
-        default_tenant_id = None
-        requires_tenant_selection = False
-        
-        try:
-            # 如果是超级用户，返回所有租户和默认租户
-            if user.is_superuser:
-                tenant_service = TenantService()
-                # 获取所有激活的租户
-                all_tenants_result = await tenant_service.list_tenants(
-                    page=1,
-                    page_size=1000,  # 获取所有租户
-                    status=TenantStatus.ACTIVE,
-                    skip_tenant_filter=True
-                )
-                tenants = [
-                    {
-                        "id": t.id,
-                        "name": t.name,
-                        "domain": t.domain,
-                        "status": t.status.value
-                    }
-                    for t in all_tenants_result.get("items", [])
-                ]
-                
-                # 获取默认租户（domain="default"）
-                default_tenant = await tenant_service.get_tenant_by_domain("default", skip_tenant_filter=True)
-                if default_tenant:
-                    default_tenant_id = default_tenant.id
-                elif tenants:
-                    # 如果没有默认租户，使用第一个租户作为默认租户
-                    default_tenant_id = tenants[0]["id"]
-            else:
-                # 普通用户：查询所有租户中是否有相同用户名的用户
-                # 这样可以支持用户在多个租户中都有账号
-                all_users_with_same_username = await User.filter(
-                    username=user.username,
-                    is_active=True
-                ).all()
-                
-                # 获取这些用户所属的租户
-                tenant_ids = list(set([u.tenant_id for u in all_users_with_same_username]))
-                
-                # 批量查询这些租户的详细信息（使用 in_ 查询，减少数据库查询次数）
-                if tenant_ids:
-                    active_tenants = await Tenant.filter(
-                        id__in=tenant_ids,
-                        status=TenantStatus.ACTIVE
-                    ).all()
-                    
-                    tenants = [
-                        {
-                            "id": t.id,
-                            "name": t.name,
-                            "domain": t.domain,
-                            "status": t.status.value
-                        }
-                        for t in active_tenants
-                    ]
-                
-                # 如果用户有多个租户，需要选择租户
-                if len(tenants) > 1:
-                    requires_tenant_selection = True
-                elif len(tenants) == 1:
-                    # 如果只有一个租户，直接使用该租户
-                    default_tenant_id = tenants[0]["id"]
-        except Exception as e:
-            # 如果查询失败，至少返回用户当前所属的租户
-            logger.error(f"查询用户租户列表失败: {e}")
-            import traceback
-            logger.error(f"错误堆栈: {traceback.format_exc()}")
-            try:
-                tenant = await Tenant.get_or_none(id=user.tenant_id, status=TenantStatus.ACTIVE)
-                if tenant:
-                    tenants = [{
-                        "id": tenant.id,
-                        "name": tenant.name,
-                        "domain": tenant.domain,
-                        "status": tenant.status.value
-                    }]
-                    default_tenant_id = tenant.id
-            except Exception as e2:
-                logger.error(f"查询用户当前租户失败: {e2}")
-                # 如果查询失败，至少返回用户的基本信息
-                tenants = None
-        
         # 生成 JWT Token（包含 tenant_id）⭐ 关键
+        # 注意：在生成 Token 之前不进行额外的数据库查询，避免连接问题
         access_token = create_token_for_user(
             user_id=user.id,
             username=user.username,
@@ -281,6 +187,35 @@ class AuthService:
             is_superuser=user.is_superuser,
             is_tenant_admin=user.is_tenant_admin,
         )
+        
+        # 更新最后登录时间（在生成 Token 之后，避免影响登录流程）
+        try:
+            user.last_login = datetime.utcnow()
+            await user.save()
+        except Exception as e:
+            logger.warning(f"更新最后登录时间失败: {e}")
+            # 不影响登录流程，继续执行
+        
+        # 获取用户可访问的租户列表（简化版本，先返回基本租户信息）
+        tenants = None
+        default_tenant_id = final_tenant_id
+        requires_tenant_selection = False
+        
+        # 暂时简化：只返回用户当前租户，不查询多租户列表
+        # 后续可以优化为异步查询或单独接口获取租户列表
+        try:
+            tenant = await Tenant.get_or_none(id=final_tenant_id, status=TenantStatus.ACTIVE)
+            if tenant:
+                tenants = [{
+                    "id": tenant.id,
+                    "name": tenant.name,
+                    "domain": tenant.domain,
+                    "status": tenant.status.value
+                }]
+        except Exception as e:
+            logger.error(f"查询用户当前租户失败: {e}")
+            # 如果查询失败，至少返回用户的基本信息
+            tenants = None
         
         # 计算过期时间（秒）
         from app.config import settings
