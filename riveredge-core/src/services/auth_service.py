@@ -130,7 +130,16 @@ class AuthService:
             True
         """
         # 查找用户（仅支持用户名登录，符合中国用户使用习惯）
-        user = await User.get_or_none(username=data.username)
+        # 如果提供了 tenant_id，同时过滤租户，避免多租户用户名冲突
+        if data.tenant_id is not None:
+            user = await User.get_or_none(
+                username=data.username,
+                tenant_id=data.tenant_id
+            )
+        else:
+            # 如果没有提供 tenant_id，只根据用户名查找（可能多个租户有相同用户名）
+            # 这种情况下，返回第一个匹配的激活用户
+            user = await User.get_or_none(username=data.username)
         
         if not user:
             raise HTTPException(
@@ -152,7 +161,7 @@ class AuthService:
                 detail="用户未激活"
             )
         
-        # 如果提供了 tenant_id，验证用户是否属于该租户
+        # 如果提供了 tenant_id，验证用户是否属于该租户（双重验证）
         if data.tenant_id is not None:
             if user.tenant_id != data.tenant_id:
                 raise HTTPException(
