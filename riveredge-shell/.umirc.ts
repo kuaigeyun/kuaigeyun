@@ -185,6 +185,16 @@ export default defineConfig({
   npmClient: 'npm',
   
   /**
+   * Webpack 配置
+   * 
+   * 配置模块别名，确保 umi 模块可以正确解析
+   */
+  chainWebpack(config: any) {
+    // 确保 umi 模块可以正确解析
+    config.resolve.alias.set('umi', require.resolve('umi'));
+  },
+  
+  /**
    * 其他配置
    */
   favicons: ['/favicon.ico'],
