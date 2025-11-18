@@ -5,9 +5,12 @@ FastAPI 应用入口
 """
 
 from contextlib import asynccontextmanager
+import traceback
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from loguru import logger
 
 from app.config import settings
@@ -66,6 +69,44 @@ app.add_middleware(
 
 # 配置租户上下文中间件（必须在 CORS 之后，路由之前）
 app.add_middleware(TenantContextMiddleware)
+
+# 全局异常处理器
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    全局异常处理器
+    
+    捕获所有未处理的异常，记录日志并返回友好的错误信息
+    """
+    # 记录详细的错误信息
+    logger.error(f"未处理的异常: {exc}")
+    logger.error(f"请求路径: {request.url.path}")
+    logger.error(f"请求方法: {request.method}")
+    logger.error(f"错误堆栈: {traceback.format_exc()}")
+    
+    # 返回错误响应
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "detail": str(exc),
+            "type": type(exc).__name__,
+            "path": request.url.path,
+        }
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    请求验证异常处理器
+    
+    处理 Pydantic 验证错误
+    """
+    logger.error(f"请求验证失败: {exc.errors()}")
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()}
+    )
 
 # 注册数据库
 register_db(app)
