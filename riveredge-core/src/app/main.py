@@ -185,6 +185,16 @@ async def health():
     }
 
 
+@app.get("/test-error")
+async def test_error():
+    """
+    测试异常处理器
+    
+    用于测试异常处理器是否正常工作
+    """
+    raise HTTPException(status_code=500, detail="测试异常处理器")
+
+
 if __name__ == "__main__":
     import uvicorn
 
