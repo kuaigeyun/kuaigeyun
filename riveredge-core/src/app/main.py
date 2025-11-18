@@ -67,10 +67,7 @@ app.add_middleware(
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
-# 配置租户上下文中间件（必须在 CORS 之后，路由之前）
-app.add_middleware(TenantContextMiddleware)
-
-# 全局异常处理器
+# 全局异常处理器（必须在注册路由之前注册）
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """
@@ -107,6 +104,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": exc.errors()}
     )
+
+# 配置租户上下文中间件（必须在 CORS 之后，路由之前）
+app.add_middleware(TenantContextMiddleware)
 
 # 注册数据库
 register_db(app)
