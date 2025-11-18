@@ -7,7 +7,7 @@ FastAPI 应用入口
 from contextlib import asynccontextmanager
 import traceback
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -68,6 +68,43 @@ app.add_middleware(
 )
 
 # 全局异常处理器（必须在注册路由之前注册）
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """
+    HTTP 异常处理器
+    
+    处理 FastAPI 的 HTTPException，确保返回 JSON 格式
+    """
+    logger.error(f"HTTP 异常: {exc.status_code} - {exc.detail}")
+    logger.error(f"请求路径: {request.url.path}")
+    logger.error(f"请求方法: {request.method}")
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "type": "HTTPException",
+            "path": request.url.path,
+        },
+        headers=exc.headers if hasattr(exc, 'headers') and exc.headers else None,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    请求验证异常处理器
+    
+    处理 Pydantic 验证错误
+    """
+    logger.error(f"请求验证失败: {exc.errors()}")
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()}
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """
@@ -89,20 +126,6 @@ async def global_exception_handler(request: Request, exc: Exception):
             "type": type(exc).__name__,
             "path": request.url.path,
         }
-    )
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """
-    请求验证异常处理器
-    
-    处理 Pydantic 验证错误
-    """
-    logger.error(f"请求验证失败: {exc.errors()}")
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors()}
     )
 
 # 配置租户上下文中间件（必须在 CORS 之后，路由之前）
