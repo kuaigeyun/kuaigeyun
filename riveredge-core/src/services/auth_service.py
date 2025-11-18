@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
+from loguru import logger
 
 from models.user import User
 from models.tenant import Tenant, TenantStatus
@@ -214,24 +215,42 @@ class AuthService:
         else:
             # 普通用户：查询所有租户中是否有相同用户名的用户
             # 这样可以支持用户在多个租户中都有账号
-            all_users_with_same_username = await User.filter(
-                username=user.username,
-                is_active=True
-            ).all()
-            
-            # 获取这些用户所属的租户
-            tenant_ids = list(set([u.tenant_id for u in all_users_with_same_username]))
-            
-            # 查询这些租户的详细信息
-            for tenant_id in tenant_ids:
-                tenant = await Tenant.get_or_none(id=tenant_id, status=TenantStatus.ACTIVE)
+            try:
+                all_users_with_same_username = await User.filter(
+                    username=user.username,
+                    is_active=True
+                ).all()
+                
+                # 获取这些用户所属的租户
+                tenant_ids = list(set([u.tenant_id for u in all_users_with_same_username]))
+                
+                # 批量查询这些租户的详细信息（使用 in_ 查询，减少数据库查询次数）
+                if tenant_ids:
+                    active_tenants = await Tenant.filter(
+                        id__in=tenant_ids,
+                        status=TenantStatus.ACTIVE
+                    ).all()
+                    
+                    tenants = [
+                        {
+                            "id": t.id,
+                            "name": t.name,
+                            "domain": t.domain,
+                            "status": t.status.value
+                        }
+                        for t in active_tenants
+                    ]
+            except Exception as e:
+                # 如果查询失败，至少返回用户当前所属的租户
+                logger.error(f"查询用户租户列表失败: {e}")
+                tenant = await Tenant.get_or_none(id=user.tenant_id, status=TenantStatus.ACTIVE)
                 if tenant:
-                    tenants.append({
+                    tenants = [{
                         "id": tenant.id,
                         "name": tenant.name,
                         "domain": tenant.domain,
                         "status": tenant.status.value
-                    })
+                    }]
             
             # 如果用户有多个租户，需要选择租户
             if len(tenants) > 1:
