@@ -5,6 +5,7 @@
  */
 
 import { defineConfig } from '@umijs/max';
+import path from 'path';
 
 export default defineConfig({
   /**
@@ -190,5 +191,15 @@ export default defineConfig({
    */
   favicons: ['/favicon.ico'],
   title: 'RiverEdge SaaS 多租户框架',
+  
+  /**
+   * Webpack 配置
+   * 
+   * 添加别名，解决 umi 模块解析问题
+   */
+  chainWebpack(config: any) {
+    // 将 umi 模块解析到 .umi/exports.ts
+    config.resolve.alias.set('umi', path.resolve(__dirname, 'src/.umi/exports.ts'));
+  },
 });
 
