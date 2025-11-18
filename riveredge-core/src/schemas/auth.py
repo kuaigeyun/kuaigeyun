@@ -4,7 +4,7 @@
 定义认证相关的 Pydantic Schema，用于登录、注册等认证操作
 """
 
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, Field, EmailStr
 
@@ -26,6 +26,25 @@ class LoginRequest(BaseModel):
     tenant_id: Optional[int] = Field(None, description="租户 ID（可选，如果提供则直接设置租户上下文）")
 
 
+class TenantInfo(BaseModel):
+    """
+    租户信息 Schema
+    
+    用于返回租户的基本信息。
+    
+    Attributes:
+        id: 租户 ID
+        name: 租户名称
+        domain: 租户域名
+        status: 租户状态
+    """
+    
+    id: int = Field(..., description="租户 ID")
+    name: str = Field(..., description="租户名称")
+    domain: str = Field(..., description="租户域名")
+    status: str = Field(..., description="租户状态")
+
+
 class LoginResponse(BaseModel):
     """
     登录响应 Schema
@@ -37,12 +56,18 @@ class LoginResponse(BaseModel):
         token_type: 令牌类型（通常为 "bearer"）
         expires_in: 令牌过期时间（秒）
         user: 用户信息（可选）
+        tenants: 用户可访问的租户列表（可选）
+        default_tenant_id: 默认租户 ID（可选，超级用户使用）
+        requires_tenant_selection: 是否需要选择租户（当用户有多个租户时）
     """
     
     access_token: str = Field(..., description="JWT 访问令牌")
     token_type: str = Field(default="bearer", description="令牌类型")
     expires_in: int = Field(..., description="令牌过期时间（秒）")
     user: Optional[dict] = Field(None, description="用户信息（可选）")
+    tenants: Optional[List[TenantInfo]] = Field(None, description="用户可访问的租户列表（可选）")
+    default_tenant_id: Optional[int] = Field(None, description="默认租户 ID（可选，超级用户使用）")
+    requires_tenant_selection: bool = Field(default=False, description="是否需要选择租户（当用户有多个租户时）")
 
 
 class UserRegisterRequest(BaseModel):

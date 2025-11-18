@@ -13,6 +13,7 @@ from models.user import User
 from models.tenant import Tenant, TenantStatus
 from schemas.auth import LoginRequest, UserRegisterRequest
 from schemas.user import UserCreate
+from services.tenant_service import TenantService
 from core.security import (
     create_token_for_user,
     verify_password,
@@ -178,11 +179,79 @@ class AuthService:
         user.last_login = datetime.utcnow()
         await user.save()
         
+        # 获取用户可访问的租户列表
+        tenant_service = TenantService()
+        tenants = []
+        default_tenant_id = None
+        requires_tenant_selection = False
+        
+        # 如果是超级用户，返回所有租户和默认租户
+        if user.is_superuser:
+            # 获取所有激活的租户
+            all_tenants_result = await tenant_service.list_tenants(
+                page=1,
+                page_size=1000,  # 获取所有租户
+                status=TenantStatus.ACTIVE,
+                skip_tenant_filter=True
+            )
+            tenants = [
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "domain": t.domain,
+                    "status": t.status.value
+                }
+                for t in all_tenants_result.get("items", [])
+            ]
+            
+            # 获取默认租户（domain="default"）
+            default_tenant = await tenant_service.get_tenant_by_domain("default", skip_tenant_filter=True)
+            if default_tenant:
+                default_tenant_id = default_tenant.id
+            elif tenants:
+                # 如果没有默认租户，使用第一个租户作为默认租户
+                default_tenant_id = tenants[0]["id"]
+        else:
+            # 普通用户：查询所有租户中是否有相同用户名的用户
+            # 这样可以支持用户在多个租户中都有账号
+            all_users_with_same_username = await User.filter(
+                username=user.username,
+                is_active=True
+            ).all()
+            
+            # 获取这些用户所属的租户
+            tenant_ids = list(set([u.tenant_id for u in all_users_with_same_username]))
+            
+            # 查询这些租户的详细信息
+            for tenant_id in tenant_ids:
+                tenant = await Tenant.get_or_none(id=tenant_id, status=TenantStatus.ACTIVE)
+                if tenant:
+                    tenants.append({
+                        "id": tenant.id,
+                        "name": tenant.name,
+                        "domain": tenant.domain,
+                        "status": tenant.status.value
+                    })
+            
+            # 如果用户有多个租户，需要选择租户
+            if len(tenants) > 1:
+                requires_tenant_selection = True
+            elif len(tenants) == 1:
+                # 如果只有一个租户，直接使用该租户
+                default_tenant_id = tenants[0]["id"]
+        
+        # 确定要使用的租户 ID（用于生成 Token）
+        # 如果提供了 tenant_id，使用提供的；否则使用默认租户或用户的租户
+        final_tenant_id = data.tenant_id if data.tenant_id is not None else (default_tenant_id or user.tenant_id)
+        
+        # 设置租户上下文
+        set_current_tenant_id(final_tenant_id)
+        
         # 生成 JWT Token（包含 tenant_id）⭐ 关键
         access_token = create_token_for_user(
             user_id=user.id,
             username=user.username,
-            tenant_id=user.tenant_id,  # ⭐ 关键：包含租户 ID
+            tenant_id=final_tenant_id,  # ⭐ 关键：包含租户 ID
             is_superuser=user.is_superuser,
             is_tenant_admin=user.is_tenant_admin,
         )
@@ -200,10 +269,13 @@ class AuthService:
                 "username": user.username,
                 "email": user.email,
                 "full_name": user.full_name,
-                "tenant_id": user.tenant_id,
+                "tenant_id": final_tenant_id,
                 "is_superuser": user.is_superuser,
                 "is_tenant_admin": user.is_tenant_admin,
-            }
+            },
+            "tenants": tenants if tenants else None,
+            "default_tenant_id": default_tenant_id,
+            "requires_tenant_selection": requires_tenant_selection,
         }
     
     async def refresh_token(
