@@ -63,5 +63,5 @@ def register_db(app) -> None:
         app,
         config=TORTOISE_ORM,
         generate_schemas=False,  # 使用 Aerich 管理迁移，不自动生成
-        add_exception_handlers=True,
+        add_exception_handlers=False,  # 禁用 Tortoise 的异常处理器，使用全局异常处理器
     )
