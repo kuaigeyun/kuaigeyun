@@ -174,6 +174,7 @@ export default defineConfig({
     '/api': {
       target: 'http://localhost:8000',
       changeOrigin: true,
+      timeout: 30000, // 30 秒超时
       // 不移除 /api 前缀，后端路由需要 /api/v1 前缀
       // pathRewrite: { '^/api': '' },
     },
