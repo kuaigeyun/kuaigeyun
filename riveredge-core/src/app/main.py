@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.config import settings
+from app.middleware import TenantContextMiddleware
 from core.cache import cache
 from core.database import register_db
 
@@ -63,12 +64,31 @@ app.add_middleware(
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
+# 配置租户上下文中间件（必须在 CORS 之后，路由之前）
+app.add_middleware(TenantContextMiddleware)
+
 # 注册数据库
 register_db(app)
 
-# 注册路由（后续添加）
-# from api.v1 import router as v1_router
-# app.include_router(v1_router, prefix="/api/v1")
+# 注册路由
+from api.v1.tenants import router as tenants_router
+from api.v1.auth import router as auth_router
+from api.v1.register import router as register_router
+from api.v1.users import router as users_router
+from api.v1.roles import router as roles_router
+from api.v1.permissions import router as permissions_router
+from api.v1.superadmin.auth import router as superadmin_auth_router
+from api.v1.superadmin.tenants import router as superadmin_tenants_router
+from api.v1.superadmin.monitoring import router as superadmin_monitoring_router
+app.include_router(tenants_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(register_router, prefix="/api/v1")
+app.include_router(users_router, prefix="/api/v1")
+app.include_router(roles_router, prefix="/api/v1")
+app.include_router(permissions_router, prefix="/api/v1")
+app.include_router(superadmin_auth_router, prefix="/api/v1")
+app.include_router(superadmin_tenants_router, prefix="/api/v1")
+app.include_router(superadmin_monitoring_router, prefix="/api/v1")
 
 
 @app.get("/")

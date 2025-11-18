@@ -1,0 +1,202 @@
+"""
+安全工具模块
+
+提供 JWT Token 生成、验证和密码加密功能
+"""
+
+from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+from app.config import settings
+
+
+# 密码加密上下文（使用 bcrypt）
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def create_access_token(
+    data: Dict[str, Any],
+    expires_delta: Optional[timedelta] = None
+) -> str:
+    """
+    创建 JWT 访问令牌
+    
+    生成包含用户信息和租户信息的 JWT Token。
+    
+    Args:
+        data: 要编码到 Token 中的数据（必须包含 sub 和 tenant_id）
+        expires_delta: 过期时间增量（可选，默认使用配置中的过期时间）
+        
+    Returns:
+        str: JWT Token 字符串
+        
+    Example:
+        >>> token = create_access_token(
+        ...     data={"sub": "user123", "tenant_id": 1, "username": "testuser"}
+        ... )
+        >>> len(token) > 0
+        True
+    """
+    to_encode = data.copy()
+    
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode.update({"exp": expire, "iat": datetime.utcnow()})
+    
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM
+    )
+    
+    return encoded_jwt
+
+
+def verify_token(token: str) -> Optional[Dict[str, Any]]:
+    """
+    验证 JWT Token
+    
+    验证并解码 JWT Token，返回 Token 中的载荷数据。
+    
+    Args:
+        token: JWT Token 字符串
+        
+    Returns:
+        Optional[Dict[str, Any]]: Token 载荷数据，如果验证失败则返回 None
+        
+    Example:
+        >>> token = create_access_token({"sub": "user123", "tenant_id": 1})
+        >>> payload = verify_token(token)
+        >>> payload is not None
+        True
+        >>> payload["sub"]
+        'user123'
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        return payload
+    except JWTError:
+        return None
+
+
+def hash_password(password: str) -> str:
+    """
+    加密密码
+    
+    使用 bcrypt 算法加密密码。
+    
+    Args:
+        password: 明文密码
+        
+    Returns:
+        str: 加密后的密码哈希值
+        
+    Example:
+        >>> hashed = hash_password("mypassword")
+        >>> len(hashed) > 0
+        True
+    """
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    验证密码
+    
+    验证提供的明文密码是否与存储的密码哈希值匹配。
+    
+    Args:
+        plain_password: 明文密码
+        hashed_password: 密码哈希值
+        
+    Returns:
+        bool: 密码匹配返回 True，否则返回 False
+        
+    Example:
+        >>> hashed = hash_password("mypassword")
+        >>> verify_password("mypassword", hashed)
+        True
+        >>> verify_password("wrongpassword", hashed)
+        False
+    """
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def create_token_for_user(
+    user_id: int,
+    username: str,
+    tenant_id: int,
+    is_superuser: bool = False,
+    is_tenant_admin: bool = False,
+    expires_delta: Optional[timedelta] = None
+) -> str:
+    """
+    为用户创建 JWT Token
+    
+    生成包含用户信息和租户信息的 JWT Token。
+    
+    Args:
+        user_id: 用户 ID
+        username: 用户名
+        tenant_id: 租户 ID（关键：用于多租户隔离）
+        is_superuser: 是否为超级用户（租户内）
+        is_tenant_admin: 是否为租户管理员
+        expires_delta: 过期时间增量（可选）
+        
+    Returns:
+        str: JWT Token 字符串
+        
+    Example:
+        >>> token = create_token_for_user(
+        ...     user_id=1,
+        ...     username="testuser",
+        ...     tenant_id=1,
+        ...     is_superuser=False,
+        ...     is_tenant_admin=True
+        ... )
+        >>> len(token) > 0
+        True
+    """
+    data = {
+        "sub": str(user_id),  # 用户 ID（标准 JWT 字段）
+        "username": username,
+        "tenant_id": tenant_id,  # ⭐ 关键：租户 ID，用于多租户隔离
+        "is_superuser": is_superuser,
+        "is_tenant_admin": is_tenant_admin,
+    }
+    
+    return create_access_token(data, expires_delta)
+
+
+def get_token_payload(token: str) -> Optional[Dict[str, Any]]:
+    """
+    获取 Token 载荷数据
+    
+    验证并返回 Token 中的载荷数据。
+    
+    Args:
+        token: JWT Token 字符串
+        
+    Returns:
+        Optional[Dict[str, Any]]: Token 载荷数据，包含：
+            - sub: 用户 ID
+            - username: 用户名
+            - tenant_id: 租户 ID
+            - is_superuser: 是否为超级用户
+            - is_tenant_admin: 是否为租户管理员
+            - exp: 过期时间
+            - iat: 签发时间
+        如果验证失败则返回 None
+    """
+    return verify_token(token)
+

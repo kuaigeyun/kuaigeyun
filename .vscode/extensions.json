@@ -24,16 +24,12 @@
 
     // 代码片段
     "formulahendry.auto-rename-tag",
-    "bradlc.vscode-tailwindcss",
 
     // 文档和注释
     "streetsidesoftware.code-spell-checker",
 
     // 项目管理
-    "alefragnani.project-manager",
-    
-    // 文件夹备注
-    "kortina.vscode-file-tree-notes"
+    "alefragnani.project-manager"
   ],
 
   "unwantedRecommendations": [

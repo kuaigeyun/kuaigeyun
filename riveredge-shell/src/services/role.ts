@@ -1,0 +1,203 @@
+/**
+ * 角色 API 服务
+ * 
+ * 提供角色管理相关的 API 接口
+ * 注意：所有 API 自动过滤当前租户的角色
+ */
+
+import { request } from '@umijs/max';
+
+/**
+ * 权限信息接口
+ */
+export interface Permission {
+  id: number;
+  name: string;
+  code: string;
+  description?: string;
+  resource: string;
+  action: string;
+  is_system: boolean;
+  tenant_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * 角色信息接口
+ */
+export interface Role {
+  id: number;
+  name: string;
+  code: string;
+  description?: string;
+  is_system: boolean;
+  tenant_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * 角色列表查询参数
+ */
+export interface RoleListParams {
+  page?: number;
+  page_size?: number;
+  keyword?: string;
+}
+
+/**
+ * 角色列表响应数据
+ */
+export interface RoleListResponse {
+  items: Role[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+/**
+ * 创建角色数据
+ * 
+ * 注意：tenant_id 将从当前用户上下文自动获取，无需在请求中提供
+ */
+export interface CreateRoleData {
+  name: string;
+  code: string;
+  description?: string;
+  is_system?: boolean;
+}
+
+/**
+ * 更新角色数据
+ */
+export interface UpdateRoleData {
+  name?: string;
+  code?: string;
+  description?: string;
+  is_system?: boolean;
+}
+
+/**
+ * 获取角色列表
+ * 
+ * 自动过滤当前租户的角色。
+ * 
+ * @param params - 查询参数
+ * @returns 角色列表响应数据
+ */
+export async function getRoleList(params: RoleListParams): Promise<RoleListResponse> {
+  return request<RoleListResponse>('/api/v1/roles', {
+    params,
+  });
+}
+
+/**
+ * 获取角色详情
+ * 
+ * 自动验证租户权限：只能获取当前租户的角色。
+ * 
+ * @param roleId - 角色 ID
+ * @returns 角色信息
+ */
+export async function getRoleById(roleId: number): Promise<Role> {
+  return request<Role>(`/api/v1/roles/${roleId}`);
+}
+
+/**
+ * 创建角色
+ * 
+ * 自动设置当前租户的 tenant_id。
+ * 
+ * @param data - 角色创建数据（tenant_id 将从当前用户上下文自动获取）
+ * @returns 创建的角色信息
+ */
+export async function createRole(data: CreateRoleData): Promise<Role> {
+  return request<Role>('/api/v1/roles', {
+    method: 'POST',
+    data,
+  });
+}
+
+/**
+ * 更新角色
+ * 
+ * 自动验证租户权限：只能更新当前租户的角色。
+ * 
+ * @param roleId - 角色 ID
+ * @param data - 角色更新数据
+ * @returns 更新后的角色信息
+ */
+export async function updateRole(roleId: number, data: UpdateRoleData): Promise<Role> {
+  return request<Role>(`/api/v1/roles/${roleId}`, {
+    method: 'PUT',
+    data,
+  });
+}
+
+/**
+ * 删除角色
+ * 
+ * 自动验证租户权限：只能删除当前租户的角色。
+ * 系统角色不可删除。
+ * 
+ * @param roleId - 角色 ID
+ */
+export async function deleteRole(roleId: number): Promise<void> {
+  return request<void>(`/api/v1/roles/${roleId}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * 分配权限给角色
+ * 
+ * 为角色分配权限列表，自动验证租户权限。
+ * 
+ * @param roleId - 角色 ID
+ * @param permissionIds - 权限 ID 列表
+ * @returns 更新后的角色信息
+ */
+export async function assignPermissions(roleId: number, permissionIds: number[]): Promise<Role> {
+  return request<Role>(`/api/v1/roles/${roleId}/permissions`, {
+    method: 'POST',
+    data: permissionIds, // 后端 Body 接收数组
+  });
+}
+
+/**
+ * 获取角色权限列表
+ * 
+ * 获取角色的所有权限，自动过滤租户。
+ * 
+ * @param roleId - 角色 ID
+ * @returns 权限列表
+ */
+export async function getRolePermissions(roleId: number): Promise<Permission[]> {
+  return request<Permission[]>(`/api/v1/roles/${roleId}/permissions`);
+}
+
+/**
+ * 获取所有权限列表
+ * 
+ * 获取当前租户的所有权限，用于权限分配。
+ * 
+ * @param params - 查询参数
+ * @returns 权限列表响应数据
+ */
+export async function getAllPermissions(params?: { page?: number; page_size?: number; keyword?: string }): Promise<PermissionListResponse> {
+  return request<PermissionListResponse>('/api/v1/permissions', {
+    params,
+  });
+}
+
+/**
+ * 权限列表响应数据
+ */
+export interface PermissionListResponse {
+  items: Permission[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+

@@ -1,0 +1,200 @@
+"""
+初始化用户数据脚本
+
+在系统初始化时创建默认用户：
+1. 超级用户（系统级，在默认租户中，is_superuser=True, is_tenant_admin=True）
+2. 租户管理员（在默认租户中，is_tenant_admin=True）
+3. 普通用户（在默认租户中，普通用户）
+"""
+
+import asyncio
+import sys
+from pathlib import Path
+
+# 添加 src 目录到 Python 路径
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from loguru import logger
+from core.database import init_db, close_db
+from models.tenant import Tenant
+from models.user import User
+from core.security import hash_password
+
+
+async def init_users() -> None:
+    """
+    初始化用户数据
+    
+    在默认租户中创建超级用户、租户管理员和普通用户。
+    """
+    try:
+        # 初始化数据库连接
+        logger.info("正在初始化数据库连接...")
+        await init_db()
+        logger.info("数据库连接初始化成功")
+        
+        # 获取或创建默认租户
+        logger.info("正在检查默认租户...")
+        default_tenant = await Tenant.get_or_none(domain="default")
+        if not default_tenant:
+            logger.error("默认租户不存在，请先运行 init_default_tenant.py 创建默认租户")
+            return
+        
+        logger.info(f"找到默认租户: {default_tenant.name} (ID: {default_tenant.id})")
+        
+        # 1. 创建超级用户（系统级，在默认租户中）
+        logger.info("\n" + "=" * 60)
+        logger.info("1. 创建超级用户")
+        logger.info("=" * 60)
+        
+        superuser_username = "superadmin"
+        superuser_email = "superadmin@riveredge.local"
+        superuser_password = "SuperAdmin@2024"  # 默认密码，建议首次登录后修改
+        
+        existing_superuser = await User.get_or_none(
+            tenant_id=default_tenant.id,
+            username=superuser_username
+        )
+        
+        if existing_superuser:
+            logger.info(f"超级用户已存在: {existing_superuser.username} (ID: {existing_superuser.id})")
+        else:
+            superuser = await User.create(
+                tenant_id=default_tenant.id,
+                username=superuser_username,
+                email=superuser_email,
+                password_hash=hash_password(superuser_password),
+                full_name="超级管理员",
+                is_active=True,
+                is_superuser=True,  # 租户内超级用户
+                is_tenant_admin=True,  # 租户管理员
+            )
+            logger.success(f"✅ 超级用户创建成功:")
+            logger.info(f"   用户名: {superuser.username}")
+            logger.info(f"   邮箱: {superuser.email}")
+            logger.info(f"   密码: {superuser_password} (请首次登录后修改)")
+            logger.info(f"   租户 ID: {superuser.tenant_id}")
+            logger.info(f"   是否超级用户: {superuser.is_superuser}")
+            logger.info(f"   是否租户管理员: {superuser.is_tenant_admin}")
+        
+        # 2. 创建租户管理员
+        logger.info("\n" + "=" * 60)
+        logger.info("2. 创建租户管理员")
+        logger.info("=" * 60)
+        
+        admin_username = "admin"
+        admin_email = "admin@riveredge.local"
+        admin_password = "Admin@2024"  # 默认密码，建议首次登录后修改
+        
+        existing_admin = await User.get_or_none(
+            tenant_id=default_tenant.id,
+            username=admin_username
+        )
+        
+        if existing_admin:
+            logger.info(f"租户管理员已存在: {existing_admin.username} (ID: {existing_admin.id})")
+        else:
+            admin = await User.create(
+                tenant_id=default_tenant.id,
+                username=admin_username,
+                email=admin_email,
+                password_hash=hash_password(admin_password),
+                full_name="租户管理员",
+                is_active=True,
+                is_superuser=False,
+                is_tenant_admin=True,  # 租户管理员
+            )
+            logger.success(f"✅ 租户管理员创建成功:")
+            logger.info(f"   用户名: {admin.username}")
+            logger.info(f"   邮箱: {admin.email}")
+            logger.info(f"   密码: {admin_password} (请首次登录后修改)")
+            logger.info(f"   租户 ID: {admin.tenant_id}")
+            logger.info(f"   是否租户管理员: {admin.is_tenant_admin}")
+        
+        # 3. 创建普通用户
+        logger.info("\n" + "=" * 60)
+        logger.info("3. 创建普通用户")
+        logger.info("=" * 60)
+        
+        user_username = "user"
+        user_email = "user@riveredge.local"
+        user_password = "User@2024"  # 默认密码，建议首次登录后修改
+        
+        existing_user = await User.get_or_none(
+            tenant_id=default_tenant.id,
+            username=user_username
+        )
+        
+        if existing_user:
+            logger.info(f"普通用户已存在: {existing_user.username} (ID: {existing_user.id})")
+        else:
+            user = await User.create(
+                tenant_id=default_tenant.id,
+                username=user_username,
+                email=user_email,
+                password_hash=hash_password(user_password),
+                full_name="普通用户",
+                is_active=True,
+                is_superuser=False,
+                is_tenant_admin=False,  # 普通用户
+            )
+            logger.success(f"✅ 普通用户创建成功:")
+            logger.info(f"   用户名: {user.username}")
+            logger.info(f"   邮箱: {user.email}")
+            logger.info(f"   密码: {user_password} (请首次登录后修改)")
+            logger.info(f"   租户 ID: {user.tenant_id}")
+        
+        # 输出登录信息摘要
+        logger.info("\n" + "=" * 60)
+        logger.info("用户初始化完成 - 登录信息摘要")
+        logger.info("=" * 60)
+        logger.info("超级用户:")
+        logger.info(f"  用户名: {superuser_username}")
+        logger.info(f"  密码: {superuser_password}")
+        logger.info(f"  邮箱: {superuser_email}")
+        logger.info("\n租户管理员:")
+        logger.info(f"  用户名: {admin_username}")
+        logger.info(f"  密码: {admin_password}")
+        logger.info(f"  邮箱: {admin_email}")
+        logger.info("\n普通用户:")
+        logger.info(f"  用户名: {user_username}")
+        logger.info(f"  密码: {user_password}")
+        logger.info(f"  邮箱: {user_email}")
+        logger.info("\n⚠️  重要提示: 请首次登录后立即修改默认密码！")
+        logger.info("=" * 60)
+        
+    except Exception as e:
+        logger.error(f"初始化用户数据时出错: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise
+    finally:
+        # 关闭数据库连接
+        logger.info("\n正在关闭数据库连接...")
+        await close_db()
+        logger.info("数据库连接已关闭")
+
+
+if __name__ == "__main__":
+    """
+    脚本入口
+    
+    运行此脚本以初始化用户数据。
+    
+    使用方法:
+        python scripts/init_users.py
+    """
+    logger.info("=" * 60)
+    logger.info("RiverEdge SaaS 多租户框架 - 用户数据初始化脚本")
+    logger.info("=" * 60)
+    
+    try:
+        asyncio.run(init_users())
+        logger.success("\n用户数据初始化完成！")
+    except KeyboardInterrupt:
+        logger.warning("用户中断操作")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"初始化失败: {e}")
+        sys.exit(1)
+

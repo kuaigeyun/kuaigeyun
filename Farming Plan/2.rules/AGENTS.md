@@ -272,16 +272,22 @@
 - ✅ `list_users` - 用户列表
 - ❌ `createUser`、`user_create` - 错误
 
-**变量命名**：使用 `snake_case`
+**变量命名**：使用 `snake_case`，**禁止使用 Python 关键字**
 - ✅ `user_id` - 用户 ID
 - ✅ `total_amount` - 总金额
 - ✅ `is_active` - 是否激活（布尔值）
 - ❌ `userId`、`totalAmount` - 错误
+- ❌ `class`、`def`、`import`、`from`、`if`、`else`、`for`、`while`、`try`、`except`、`finally`、`with`、`as`、`pass`、`return`、`yield`、`break`、`continue`、`lambda`、`None`、`True`、`False`、`and`、`or`、`not`、`in`、`is`、`del`、`global`、`nonlocal`、`assert`、`async`、`await` - 错误：Python 关键字
 
 **常量命名**：使用 `UPPER_SNAKE_CASE`
 - ✅ `MAX_RETRY_COUNT` - 最大重试次数
 - ✅ `DEFAULT_PAGE_SIZE` - 默认分页大小
 - ❌ `maxRetryCount`、`defaultPageSize` - 错误
+
+**避免 Python 关键字**：
+- ❌ 禁止使用 Python 关键字作为变量名、函数名、参数名、类名等
+- ✅ 使用替代命名：`class` → `class_name`、`def` → `definition`、`import` → `import_path`、`from` → `from_location`、`if` → `condition`、`else` → `alternative`、`for` → `loop_item`、`while` → `condition_check`、`try` → `attempt`、`except` → `exception_type`、`finally` → `cleanup`、`with` → `context_manager`、`as` → `alias`、`pass` → `placeholder`、`return` → `return_value`、`yield` → `generator_value`、`break` → `break_point`、`continue` → `continue_flag`、`lambda` → `lambda_func`、`None` → `none_value`、`True` → `true_value`、`False` → `false_value`、`and` → `and_condition`、`or` → `or_condition`、`not` → `not_condition`、`in` → `in_list`、`is` → `is_check`、`del` → `delete_flag`、`global` → `global_var`、`nonlocal` → `nonlocal_var`、`assert` → `assertion`、`async` → `async_flag`、`await` → `await_result`
+- 📖 详细规范请参考：[2.字段命名规范.md](./2.字段命名规范.md) - 避免 Python 关键字章节
 
 ### 前端命名规范（TypeScript）
 
@@ -302,16 +308,22 @@
 - ✅ `handleSubmit` - 处理提交（handle 前缀）
 - ❌ `get_user_list`、`user_create` - 错误
 
-**变量命名**：使用 `camelCase`
+**变量命名**：使用 `camelCase`，**禁止使用 TypeScript/JavaScript 关键字**
 - ✅ `userId` - 用户 ID
 - ✅ `totalAmount` - 总金额
 - ✅ `isActive` - 是否激活（布尔值，is 前缀）
 - ❌ `user_id`、`total_amount` - 错误
+- ❌ `class`、`function`、`const`、`let`、`var`、`if`、`else`、`for`、`while`、`try`、`catch`、`finally`、`switch`、`case`、`default`、`break`、`continue`、`return`、`yield`、`async`、`await`、`import`、`export`、`from`、`as`、`new`、`this`、`super`、`extends`、`implements`、`interface`、`type`、`enum`、`namespace`、`module`、`declare`、`abstract`、`static`、`readonly`、`public`、`private`、`protected`、`get`、`set`、`constructor`、`null`、`undefined`、`true`、`false`、`NaN`、`Infinity` - 错误：TypeScript/JavaScript 关键字
 
 **类型命名**：使用 `PascalCase`
 - ✅ `User` - 用户接口
 - ✅ `UserListResponse` - 用户列表响应接口
 - ❌ `user`、`userListResponse` - 错误
+
+**避免 TypeScript/JavaScript 关键字**：
+- ❌ 禁止使用 TypeScript/JavaScript 关键字作为变量名、函数名、参数名、类型名等
+- ✅ 使用替代命名：`class` → `className`、`function` → `functionName`、`const` → `constantValue`、`let` → `letValue`、`var` → `varValue`、`if` → `condition`、`else` → `alternative`、`for` → `loopItem`、`while` → `whileCondition`、`try` → `attempt`、`catch` → `catchBlock`、`finally` → `finallyBlock`、`switch` → `switchValue`、`case` → `caseValue`、`default` → `defaultValue`、`break` → `breakPoint`、`continue` → `continueFlag`、`return` → `returnValue`、`yield` → `yieldValue`、`async` → `asyncFlag`、`await` → `awaitResult`、`import` → `importPath`、`export` → `exportName`、`from` → `fromLocation`、`as` → `alias`、`new` → `newInstance`、`this` → `thisContext`、`super` → `superClass`、`extends` → `extendsClass`、`implements` → `implementsInterface`、`interface` → `interfaceName`、`type` → `typeName`、`enum` → `enumName`、`namespace` → `namespaceName`、`module` → `moduleName`、`declare` → `declaration`、`abstract` → `abstractClass`、`static` → `staticValue`、`readonly` → `readonlyValue`、`public` → `publicAccess`、`private` → `privateAccess`、`protected` → `protectedAccess`、`get` → `getValue`、`set` → `setValue`、`constructor` → `constructorName`、`null` → `nullValue`、`undefined` → `undefinedValue`、`true` → `trueValue`、`false` → `falseValue`、`NaN` → `nanValue`、`Infinity` → `infinityValue`
+- 📖 详细规范请参考：[2.字段命名规范.md](./2.字段命名规范.md) - 避免 TypeScript/JavaScript 关键字章节
 
 ### 数据库命名规范
 
@@ -339,13 +351,19 @@
   - 支付插件：`seed_payment_` 前缀（如 `seed_payment_records`）
   - **命名哲学**：如同植物的种子，可以生长成不同的功能模块
 
-**字段命名**：使用 `snake_case`
+**字段命名**：使用 `snake_case`，**禁止使用 PostgreSQL 关键字**
 - ✅ `id` - 主键
 - ✅ `tenant_id` - 租户 ID（**所有表必须包含**）
 - ✅ `user_id` - 外键（表名_id）
 - ✅ `created_at` - 创建时间（_at 后缀）
 - ✅ `is_active` - 是否激活（is_ 前缀）
 - ❌ `userId`、`createTime`、`active` - 错误
+- ❌ `order`、`user`、`group`、`select`、`from`、`where`、`join`、`key`、`index`、`table`、`view`、`function`、`procedure`、`trigger`、`sequence`、`database`、`schema`、`constraint`、`default`、`null`、`true`、`false`、`case`、`when`、`then`、`else`、`end`、`begin`、`if`、`for`、`while`、`return`、`raise`、`exception`、`transaction`、`commit`、`rollback` - 错误：PostgreSQL 关键字
+
+**避免 PostgreSQL 关键字**：
+- ❌ 禁止使用 PostgreSQL 关键字作为表名、字段名、索引名等
+- ✅ 使用替代命名：`order` → `order_no`、`order_number`、`order_id`（注意：`ORDER BY` 是关键字）、`user` → `user_name`、`user_id`、`username`（注意：`USER` 在某些数据库中可能是关键字）、`group` → `group_name`、`group_id`、`grouping`（注意：`GROUP BY` 是关键字）、`select` → `select_value`、`select_option`、`selection`、`from` → `from_location`、`from_source`、`from_address`、`where` → `where_clause`、`where_condition`、`join` → `join_type`、`join_table`、`key` → `key_name`、`key_value`、`key_id`、`index` → `index_name`、`index_value`、`index_id`、`table` → `table_name`、`table_id`、`view` → `view_name`、`view_id`、`function` → `function_name`、`function_id`、`procedure` → `procedure_name`、`procedure_id`、`trigger` → `trigger_name`、`trigger_id`、`sequence` → `sequence_name`、`sequence_id`、`database` → `database_name`、`database_id`、`schema` → `schema_name`、`schema_id`、`constraint` → `constraint_name`、`constraint_id`、`default` → `default_value`、`default_option`、`null` → `null_value`、`null_flag`、`true` → `true_value`、`is_true`、`false` → `false_value`、`is_false`、`case` → `case_value`、`case_type`、`when` → `when_time`、`when_date`、`then` → `then_value`、`then_result`、`else` → `else_value`、`else_result`、`end` → `end_time`、`end_date`、`begin` → `begin_time`、`begin_date`、`if` → `if_condition`、`if_flag`、`for` → `for_item`、`for_loop`、`while` → `while_condition`、`while_loop`、`return` → `return_value`、`return_data`、`raise` → `raise_flag`、`raise_error`、`exception` → `exception_type`、`exception_message`、`transaction` → `transaction_id`、`transaction_no`、`commit` → `commit_time`、`commit_date`、`rollback` → `rollback_flag`、`rollback_reason`
+- 📖 详细规范请参考：[2.字段命名规范.md](./2.字段命名规范.md) - 避免数据库关键字章节
 
 **索引命名**：索引名中的表名必须包含模块前缀
 - ✅ `idx_core_users_tenant_id` - 核心系统表索引（core_ 前缀，符合框架哲学）
@@ -1012,6 +1030,10 @@ export async function create{ModelName}(data: {ModelName}Create): Promise<{Model
 - [ ] 类命名是否符合规范？
 - [ ] 函数命名是否符合规范？
 - [ ] 变量命名是否符合规范？
+- [ ] **是否避免了 Python 关键字？** ⭐ **重要**（禁止使用 `class`、`def`、`import`、`from`、`if`、`else`、`for`、`while`、`try`、`except`、`finally`、`with`、`as`、`pass`、`return`、`yield`、`break`、`continue`、`lambda`、`None`、`True`、`False`、`and`、`or`、`not`、`in`、`is`、`del`、`global`、`nonlocal`、`assert`、`async`、`await` 等作为变量名、函数名、参数名）
+- [ ] **是否避免了 TypeScript/JavaScript 关键字？** ⭐ **重要**（禁止使用 `class`、`function`、`const`、`let`、`var`、`if`、`else`、`for`、`while`、`try`、`catch`、`finally`、`switch`、`case`、`default`、`break`、`continue`、`return`、`yield`、`async`、`await`、`import`、`export`、`from`、`as`、`new`、`this`、`super`、`extends`、`implements`、`interface`、`type`、`enum`、`namespace`、`module`、`declare`、`abstract`、`static`、`readonly`、`public`、`private`、`protected`、`get`、`set`、`constructor`、`null`、`undefined`、`true`、`false`、`NaN`、`Infinity` 等作为变量名、函数名、参数名、类型名）
+- [ ] **是否避免了数据库关键字？** ⭐ **重要**（禁止使用 `CREATE`、`DROP`、`ALTER`、`TABLE`、`INDEX`、`SELECT`、`INSERT`、`UPDATE`、`DELETE`、`FROM`、`WHERE`、`JOIN`、`ORDER`、`BY`、`GROUP`、`HAVING`、`LIMIT`、`OFFSET`、`PRIMARY`、`KEY`、`FOREIGN`、`REFERENCES`、`UNIQUE`、`NOT`、`NULL`、`DEFAULT`、`CHECK`、`CONSTRAINT`、`AND`、`OR`、`NOT`、`IN`、`EXISTS`、`BETWEEN`、`LIKE`、`IS`、`CASE`、`WHEN`、`THEN`、`ELSE`、`END`、`TRUE`、`FALSE` 等作为表名、字段名、索引名）
+- [ ] **是否避免了框架内置关键字？**（如 React、Ant Design 等）
 
 ### 代码质量检查
 
@@ -1022,6 +1044,14 @@ export async function create{ModelName}(data: {ModelName}Create): Promise<{Model
 - [ ] 查询是否自动过滤租户？
 - [ ] 类型提示是否完整？
 - [ ] 错误处理是否完善？
+
+### 测试文件位置检查
+
+- [ ] **测试文件是否放在正确的 `tests/` 目录？** ⭐ **重要**
+  - [ ] 后端测试文件是否在 `riveredge-core/tests/` 目录？
+  - [ ] 前端测试文件是否在 `riveredge-shell/tests/` 目录？
+  - [ ] 是否避免了在 `scripts/` 目录创建测试文件？
+  - [ ] 是否避免了在 `src/` 目录下新建 `tests/` 文件夹？
 
 ## 🔄 Git 提交规范（必须严格遵循）
 
@@ -1124,18 +1154,43 @@ try {
 
 ## 🧪 测试规范（必须严格遵循）
 
+### 测试文件位置规范 ⭐ **重要**
+
+**所有测试文件必须放在各自端的 `tests/` 文件夹中，禁止在其他位置创建测试文件**：
+
+- ✅ **后端测试文件**：必须放在 `riveredge-core/tests/` 目录下
+  - ✅ `riveredge-core/tests/test_user_service.py`
+  - ✅ `riveredge-core/tests/test_tenant_api.py`
+  - ✅ `riveredge-core/tests/test_tenant_isolation.py`
+  - ❌ `riveredge-core/scripts/test_*.py` - 错误：禁止在 scripts 目录创建测试文件
+  - ❌ `riveredge-core/src/tests/` - 错误：禁止在 src 目录下新建 tests 文件夹
+
+- ✅ **前端测试文件**：必须放在 `riveredge-shell/tests/` 目录下（如果存在）
+  - ✅ `riveredge-shell/tests/UserList.test.tsx`
+  - ✅ `riveredge-shell/tests/userUtils.test.ts`
+  - ❌ `riveredge-shell/src/tests/` - 错误：禁止在 src 目录下新建 tests 文件夹
+
+**规则**：
+- ❌ **禁止在 `scripts/` 目录创建测试文件**
+- ❌ **禁止在 `src/` 目录下新建 `tests/` 文件夹**
+- ❌ **禁止在其他位置创建测试文件**
+- ✅ **所有测试文件统一放在项目根目录的 `tests/` 文件夹中**
+
 ### 后端测试
 
 **测试框架**：pytest + pytest-asyncio
+
+**测试文件位置**：`riveredge-core/tests/` ⭐ **必须**
 
 **测试文件命名**：`test_*.py` 或 `*_test.py`
 
 **测试函数命名**：`test_功能描述`
 
 ```python
-# ✅ 正确：测试文件命名
-test_user_service.py
-test_auth_api.py
+# ✅ 正确：测试文件位置和命名
+riveredge-core/tests/test_user_service.py
+riveredge-core/tests/test_auth_api.py
+riveredge-core/tests/test_tenant_isolation.py
 
 # ✅ 正确：测试函数命名
 async def test_create_user_success():
@@ -1145,6 +1200,10 @@ async def test_create_user_success():
 async def test_create_user_with_duplicate_email():
     """测试创建用户时邮箱重复"""
     pass
+
+# ❌ 错误：测试文件位置错误
+riveredge-core/scripts/test_user_service.py  # 错误：禁止在 scripts 目录
+riveredge-core/src/tests/test_user_service.py  # 错误：禁止在 src 目录下新建 tests 文件夹
 ```
 
 **测试覆盖率要求**：
@@ -1155,6 +1214,8 @@ async def test_create_user_with_duplicate_email():
 ### 前端测试
 
 **测试框架**：Jest + React Testing Library
+
+**测试文件位置**：`riveredge-shell/tests/` ⭐ **必须**（如果存在）
 
 **测试文件命名**：`*.test.tsx` 或 `*.spec.tsx`
 

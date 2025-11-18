@@ -28,8 +28,8 @@ class BaseModel(Model):
         updated_at: 更新时间
     """
 
-    id = fields.IntField(pk=True, description="主键 ID")
-    tenant_id = fields.IntField(null=True, index=True, description="租户 ID（用于多租户数据隔离）")
+    id = fields.IntField(primary_key=True, description="主键 ID")
+    tenant_id = fields.IntField(null=True, db_index=True, description="租户 ID（用于多租户数据隔离）")
     created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
     updated_at = fields.DatetimeField(auto_now=True, description="更新时间")
 

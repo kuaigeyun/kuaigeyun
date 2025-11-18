@@ -1,0 +1,44 @@
+{
+  "name": "riveredge-shell",
+  "version": "1.0.0",
+  "description": "RiverEdge SaaS 多租户框架 - 前端框架（壳）",
+  "private": true,
+  "scripts": {
+    "dev": "umi dev",
+    "build": "umi build",
+    "preview": "umi preview",
+    "postinstall": "umi setup",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\""
+  },
+  "dependencies": {
+    "@ant-design/charts": "^2.0.0",
+    "@ant-design/icons": "^6.0.0",
+    "@ant-design/pro-components": "^2.0.0",
+    "@formily/antd-v5": "^2.3.0",
+    "@formily/core": "^2.3.0",
+    "@formily/react": "^2.3.0",
+    "@umijs/max": "^4.0.0",
+    "antd": "^6.0.0",
+    "dayjs": "^1.11.0",
+    "html2canvas": "^1.4.0",
+    "jspdf": "^2.5.0",
+    "lodash-es": "^4.17.21",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-to-print": "^2.15.0"
+  },
+  "devDependencies": {
+    "@types/lodash-es": "^4.17.12",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
+
