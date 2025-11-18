@@ -170,17 +170,12 @@ class AuthService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="用户不属于指定的租户"
                 )
-            # 设置租户上下文
-            set_current_tenant_id(data.tenant_id)
-        else:
-            # 使用用户的租户 ID 设置租户上下文
-            set_current_tenant_id(user.tenant_id)
         
         # 确定要使用的租户 ID（用于生成 Token）
         # 如果提供了 tenant_id，使用提供的；否则使用用户的租户
         final_tenant_id = data.tenant_id if data.tenant_id is not None else user.tenant_id
         
-        # 设置租户上下文
+        # 设置租户上下文（在查询租户列表之前设置，确保后续查询使用正确的租户上下文）
         set_current_tenant_id(final_tenant_id)
         
         # 更新最后登录时间
