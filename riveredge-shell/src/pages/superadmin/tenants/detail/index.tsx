@@ -6,7 +6,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { ProDescriptions } from '@ant-design/pro-components';
-import { PageContainer, Button, Tag, message, Space } from 'antd';
+import { PageContainer } from '@ant-design/pro-components';
+import { Button, Tag, message, Space } from 'antd';
 import { history, useSearchParams } from '@umijs/max';
 import {
   getTenantById,
