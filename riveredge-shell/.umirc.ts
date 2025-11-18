@@ -166,12 +166,16 @@ export default defineConfig({
   
   /**
    * 代理配置（开发环境）
+   * 
+   * 将 /api 开头的请求代理到后端服务器
+   * 注意：不移除 /api 前缀，因为后端路由包含 /api/v1 前缀
    */
   proxy: {
     '/api': {
       target: 'http://localhost:8000',
       changeOrigin: true,
-      pathRewrite: { '^/api': '' },
+      // 不移除 /api 前缀，后端路由需要 /api/v1 前缀
+      // pathRewrite: { '^/api': '' },
     },
   },
   
