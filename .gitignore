@@ -91,3 +91,6 @@ out/
 # 操作系统文件
 Thumbs.db
 .DS_Store
+
+# 开发计划和设计规范目录（本地文档，不提交到仓库）
+Farming Plan/
