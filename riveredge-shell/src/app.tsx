@@ -5,12 +5,21 @@
  */
 
 import { defineApp } from '@umijs/max';
-import { message } from 'antd';
+import { App, message } from 'antd';
 
 /**
  * 应用配置
  */
 export default defineApp({
+  /**
+   * 根容器配置
+   * 
+   * 使用 Ant Design App 组件包裹应用，解决 message 静态函数警告
+   */
+  rootContainer: (lastRootContainer: JSX.Element) => {
+    return <App>{lastRootContainer}</App>;
+  },
+  
   /**
    * 请求配置
    * 
@@ -60,6 +69,13 @@ export default defineApp({
       if (data && data.code && data.code !== 200) {
         message.error(data.message || '请求失败');
         throw new Error(data.message || '请求失败');
+      }
+      
+      // 映射后端响应格式到前端格式
+      // 后端返回 access_token，前端期望 token
+      if (data && data.access_token) {
+        data.token = data.access_token;
+        delete data.access_token;
       }
       
       return response;

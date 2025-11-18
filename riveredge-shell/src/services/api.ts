@@ -41,10 +41,17 @@ export async function apiRequest<T = any>(
   url: string,
   options?: any
 ): Promise<T> {
-  const response = await request<ApiResponse<T>>(`${API_BASE_URL}${url}`, {
+  const response = await request<T>(`${API_BASE_URL}${url}`, {
     ...options,
   });
   
-  return response.data;
+  // 后端直接返回数据，不是包装在 data 字段中
+  // 如果响应是包装格式 { code, message, data }，则返回 data
+  // 否则直接返回响应
+  if (response && typeof response === 'object' && 'data' in response && 'code' in response) {
+    return (response as any).data;
+  }
+  
+  return response;
 }
 
