@@ -8,39 +8,41 @@ import { defineConfig } from '@umijs/max';
 
 export default defineConfig({
   /**
-   * 应用配置
+   * 插件配置
+   * 
+   * 显式启用 model 和 request 插件
+   * 注意：虽然 @umijs/max 预设已包含这些插件，但需要显式配置才能启用
    */
-  antd: {
-    // 启用 Ant Design
-    configProvider: {},
-    appConfig: {},
-  },
-  
+  plugins: [
+    '@umijs/plugins/dist/model',
+    '@umijs/plugins/dist/request',
+  ],
   /**
    * 路由配置
    */
   routes: [
     {
-      path: '/',
-      component: './pages',
-    },
-    {
       path: '/login',
-      component: './pages/login',
+      component: '@/pages/login/index',
       layout: false, // 登录页不使用布局
     },
     {
       path: '/register',
-      component: './pages/register',
+      component: '@/pages/register/index',
       layout: false, // 注册页不使用布局
     },
     {
       path: '/',
-      component: './layouts/BasicLayout',
+      component: '@/layouts/BasicLayout',
       routes: [
         {
+          path: '/',
+          component: '@/pages/index',
+          exact: true,
+        },
+        {
           path: '/dashboard',
-          component: './pages/dashboard',
+          component: '@/pages/dashboard/index',
           name: '仪表盘',
           icon: 'DashboardOutlined',
         },
@@ -51,12 +53,12 @@ export default defineConfig({
           routes: [
             {
               path: '/user/list',
-              component: './pages/user/list',
+              component: '@/pages/user/list/index',
               name: '用户列表',
             },
             {
               path: '/user/form',
-              component: './pages/user/form',
+              component: '@/pages/user/form/index',
               name: '用户表单',
               hideInMenu: true,
             },
@@ -69,18 +71,18 @@ export default defineConfig({
           routes: [
             {
               path: '/role/list',
-              component: './pages/role/list',
+              component: '@/pages/role/list/index',
               name: '角色列表',
             },
             {
               path: '/role/form',
-              component: './pages/role/form',
+              component: '@/pages/role/form/index',
               name: '角色表单',
               hideInMenu: true,
             },
             {
               path: '/role/permissions',
-              component: './pages/role/permissions',
+              component: '@/pages/role/permissions/index',
               name: '权限分配',
               hideInMenu: true,
             },
@@ -93,18 +95,18 @@ export default defineConfig({
           routes: [
             {
               path: '/tenant/list',
-              component: './pages/tenant/list',
+              component: '@/pages/tenant/list/index',
               name: '租户列表',
             },
             {
               path: '/tenant/form',
-              component: './pages/tenant/form',
+              component: '@/pages/tenant/form/index',
               name: '租户表单',
               hideInMenu: true,
             },
             {
               path: '/tenant/detail',
-              component: './pages/tenant/detail',
+              component: '@/pages/tenant/detail/index',
               name: '租户详情',
               hideInMenu: true,
             },
@@ -122,12 +124,12 @@ export default defineConfig({
               routes: [
                 {
                   path: '/superadmin/tenants/list',
-                  component: './pages/superadmin/tenants/list',
+                  component: '@/pages/superadmin/tenants/list/index',
                   name: '租户列表',
                 },
                 {
                   path: '/superadmin/tenants/detail',
-                  component: './pages/superadmin/tenants/detail',
+                  component: '@/pages/superadmin/tenants/detail/index',
                   name: '租户详情',
                   hideInMenu: true,
                 },
@@ -137,38 +139,30 @@ export default defineConfig({
         },
         {
           path: '*',
-          component: './pages/404',
+          component: '@/pages/404',
+          layout: false,
         },
       ],
     },
   ],
   
   /**
-   * 国际化配置
-   */
-  locale: {
-    default: 'zh-CN',
-    antd: true,
-    baseNavigator: true,
-    baseSeparator: '-',
-  },
-  
-  /**
-   * 权限配置
-   */
-  access: {},
-  
-  /**
-   * 数据流配置
+   * Model 插件配置
+   * 启用 Umi Model 状态管理功能
    */
   model: {},
   
   /**
-   * 请求配置
+   * Request 插件配置
+   * 启用 Umi Request HTTP 请求功能
    */
-  request: {
-    dataField: 'data',
-  },
+  request: {},
+  
+  /**
+   * MFSU 配置
+   * 禁用 MFSU 以解决 React 19 兼容性问题
+   */
+  mfsu: false,
   
   /**
    * 代理配置（开发环境）

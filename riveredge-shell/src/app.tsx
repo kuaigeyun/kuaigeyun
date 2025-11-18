@@ -4,21 +4,25 @@
  * 配置 Umi 应用的全局设置、请求拦截器等
  */
 
-import { RequestConfig } from '@umijs/max';
+import { defineApp } from '@umijs/max';
 import { message } from 'antd';
 
 /**
- * 请求配置
- * 
- * 配置请求拦截器、响应拦截器、错误处理等
+ * 应用配置
  */
-export const request: RequestConfig = {
+export default defineApp({
   /**
-   * 请求拦截器
+   * 请求配置
    * 
-   * 在发送请求前添加 Token、设置请求头等
+   * 配置请求拦截器、响应拦截器、错误处理等
    */
-  requestInterceptors: [
+  request: {
+    /**
+     * 请求拦截器
+     * 
+     * 在发送请求前添加 Token、设置请求头等
+     */
+    requestInterceptors: [
     (config: any) => {
       // 从本地存储获取 Token
       const token = localStorage.getItem('token');
@@ -40,14 +44,14 @@ export const request: RequestConfig = {
       
       return config;
     },
-  ],
-  
-  /**
-   * 响应拦截器
-   * 
-   * 处理响应数据、错误处理、Token 刷新等
-   */
-  responseInterceptors: [
+    ],
+    
+    /**
+     * 响应拦截器
+     * 
+     * 处理响应数据、错误处理、Token 刷新等
+     */
+    responseInterceptors: [
     (response: any) => {
       // 处理响应数据
       const { data } = response;
@@ -89,24 +93,18 @@ export const request: RequestConfig = {
       
       return Promise.reject(error);
     },
-  ],
-  
-  /**
-   * 错误处理配置
-   */
-  errorConfig: {
-    errorHandler: (error: any) => {
-      console.error('请求错误:', error);
-    },
-    errorThrower: (error: any) => {
-      throw error;
+    ],
+    
+    /**
+     * 错误处理配置
+     */
+    errorConfig: {
+      errorHandler: (error: any) => {
+        console.error('请求错误:', error);
+      },
+      errorThrower: (error: any) => {
+        throw error;
+      },
     },
   },
-};
-
-/**
- * 根组件配置
- */
-export const rootContainer = (container: any) => {
-  return container;
-};
+});
