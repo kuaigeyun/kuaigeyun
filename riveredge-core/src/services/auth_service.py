@@ -188,38 +188,15 @@ class AuthService:
             is_tenant_admin=user.is_tenant_admin,
         )
         
-        # 更新最后登录时间（在生成 Token 之后，避免影响登录流程）
-        try:
-            user.last_login = datetime.utcnow()
-            await user.save()
-        except Exception as e:
-            logger.warning(f"更新最后登录时间失败: {e}")
-            # 不影响登录流程，继续执行
-        
-        # 获取用户可访问的租户列表（简化版本，先返回基本租户信息）
-        tenants = None
-        default_tenant_id = final_tenant_id
-        requires_tenant_selection = False
-        
-        # 暂时简化：只返回用户当前租户，不查询多租户列表
-        # 后续可以优化为异步查询或单独接口获取租户列表
-        try:
-            tenant = await Tenant.get_or_none(id=final_tenant_id, status=TenantStatus.ACTIVE)
-            if tenant:
-                tenants = [{
-                    "id": tenant.id,
-                    "name": tenant.name,
-                    "domain": tenant.domain,
-                    "status": tenant.status.value
-                }]
-        except Exception as e:
-            logger.error(f"查询用户当前租户失败: {e}")
-            # 如果查询失败，至少返回用户的基本信息
-            tenants = None
-        
         # 计算过期时间（秒）
         from app.config import settings
         expires_in = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        
+        # 暂时简化：不查询租户列表，不更新最后登录时间，只返回基本登录信息
+        # 这些操作可以通过单独的接口或后台任务完成，避免影响登录流程
+        tenants = None
+        default_tenant_id = final_tenant_id
+        requires_tenant_selection = False
         
         return {
             "access_token": access_token,
