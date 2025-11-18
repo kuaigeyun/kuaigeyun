@@ -12,22 +12,10 @@ from app.config import settings
 
 # Tortoise ORM 配置
 # 注意：Tortoise ORM 使用 asyncpg 作为 PostgreSQL 驱动
-# 连接字符串中可以包含连接池参数
+# 使用连接字符串格式，asyncpg 会自动管理连接池
 TORTOISE_ORM = {
     "connections": {
-        "default": {
-            "engine": "tortoise.backends.asyncpg",
-            "credentials": {
-                "host": settings.DB_HOST,
-                "port": settings.DB_PORT,
-                "user": settings.DB_USER,
-                "password": settings.DB_PASSWORD,
-                "database": settings.DB_NAME,
-                "minsize": 1,  # 最小连接数
-                "maxsize": 10,  # 最大连接数
-                "command_timeout": 30,  # 命令超时时间（秒）
-            },
-        },
+        "default": settings.DB_URL,
     },
     "apps": {
         "models": {
