@@ -46,8 +46,8 @@ RiverEdge 提供了一键启动脚本 `start-all.sh`，能够自动处理端口�
 ### 📝 日志文件
 
 启动过程中会生成以下日志文件：
-- `backend.log`: 后端服务日志
-- `frontend.log`: 前端服务日志
+- `logs/backend.log`: 后端服务日志
+- `logs/frontend.log`: 前端服务日志
 - `backend.pid`: 后端进程ID文件
 - `frontend.pid`: 前端进程ID文件
 
@@ -103,6 +103,10 @@ chmod +x start-all.sh
    后端 API:    http://localhost:9001
    后端文档:    http://localhost:9001/docs
    前端界面:    http://localhost:8001
+
+📝 日志文件:
+   后端日志:    logs/backend.log
+   前端日志:    logs/frontend.log
 ```
 
 现在可以访问上述地址开始开发！🎊

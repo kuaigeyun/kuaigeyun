@@ -180,8 +180,8 @@ start_backend() {
         exit 1
     fi
 
-    # 更新后端端口配置
-    sed -i.bak "s/port=[0-9]\+/port=$port/" riveredge-core/scripts/start_backend.py && rm -f riveredge-core/scripts/start_backend.py.bak
+    # 更新后端端口配置 (Windows兼容)
+    sed "s/port=[0-9]\+/port=$port/" riveredge-core/scripts/start_backend.py > riveredge-core/scripts/start_backend.py.tmp && mv riveredge-core/scripts/start_backend.py.tmp riveredge-core/scripts/start_backend.py
 
     # 进入后端目录并启动
     cd riveredge-core
@@ -201,7 +201,7 @@ start_backend() {
     rm -f ../backend.pid
 
     # 启动后端服务
-    nohup python scripts/start_backend.py > ../backend.log 2>&1 &
+    nohup python scripts/start_backend.py > ../logs/backend.log 2>&1 &
     local backend_pid=$!
     echo $backend_pid > ../backend.pid
 
@@ -213,13 +213,14 @@ start_backend() {
     while [ $retries -gt 0 ]; do
         if curl -s --max-time 5 http://localhost:$port/docs >/dev/null 2>&1; then
             log_success "后端服务启动成功 (http://localhost:$port)"
+            log_info "📖 Swagger API文档: http://localhost:$port/docs"
             return 0
         fi
         sleep 2
         retries=$((retries - 1))
     done
 
-    log_error "后端服务启动超时，请检查 backend.log"
+    log_error "后端服务启动超时，请检查 logs/backend.log"
     if [ -f "backend.pid" ]; then
         kill $backend_pid 2>/dev/null || true
         rm -f backend.pid
@@ -239,11 +240,12 @@ start_frontend() {
         exit 1
     fi
 
-    # 更新前端端口配置
-    sed -i.bak "s/PORT=[0-9]\+/PORT=$port/" riveredge-shell/package.json && rm -f riveredge-shell/package.json.bak
+    # 更新前端端口配置 (Windows兼容)
+    # 使用临时文件避免直接修改JSON文件导致的解析错误
+    sed "s/PORT=[0-9]\+/PORT=$port/" riveredge-shell/package.json > riveredge-shell/package.json.tmp && mv riveredge-shell/package.json.tmp riveredge-shell/package.json
 
     # 更新前端代理配置
-    sed -i.bak "s/target: 'http:\/\/localhost:[0-9]\+'/target: 'http:\/\/localhost:$backend_port'/" riveredge-shell/.umirc.ts && rm -f riveredge-shell/.umirc.ts.bak
+    sed "s/target: 'http:\/\/localhost:[0-9]\+'/target: 'http:\/\/localhost:$backend_port'/" riveredge-shell/.umirc.ts > riveredge-shell/.umirc.ts.tmp && mv riveredge-shell/.umirc.ts.tmp riveredge-shell/.umirc.ts
 
     # 进入前端目录并启动
     cd riveredge-shell
@@ -252,7 +254,7 @@ start_frontend() {
     rm -f ../frontend.pid
 
     # 启动前端服务
-    nohup npm run dev > ../frontend.log 2>&1 &
+    nohup npm run dev > ../logs/frontend.log 2>&1 &
     local frontend_pid=$!
     echo $frontend_pid > ../frontend.pid
 
@@ -270,7 +272,7 @@ start_frontend() {
         retries=$((retries - 1))
     done
 
-    log_error "前端服务启动超时，请检查 frontend.log"
+    log_error "前端服务启动超时，请检查 logs/frontend.log"
     if [ -f "frontend.pid" ]; then
         kill $frontend_pid 2>/dev/null || true
         rm -f frontend.pid
@@ -445,8 +447,8 @@ main() {
     log_info "   前端界面:    http://localhost:$frontend_port"
     echo
     log_info "📝 日志文件:"
-    log_info "   后端日志:    backend.log"
-    log_info "   前端日志:    frontend.log"
+    log_info "   后端日志:    logs/backend.log"
+    log_info "   前端日志:    logs/frontend.log"
     echo
     log_info "🔧 管理命令:"
     log_info "   查看状态:    ./start-all.sh status"
