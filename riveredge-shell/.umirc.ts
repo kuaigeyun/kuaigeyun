@@ -1,23 +1,18 @@
 /**
- * Umi 配置文件
- * 
- * 配置 Umi V4 应用的基础设置、路由、插件等
+ * Umi 配置文件 (V4.0.90)
+ *
+ * 配置 Umi V4.0.90 应用的基础设置、路由、插件等
+ * 【锁定版本】：@umijs/max@4.0.90，永久不再更改
  */
 
+/**
+ * Umi V4.0.90 配置
+ *
+ * 使用 defineConfig 方式配置（V4.0.90 推荐）
+ */
 import { defineConfig } from '@umijs/max';
-import path from 'path';
 
 export default defineConfig({
-  /**
-   * 插件配置
-   * 
-   * 显式启用 model 和 request 插件
-   * 注意：虽然 @umijs/max 预设已包含这些插件，但需要显式配置才能启用
-   */
-  plugins: [
-    '@umijs/plugins/dist/model',
-    '@umijs/plugins/dist/request',
-  ],
   /**
    * 路由配置
    */
@@ -147,37 +142,54 @@ export default defineConfig({
     },
   ],
   
-  /**
-   * Model 插件配置
-   * 启用 Umi Model 状态管理功能
-   */
-  model: {},
   
-  /**
-   * Request 插件配置
-   * 启用 Umi Request HTTP 请求功能
-   */
-  request: {},
   
   /**
    * MFSU 配置
    * 禁用 MFSU 以解决 React 19 兼容性问题
    */
   mfsu: false,
+
+  /**
+   * 插件配置
+   * 【锁定语法】：UMI V4.0.90 中 request 和 model 是内置功能，无需额外配置
+   * 永久锁定此配置，不再更改
+   */
   
   /**
-   * 代理配置（开发环境）
+   * 代理配置（仅开发环境生效）
    * 
-   * 将 /api 开头的请求代理到后端服务器
-   * 注意：不移除 /api 前缀，因为后端路由包含 /api/v1 前缀
+   * Umi V4 官方规范：
+   * - proxy 配置仅在开发环境（umi dev）中生效
+   * - 生产环境（umi build）中代理配置不会生效，需要通过 Nginx 等反向代理或设置 baseURL
+   * 
+   * 工作原理（开发环境）：
+   * - 前端请求：/api/v1/auth/login（相对路径）
+   * - 代理匹配：/api 路径前缀
+   * - 代理转发：http://localhost:8000/api/v1/auth/login（后端服务器）
+   * - 路径保持：不移除 /api 前缀，因为后端路由包含 /api/v1 前缀
+   * 
+   * 配置说明：
+   * - target: 后端服务器地址（必须包含协议和端口）
+   * - changeOrigin: 改变请求的 origin，解决跨域问题（必须设置为 true）
+   * - secure: 如果是 https 接口，设置为 false 跳过证书验证（开发环境）
+   * - pathRewrite: 路径重写规则（不配置，保持路径不变）
+   * 
+   * 生产环境处理：
+   * - 方式一：设置环境变量 REACT_APP_API_BASE_URL，request.baseURL 会自动使用
+   * - 方式二：使用 Nginx 等反向代理，将 /api 请求转发到后端服务器
+   * 
+   * 参考：
+   * - https://umijs.org/docs/guides/proxy
+   * - https://umijs.org/docs/api/config#proxy
    */
   proxy: {
     '/api': {
-      target: 'http://localhost:8000',
+      target: 'http://localhost:9001',
       changeOrigin: true,
-      timeout: 30000, // 30 秒超时
-      // 不移除 /api 前缀，后端路由需要 /api/v1 前缀
-      // pathRewrite: { '^/api': '' },
+      secure: false,
+      // 不配置 pathRewrite，保持路径不变
+      // 因为后端路由包含 /api/v1 前缀，需要完整路径
     },
   },
   
@@ -195,11 +207,10 @@ export default defineConfig({
   /**
    * Webpack 配置
    * 
-   * 添加别名，解决 umi 模块解析问题
+   * 注意：不要手动配置 umi 别名，Umi 会自动处理
    */
-  chainWebpack(config: any) {
-    // 将 umi 模块解析到 .umi/exports.ts
-    config.resolve.alias.set('umi', path.resolve(__dirname, 'src/.umi/exports.ts'));
-  },
+  // chainWebpack(config: any) {
+  //   // Umi 会自动处理 umi 模块的解析，不需要手动配置别名
+  // },
 });
 
