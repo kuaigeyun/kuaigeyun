@@ -198,12 +198,12 @@ start_backend() {
     fi
 
     # 清理旧的PID文件
-    rm -f ../backend.pid
+    rm -f ../logs/backend.pid
 
     # 启动后端服务
     nohup python scripts/start_backend.py > ../logs/backend.log 2>&1 &
     local backend_pid=$!
-    echo $backend_pid > ../backend.pid
+    echo $backend_pid > ../logs/backend.pid
 
     cd ..
     log_success "后端服务启动中 (PID: $backend_pid, 端口: $port)"
@@ -221,9 +221,9 @@ start_backend() {
     done
 
     log_error "后端服务启动超时，请检查 logs/backend.log"
-    if [ -f "backend.pid" ]; then
+    if [ -f "logs/backend.pid" ]; then
         kill $backend_pid 2>/dev/null || true
-        rm -f backend.pid
+        rm -f logs/backend.pid
     fi
     exit 1
 }
@@ -251,12 +251,12 @@ start_frontend() {
     cd riveredge-shell
 
     # 清理旧的PID文件
-    rm -f ../frontend.pid
+    rm -f ../logs/frontend.pid
 
     # 启动前端服务
     nohup npm run dev > ../logs/frontend.log 2>&1 &
     local frontend_pid=$!
-    echo $frontend_pid > ../frontend.pid
+    echo $frontend_pid > ../logs/frontend.pid
 
     cd ..
     log_success "前端服务启动中 (PID: $frontend_pid, 端口: $port)"
@@ -273,9 +273,9 @@ start_frontend() {
     done
 
     log_error "前端服务启动超时，请检查 logs/frontend.log"
-    if [ -f "frontend.pid" ]; then
+    if [ -f "logs/frontend.pid" ]; then
         kill $frontend_pid 2>/dev/null || true
-        rm -f frontend.pid
+        rm -f logs/frontend.pid
     fi
     exit 1
 }
@@ -285,8 +285,8 @@ stop_all() {
     log_info "停止所有服务..."
 
     # 停止后端
-    if [ -f "backend.pid" ]; then
-        local backend_pid=$(cat backend.pid)
+    if [ -f "logs/backend.pid" ]; then
+        local backend_pid=$(cat logs/backend.pid)
         if kill -0 $backend_pid 2>/dev/null; then
             log_info "停止后端服务 (PID: $backend_pid)"
             kill -TERM $backend_pid 2>/dev/null || true
@@ -295,12 +295,12 @@ stop_all() {
                 taskkill /PID $backend_pid /F >nul 2>&1 || true
             fi
         fi
-        rm -f backend.pid
+        rm -f logs/backend.pid
     fi
 
     # 停止前端
-    if [ -f "frontend.pid" ]; then
-        local frontend_pid=$(cat frontend.pid)
+    if [ -f "logs/frontend.pid" ]; then
+        local frontend_pid=$(cat logs/frontend.pid)
         if kill -0 $frontend_pid 2>/dev/null; then
             log_info "停止前端服务 (PID: $frontend_pid)"
             kill -TERM $frontend_pid 2>/dev/null || true
@@ -309,7 +309,7 @@ stop_all() {
                 taskkill /PID $frontend_pid /F >nul 2>&1 || true
             fi
         fi
-        rm -f frontend.pid
+        rm -f logs/frontend.pid
     fi
 
     # 清理可能残留的进程
@@ -333,8 +333,8 @@ stop_all() {
 show_status() {
     log_info "📊 服务状态检查:"
 
-    if [ -f "backend.pid" ]; then
-        local backend_pid=$(cat backend.pid)
+    if [ -f "logs/backend.pid" ]; then
+        local backend_pid=$(cat logs/backend.pid)
         if kill -0 $backend_pid 2>/dev/null; then
             log_success "后端服务运行中 (PID: $backend_pid)"
         else
@@ -344,8 +344,8 @@ show_status() {
         log_warn "后端服务未运行"
     fi
 
-    if [ -f "frontend.pid" ]; then
-        local frontend_pid=$(cat frontend.pid)
+    if [ -f "logs/frontend.pid" ]; then
+        local frontend_pid=$(cat logs/frontend.pid)
         if kill -0 $frontend_pid 2>/dev/null; then
             log_success "前端服务运行中 (PID: $frontend_pid)"
         else
@@ -454,6 +454,10 @@ main() {
     log_info "   查看状态:    ./start-all.sh status"
     log_info "   停止服务:    ./start-all.sh stop"
     log_info "   重启服务:    ./start-all.sh restart"
+    echo
+    log_info "📁 进程文件:"
+    log_info "   后端PID:     logs/backend.pid"
+    log_info "   前端PID:     logs/frontend.pid"
     echo
     log_info "⚠️  提示: 按 Ctrl+C 可以停止脚本，但服务会继续运行"
 }
