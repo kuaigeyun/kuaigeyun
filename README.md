@@ -2,6 +2,11 @@
 
 **RiverEdge SaaS Multi-tenant Framework** - 一个现代化的 SaaS 多租户框架，支持插件化架构和动态功能扩展。
 
+## ⚠️ 重要锁定声明
+
+**UMI版本已被永久锁定为 `@umijs/max@4.0.90`，禁止任何更新或更改。**
+详见：[UMI版本锁定策略](UMI_VERSION_LOCK.md)
+
 ## 📋 项目概述
 
 RiverEdge 是一个基于自然/植物生态哲学的 SaaS 多租户框架，采用模块化设计，支持动态插件加载和功能扩展。
@@ -18,16 +23,58 @@ RiverEdge 是一个基于自然/植物生态哲学的 SaaS 多租户框架，采
 
 ### 后端开发
 
+#### 智能部署（推荐）
 ```bash
 cd riveredge-core
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# 完整部署（包含环境检查、依赖安装、数据库迁移、服务启动）
+./scripts/deploy.sh --deploy
+
+# 或者手动部署
+python -m venv venv311
+source venv311/bin/activate  # Windows: venv311\Scripts\activate
 pip install -r requirements.txt
+python scripts/start_backend.py
+```
+
+#### 服务管理
+```bash
+cd riveredge-core
+./scripts/deploy.sh --start   # 启动服务
+./scripts/deploy.sh --stop    # 停止服务
+./scripts/deploy.sh --check   # 健康检查
+./scripts/deploy.sh --monitor # 系统监控
+./scripts/deploy.sh --logs    # 查看日志
+```
+
+### 前端开发
+
+```bash
+cd riveredge-shell
+npm install --legacy-peer-deps
+npm run dev
 ```
 
 ### 环境配置
 
 复制 `.env.example` 为 `.env` 并配置数据库和 Redis 连接信息。
+
+### 监控和运维
+
+#### 健康检查
+```bash
+# 基础健康检查
+curl http://localhost:8000/health
+
+# 详细健康检查（包含数据库、Redis状态）
+curl http://localhost:8000/health/detailed
+```
+
+#### 系统监控
+```bash
+cd riveredge-core
+python scripts/monitor_system.py --json  # JSON格式输出
+python scripts/monitor_system.py --output report.json  # 保存报告
+```
 
 ## 📚 文档
 
