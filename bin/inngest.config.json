@@ -1,0 +1,11 @@
+{
+    "event_api": {
+        "port": 8288,
+        "host": "0.0.0.0"
+    },
+    "database": {
+        "url": "postgresql://postgres:postgres@localhost:5432/inngest",
+        "pool_size": 10
+    },
+    "log_level": "info"
+}
