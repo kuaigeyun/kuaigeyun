@@ -1,6 +1,6 @@
 {
     "event_api": {
-        "port": 8288,
+        "port": 8300,
         "host": "0.0.0.0"
     },
     "database": {
