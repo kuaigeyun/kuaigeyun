@@ -104,15 +104,17 @@ start_inngest() {
     # 清理旧的PID文件
     rm -f "$PID_FILE"
 
-    # 启动 Inngest 服务（使用默认配置，不自定义端口）
-    log_info "启动 Inngest 服务..."
+    # 启动 Inngest 服务
+    # 参考官方文档：https://www.inngest.com/docs/getting-started/python-quick-start
+    # 官方默认端口：8288（完全使用默认配置，不自定义端口）
+    log_info "启动 Inngest 服务（使用官方默认端口8288）..."
     
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
-        # Windows: 直接后台启动
+        # Windows: 直接后台启动，使用默认端口8288
         ("$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" >> "$LOG_FILE" 2>&1) &
         local inngest_pid=$!
     else
-        # Linux/Mac: 使用 nohup
+        # Linux/Mac: 使用 nohup，使用默认端口8288
         nohup "$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" >> "$LOG_FILE" 2>&1 &
         local inngest_pid=$!
     fi
