@@ -74,16 +74,49 @@ LOG_DIR=/path/to/logs ./start-inngest.sh start
 
 ## 故障排除
 
+### Windows 端口保留问题
+
+如果遇到错误：`bind: An attempt was made to access a socket in a way forbidden by its access permissions`
+
+**原因**：Windows 系统保留了端口范围（如 8262-8361），Inngest 默认端口 8288 可能在此范围内。
+
+**解决方案**：
+
+1. **以管理员身份运行**（推荐）
+   - 右键点击 Git Bash，选择"以管理员身份运行"
+   - 然后执行 `./bin/inngest/start-inngest.sh start`
+
+2. **释放 Windows 端口保留范围**（需要管理员权限）
+   ```bash
+   # 查看端口保留范围
+   netsh interface ipv4 show excludedportrange protocol=tcp
+   
+   # 释放特定范围（需要管理员权限，谨慎操作）
+   # 注意：这可能会影响其他服务，请谨慎操作
+   ```
+
+3. **检查端口占用**
+   ```bash
+   # 检查端口是否被占用
+   netstat -ano | findstr 8288
+   
+   # 清理残留进程
+   taskkill /F /IM inngest.exe
+   ```
+
 ### 服务启动失败
 1. 检查日志文件: `../../.logs/inngest.log`
 2. 确认后端服务正在运行
 3. 确认配置文件存在且格式正确
 4. 查看日志确认 Inngest 使用的实际端口
+5. 如果是 Windows，检查端口保留问题（见上方）
 
 ### 权限问题
 ```bash
 # 添加执行权限 (Linux/macOS)
 chmod +x start-inngest.sh
+
+# Windows: 以管理员身份运行 Git Bash
 ```
 
 ## 与主启动脚本的关系
