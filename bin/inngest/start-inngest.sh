@@ -17,6 +17,9 @@ set -e  # 遇到错误立即退出
 # 后端API URL（用于连接 RiverEdge 后端）
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:8200/api/inngest}"
 
+# Inngest 端口（可通过环境变量INNGEST_PORT覆盖，默认8288为Inngest官方默认端口）
+INNGEST_PORT="${INNGEST_PORT:-8288}"
+
 # 日志目录
 LOG_DIR="${LOG_DIR:-../../.logs}"
 PID_FILE="${PID_FILE:-$LOG_DIR/inngest.pid}"
@@ -106,17 +109,17 @@ start_inngest() {
 
     # 启动 Inngest 服务
     # 参考官方文档：https://www.inngest.com/docs/getting-started/python-quick-start
-    # 官方默认端口：8288（完全使用默认配置，不自定义端口）
-    # Windows端口保留问题：使用 --host 127.0.0.1 绑定到本地回环地址，可能可以绕过端口保留限制
-    log_info "启动 Inngest 服务（使用官方默认端口8288，绑定到127.0.0.1）..."
+    # 使用环境变量 INNGEST_PORT 指定的端口（默认8288，Inngest官方默认端口）
+    log_info "启动 Inngest 服务（端口: $INNGEST_PORT）..."
     
+    # 启动Inngest，明确指定 --port 参数，使用环境变量中的端口配置
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
-        # Windows: 绑定到127.0.0.1而不是0.0.0.0，可能可以绕过端口保留限制
-        ("$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" --host 127.0.0.1 >> "$LOG_FILE" 2>&1) &
+        # Windows: 使用 --host 127.0.0.1，明确指定 --port 使用环境变量中的端口
+        ("$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" --host 127.0.0.1 --port "$INNGEST_PORT" >> "$LOG_FILE" 2>&1) &
         local inngest_pid=$!
     else
-        # Linux/Mac: 使用 nohup，使用默认端口8288
-        nohup "$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" >> "$LOG_FILE" 2>&1 &
+        # Linux/Mac: 使用 nohup，明确指定 --port 使用环境变量中的端口
+        nohup "$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" --port "$INNGEST_PORT" >> "$LOG_FILE" 2>&1 &
         local inngest_pid=$!
     fi
 
@@ -243,6 +246,7 @@ RiverEdge SaaS - Inngest 服务独立启动脚本
 
 环境变量:
     BACKEND_URL   指定后端API URL (默认: $BACKEND_URL)
+    INNGEST_PORT  指定Inngest端口 (默认: $INNGEST_PORT)
     LOG_DIR       指定日志目录 (默认: $LOG_DIR)
 
 示例:
