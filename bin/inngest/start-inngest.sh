@@ -1,10 +1,10 @@
 #!/bin/bash
 # RiverEdge SaaS 多组织框架 - Inngest 服务独立启动脚本
 # 独立启动 Inngest 服务，支持 Windows Git Bash 和 Linux/Mac
-# 让 Inngest 自动管理端口，使用官方默认端口 8288
+# 使用 Inngest 官方默认端口配置（不自定义端口）
 #
 # 使用方法:
-#   ./start-inngest.sh              # 启动 Inngest 服务 (使用默认端口 8288)
+#   ./start-inngest.sh              # 启动 Inngest 服务 (使用默认端口)
 #   ./start-inngest.sh stop         # 停止 Inngest 服务
 #   ./start-inngest.sh status       # 查看服务状态
 
@@ -70,7 +70,7 @@ check_command() {
 
 # 启动 Inngest 服务
 start_inngest() {
-    log_info "启动 Inngest 服务 (使用默认端口)..."
+    log_info "启动 Inngest 服务 (使用默认配置)..."
 
     # 检查 Inngest 可执行文件
     local inngest_exe=""
@@ -156,6 +156,7 @@ start_inngest() {
         log_success "Inngest Dashboard: http://localhost:$detected_port/_dashboard"
     else
         log_success "Inngest 服务已启动，请检查日志获取端口信息: $LOG_FILE"
+        log_info "提示: Inngest 使用默认端口配置，请查看日志确认实际端口"
     fi
 }
 
@@ -231,7 +232,7 @@ RiverEdge SaaS - Inngest 服务独立启动脚本
 用法: $0 [命令]
 
 命令:
-    start         启动 Inngest 服务 (使用默认端口 8288)
+    start         启动 Inngest 服务 (使用默认配置)
     stop          停止 Inngest 服务
     status        显示服务状态
     help          显示此帮助信息
@@ -241,8 +242,8 @@ RiverEdge SaaS - Inngest 服务独立启动脚本
     LOG_DIR       指定日志目录 (默认: $LOG_DIR)
 
 示例:
-    $0                          # 启动服务 (使用默认端口 8288)
-    $0 start                    # 启动服务 (使用默认端口 8288)
+    $0                          # 启动服务 (使用默认配置)
+    $0 start                    # 启动服务 (使用默认配置)
     $0 stop                     # 停止服务
     $0 status                   # 查看状态
 
@@ -260,8 +261,7 @@ main() {
     case "${1:-start}" in
         start)
             if [ ! -z "$2" ]; then
-                log_error "不再支持指定端口参数，请让 Inngest 自动管理端口"
-                log_error "如果需要指定端口，请设置 INNGEST_PORT 环境变量（但不推荐）"
+                log_error "不再支持指定端口参数，请使用 Inngest 默认端口配置"
                 exit 1
             fi
             start_inngest
