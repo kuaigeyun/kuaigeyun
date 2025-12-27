@@ -33,18 +33,19 @@
 
 #### ✅ 包含功能（MVP核心）
 
-**基础数据层（最小化）**
-- ✅ 产品管理（物料主数据、BOM管理）
-- ✅ 工厂建模（工厂、车间、工作中心）
-- ✅ 组织架构（部门、员工）- 复用系统级功能
+**基础数据层（复用主数据管理APP）**
+- ✅ 产品管理（物料主数据、BOM管理）- **复用 master_data**
+- ✅ 工厂建模（工厂、车间、工作中心）- **复用 master_data**
+- ✅ 仓库管理 - **复用 master_data**
+- ✅ 组织架构（部门、员工）- **复用系统级功能**
 
-**业务单据层（核心）**
+**业务单据层（核心 - kuaizhizao开发）**
 - ✅ 工单管理（工单创建、下达、执行、完工）
 - ✅ 报工管理（扫码报工、进度汇报）
-- ✅ 仓储管理（生产领料、成品入库）
+- ✅ 仓储操作（生产领料、成品入库、库存查询）
 - ✅ 简单计划（手动创建工单，暂不支持MRP）
 
-**报表层（基础）**
+**报表层（基础 - kuaizhizao开发）**
 - ✅ 生产看板（工单进度、状态监控）
 - ✅ 库存查询（实时库存查询）
 
@@ -75,39 +76,22 @@
 
 ### 2.1 核心数据实体
 
-#### 工厂建模
-```
-Factory（工厂）
-├── id, uuid, name, code, description
-├── tenant_id, is_active
-└── created_at, updated_at
+#### 基础数据（复用 master_data，不在此应用开发）
+**工厂建模** - 复用 `master_data` 应用
+- Factory（工厂）
+- Workshop（车间）
+- ProductionLine（产线）/ WorkCenter（工作中心）
 
-Workshop（车间）
-├── id, uuid, name, code, description
-├── factory_id, tenant_id, is_active
-└── created_at, updated_at
+**产品管理** - 复用 `master_data` 应用
+- Material（物料）
+- BOM（物料清单）
 
-WorkCenter（工作中心）
-├── id, uuid, name, code, description
-├── workshop_id, tenant_id, is_active
-└── created_at, updated_at
-```
+**仓库管理** - 复用 `master_data` 应用
+- Warehouse（仓库）
+- StorageArea（库区）
+- StorageLocation（库位）
 
-#### 产品管理
-```
-Material（物料）
-├── id, uuid, code, name, specification
-├── material_type（原材料/半成品/成品）
-├── unit（单位）, tenant_id
-└── created_at, updated_at
-
-BOM（物料清单）
-├── id, uuid, parent_material_id（父件）
-├── child_material_id（子件）
-├── quantity（用量）, unit
-├── tenant_id
-└── created_at, updated_at
-```
+**说明：** kuaizhizao 应用通过 API 调用 master_data 应用的基础数据，不重复开发。
 
 #### 生产执行
 ```
@@ -167,20 +151,31 @@ StockOut（出库单）
 ### 2.2 数据关系图
 
 ```
+[master_data 应用]
 Factory
   └── Workshop
-        └── WorkCenter
-              └── WorkOrder
-                    ├── WorkOrderProcess
-                    │     └── WorkReport
-                    └── StockOut (生产领料)
-                          └── StockIn (成品入库)
-
+        └── ProductionLine/WorkCenter
 Material
   ├── BOM (父子件关系)
-  └── Inventory (库存)
-        └── Warehouse
+  └── Warehouse
+
+[kuaizhizao 应用 - 通过API调用master_data]
+WorkOrder (工单)
+  ├── WorkOrderProcess (工单工序)
+  │     └── WorkReport (报工记录)
+  ├── StockOut (生产领料) → 关联 master_data.Material
+  └── StockIn (成品入库) → 关联 master_data.Material
+
+Inventory (库存) → 关联 master_data.Material 和 master_data.Warehouse
 ```
+
+**数据依赖关系：**
+- WorkOrder 通过 `workshop_id` 关联 master_data.Workshop
+- WorkOrder 通过 `work_center_id` 关联 master_data.ProductionLine/WorkCenter
+- WorkOrder 通过 `material_id` 关联 master_data.Material
+- StockIn/StockOut 通过 `material_id` 关联 master_data.Material
+- StockIn/StockOut 通过 `warehouse_id` 关联 master_data.Warehouse
+- Inventory 通过 `material_id` 和 `warehouse_id` 关联 master_data
 
 ---
 
@@ -188,7 +183,7 @@ Material
 
 ### 3.1 开发阶段划分
 
-#### 阶段1：基础架构搭建（1周）
+#### 阶段1：基础架构搭建（0.5周）
 
 **目标：** 搭建应用基础架构
 
@@ -197,33 +192,31 @@ Material
 - [ ] 注册应用到系统（Application模型）
 - [ ] 创建应用路由注册
 - [ ] 创建应用菜单配置
-- [ ] 创建基础数据模型（Factory, Workshop, WorkCenter, Material, BOM）
+- [ ] 创建核心数据模型（WorkOrder, WorkOrderProcess, WorkReport, Inventory, StockIn, StockOut）
 - [ ] 创建数据库迁移脚本
+- [ ] 集成 master_data API（调用基础数据）
 
 **交付物：**
 - ✅ 应用基础架构
-- ✅ 基础数据模型
+- ✅ 核心数据模型
 - ✅ 数据库表结构
+- ✅ master_data API集成
 
-#### 阶段2：基础数据管理（1周）
+#### 阶段2：基础数据集成（0.5周）
 
-**目标：** 实现基础数据管理功能
+**目标：** 集成主数据管理APP的基础数据
 
 **任务清单：**
-- [ ] 工厂管理API（CRUD）
-- [ ] 车间管理API（CRUD）
-- [ ] 工作中心管理API（CRUD）
-- [ ] 物料管理API（CRUD）
-- [ ] BOM管理API（CRUD）
-- [ ] 前端页面：工厂管理
-- [ ] 前端页面：车间管理
-- [ ] 前端页面：工作中心管理
-- [ ] 前端页面：物料管理
-- [ ] 前端页面：BOM管理
+- [ ] 创建 master_data API 客户端服务
+- [ ] 实现工厂/车间/工作中心数据获取
+- [ ] 实现物料/BOM数据获取
+- [ ] 实现仓库数据获取
+- [ ] 前端页面：基础数据选择组件（下拉选择、树形选择）
+- [ ] 前端页面：基础数据展示组件（只读展示）
 
 **交付物：**
-- ✅ 基础数据管理API
-- ✅ 基础数据管理页面
+- ✅ master_data API集成服务
+- ✅ 基础数据选择/展示组件
 
 #### 阶段3：工单管理（1.5周）
 
@@ -317,94 +310,69 @@ riveredge-backend/src/apps/kuaizhizao/
 ├── __init__.py
 ├── models/
 │   ├── __init__.py
-│   ├── factory.py          # 工厂模型
-│   ├── workshop.py          # 车间模型
-│   ├── work_center.py       # 工作中心模型
-│   ├── material.py          # 物料模型
-│   ├── bom.py               # BOM模型
-│   ├── work_order.py        # 工单模型
+│   ├── work_order.py         # 工单模型
 │   ├── work_order_process.py # 工单工序模型
-│   ├── work_report.py       # 报工记录模型
-│   ├── warehouse.py         # 仓库模型
-│   ├── inventory.py         # 库存模型
-│   ├── stock_in.py          # 入库单模型
-│   └── stock_out.py         # 出库单模型
+│   ├── work_report.py        # 报工记录模型
+│   ├── inventory.py          # 库存模型（kuaizhizao的库存操作记录）
+│   ├── stock_in.py           # 入库单模型
+│   └── stock_out.py          # 出库单模型
 ├── schemas/
 │   ├── __init__.py
-│   ├── factory.py
-│   ├── workshop.py
-│   ├── work_center.py
-│   ├── material.py
-│   ├── bom.py
 │   ├── work_order.py
 │   ├── work_order_process.py
 │   ├── work_report.py
-│   ├── warehouse.py
 │   ├── inventory.py
 │   ├── stock_in.py
 │   └── stock_out.py
 ├── services/
 │   ├── __init__.py
-│   ├── factory_service.py
-│   ├── workshop_service.py
-│   ├── work_center_service.py
-│   ├── material_service.py
-│   ├── bom_service.py
+│   ├── master_data_client.py # master_data API客户端服务
 │   ├── work_order_service.py
 │   ├── work_report_service.py
-│   ├── warehouse_service.py
 │   ├── inventory_service.py
 │   └── stock_service.py
 └── api/
     ├── __init__.py
-    ├── factories.py          # 工厂API
-    ├── workshops.py          # 车间API
-    ├── work_centers.py       # 工作中心API
-    ├── materials.py          # 物料API
-    ├── boms.py               # BOM API
+    ├── router.py             # 路由汇总
     ├── work_orders.py        # 工单API
     ├── work_reports.py       # 报工API
-    ├── warehouses.py         # 仓库API
     ├── inventories.py        # 库存API
     ├── stock_ins.py          # 入库单API
-    └── stock_outs.py          # 出库单API
+    └── stock_outs.py         # 出库单API
 ```
+
+**说明：**
+- 基础数据（Factory, Workshop, Material, BOM, Warehouse）通过 `master_data_client.py` 调用 master_data 应用的 API
+- kuaizhizao 只开发 MES 核心功能相关的模型和API
 
 #### 路由注册
 ```python
-# apps/kuaizhizao/api/__init__.py
+# apps/kuaizhizao/api/router.py
 from fastapi import APIRouter
-from .factories import router as factories_router
-from .workshops import router as workshops_router
-# ... 其他路由
+from .work_orders import router as work_orders_router
+from .work_reports import router as work_reports_router
+from .inventories import router as inventories_router
+from .stock_ins import router as stock_ins_router
+from .stock_outs import router as stock_outs_router
 
 router = APIRouter(prefix="/kuaizhizao", tags=["快智造"])
 
-router.include_router(factories_router, prefix="/factories", tags=["工厂管理"])
-router.include_router(workshops_router, prefix="/workshops", tags=["车间管理"])
-# ... 其他路由
+router.include_router(work_orders_router, prefix="/work-orders", tags=["工单管理"])
+router.include_router(work_reports_router, prefix="/work-reports", tags=["报工管理"])
+router.include_router(inventories_router, prefix="/inventories", tags=["库存管理"])
+router.include_router(stock_ins_router, prefix="/stock-ins", tags=["入库管理"])
+router.include_router(stock_outs_router, prefix="/stock-outs", tags=["出库管理"])
 ```
+
+**说明：**
+- 基础数据API通过 master_data 应用提供，kuaizhizao 不重复实现
+- kuaizhizao 只提供 MES 核心功能的 API
 
 ### 4.2 前端实现
 
 #### 页面结构
 ```
 riveredge-frontend/src/pages/apps/kuaizhizao/
-├── factories/
-│   └── list/
-│       └── index.tsx
-├── workshops/
-│   └── list/
-│       └── index.tsx
-├── work-centers/
-│   └── list/
-│       └── index.tsx
-├── materials/
-│   └── list/
-│       └── index.tsx
-├── boms/
-│   └── list/
-│       └── index.tsx
 ├── work-orders/
 │   ├── list/
 │   │   └── index.tsx
@@ -413,9 +381,6 @@ riveredge-frontend/src/pages/apps/kuaizhizao/
 ├── work-reports/
 │   ├── report/
 │   │   └── index.tsx
-│   └── list/
-│       └── index.tsx
-├── warehouses/
 │   └── list/
 │       └── index.tsx
 ├── inventories/
@@ -431,12 +396,18 @@ riveredge-frontend/src/pages/apps/kuaizhizao/
     └── index.tsx
 ```
 
+**说明：**
+- 基础数据管理页面（工厂、车间、物料、BOM、仓库）使用 master_data 应用的页面
+- kuaizhizao 只开发 MES 核心功能页面
+- 在工单、报工等页面中，通过选择组件调用 master_data API 获取基础数据
+
 #### 菜单配置
 ```typescript
 // 在应用注册时配置菜单
 {
   code: 'kuaizhizao',
   name: '快智造',
+  dependencies: ['master_data'], // 依赖主数据管理APP
   menu_items: [
     {
       path: '/apps/kuaizhizao/dashboard',
@@ -459,21 +430,23 @@ riveredge-frontend/src/pages/apps/kuaizhizao/
       icon: 'DatabaseOutlined'
     },
     {
-      path: '/apps/kuaizhizao/base-data',
-      name: '基础数据',
-      icon: 'SettingOutlined',
-      children: [
-        { path: '/apps/kuaizhizao/factories', name: '工厂管理' },
-        { path: '/apps/kuaizhizao/workshops', name: '车间管理' },
-        { path: '/apps/kuaizhizao/work-centers', name: '工作中心' },
-        { path: '/apps/kuaizhizao/materials', name: '物料管理' },
-        { path: '/apps/kuaizhizao/boms', name: 'BOM管理' },
-        { path: '/apps/kuaizhizao/warehouses', name: '仓库管理' }
-      ]
+      path: '/apps/kuaizhizao/stock-ins',
+      name: '入库管理',
+      icon: 'InboxOutlined'
+    },
+    {
+      path: '/apps/kuaizhizao/stock-outs',
+      name: '出库管理',
+      icon: 'InboxInlined'
     }
   ]
 }
 ```
+
+**说明：**
+- 基础数据管理菜单在 master_data 应用中，kuaizhizao 不重复配置
+- kuaizhizao 菜单只包含 MES 核心功能
+- 在工单创建等页面中，通过链接跳转到 master_data 应用的基础数据管理页面
 
 ### 4.3 核心业务流程
 
@@ -524,21 +497,26 @@ riveredge-frontend/src/pages/apps/kuaizhizao/
 
 | 阶段 | 任务 | 时间 | 状态 |
 |------|------|------|------|
-| 第1周 | 基础架构搭建 | 1周 | ⏳ |
-| 第2周 | 基础数据管理 | 1周 | ⏳ |
-| 第3-4周 | 工单管理 | 1.5周 | ⏳ |
-| 第4周 | 报工管理 | 1周 | ⏳ |
-| 第5周 | 仓储管理 | 1周 | ⏳ |
+| 第1周 | 基础架构搭建 | 0.5周 | ⏳ |
+| 第1周 | 基础数据集成 | 0.5周 | ⏳ |
+| 第2-3周 | 工单管理 | 1.5周 | ⏳ |
+| 第3-4周 | 报工管理 | 1周 | ⏳ |
+| 第4-5周 | 仓储管理 | 1周 | ⏳ |
 | 第5周 | 生产看板 | 0.5周 | ⏳ |
-| 第6周 | 测试与优化 | 1周 | ⏳ |
+| 第5-6周 | 测试与优化 | 1周 | ⏳ |
 
-**总计：** 6周（约1.5个月）
+**总计：** 5-6周（约1.5个月）
+
+**优化说明：**
+- 移除基础数据管理开发时间（复用 master_data）
+- 减少基础架构搭建时间（不需要开发基础数据模型）
+- 增加基础数据集成时间（API集成和组件开发）
 
 ### 5.2 里程碑
 
-- **里程碑1（第1周末）：** 基础架构完成
-- **里程碑2（第2周末）：** 基础数据管理完成
-- **里程碑3（第4周末）：** 工单和报工管理完成
+- **里程碑1（第1周末）：** 基础架构和master_data集成完成
+- **里程碑2（第3周末）：** 工单管理完成
+- **里程碑3（第4周末）：** 报工管理完成
 - **里程碑4（第5周末）：** 仓储管理和看板完成
 - **里程碑5（第6周末）：** MVP发布
 
@@ -548,32 +526,39 @@ riveredge-frontend/src/pages/apps/kuaizhizao/
 
 ### 6.1 简化配置
 
-**策略1：提供默认配置**
-- 默认创建一个工厂、一个车间、一个工作中心
-- 提供示例物料和BOM模板
-- 提供示例工单模板
+**策略1：依赖 master_data 应用**
+- 基础数据配置在 master_data 应用中完成
+- kuaizhizao 应用启动时检查 master_data 是否已安装
+- 如果未安装，提示用户先安装 master_data 应用
 
-**策略2：一键初始化**
-- 提供初始化脚本，一键创建基础数据
+**策略2：提供默认配置**
+- 提供示例工单模板
+- 提供示例报工模板
+
+**策略3：一键初始化**
+- 提供初始化脚本，一键创建示例工单数据
 - 提供示例数据导入功能
 
-**策略3：减少必填项**
+**策略4：减少必填项**
 - 只保留最核心的必填字段
 - 其他字段提供默认值
 
 ### 6.2 快速上手
 
 **策略1：引导式配置**
-- 首次使用提供配置向导
-- 分步骤引导用户完成基础配置
+- 首次使用提示用户先配置 master_data 应用的基础数据
+- 提供跳转链接到 master_data 应用
+- 分步骤引导用户完成工单配置
 
 **策略2：帮助文档**
 - 提供简洁的操作手册
+- 说明与 master_data 应用的集成关系
 - 提供视频教程（可选）
 
 **策略3：示例数据**
-- 提供完整的示例数据
+- 提供完整的示例工单数据
 - 用户可以基于示例数据快速理解系统
+- 示例数据依赖 master_data 的基础数据
 
 ### 6.3 移动端支持
 
@@ -654,23 +639,31 @@ riveredge-frontend/src/pages/apps/kuaizhizao/
 
 ### 9.1 技术风险
 
-**风险1：数据模型设计不合理**
+**风险1：master_data API集成问题**
+- **应对：** 提前了解 master_data API 接口规范
+- **缓解措施：** 创建统一的 API 客户端，封装错误处理
+
+**风险2：数据模型设计不合理**
 - **应对：** 充分调研中小型制造业需求，参考行业最佳实践
 - **缓解措施：** MVP阶段保持模型简单，后续可扩展
 
-**风险2：性能问题**
+**风险3：性能问题**
 - **应对：** 提前进行性能测试，优化查询
-- **缓解措施：** 使用缓存、索引优化
+- **缓解措施：** 使用缓存、索引优化，减少对 master_data API 的调用频率
 
 ### 9.2 业务风险
 
-**风险1：功能不符合用户需求**
+**风险1：master_data 应用未安装**
+- **应对：** 应用启动时检查依赖，提示用户安装
+- **缓解措施：** 提供安装指引和快速安装脚本
+
+**风险2：功能不符合用户需求**
 - **应对：** MVP阶段聚焦核心功能，快速收集反馈
 - **缓解措施：** 预留扩展接口，便于后续迭代
 
-**风险2：实施难度大**
+**风险3：实施难度大**
 - **应对：** 简化配置，提供引导和示例
-- **缓解措施：** 提供实施支持服务
+- **缓解措施：** 提供实施支持服务，说明与 master_data 的集成关系
 
 ### 9.3 时间风险
 
