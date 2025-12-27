@@ -107,11 +107,12 @@ start_inngest() {
     # 启动 Inngest 服务
     # 参考官方文档：https://www.inngest.com/docs/getting-started/python-quick-start
     # 官方默认端口：8288（完全使用默认配置，不自定义端口）
-    log_info "启动 Inngest 服务（使用官方默认端口8288）..."
+    # Windows端口保留问题：使用 --host 127.0.0.1 绑定到本地回环地址，可能可以绕过端口保留限制
+    log_info "启动 Inngest 服务（使用官方默认端口8288，绑定到127.0.0.1）..."
     
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
-        # Windows: 直接后台启动，使用默认端口8288
-        ("$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" >> "$LOG_FILE" 2>&1) &
+        # Windows: 绑定到127.0.0.1而不是0.0.0.0，可能可以绕过端口保留限制
+        ("$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" --host 127.0.0.1 >> "$LOG_FILE" 2>&1) &
         local inngest_pid=$!
     else
         # Linux/Mac: 使用 nohup，使用默认端口8288
