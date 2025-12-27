@@ -1,10 +1,10 @@
 #!/bin/bash
 # RiverEdge SaaS 多组织框架 - Inngest 服务独立启动脚本
 # 独立启动 Inngest 服务，支持 Windows Git Bash 和 Linux/Mac
-# 使用 Inngest 官方默认端口配置（不自定义端口）
+# 使用 Inngest 官方默认配置，不自定义任何端口设置
 #
 # 使用方法:
-#   ./start-inngest.sh              # 启动 Inngest 服务 (使用默认端口)
+#   ./start-inngest.sh              # 启动 Inngest 服务 (使用默认配置)
 #   ./start-inngest.sh stop         # 停止 Inngest 服务
 #   ./start-inngest.sh status       # 查看服务状态
 
@@ -70,7 +70,7 @@ check_command() {
 
 # 启动 Inngest 服务
 start_inngest() {
-    log_info "启动 Inngest 服务 (使用默认配置)..."
+    log_info "启动 Inngest 服务（使用默认配置，不自定义端口）..."
 
     # 检查 Inngest 可执行文件
     local inngest_exe=""
@@ -104,8 +104,9 @@ start_inngest() {
     # 清理旧的PID文件
     rm -f "$PID_FILE"
 
-    # 启动 Inngest 服务
+    # 启动 Inngest 服务（使用默认配置，不自定义端口）
     log_info "启动 Inngest 服务..."
+    
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
         # Windows: 直接后台启动
         ("$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" >> "$LOG_FILE" 2>&1) &

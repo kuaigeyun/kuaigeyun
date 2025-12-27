@@ -1,19 +1,19 @@
 # RiverEdge SaaS - Inngest 服务独立启动脚本
 
-此目录包含 Inngest 服务的独立启动脚本，从主启动脚本 `Launch.sh` 中分离出来，提供更灵活的 Inngest 服务管理。
+此目录包含 Inngest 服务的独立启动脚本，完全独立于主项目启动流程。
 
 ## 文件说明
 
 - `start-inngest.sh` - Inngest 服务启动脚本
 - `inngest.exe` - Inngest 可执行文件 (Windows)
-- `inngest.config.json` - Inngest 配置文件
+- `inngest.config.json` - Inngest 配置文件（仅包含数据库和日志配置，不包含端口配置）
 
 ## 使用方法
 
 ### 基本用法
 
 ```bash
-# 启动 Inngest 服务 (使用默认配置)
+# 启动 Inngest 服务（使用 Inngest 默认配置）
 ./start-inngest.sh
 
 # 停止 Inngest 服务
@@ -29,7 +29,7 @@
 ### 环境变量配置
 
 ```bash
-# 指定后端API URL
+# 指定后端API URL（Inngest需要连接的后端地址）
 BACKEND_URL=http://localhost:8200/api/inngest ./start-inngest.sh start
 
 # 指定日志目录
@@ -39,14 +39,19 @@ LOG_DIR=/path/to/logs ./start-inngest.sh start
 ## 配置说明
 
 ### 默认配置
-- **端口**: 使用 Inngest 官方默认端口配置（不自定义端口）
-- **后端URL**: http://127.0.0.1:8200/api/inngest
+- **端口**: 完全使用 Inngest 官方默认端口配置，不进行任何自定义
+- **后端URL**: http://127.0.0.1:8200/api/inngest（可通过 BACKEND_URL 环境变量覆盖）
 - **日志目录**: ../../.logs (相对于脚本目录)
 - **PID文件**: ../../.logs/inngest.pid
 - **日志文件**: ../../.logs/inngest.log
 
 ### 配置文件
-`inngest.config.json` 包含 Inngest 的详细配置，不包含端口配置，使用 Inngest 默认端口。
+`inngest.config.json` 仅包含数据库和日志配置，**不包含任何端口配置**，端口完全由 Inngest 自动管理。
+
+### 重要说明
+- Inngest 服务**完全独立启动**，不与项目主启动脚本集成
+- 启动后请查看日志确认 Inngest 实际使用的端口
+- 后端项目通过环境变量 `INNGEST_EVENT_API_URL` 或 `INNGEST_HOST` + `INNGEST_PORT` 连接到 Inngest
 
 ## 服务访问
 
