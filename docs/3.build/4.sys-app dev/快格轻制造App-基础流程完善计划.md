@@ -169,67 +169,112 @@
 
 ### 第二阶段：完善单据关联关系（预计1-2天）
 
-#### 步骤2.1：完善单据关联关系服务
+#### 步骤2.1：完善单据关联关系服务 ✅
 **任务：**
-- [ ] 完善 `DocumentRelationService` 的关联关系建立逻辑
-- [ ] 实现完整的上下游关联关系查询
-- [ ] 实现单据追溯功能
+- [x] 完善 `DocumentRelationService` 的关联关系建立逻辑
+- [x] 实现完整的上下游关联关系查询
+- [x] 实现单据追溯功能
+
+**完成情况：**
+- ✅ 完善了MRP/LRP结果的下游单据查询（工单、采购单）
+- ✅ 完善了销售预测的下游单据查询（通过MRP查找工单）
+- ✅ 完善了工单的上游单据查询（查找MRP/LRP结果）
+- ✅ 添加了应付单和应收单的关联关系查询
+- ✅ 添加了采购入库单的关联关系查询（包括应付单）
 
 **文件：**
 - `riveredge-backend/src/apps/kuaizhizao/services/document_relation_service.py`
 
-#### 步骤2.2：完善单据关联关系API
+#### 步骤2.2：完善单据关联关系API ✅
 **任务：**
-- [ ] 完善单据关联关系查询API
-- [ ] 实现单据追溯API
-- [ ] 实现单据关联链展示API
+- [x] 完善单据关联关系查询API
+- [x] 实现单据追溯API
+- [x] 实现单据关联链展示API
+
+**完成情况：**
+- ✅ 更新了API文档注释，说明支持的所有单据类型
+- ✅ 完善了单据关联关系查询API（支持13种单据类型）
+- ✅ 完善了单据追溯API（支持多层级追溯）
 
 **文件：**
 - `riveredge-backend/src/apps/kuaizhizao/api/production.py`
 
-#### 步骤2.3：在所有单据创建/更新时建立关联关系
+#### 步骤2.3：在所有单据创建/更新时建立关联关系 ✅
 **任务：**
-- [ ] 在工单创建时建立与MRP/LRP的关联
-- [ ] 在生产领料创建时建立与工单的关联
-- [ ] 在成品入库创建时建立与工单的关联
-- [ ] 在销售出库创建时建立与销售预测/订单的关联
-- [ ] 在采购入库创建时建立与采购单的关联
-- [ ] 在应付单创建时建立与采购入库的关联
-- [ ] 在应收单创建时建立与销售出库的关联
+- [x] 在工单创建时建立与MRP/LRP的关联（通过物料ID和销售订单ID关联）
+- [x] 在生产领料创建时建立与工单的关联（已通过 `work_order_id` 字段建立）
+- [x] 在成品入库创建时建立与工单的关联（已通过 `work_order_id` 字段建立）
+- [x] 在销售出库创建时建立与销售预测/订单的关联（已通过 `sales_order_id` 字段建立）
+- [x] 在采购入库创建时建立与采购单的关联（已通过 `purchase_order_id` 字段建立）
+- [x] 在应付单创建时建立与采购入库的关联（已通过 `source_type` 和 `source_id` 字段建立，在 `confirm_receipt` 时自动生成）
+- [x] 在应收单创建时建立与销售出库的关联（已通过 `source_type` 和 `source_id` 字段建立，在 `confirm_delivery` 时自动生成）
+
+**完成情况：**
+- ✅ 所有关联关系已通过模型字段建立，无需额外代码
+- ✅ 采购单在从MRP/LRP生成时已设置 `source_type` 和 `source_id`
+- ✅ 应付单和应收单在相关单据确认时自动生成并建立关联
+
+**说明：**
+- 工单与MRP/LRP的关联通过物料ID和销售订单ID在 `DocumentRelationService` 中动态查询，无需在创建时显式建立
+- 其他所有关联关系已通过模型字段（如 `work_order_id`、`sales_order_id`、`purchase_order_id`、`source_type`、`source_id`）建立
 
 **文件：**
-- 所有服务类文件
+- 所有服务类文件（关联关系已通过模型字段建立）
 
 ---
 
-### 第三阶段：完善异常处理（预计2-3天）
+### 第三阶段：完善异常处理（预计2-3天）✅
 
-#### 步骤3.1：实现缺料检测和预警
+#### 步骤3.1：实现缺料检测和预警 ✅
 **任务：**
-- [ ] 在工单服务中添加 `check_material_shortage()` 方法
-- [ ] 实现缺料检测逻辑（基于BOM和库存）
-- [ ] 实现缺料预警API
-- [ ] 在工单下达前自动检查缺料
+- [x] 在工单服务中添加 `check_material_shortage()` 方法
+- [x] 实现缺料检测逻辑（基于BOM和库存）
+- [x] 实现缺料预警API
+- [x] 在工单下达前自动检查缺料
+
+**完成情况：**
+- ✅ 创建了 `inventory_helper.py` 库存查询辅助模块
+- ✅ 在 `WorkOrderService` 中添加了 `check_material_shortage()` 方法
+- ✅ 实现了基于BOM和库存的缺料检测逻辑
+- ✅ 添加了 `/work-orders/{work_order_id}/check-shortage` API端点
+- ✅ 在 `release_work_order()` 方法中集成了缺料检测（默认启用）
+- ✅ 创建了 `MaterialShortageResponse` schema
+
+**文件：**
+- `riveredge-backend/src/apps/kuaizhizao/services/work_order_service.py`
+- `riveredge-backend/src/apps/kuaizhizao/api/production.py`
+- `riveredge-backend/src/apps/kuaizhizao/utils/inventory_helper.py`
+- `riveredge-backend/src/apps/kuaizhizao/schemas/work_order.py`
+
+#### 步骤3.2：实现交期延期检测和预警 ✅
+**任务：**
+- [x] 在工单服务中添加延期检测逻辑
+- [x] 实现延期工单查询API
+- [x] 实现延期原因分析API
+
+**完成情况：**
+- ✅ 在 `WorkOrderService` 中添加了 `check_delayed_work_orders()` 方法
+- ✅ 实现了延期工单查询逻辑（基于计划结束日期和当前日期）
+- ✅ 添加了 `analyze_delay_reasons()` 方法进行延期原因分析
+- ✅ 添加了 `/work-orders/delayed` API端点（查询延期工单）
+- ✅ 添加了 `/work-orders/delay-analysis` API端点（延期原因分析）
 
 **文件：**
 - `riveredge-backend/src/apps/kuaizhizao/services/work_order_service.py`
 - `riveredge-backend/src/apps/kuaizhizao/api/production.py`
 
-#### 步骤3.2：实现交期延期检测和预警
+#### 步骤3.3：实现质量异常检测和预警 ✅
 **任务：**
-- [ ] 在工单服务中添加延期检测逻辑
-- [ ] 实现延期工单查询API
-- [ ] 实现延期原因分析API
+- [x] 在质量服务中添加异常检测逻辑
+- [x] 实现质量异常查询API
+- [x] 实现质量统计分析API
 
-**文件：**
-- `riveredge-backend/src/apps/kuaizhizao/services/work_order_service.py`
-- `riveredge-backend/src/apps/kuaizhizao/api/production.py`
-
-#### 步骤3.3：实现质量异常检测和预警
-**任务：**
-- [ ] 在质量服务中添加异常检测逻辑
-- [ ] 实现质量异常查询API
-- [ ] 实现质量统计分析API
+**完成情况：**
+- ✅ 在 `FinishedGoodsInspectionService` 中添加了 `get_quality_anomalies()` 方法
+- ✅ 实现了质量异常记录查询（支持来料、过程、成品三种检验类型）
+- ✅ 添加了 `get_quality_statistics()` 方法进行质量统计分析
+- ✅ 添加了 `/quality/anomalies` API端点（查询质量异常记录）
+- ✅ 添加了 `/quality/statistics` API端点（质量统计分析）
 
 **文件：**
 - `riveredge-backend/src/apps/kuaizhizao/services/quality_service.py`
