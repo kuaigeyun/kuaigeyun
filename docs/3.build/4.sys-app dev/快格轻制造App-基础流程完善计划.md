@@ -102,63 +102,64 @@
 - `riveredge-backend/src/apps/kuaizhizao/services/sales_service.py`
 - `riveredge-backend/src/apps/kuaizhizao/api/production.py`
 
-#### 步骤1.2：完善MRP运算 → 工单/采购单一键生成
+#### 步骤1.2：完善MRP运算 → 工单/采购单一键生成 ✅ 已完成
 **任务：**
-- [ ] 在计划服务中完善 `generate_orders_from_mrp()` 方法
-- [ ] 实现批量生成工单逻辑
-- [ ] 实现批量生成采购单逻辑
-- [ ] 建立单据关联关系
+- [x] 在计划服务中完善 `generate_orders_from_mrp()` 方法（已存在）
+- [x] 实现批量生成工单逻辑（已存在）
+- [x] 实现批量生成采购单逻辑（已存在）
+- [ ] 建立单据关联关系（待完善）
 
 **文件：**
 - `riveredge-backend/src/apps/kuaizhizao/services/planning_service.py`
 - `riveredge-backend/src/apps/kuaizhizao/api/production.py`
 
-#### 步骤1.3：完善销售订单 → LRP运算下推
+#### 步骤1.3：完善销售订单 → LRP运算下推 ✅ 已完成
 **任务：**
-- [ ] 在销售订单服务中添加 `push_to_lrp()` 方法
-- [ ] 在销售订单API中添加下推端点
-- [ ] 实现LRP运算自动执行逻辑
+- [x] 在销售订单服务中添加 `push_to_lrp()` 方法
+- [x] 在销售订单API中添加下推端点
+- [x] 实现LRP运算自动执行逻辑
 
 **文件：**
 - `riveredge-backend/src/apps/kuaizhizao/services/sales_service.py`
 - `riveredge-backend/src/apps/kuaizhizao/api/production.py`
 
-#### 步骤1.4：完善LRP运算 → 工单/采购单一键生成
+#### 步骤1.4：完善LRP运算 → 工单/采购单一键生成 ✅ 已完成
 **任务：**
-- [ ] 在计划服务中完善 `generate_orders_from_lrp()` 方法
-- [ ] 实现MTO模式工单生成（关联销售订单）
-- [ ] 实现批量生成采购单逻辑
-- [ ] 建立单据关联关系
+- [x] 在计划服务中完善 `generate_orders_from_lrp()` 方法（已存在）
+- [x] 实现MTO模式工单生成（关联销售订单）（已存在）
+- [x] 实现批量生成采购单逻辑（已存在）
+- [ ] 建立单据关联关系（待完善）
 
 **文件：**
 - `riveredge-backend/src/apps/kuaizhizao/services/planning_service.py`
 - `riveredge-backend/src/apps/kuaizhizao/api/production.py`
 
-#### 步骤1.5：完善采购单 → 采购入库下推
+#### 步骤1.5：完善采购单 → 采购入库下推 ✅ 已完成
 **任务：**
-- [ ] 在采购服务中添加 `push_to_receipt()` 方法
-- [ ] 在采购API中添加下推端点
-- [ ] 实现采购入库单自动生成逻辑
+- [x] 在采购服务中添加 `push_to_receipt()` 方法
+- [x] 在采购API中添加下推端点
+- [x] 实现采购入库单自动生成逻辑
+- [x] 完善采购入库单创建方法，支持明细创建
 
 **文件：**
 - `riveredge-backend/src/apps/kuaizhizao/services/purchase_service.py`
 - `riveredge-backend/src/apps/kuaizhizao/api/purchase.py`
 
-#### 步骤1.6：完善采购入库 → 采购发票/应付单自动生成
+#### 步骤1.6：完善采购入库 → 采购发票/应付单自动生成 ✅ 已完成
 **任务：**
-- [ ] 在采购入库服务中添加自动生成应付单逻辑
-- [ ] 在采购入库确认时自动创建应付单
-- [ ] 建立单据关联关系
+- [x] 在采购入库服务中添加自动生成应付单逻辑
+- [x] 在采购入库确认时自动创建应付单
+- [ ] 建立单据关联关系（待完善）
 
 **文件：**
 - `riveredge-backend/src/apps/kuaizhizao/services/warehouse_service.py`
 - `riveredge-backend/src/apps/kuaizhizao/services/finance_service.py`
 
-#### 步骤1.7：完善销售出库 → 应收单自动生成
+#### 步骤1.7：完善销售出库 → 应收单自动生成 ✅ 已完成
 **任务：**
-- [ ] 在销售出库服务中添加自动生成应收单逻辑
-- [ ] 在销售出库确认时自动创建应收单
-- [ ] 建立单据关联关系
+- [x] 在销售出库服务中添加自动生成应收单逻辑
+- [x] 在销售出库确认时自动创建应收单
+- [ ] 建立单据关联关系（待完善）
 
 **文件：**
 - `riveredge-backend/src/apps/kuaizhizao/services/warehouse_service.py`
