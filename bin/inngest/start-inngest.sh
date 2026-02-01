@@ -107,19 +107,16 @@ start_inngest() {
     # 清理旧的PID文件
     rm -f "$PID_FILE"
 
-    # 启动 Inngest 服务
+    # 启动 Inngest 服务：仅使用 -u 指定的 App，关闭自动发现避免重复/无效 App
     # 参考官方文档：https://www.inngest.com/docs/getting-started/python-quick-start
-    # 使用环境变量 INNGEST_PORT 指定的端口（默认8288，Inngest官方默认端口）
     log_info "启动 Inngest 服务（端口: $INNGEST_PORT）..."
     
-    # 启动Inngest，明确指定 --port 参数，使用环境变量中的端口配置
+    # 启动Inngest，--no-discovery 避免与 -u 重复注册同一 URL（防止出现两个 App、一个 Not Synced）
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
-        # Windows: 使用 --host 127.0.0.1，明确指定 --port 使用环境变量中的端口
-        ("$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" --host 127.0.0.1 --port "$INNGEST_PORT" >> "$LOG_FILE" 2>&1) &
+        ("$inngest_exe" dev -u "$BACKEND_URL" --no-discovery --config "$config_file" --host 127.0.0.1 --port "$INNGEST_PORT" >> "$LOG_FILE" 2>&1) &
         local inngest_pid=$!
     else
-        # Linux/Mac: 使用 nohup，明确指定 --port 使用环境变量中的端口
-        nohup "$inngest_exe" dev -u "$BACKEND_URL" --config "$config_file" --port "$INNGEST_PORT" >> "$LOG_FILE" 2>&1 &
+        nohup "$inngest_exe" dev -u "$BACKEND_URL" --no-discovery --config "$config_file" --port "$INNGEST_PORT" >> "$LOG_FILE" 2>&1 &
         local inngest_pid=$!
     fi
 

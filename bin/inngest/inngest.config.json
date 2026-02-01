@@ -3,5 +3,7 @@
         "url": "postgresql://postgres:postgres@localhost:5432/inngest",
         "pool_size": 10
     },
-    "log_level": "info"
+    "log_level": "info",
+    "sdk-url": ["http://127.0.0.1:8200/api/inngest"],
+    "no-discovery": true
 }

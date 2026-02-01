@@ -46,7 +46,19 @@ LOG_DIR=/path/to/logs ./start-inngest.sh start
 - **日志文件**: ../../.logs/inngest.log
 
 ### 配置文件
-`inngest.config.json` 仅包含数据库和日志配置，**不包含任何端口配置**，端口完全由 Inngest 自动管理。
+`inngest.config.json` 包含数据库、日志、以及 **sdk-url** / **no-discovery** 配置：
+- **sdk-url**：仅同步此处列出的后端地址（默认 `http://127.0.0.1:8200/api/inngest`），避免重复 App。
+- **no-discovery**：关闭自动发现，不再扫描端口添加应用，避免出现「两个 App、一个 Not Synced」。
+
+**若仍显示两个 App（一个「Syncing... / Not Synced」）**：  
+Inngest 会把已同步的 App 持久化到数据库，之前的无效条目会一直存在，需**重置 Inngest 数据库**后再启动：
+
+1. **先停止 Inngest**（在项目根目录执行 `./Launch.sh stop` 或停止单独启动的 Inngest 进程）。
+2. **重置 Inngest 数据库**（二选一）：
+   - **有 psql**：`./bin/inngest/reset-inngest-db.sh`
+   - **用 Python**：在项目根目录执行 `uv run python bin/inngest/reset_inngest_db.py`（需已安装 `psycopg2`）。
+   - 或手动在 PostgreSQL 中执行：`DROP DATABASE IF EXISTS inngest;` 与 `CREATE DATABASE inngest;`（连接 `postgres` 库执行）。
+3. **再启动 Inngest**。启动后只会从配置中的 `sdk-url` 同步一个 App，且 `no-discovery` 会阻止再出现第二个。
 
 ### 重要说明
 - Inngest 服务**完全独立启动**，不与项目主启动脚本集成
