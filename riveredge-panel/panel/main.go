@@ -3,9 +3,13 @@
 package main
 
 import (
+	"crypto/rand"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,6 +17,10 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 //go:embed web/index.html
@@ -22,6 +30,10 @@ var (
 	panelDir   string
 	projectDir string
 	configPath string
+	authPath   string
+	sessions   = make(map[string]time.Time)
+	sessionsMu sync.RWMutex
+	sessionTTL = 24 * time.Hour
 )
 
 func init() {
@@ -32,6 +44,7 @@ func init() {
 		projectDir = panelDir
 	}
 	configPath = filepath.Join(panelDir, "deploy-config.json")
+	authPath = filepath.Join(panelDir, "panel-auth.json")
 }
 
 type checkItem struct {
@@ -77,6 +90,161 @@ func loadConfig() configData {
 func saveConfig(c configData) error {
 	data, _ := json.MarshalIndent(c, "", "  ")
 	return os.WriteFile(configPath, data, 0644)
+}
+
+func loadMasterHash() string {
+	data, err := os.ReadFile(authPath)
+	if err != nil {
+		return ""
+	}
+	var v struct {
+		MasterPasswordHash string `json:"master_password_hash"`
+	}
+	_ = json.Unmarshal(data, &v)
+	return v.MasterPasswordHash
+}
+
+func saveMasterHash(hash string) error {
+	data, _ := json.MarshalIndent(map[string]string{"master_password_hash": hash}, "", "  ")
+	return os.WriteFile(authPath, data, 0600)
+}
+
+func generateSessionToken() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return base64.URLEncoding.EncodeToString(b)
+}
+
+func createSession() string {
+	token := generateSessionToken()
+	sessionsMu.Lock()
+	sessions[token] = time.Now().Add(sessionTTL)
+	sessionsMu.Unlock()
+	return token
+}
+
+func checkSession(r *http.Request) bool {
+	c, err := r.Cookie("panel_session")
+	if err != nil || c.Value == "" {
+		return false
+	}
+	sessionsMu.RLock()
+	exp, ok := sessions[c.Value]
+	sessionsMu.RUnlock()
+	if !ok || time.Now().After(exp) {
+		return false
+	}
+	return true
+}
+
+func getSessionCookie(r *http.Request) string {
+	c, _ := r.Cookie("panel_session")
+	if c != nil {
+		return c.Value
+	}
+	return ""
+}
+
+func apiAuthStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	hash := loadMasterHash()
+	hasPassword := hash != ""
+	authenticated := hasPassword && checkSession(r)
+	writeJSON(w, map[string]any{"has_password": hasPassword, "authenticated": authenticated})
+}
+
+func apiSetMasterPassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if loadMasterHash() != "" {
+		http.Error(w, "Master 密码已设置", http.StatusBadRequest)
+		return
+	}
+	var body struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Password == "" {
+		http.Error(w, "请提供密码", http.StatusBadRequest)
+		return
+	}
+	if len(body.Password) < 6 {
+		http.Error(w, "密码至少 6 位", http.StatusBadRequest)
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := saveMasterHash(string(hash)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	token := createSession()
+	http.SetCookie(w, &http.Cookie{Name: "panel_session", Value: token, Path: "/", MaxAge: int(sessionTTL.Seconds()), HttpOnly: true, SameSite: http.SameSiteLaxMode})
+	writeJSON(w, map[string]any{"success": true, "message": "Master 密码已设置"})
+}
+
+func apiLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	hash := loadMasterHash()
+	if hash == "" {
+		http.Error(w, "请先设置 Master 密码", http.StatusBadRequest)
+		return
+	}
+	var body struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "请提供密码", http.StatusBadRequest)
+		return
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(body.Password)); err != nil {
+		http.Error(w, "密码错误", http.StatusUnauthorized)
+		return
+	}
+	token := createSession()
+	http.SetCookie(w, &http.Cookie{Name: "panel_session", Value: token, Path: "/", MaxAge: int(sessionTTL.Seconds()), HttpOnly: true, SameSite: http.SameSiteLaxMode})
+	writeJSON(w, map[string]any{"success": true, "message": "登录成功"})
+}
+
+func apiLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	token := getSessionCookie(r)
+	if token != "" {
+		sessionsMu.Lock()
+		delete(sessions, token)
+		sessionsMu.Unlock()
+	}
+	http.SetCookie(w, &http.Cookie{Name: "panel_session", Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
+	writeJSON(w, map[string]any{"success": true})
+}
+
+func requireAuth(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if loadMasterHash() == "" {
+			h(w, r)
+			return
+		}
+		if !checkSession(r) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error":"未登录"}`))
+			return
+		}
+		h(w, r)
+	}
 }
 
 func getEnhancedPath() string {
@@ -203,6 +371,35 @@ func runCmdEx(name string, arg ...string) (bool, string) {
 	out, err := cmd.CombinedOutput()
 	s := strings.TrimSpace(string(out))
 	return err == nil, s
+}
+
+// resolveUvPath 返回 uv 可执行文件路径。Windows 双击运行时 PATH 可能不含 uv，按已知路径查找
+func resolveUvPath() string {
+	ok, _ := runCmd("uv", "--version")
+	if ok {
+		return "uv"
+	}
+	if runtime.GOOS == "windows" {
+		userProfile := os.Getenv("USERPROFILE")
+		programFiles := os.Getenv("ProgramFiles")
+		appData := os.Getenv("APPDATA")
+		candidates := []string{
+			filepath.Join(userProfile, ".local", "bin", "uv.exe"),
+			filepath.Join(userProfile, "AppData", "Local", "Programs", "Python", "Python311", "Scripts", "uv.exe"),
+			filepath.Join(userProfile, "AppData", "Local", "Programs", "Python", "Python312", "Scripts", "uv.exe"),
+			filepath.Join(userProfile, "AppData", "Local", "Programs", "Python", "Python313", "Scripts", "uv.exe"),
+			filepath.Join(programFiles, "Python311", "Scripts", "uv.exe"),
+			filepath.Join(programFiles, "Python312", "Scripts", "uv.exe"),
+			filepath.Join(appData, "Python", "Python311", "Scripts", "uv.exe"),
+			filepath.Join(appData, "Python", "Python312", "Scripts", "uv.exe"),
+		}
+		for _, p := range candidates {
+			if _, err := os.Stat(p); err == nil {
+				return p
+			}
+		}
+	}
+	return "uv"
 }
 
 func checkNpm() checkItem {
@@ -455,6 +652,12 @@ func apiInstallScript(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"platform": plat, "component": comp, "command": cmd})
 }
 
+func generateJwtSecret() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b) // 43 字符，无填充
+}
+
 func apiGenerateEnv(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -467,17 +670,26 @@ func apiGenerateEnv(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, ".env.example not found", http.StatusInternalServerError)
 		return
 	}
-	cfg := loadConfig().Config
+	cfg := loadConfig()
+	// 生产环境自动生成 JWT_SECRET_KEY，并持久化到 deploy-config
+	if v, ok := cfg.Config["jwt_secret_key"]; !ok || v == nil || strings.TrimSpace(fmt.Sprint(v)) == "" {
+		secret := generateJwtSecret()
+		cfg.Config["jwt_secret_key"] = secret
+		if err := saveConfig(cfg); err != nil {
+			log.Printf("[generate-env] 保存 jwt_secret_key 到配置失败: %v", err)
+		}
+	}
 	mapping := map[string]string{
 		"db_host": "DB_HOST", "db_port": "DB_PORT", "db_user": "DB_USER",
 		"db_password": "DB_PASSWORD", "db_name": "DB_NAME",
 		"redis_host": "REDIS_HOST", "redis_port": "REDIS_PORT", "redis_password": "REDIS_PASSWORD",
 		"backend_port": "PORT", "frontend_port": "FRONTEND_PORT",
 		"platform_superadmin_password": "PLATFORM_SUPERADMIN_PASSWORD",
+		"jwt_secret_key": "JWT_SECRET_KEY",
 	}
 	content := string(data)
 	for k, envKey := range mapping {
-		if v, ok := cfg[k]; ok && v != nil {
+		if v, ok := cfg.Config[k]; ok && v != nil {
 			val := fmt.Sprint(v)
 			re := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(envKey) + `=.*$`)
 			content = re.ReplaceAllString(content, envKey+"="+val)
@@ -496,11 +708,62 @@ func apiMigrate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	backendDir := filepath.Join(projectDir, "riveredge-backend")
-	cmd := exec.Command("uv", "run", "aerich", "upgrade")
+	if _, err := os.Stat(backendDir); err != nil {
+		log.Printf("[migrate] riveredge-backend 目录不存在: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]any{"success": false, "error": "riveredge-backend 目录不存在，请确认项目结构"})
+		return
+	}
+	uvPath := resolveUvPath()
+	cmd := exec.Command(uvPath, "run", "aerich", "upgrade")
 	cmd.Dir = backendDir
+	srcDir := filepath.Join(backendDir, "src")
+	pathSep := ":"
+	if runtime.GOOS == "windows" {
+		pathSep = ";"
+	}
+	pythonPath := backendDir + pathSep + srcDir
+	if existing := os.Getenv("PYTHONPATH"); existing != "" {
+		pythonPath = pythonPath + pathSep + existing
+	}
+	env := os.Environ()
+	pyFound := false
+	for i, e := range env {
+		if strings.HasPrefix(e, "PYTHONPATH=") {
+			env[i] = "PYTHONPATH=" + pythonPath
+			pyFound = true
+			break
+		}
+	}
+	if !pyFound {
+		env = append(env, "PYTHONPATH="+pythonPath)
+	}
+	if runtime.GOOS == "windows" {
+		enhanced := "PATH=" + getEnhancedPath()
+		found := false
+		for i, e := range env {
+			if strings.HasPrefix(e, "PATH=") {
+				env[i] = enhanced
+				found = true
+				break
+			}
+		}
+		if !found {
+			env = append(env, enhanced)
+		}
+	}
+	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		http.Error(w, string(out), http.StatusInternalServerError)
+		errMsg := strings.TrimSpace(string(out))
+		if errMsg == "" {
+			errMsg = err.Error()
+		}
+		log.Printf("[migrate] aerich upgrade 失败: %v\n输出: %s", err, errMsg)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]any{"success": false, "error": errMsg})
 		return
 	}
 	writeJSON(w, map[string]bool{"success": true})
@@ -577,8 +840,14 @@ func apiLaunch(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Launch.sh not found", http.StatusInternalServerError)
 		return
 	}
+	cfg := loadConfig().Config
+	env := os.Environ()
+	if isTrue(cfg["launch_mobile"]) {
+		env = append(env, "LAUNCH_MOBILE=true")
+	}
 	cmd := exec.Command("bash", launchSh)
 	cmd.Dir = projectDir
+	cmd.Env = env
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Start(); err != nil {
@@ -743,15 +1012,29 @@ func apiLaunchProd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "生产启动脚本不存在: "+launchProd, http.StatusInternalServerError)
 		return
 	}
+	cfg := loadConfig().Config
+	branch := "develop"
+	if v, ok := cfg["git_branch"]; ok && v != nil {
+		if s := strings.TrimSpace(fmt.Sprint(v)); s != "" {
+			branch = s
+		}
+	}
+	remoteURL, _ := cfg["git_remote_url"].(string)
+	remoteURL = strings.TrimSpace(remoteURL)
+	env := os.Environ()
+	env = append(env, "GIT_BRANCH="+branch)
+	if remoteURL != "" {
+		env = append(env, "GIT_REMOTE_URL="+remoteURL)
+	}
 	cmd := exec.Command("bash", launchProd, "start")
 	cmd.Dir = projectDir
+	cmd.Env = env
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Start(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	cfg := loadConfig().Config
 	port := 8080
 	if v, ok := cfg["caddy_proxy_port"]; ok && v != nil {
 		if p, ok := toInt(v); ok && p > 0 {
@@ -767,9 +1050,194 @@ func apiLaunchProd(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"success": true, "message": "生产环境启动中，访问 " + url})
 }
 
+func apiUpdateProd(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	content, err := generateCaddyfile()
+	if err != nil {
+		http.Error(w, "生成 Caddyfile 失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	caddyDir := filepath.Join(panelDir, "caddy")
+	os.MkdirAll(caddyDir, 0755)
+	caddyPath := filepath.Join(caddyDir, "Caddyfile")
+	if err := os.WriteFile(caddyPath, []byte(content), 0644); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	launchProd := filepath.Join(projectDir, "riveredge-panel", "Launch.prod.sh")
+	if runtime.GOOS == "windows" {
+		launchProd = filepath.Join(projectDir, "riveredge-panel", "Launch.prod.win.sh")
+	}
+	if _, err := os.Stat(launchProd); err != nil {
+		http.Error(w, "生产启动脚本不存在: "+launchProd, http.StatusInternalServerError)
+		return
+	}
+	cfg := loadConfig().Config
+	branch := "develop"
+	if v, ok := cfg["git_branch"]; ok && v != nil {
+		if s := strings.TrimSpace(fmt.Sprint(v)); s != "" {
+			branch = s
+		}
+	}
+	remoteURL, _ := cfg["git_remote_url"].(string)
+	remoteURL = strings.TrimSpace(remoteURL)
+	env := os.Environ()
+	env = append(env, "GIT_BRANCH="+branch)
+	if remoteURL != "" {
+		env = append(env, "GIT_REMOTE_URL="+remoteURL)
+	}
+	cmd := exec.Command("bash", launchProd, "update")
+	cmd.Dir = projectDir
+	cmd.Env = env
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	if err := cmd.Start(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"success": true, "message": "生产更新已启动：拉取代码 → 迁移 → 重建 → 重启"})
+}
+
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
+}
+
+func checkPortReachable(host string, port int) bool {
+	addr := fmt.Sprintf("%s:%d", host, port)
+	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
+}
+
+func checkHTTPOk(url string) bool {
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	return resp.StatusCode < 500
+}
+
+func apiLaunchStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	cfg := loadConfig().Config
+	backendPort := 8200
+	if v, ok := cfg["backend_port"]; ok && v != nil {
+		if p, ok := toInt(v); ok && p > 0 {
+			backendPort = p
+		}
+	}
+	frontendPort := 8100
+	if v, ok := cfg["frontend_port"]; ok && v != nil {
+		if p, ok := toInt(v); ok && p > 0 {
+			frontendPort = p
+		}
+	}
+	proxyPort := 8080
+	if v, ok := cfg["caddy_proxy_port"]; ok && v != nil {
+		if p, ok := toInt(v); ok && p > 0 {
+			proxyPort = p
+		}
+	}
+	mobilePort := 8101
+	if v, ok := cfg["mobile_port"]; ok && v != nil {
+		if p, ok := toInt(v); ok && p > 0 {
+			mobilePort = p
+		}
+	}
+	// 手机端：开发模式在 8101 独立进程；生产模式由 Caddy 在 /mobile 提供
+	mobileRunning := checkPortReachable("127.0.0.1", mobilePort)
+	mobileURL := fmt.Sprintf("http://127.0.0.1:%d", mobilePort)
+	mobilePortDisplay := mobilePort
+	if !mobileRunning && checkPortReachable("127.0.0.1", proxyPort) {
+		mobileURL = fmt.Sprintf("http://127.0.0.1:%d/mobile", proxyPort)
+		mobileRunning = checkHTTPOk(mobileURL)
+		mobilePortDisplay = proxyPort
+	}
+	status := map[string]any{
+		"backend": map[string]any{
+			"running": checkHTTPOk(fmt.Sprintf("http://127.0.0.1:%d/health", backendPort)),
+			"port":   backendPort,
+			"url":    fmt.Sprintf("http://127.0.0.1:%d", backendPort),
+		},
+		"frontend": map[string]any{
+			"running": checkPortReachable("127.0.0.1", frontendPort),
+			"port":   frontendPort,
+			"url":    fmt.Sprintf("http://127.0.0.1:%d", frontendPort),
+		},
+		"mobile": map[string]any{
+			"running": mobileRunning,
+			"port":   mobilePortDisplay,
+			"url":    mobileURL,
+		},
+		"inngest": map[string]any{
+			"running": checkPortReachable("127.0.0.1", 8288),
+			"port":   8288,
+		},
+		"caddy": map[string]any{
+			"running": checkPortReachable("127.0.0.1", proxyPort),
+			"port":   proxyPort,
+			"url":    fmt.Sprintf("http://127.0.0.1:%d", proxyPort),
+		},
+	}
+	writeJSON(w, status)
+}
+
+var allowedLogFiles = map[string]bool{
+	"backend": true, "frontend": true, "inngest": true, "caddy": true, "mobile": true,
+}
+
+func apiLogs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	file := r.URL.Query().Get("file")
+	if file == "" {
+		file = "backend"
+	}
+	if !allowedLogFiles[file] {
+		http.Error(w, "invalid log file", http.StatusBadRequest)
+		return
+	}
+	lines := 300
+	if n := r.URL.Query().Get("lines"); n != "" {
+		if v, err := fmt.Sscanf(n, "%d", &lines); v == 1 && err == nil {
+			if lines < 1 {
+				lines = 100
+			}
+			if lines > 1000 {
+				lines = 1000
+			}
+		}
+	}
+	logPath := filepath.Join(projectDir, ".logs", file+".log")
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeJSON(w, map[string]any{"content": "", "file": file, "message": "日志文件尚未生成，请等待服务启动"})
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	content := string(data)
+	lineList := strings.Split(content, "\n")
+	if len(lineList) > lines {
+		lineList = lineList[len(lineList)-lines:]
+	}
+	writeJSON(w, map[string]any{"content": strings.Join(lineList, "\n"), "file": file})
 }
 
 func cors(h http.HandlerFunc) http.HandlerFunc {
@@ -787,23 +1255,30 @@ func cors(h http.HandlerFunc) http.HandlerFunc {
 
 func main() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/check", cors(apiCheck))
-	mux.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/auth-status", cors(apiAuthStatus))
+	mux.HandleFunc("/api/set-master-password", cors(apiSetMasterPassword))
+	mux.HandleFunc("/api/login", cors(apiLogin))
+	mux.HandleFunc("/api/logout", cors(apiLogout))
+	mux.HandleFunc("/api/check", cors(requireAuth(apiCheck)))
+	mux.HandleFunc("/api/config", cors(requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			cors(apiGetConfig)(w, r)
+			apiGetConfig(w, r)
 		} else {
-			cors(apiSaveConfig)(w, r)
+			apiSaveConfig(w, r)
 		}
-	})
-	mux.HandleFunc("/api/install-script/", cors(apiInstallScript))
-	mux.HandleFunc("/api/generate-env", cors(apiGenerateEnv))
-	mux.HandleFunc("/api/migrate", cors(apiMigrate))
-	mux.HandleFunc("/api/launch", cors(apiLaunch))
-	mux.HandleFunc("/api/launch-prod", cors(apiLaunchProd))
-	mux.HandleFunc("/api/generate-caddyfile", cors(apiGenerateCaddyfile))
-	mux.HandleFunc("/api/caddyfile-preview", cors(apiCaddyfilePreview))
-	mux.HandleFunc("/api/test-postgres", cors(apiTestPostgres))
-	mux.HandleFunc("/api/test-redis", cors(apiTestRedis))
+	})))
+	mux.HandleFunc("/api/install-script/", cors(requireAuth(apiInstallScript)))
+	mux.HandleFunc("/api/generate-env", cors(requireAuth(apiGenerateEnv)))
+	mux.HandleFunc("/api/migrate", cors(requireAuth(apiMigrate)))
+	mux.HandleFunc("/api/launch", cors(requireAuth(apiLaunch)))
+	mux.HandleFunc("/api/launch-prod", cors(requireAuth(apiLaunchProd)))
+	mux.HandleFunc("/api/update-prod", cors(requireAuth(apiUpdateProd)))
+	mux.HandleFunc("/api/generate-caddyfile", cors(requireAuth(apiGenerateCaddyfile)))
+	mux.HandleFunc("/api/caddyfile-preview", cors(requireAuth(apiCaddyfilePreview)))
+	mux.HandleFunc("/api/test-postgres", cors(requireAuth(apiTestPostgres)))
+	mux.HandleFunc("/api/test-redis", cors(requireAuth(apiTestRedis)))
+	mux.HandleFunc("/api/logs", cors(requireAuth(apiLogs)))
+	mux.HandleFunc("/api/launch-status", cors(requireAuth(apiLaunchStatus)))
 	mux.HandleFunc("/api/health", cors(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"status": "ok"})
 	}))

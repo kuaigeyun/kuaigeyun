@@ -1,5 +1,6 @@
 # 含敏感信息的配置（勿提交）
 deploy-config.json
+panel-auth.json
 
 # 自动生成的 Caddy 配置
 caddy/Caddyfile

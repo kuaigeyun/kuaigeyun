@@ -6,14 +6,17 @@
   <title>RiverEdge 部署向导</title>
   <style>
     *{box-sizing:border-box}
+    :root{--app-max:720px;--app-pad:32px}
     body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;background:linear-gradient(180deg,#f0f5ff 0%,#e6f7ff 50%,#f5f5f5 100%);min-height:100vh}
-    .header{background:linear-gradient(180deg,#fff 0%,#fafbff 100%);padding:24px 32px;border-bottom:1px solid #e8ecf4}
-    .header-inner{max-width:720px;margin:0 auto;text-align:center}
-    .header .brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px}
-    .header .brand-icon{width:36px;height:36px;background:linear-gradient(135deg,#1890ff,#096dd9);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;letter-spacing:-1px}
+    .header{background:linear-gradient(180deg,#fff 0%,#fafbff 100%);padding:20px var(--app-pad);border-bottom:1px solid #e8ecf4}
+    .header-inner{max-width:var(--app-max);width:100%;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+    .header-brand{flex:1;min-width:0}
+    .header-brand-row{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+    .header .brand-icon{width:36px;height:36px;flex-shrink:0;background:linear-gradient(135deg,#1890ff,#096dd9);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;letter-spacing:-1px}
     .header h1{margin:0;font-size:22px;font-weight:600;color:#262626;letter-spacing:-.5px}
-    .header p{margin:0;color:#8c8c8c;font-size:14px;line-height:1.5}
-    .main{padding:32px;max-width:720px;margin:0 auto}
+    .header .header-desc{margin:0;color:#8c8c8c;font-size:14px;line-height:1.5}
+    .header .btn-logout{flex-shrink:0;font-size:13px;padding:6px 14px}
+    .main{padding:32px var(--app-pad);max-width:calc(var(--app-max) + var(--app-pad) * 2);width:100%;margin:0 auto}
     .progress{display:flex;gap:0;margin-bottom:32px;background:#fff;padding:8px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
     .progress-step{flex:1;text-align:center;padding:12px 8px;font-size:13px;color:#8c8c8c;position:relative;border-radius:8px;transition:all .2s}
     .progress-step.done{color:#52c41a;font-weight:500}
@@ -30,6 +33,12 @@
     .btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none}
     .btn-secondary{background:#f5f5f5;color:#595959}
     .btn-secondary:hover{background:#e8e8e8}
+    .btn-orange{background:linear-gradient(135deg,#fa8c16,#d46b08);color:#fff;box-shadow:0 2px 6px rgba(250,140,22,.4)}
+    .btn-orange:hover{background:linear-gradient(135deg,#ffa940,#fa8c16);transform:translateY(-1px);box-shadow:0 4px 12px rgba(250,140,22,.5)}
+    .btn-orange:disabled{opacity:.6;cursor:not-allowed;transform:none}
+    .btn-green{background:linear-gradient(135deg,#52c41a,#389e0d);color:#fff;box-shadow:0 2px 6px rgba(82,196,26,.4)}
+    .btn-green:hover{background:linear-gradient(135deg,#73d13d,#52c41a);transform:translateY(-1px);box-shadow:0 4px 12px rgba(82,196,26,.5)}
+    .btn-green:disabled{opacity:.6;cursor:not-allowed;transform:none}
     .tag{display:inline-block;padding:4px 12px;border-radius:6px;font-size:13px;font-weight:500}
     .tag-ok{background:#f6ffed;color:#52c41a;border:1px solid #b7eb8f}
     .tag-fail{background:#fff2f0;color:#ff4d4f;border:1px solid #ffccc7}
@@ -83,16 +92,53 @@
     .collapse-header.expanded .arrow{transform:rotate(90deg)}
     .collapse-body{display:none;padding:16px 0 0;border-top:1px solid #ffe58f;margin-top:12px}
     .collapse-body.show{display:block}
+    .auth-screen{max-width:400px;margin:80px auto;padding:32px;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.1)}
+    .auth-screen h2{margin:0 0 8px;font-size:20px;color:#262626}
+    .auth-screen .hint{margin-bottom:20px;color:#8c8c8c;font-size:14px}
+    .auth-screen input[type=password]{max-width:100%}
+    .auth-screen .btn{margin-top:12px}
+    .auth-screen .error{color:#ff4d4f;font-size:13px;margin-top:8px}
   </style>
 </head>
 <body>
+  <div id="authGate" style="display:block;min-height:100vh;padding:24px">
+    <div id="authSetPassword" class="auth-screen" style="display:none">
+      <h2>首次使用：设置 Master 密码</h2>
+      <p class="hint">请设置一个密码，后续访问面板需输入此密码</p>
+      <div class="form-group">
+        <label>Master 密码（至少 6 位）</label>
+        <input type="password" id="authNewPassword" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doSetMasterPassword()">
+      </div>
+      <div class="form-group">
+        <label>确认密码</label>
+        <input type="password" id="authConfirmPassword" placeholder="再次输入密码" onkeydown="if(event.key==='Enter')doSetMasterPassword()">
+      </div>
+      <div id="authSetError" class="error" style="display:none"></div>
+      <button class="btn btn-primary" onclick="doSetMasterPassword()">设置并登录</button>
+    </div>
+    <div id="authLogin" class="auth-screen" style="display:none">
+      <h2>输入 Master 密码</h2>
+      <p class="hint">请输入 Master 密码以访问面板</p>
+      <div class="form-group">
+        <label>Master 密码</label>
+        <input type="password" id="authPassword" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="authLoginError" class="error" style="display:none"></div>
+      <button class="btn btn-primary" onclick="doLogin()">登录</button>
+    </div>
+    <div id="authLoading" style="text-align:center;padding:80px;color:#8c8c8c">正在验证...</div>
+  </div>
+  <div id="mainApp" style="display:none">
   <header class="header">
     <div class="header-inner">
-      <div class="brand">
-        <div class="brand-icon">R</div>
-        <h1>RiverEdge 部署向导</h1>
+      <div class="header-brand">
+        <div class="header-brand-row">
+          <div class="brand-icon">R</div>
+          <h1>RiverEdge 部署向导</h1>
+        </div>
+        <p class="header-desc">从零开始，一步步将 RiverEdge 配置并启动</p>
       </div>
-      <p>从零开始，一步步将 RiverEdge 配置并启动</p>
+      <button class="btn btn-secondary btn-logout" onclick="doLogout()">退出</button>
     </div>
   </header>
   <main class="main">
@@ -228,9 +274,21 @@ createdb -U postgres riveredge</div>
       </div>
       <div class="config-section">
         <div class="config-section-title">应用配置</div>
-        <div class="form-group">
-          <label>平台超级管理员密码（首次登录用）</label>
-          <input id="platform_superadmin_password" type="password" placeholder="留空则使用默认密码" style="max-width:320px">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>平台超级管理员密码（首次登录用）</label>
+            <input id="platform_superadmin_password" type="password" placeholder="留空则使用默认密码" style="max-width:320px">
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Git 仓库地址（可选）</label>
+            <input id="git_remote_url" placeholder="如 https://gitee.com/xxx/riveredge.git，留空使用当前 origin">
+            <div class="hint">拉取代码的远程地址。留空则使用 git 已配置的 origin</div>
+          </div>
+          <div class="form-group">
+            <label>部署/更新分支</label>
+            <input id="git_branch" value="develop" placeholder="develop 或 master">
+            <div class="hint">开发用 develop，正式发版用 master</div>
+          </div>
         </div>
       </div>
       <div class="config-section">
@@ -255,7 +313,7 @@ createdb -U postgres riveredge</div>
           </div>
         </div>
         <div style="margin-top:16px">
-          <button class="btn btn-secondary" onclick="previewCaddyfile()">预览 Caddyfile</button>
+          <button class="btn btn-orange" onclick="previewCaddyfile()">预览 Caddyfile</button>
           <div id="caddyfilePreview" class="cmd-box" style="display:none;margin-top:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto"></div>
         </div>
       </div>
@@ -298,11 +356,16 @@ createdb -U postgres riveredge</div>
           <p style="margin:4px 0 0;color:#8c8c8c;font-size:14px">构建前端+手机端，启动后端、Inngest、Caddy 反向代理（含 Let's Encrypt）</p>
         </div>
       </div>
-      <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap">
+      <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-secondary" onclick="goStep(3)">← 返回</button>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#595959">
+          <input type="checkbox" id="launch_mobile"> 开发启动时同时启动手机端
+        </label>
         <button class="btn btn-primary" onclick="runDeployStep()" id="btnDeploy">开发启动</button>
         <button class="btn btn-primary" onclick="runLaunchProd()" id="btnDeployProd">生产启动</button>
+        <button class="btn btn-green" onclick="runUpdateProd(this)" id="btnUpdateProd">生产更新</button>
       </div>
+      <p class="hint" style="margin-top:12px">生产更新：拉取代码 → 数据库迁移 → 重新构建 → 重启服务（适用于项目已部署后的更新）</p>
     </div>
 
     <div id="step5" class="card" style="display:none">
@@ -312,13 +375,43 @@ createdb -U postgres riveredge</div>
         <p>RiverEdge 已启动。请稍等片刻让服务完全就绪（约 30 秒），然后访问：</p>
         <div class="success-links">
           <a href="http://localhost:8100" target="_blank">开发模式 Web (8100) →</a>
+          <a href="http://localhost:8101" target="_blank">开发模式 手机端 (8101) →</a>
           <a href="http://localhost:8080" target="_blank">生产模式 Web (8080) →</a>
+          <a href="http://localhost:8080/mobile" target="_blank">生产模式 手机端 (8080/mobile) →</a>
           <a href="http://localhost:8100/infra" target="_blank">平台登录页 →</a>
         </div>
         <p style="margin-top:24px;font-size:13px;color:#8c8c8c">开发模式：Launch.sh；生产模式：riveredge-panel/Launch.prod.sh (Linux) 或 Launch.prod.win.sh (Windows)</p>
+        <div style="margin-top:16px">
+          <button class="btn btn-green" onclick="runUpdateProd(this)">生产更新</button>
+          <span class="hint" style="margin-left:8px">拉取代码、迁移、重建、重启</span>
+        </div>
+      </div>
+      <div class="launch-status-box" style="margin-top:24px;text-align:left">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+          <span style="font-weight:600;color:#262626">启动状态</span>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#8c8c8c">
+            <input type="checkbox" id="statusAutoRefresh" checked onchange="toggleStatusRefresh()"> 自动刷新
+          </label>
+        </div>
+        <div id="launchStatusGrid" class="check-grid" style="margin-bottom:16px">加载中...</div>
+        <details style="margin-top:12px">
+          <summary style="cursor:pointer;color:#8c8c8c;font-size:13px">查看运行日志</summary>
+          <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <select id="logFileSelect" onchange="loadLogs()" style="padding:6px 12px;border-radius:6px;font-size:14px">
+              <option value="backend">后端</option>
+              <option value="frontend">前端</option>
+              <option value="inngest">Inngest</option>
+              <option value="caddy">Caddy</option>
+              <option value="mobile">手机端</option>
+            </select>
+            <button class="btn btn-secondary" onclick="loadLogs()" style="font-size:13px">刷新日志</button>
+          </div>
+          <div id="logContent" class="cmd-box" style="max-height:200px;overflow-y:auto;white-space:pre-wrap;font-size:12px;text-align:left;margin-top:8px;display:none"></div>
+        </details>
       </div>
     </div>
   </main>
+  </div>
   <script>
     const API = '/api';
     let checkData = null;
@@ -326,13 +419,123 @@ createdb -U postgres riveredge</div>
     let currentStep = 1;
 
     async function fetchApi(path, opts) {
+      opts = opts || {};
+      opts.credentials = 'include';
       const r = await fetch(API + path, opts);
-      if (!r.ok) throw new Error(await r.text());
+      if (r.status === 401) {
+        document.getElementById('authGate').style.display = 'block';
+        document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('authLogin').style.display = 'block';
+        document.getElementById('authSetPassword').style.display = 'none';
+        document.getElementById('authLoading').style.display = 'none';
+        throw new Error('未登录');
+      }
+      if (!r.ok) {
+        const text = await r.text();
+        try {
+          const j = JSON.parse(text);
+          if (j.error) throw new Error(j.error);
+        } catch (_) {}
+        throw new Error(text || r.statusText);
+      }
       return r.json();
     }
 
+    async function checkAuth() {
+      try {
+        const r = await fetch(API + '/auth-status', { credentials: 'include' });
+        const d = await r.json();
+        if (d.authenticated) {
+          document.getElementById('authGate').style.display = 'none';
+          document.getElementById('mainApp').style.display = 'block';
+          goStep(1);
+          runCheck();
+          return;
+        }
+        document.getElementById('authGate').style.display = 'block';
+        document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('authLoading').style.display = 'none';
+        if (d.has_password) {
+          document.getElementById('authLogin').style.display = 'block';
+          document.getElementById('authSetPassword').style.display = 'none';
+        } else {
+          document.getElementById('authLogin').style.display = 'none';
+          document.getElementById('authSetPassword').style.display = 'block';
+        }
+      } catch (e) {
+        document.getElementById('authLoading').textContent = '验证失败：' + (e.message || '');
+      }
+    }
+
+    async function doSetMasterPassword() {
+      const pwd = document.getElementById('authNewPassword').value;
+      const confirm = document.getElementById('authConfirmPassword').value;
+      document.getElementById('authSetError').style.display = 'none';
+      if (!pwd || pwd.length < 6) {
+        document.getElementById('authSetError').textContent = '密码至少 6 位';
+        document.getElementById('authSetError').style.display = 'block';
+        return;
+      }
+      if (pwd !== confirm) {
+        document.getElementById('authSetError').textContent = '两次输入不一致';
+        document.getElementById('authSetError').style.display = 'block';
+        return;
+      }
+      try {
+        const r = await fetch(API + '/set-master-password', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        });
+        if (!r.ok) throw new Error(await r.text());
+        document.getElementById('authGate').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        goStep(1);
+        runCheck();
+      } catch (e) {
+        document.getElementById('authSetError').textContent = e.message || '设置失败';
+        document.getElementById('authSetError').style.display = 'block';
+      }
+    }
+
+    async function doLogout() {
+      try {
+        await fetch(API + '/logout', { method: 'POST', credentials: 'include' });
+      } catch (_) {}
+      checkAuth();
+    }
+
+    async function doLogin() {
+      const pwd = document.getElementById('authPassword').value;
+      document.getElementById('authLoginError').style.display = 'none';
+      if (!pwd) {
+        document.getElementById('authLoginError').textContent = '请输入密码';
+        document.getElementById('authLoginError').style.display = 'block';
+        return;
+      }
+      try {
+        const r = await fetch(API + '/login', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        });
+        if (!r.ok) throw new Error(await r.text());
+        document.getElementById('authGate').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        goStep(1);
+        runCheck();
+      } catch (e) {
+        document.getElementById('authLoginError').textContent = e.message || '登录失败';
+        document.getElementById('authLoginError').style.display = 'block';
+      }
+    }
+
+    let statusRefreshTimer = null;
     function goStep(n) {
       currentStep = n;
+      if (statusRefreshTimer) { clearInterval(statusRefreshTimer); statusRefreshTimer = null; }
       document.querySelectorAll('[id^="step"]').forEach(el => { el.style.display = 'none'; });
       const el = document.getElementById('step' + n);
       if (el) el.style.display = 'block';
@@ -343,6 +546,54 @@ createdb -U postgres riveredge</div>
       });
       if (n === 2) loadInstall();
       if (n === 3) loadConfig();
+      if (n === 5) { loadLaunchStatus(); startStatusRefresh(); }
+    }
+    async function loadLaunchStatus() {
+      const el = document.getElementById('launchStatusGrid');
+      try {
+        const d = await fetchApi('/launch-status');
+        let html = '';
+        const items = [
+          { key: 'backend', label: '后端 API', url: d.backend?.url },
+          { key: 'frontend', label: '前端 Web', url: d.frontend?.url },
+          { key: 'mobile', label: '手机端', url: d.mobile?.url },
+          { key: 'inngest', label: 'Inngest', url: null },
+          { key: 'caddy', label: 'Caddy 反向代理', url: d.caddy?.url },
+        ];
+        for (const it of items) {
+          const s = d[it.key];
+          const ok = s?.running;
+          const tag = ok ? '<span class="tag tag-ok">✓ 运行中</span>' : '<span class="tag tag-fail">未启动</span>';
+          const link = it.url && ok ? '<a href="' + it.url + '" target="_blank" style="font-size:12px;margin-right:8px">访问 →</a>' : '<span style="display:inline-block;min-width:52px"></span>';
+          html += '<div class="check-item"><div><span class="name">' + it.label + '</span><div class="hint">端口 ' + (s?.port || '-') + '</div></div><div style="display:flex;align-items:center;justify-content:flex-end">' + link + tag + '</div></div>';
+        }
+        el.innerHTML = html || '加载失败';
+      } catch (e) {
+        el.innerHTML = '<div class="alert alert-error">加载失败：' + (e.message || '') + '</div>';
+      }
+    }
+    function startStatusRefresh() {
+      if (statusRefreshTimer) return;
+      if (!document.getElementById('statusAutoRefresh')?.checked) return;
+      statusRefreshTimer = setInterval(loadLaunchStatus, 2000);
+    }
+    function toggleStatusRefresh() {
+      if (document.getElementById('statusAutoRefresh')?.checked) startStatusRefresh();
+      else if (statusRefreshTimer) { clearInterval(statusRefreshTimer); statusRefreshTimer = null; }
+    }
+    async function loadLogs() {
+      const file = document.getElementById('logFileSelect')?.value || 'backend';
+      const el = document.getElementById('logContent');
+      if (!el) return;
+      try {
+        const d = await fetchApi('/logs?file=' + file + '&lines=300');
+        el.textContent = d.content || d.message || '（无日志）';
+        el.style.display = 'block';
+        el.scrollTop = el.scrollHeight;
+      } catch (e) {
+        el.textContent = '加载失败：' + (e.message || '');
+        el.style.display = 'block';
+      }
     }
 
     async function runCheck() {
@@ -496,6 +747,9 @@ createdb -U postgres riveredge</div>
         document.getElementById('redis_port').value = c.redis_port ?? 6379;
         document.getElementById('redis_password').value = c.redis_password || '';
         document.getElementById('platform_superadmin_password').value = c.platform_superadmin_password || '';
+        document.getElementById('launch_mobile').checked = !!c.launch_mobile;
+        document.getElementById('git_remote_url').value = c.git_remote_url || '';
+        document.getElementById('git_branch').value = c.git_branch || 'develop';
         document.getElementById('caddy_domain').value = c.caddy_domain || '';
         document.getElementById('caddy_proxy_port').value = c.caddy_proxy_port ?? 8080;
         document.getElementById('caddy_enable_letsencrypt').checked = !!c.caddy_enable_letsencrypt;
@@ -547,9 +801,12 @@ createdb -U postgres riveredge</div>
               backend_port: 8200,
               frontend_port: 8100,
               platform_superadmin_password: document.getElementById('platform_superadmin_password').value,
+              git_remote_url: document.getElementById('git_remote_url').value.trim(),
+              git_branch: document.getElementById('git_branch').value.trim() || 'develop',
               caddy_domain: document.getElementById('caddy_domain').value.trim(),
               caddy_proxy_port: parseInt(document.getElementById('caddy_proxy_port').value, 10) || 8080,
-              caddy_enable_letsencrypt: document.getElementById('caddy_enable_letsencrypt').checked
+              caddy_enable_letsencrypt: document.getElementById('caddy_enable_letsencrypt').checked,
+              launch_mobile: document.getElementById('launch_mobile').checked
             }
           })
         });
@@ -603,8 +860,26 @@ createdb -U postgres riveredge</div>
       btn.disabled = false;
     }
 
-    goStep(1);
-    runCheck();
+    async function runUpdateProd(btn) {
+      if (btn) btn.disabled = true;
+      const errEl = document.getElementById('deployError');
+      if (errEl) errEl.style.display = 'none';
+      try {
+        await fetchApi('/update-prod', { method: 'POST' });
+        alert('生产更新已启动，请稍候（约 1–2 分钟）。完成后访问生产地址即可。');
+        if (currentStep === 4) goStep(5);
+      } catch (e) {
+        if (errEl) {
+          errEl.style.display = 'block';
+          errEl.textContent = '生产更新失败：' + (e.message || '请确保已部署过生产环境，且 git 可拉取代码');
+        } else {
+          alert('生产更新失败：' + (e.message || ''));
+        }
+      }
+      if (btn) btn.disabled = false;
+    }
+
+    checkAuth();
   </script>
 </body>
 </html>

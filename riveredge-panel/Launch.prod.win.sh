@@ -3,7 +3,7 @@
 # 构建前端、手机端，启动后端、Inngest、Caddy 反向代理
 # Caddyfile 由面板根据 deploy-config.json 生成；独立运行时从模板生成
 #
-# 用法: ./Launch.prod.win.sh [start|stop|status|build]
+# 用法: ./Launch.prod.win.sh [start|stop|status|build|update]
 # 需在项目根目录执行，或通过 riveredge-panel 调用
 
 set -e
@@ -154,6 +154,15 @@ do_status() {
 case "${1:-start}" in
     build)   do_build ;;
     start)
+        branch="${GIT_BRANCH:-develop}"
+        if [ -n "$GIT_REMOTE_URL" ]; then
+            log "设置远程仓库: $GIT_REMOTE_URL"
+            git remote set-url origin "$GIT_REMOTE_URL" 2>/dev/null || git remote add origin "$GIT_REMOTE_URL"
+        fi
+        log "切换到分支 $branch 并拉取..."
+        git fetch origin 2>/dev/null || true
+        git checkout "$branch" 2>/dev/null || git checkout -b "$branch" origin/"$branch" 2>/dev/null || true
+        git pull origin "$branch" 2>/dev/null || true
         do_build
         start_backend
         start_inngest
@@ -163,5 +172,25 @@ case "${1:-start}" in
         ;;
     stop)     do_stop ;;
     status)   do_status ;;
-    *)        echo "用法: $0 {start|stop|status|build}"; exit 1 ;;
+    update)
+        branch="${GIT_BRANCH:-develop}"
+        if [ -n "$GIT_REMOTE_URL" ]; then
+            log "设置远程仓库: $GIT_REMOTE_URL"
+            git remote set-url origin "$GIT_REMOTE_URL" 2>/dev/null || git remote add origin "$GIT_REMOTE_URL"
+        fi
+        log "切换到分支 $branch 并拉取..."
+        git fetch origin 2>/dev/null || true
+        git checkout "$branch" 2>/dev/null || git checkout -b "$branch" origin/"$branch" 2>/dev/null || true
+        git pull origin "$branch" || { log_err "git pull 失败"; exit 1; }
+        log "数据库迁移..."
+        (cd riveredge-backend && uv run aerich upgrade) || { log_err "迁移失败"; exit 1; }
+        do_stop
+        do_build
+        start_backend
+        start_inngest
+        start_caddy
+        log_ok "生产环境已更新并重启"
+        start "" "http://127.0.0.1:$PROXY_PORT" 2>/dev/null || true
+        ;;
+    *)        echo "用法: $0 {start|stop|status|build|update}"; exit 1 ;;
 esac
