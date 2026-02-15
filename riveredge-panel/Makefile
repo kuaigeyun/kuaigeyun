@@ -5,13 +5,13 @@
 .PHONY: build build-windows build-linux clean
 
 build:
-	go build -o riveredge-panel ./cmd/panel
+	go build -o riveredge-panel ./panel
 
 build-windows:
-	GOOS=windows GOARCH=amd64 go build -o riveredge-panel-windows-amd64.exe ./cmd/panel
+	GOOS=windows GOARCH=amd64 go build -o riveredge-panel-windows-amd64.exe ./panel
 
 build-linux:
-	GOOS=linux GOARCH=amd64 go build -o riveredge-panel-linux-amd64 ./cmd/panel
+	GOOS=linux GOARCH=amd64 go build -o riveredge-panel-linux-amd64 ./panel
 
 build-all: build-windows build-linux
 

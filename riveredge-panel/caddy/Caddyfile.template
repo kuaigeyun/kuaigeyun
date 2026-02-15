@@ -1,0 +1,36 @@
+# RiverEdge 生产环境 - Caddy 配置模板
+# 面板可视化配置优先；脚本独立运行时用此模板，替换 {{PROJECT_ROOT}}、{{PROXY_PORT}}、{{BACKEND_PORT}}
+# 有域名且启用 Let's Encrypt 时，由面板生成完整 Caddyfile
+
+:{{PROXY_PORT}} {
+    handle /api/* {
+        reverse_proxy 127.0.0.1:{{BACKEND_PORT}}
+    }
+    handle /static/* {
+        reverse_proxy 127.0.0.1:{{BACKEND_PORT}}
+    }
+    handle /docs* {
+        reverse_proxy 127.0.0.1:{{BACKEND_PORT}}
+    }
+    handle /redoc* {
+        reverse_proxy 127.0.0.1:{{BACKEND_PORT}}
+    }
+    handle /openapi.json {
+        reverse_proxy 127.0.0.1:{{BACKEND_PORT}}
+    }
+    handle /health {
+        reverse_proxy 127.0.0.1:{{BACKEND_PORT}}
+    }
+
+    handle_path /mobile* {
+        root * {{PROJECT_ROOT}}/riveredge-mobile/dist
+        try_files {path} /index.html
+        file_server
+    }
+
+    handle {
+        root * {{PROJECT_ROOT}}/riveredge-frontend/dist
+        try_files {path} /index.html
+        file_server
+    }
+}

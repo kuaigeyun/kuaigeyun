@@ -14,6 +14,7 @@
 2. **配置填写**：数据库、Redis、端口、超管密码等，保存到 `deploy-config.json`
 3. **安装引导**：展示 winget/apt 等安装命令，用户复制执行
 4. **部署执行**：生成 `.env`、执行 `aerich upgrade`、调用 `Launch.sh` 启动主系统
+5. **生产启动**：构建前端+手机端，启动后端、Inngest、Caddy 反向代理（含 Let's Encrypt 自动 HTTPS）
 
 ## 构建
 
@@ -23,7 +24,7 @@
 cd riveredge-panel
 
 # 当前平台
-go build -o riveredge-panel ./cmd/panel
+go build -o riveredge-panel ./panel
 
 # 或使用 Makefile 跨平台编译
 make build-windows   # 生成 riveredge-panel-windows-amd64.exe
@@ -50,6 +51,17 @@ make build-all       # 同时生成 Windows 和 Linux 版本
 
 - `deploy-config.json` 位于可执行文件同目录，存储检测结果与用户配置
 - 生成的 `riveredge-backend/.env` 由「部署执行」根据配置写入
+
+## 生产环境
+
+生产启动脚本（需 Git Bash）：
+
+- **Linux/Mac**：`./riveredge-panel/Launch.prod.sh start`
+- **Windows**：`./riveredge-panel/Launch.prod.win.sh start`
+
+脚本会：构建前端与手机端 → 启动后端（无热重载）→ 启动 Inngest → 启动 Caddy 反向代理。访问 `http://127.0.0.1:8080`（或面板配置的域名）。
+
+**Caddy 可视化配置**：在面板「填写配置」中可设置域名、端口、Let's Encrypt 自动 HTTPS。配置保存到 `deploy-config.json`，生产启动时自动生成 `caddy/Caddyfile`。
 
 ## 与主项目关系
 
