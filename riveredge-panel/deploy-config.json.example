@@ -1,0 +1,19 @@
+{
+  "platform": "windows",
+  "checks": {},
+  "config": {
+    "deploy_mode": "local",
+    "db_host": "localhost",
+    "db_port": 5432,
+    "db_user": "postgres",
+    "db_password": "",
+    "db_name": "riveredge",
+    "redis_host": "localhost",
+    "redis_port": 6379,
+    "redis_password": "",
+    "backend_port": 8200,
+    "frontend_port": 8100,
+    "platform_superadmin_password": ""
+  },
+  "history": []
+}

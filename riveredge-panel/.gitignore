@@ -1,5 +1,8 @@
-# 构建产物
-riveredge-panel
-riveredge-panel.exe
-riveredge-panel-*.exe
-riveredge-panel-*
+# 含敏感信息的配置（勿提交）
+deploy-config.json
+
+# 构建产物（二进制已提交到仓库供下载）
+# riveredge-panel
+# riveredge-panel.exe
+# riveredge-panel-*.exe
+# riveredge-panel-*
