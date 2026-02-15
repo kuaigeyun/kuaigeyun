@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RiverEdge 部署向导</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;background:linear-gradient(180deg,#f0f5ff 0%,#e6f7ff 50%,#f5f5f5 100%);min-height:100vh}
+    .header{background:linear-gradient(180deg,#fff 0%,#fafbff 100%);padding:24px 32px;border-bottom:1px solid #e8ecf4}
+    .header-inner{max-width:720px;margin:0 auto;text-align:center}
+    .header .brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px}
+    .header .brand-icon{width:36px;height:36px;background:linear-gradient(135deg,#1890ff,#096dd9);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;letter-spacing:-1px}
+    .header h1{margin:0;font-size:22px;font-weight:600;color:#262626;letter-spacing:-.5px}
+    .header p{margin:0;color:#8c8c8c;font-size:14px;line-height:1.5}
+    .main{padding:32px;max-width:720px;margin:0 auto}
+    .progress{display:flex;gap:0;margin-bottom:32px;background:#fff;padding:8px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .progress-step{flex:1;text-align:center;padding:12px 8px;font-size:13px;color:#8c8c8c;position:relative;border-radius:8px;transition:all .2s}
+    .progress-step.done{color:#52c41a;font-weight:500}
+    .progress-step.active{color:#1890ff;background:#e6f7ff;font-weight:600}
+    .progress-step-num{display:inline-block;width:28px;height:28px;line-height:28px;border-radius:50%;background:#d9d9d9;color:#fff;font-weight:600;margin-bottom:6px;font-size:14px}
+    .progress-step.done .progress-step-num{background:#52c41a}
+    .progress-step.active .progress-step-num{background:#1890ff}
+    .card{background:#fff;border-radius:12px;padding:28px;margin-bottom:20px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+    .card h2{margin:0 0 8px;font-size:18px;color:#262626}
+    .card .desc{color:#8c8c8c;font-size:14px;margin-bottom:20px;line-height:1.6}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:500;transition:all .2s}
+    .btn-primary{background:linear-gradient(135deg,#1890ff,#096dd9);color:#fff;box-shadow:0 2px 6px rgba(24,144,255,.4)}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(24,144,255,.5)}
+    .btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none}
+    .btn-secondary{background:#f5f5f5;color:#595959}
+    .btn-secondary:hover{background:#e8e8e8}
+    .tag{display:inline-block;padding:4px 12px;border-radius:6px;font-size:13px;font-weight:500}
+    .tag-ok{background:#f6ffed;color:#52c41a;border:1px solid #b7eb8f}
+    .tag-fail{background:#fff2f0;color:#ff4d4f;border:1px solid #ffccc7}
+    .tag-warn{background:#fffbe6;color:#faad14;border:1px solid #ffe58f}
+    .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .check-item{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#fafafa;border-radius:8px;border:1px solid #f0f0f0}
+    .check-item .name{font-weight:500;color:#262626}
+    .check-item .hint{font-size:12px;color:#8c8c8c;margin-top:2px}
+    .cmd-box{background:#1f1f1f;color:#e8e8e8;padding:14px 16px;border-radius:8px;font-family:'Consolas','Monaco',monospace;font-size:13px;overflow-x:auto;margin:8px 0}
+    .cmd-row{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+    .cmd-row:last-child{margin-bottom:0}
+    .form-group{margin-bottom:18px}
+    .form-group label{display:block;margin-bottom:6px;font-weight:500;color:#262626}
+    .form-group .hint{font-size:12px;color:#8c8c8c;margin-top:4px}
+    input{padding:10px 14px;border:1px solid #d9d9d9;border-radius:8px;width:100%;max-width:320px;font-size:14px}
+    input:focus{outline:none;border-color:#1890ff;box-shadow:0 0 0 2px rgba(24,144,255,.2)}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .step-item{display:flex;align-items:flex-start;gap:16px;padding:16px;background:#fafafa;border-radius:8px;margin-bottom:12px;border:1px solid #f0f0f0}
+    .step-item.done{background:#f6ffed;border-color:#b7eb8f}
+    .step-num{width:32px;height:32px;min-width:32px;background:#1890ff;color:#fff;border-radius:50%;text-align:center;line-height:32px;font-weight:600}
+    .step-item.done .step-num{background:#52c41a}
+    .success-box{text-align:center;padding:40px 24px}
+    .success-box .icon{font-size:64px;color:#52c41a;margin-bottom:16px}
+    .success-box h3{margin:0 0 12px;font-size:22px;color:#262626}
+    .success-box p{color:#8c8c8c;margin-bottom:24px}
+    .success-links{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+    .success-links a{display:inline-block;padding:12px 24px;background:#e6f7ff;color:#1890ff;border-radius:8px;text-decoration:none;font-weight:500}
+    .success-links a:hover{background:#bae7ff}
+    .alert{padding:14px 18px;border-radius:8px;margin-bottom:20px;line-height:1.5}
+    .alert-info{background:#e6f7ff;border:1px solid #91d5ff;color:#0050b3}
+    .alert-warn{background:#fffbe6;border:1px solid #ffe58f;color:#ad6800}
+    .alert-error{background:#fff2f0;border:1px solid #ffccc7;color:#cf1322}
+    .deploy-mode{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap}
+    .deploy-mode-opt{display:inline-flex;align-items:center;gap:10px;padding:14px 20px;border:2px solid #e8e8e8;border-radius:10px;cursor:pointer;background:#fafafa;transition:all .2s;white-space:nowrap}
+    .deploy-mode-opt:hover{border-color:#bfbfbf;background:#f5f5f5}
+    .deploy-mode-opt.selected{border-color:#1890ff;background:#e6f7ff}
+    .deploy-mode-opt input{display:none}
+    .deploy-mode-opt .label{font-weight:500;color:#262626}
+    .config-section{margin-bottom:28px}
+    .config-section-title{font-size:15px;font-weight:600;color:#262626;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #1890ff;display:inline-block}
+    .input-test-row{display:flex;align-items:center;gap:12px}
+    .input-test-row input{flex:1;min-width:0;max-width:none}
+    .input-test-row .test-result{min-width:80px}
+    .btn-test{background:linear-gradient(135deg,#52c41a,#389e0d);color:#fff!important;flex-shrink:0}
+    .btn-test:hover{background:linear-gradient(135deg,#73d13d,#52c41a);transform:translateY(-1px)}
+    .init-helper-box{background:#fff7e6;border:2px solid #ffc53d;border-radius:10px;padding:18px;margin-top:12px}
+    .init-helper-box .title{font-weight:600;color:#ad6800;margin-bottom:12px}
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">R</div>
+        <h1>RiverEdge 部署向导</h1>
+      </div>
+      <p>从零开始，一步步将 RiverEdge 配置并启动</p>
+    </div>
+  </header>
+  <main class="main">
+    <div class="progress" id="progress">
+      <div class="progress-step active" data-step="1"><span class="progress-step-num">1</span><br>环境检测</div>
+      <div class="progress-step" data-step="2"><span class="progress-step-num">2</span><br>安装缺失</div>
+      <div class="progress-step" data-step="3"><span class="progress-step-num">3</span><br>填写配置</div>
+      <div class="progress-step" data-step="4"><span class="progress-step-num">4</span><br>执行部署</div>
+      <div class="progress-step" data-step="5"><span class="progress-step-num">5</span><br>完成</div>
+    </div>
+
+    <div id="step1" class="card">
+      <h2>第一步：环境检测</h2>
+      <p class="desc">检测您的电脑是否已安装运行 RiverEdge 所需的软件。若全部通过，可直接进入下一步；若有未安装项，请先安装。</p>
+      <div id="checkError" class="alert alert-error" style="display:none"></div>
+      <div id="checkLoading" style="text-align:center;padding:24px;color:#8c8c8c">正在检测...</div>
+      <div id="checkResult" style="display:none">
+        <p style="margin-bottom:16px">当前系统：<strong id="platform"></strong> <span id="statusTag" class="tag"></span></p>
+        <div class="check-grid" id="checkGrid"></div>
+        <div style="margin-top:24px;display:flex;gap:12px">
+          <button class="btn btn-primary" onclick="runCheck()" id="btnCheck">重新检测</button>
+          <button class="btn btn-primary" onclick="goStep(2)" id="btnNextInstall" style="display:none">有未安装项，去安装 →</button>
+          <button class="btn btn-primary" onclick="goStep(3)" id="btnNextConfig" style="display:none">全部通过，填写配置 →</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="step2" class="card" style="display:none">
+      <h2>第二步：安装缺失组件</h2>
+      <p class="desc">复制下方命令，在 <strong>以管理员身份运行</strong> 的终端中执行。<br>Windows：右键「开始」→ Windows Terminal（管理员）或 CMD（管理员）。</p>
+      <div id="installList"></div>
+      <div style="margin-top:24px">
+        <button class="btn btn-secondary" onclick="goStep(1)">← 返回检测</button>
+        <button class="btn btn-primary" onclick="goStep(3)" style="margin-left:8px">已安装完成，去配置 →</button>
+      </div>
+    </div>
+
+    <div id="step3" class="card" style="display:none">
+      <h2>第三步：填写配置</h2>
+      <p class="desc">填写数据库、Redis 等连接信息。先选择您的部署方式：</p>
+      <div class="form-group">
+        <label>部署方式</label>
+        <div class="deploy-mode">
+          <div class="deploy-mode-opt selected" id="opt_local" onclick="setDeployMode('local',true)">
+            <input type="radio" name="deploy_mode" value="local" checked> <span class="label">本地部署</span>
+          </div>
+          <div class="deploy-mode-opt" id="opt_remote" onclick="setDeployMode('remote',true)">
+            <input type="radio" name="deploy_mode" value="remote"> <span class="label">云服务器 / 远程数据库</span>
+          </div>
+        </div>
+        <div class="hint" id="deployModeHint" style="margin-top:10px">数据库和 Redis 安装在本机，主机填 localhost</div>
+        <div id="sgAlert" class="alert alert-warn" style="display:none;margin-top:12px">
+          <strong>安全组提醒</strong>：云服务器部署时，请在云控制台「安全组」中放通以下端口：<br>
+          数据库 <code>5432</code>、Redis <code>6379</code>（应用所在服务器需能访问）；若需外网访问，还需放通后端 <code>8200</code>、前端 <code>8100</code>、Inngest <code>8288</code>。
+        </div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">数据库配置</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>主机</label>
+            <input id="db_host" value="localhost" placeholder="localhost 或 远程IP/域名">
+            <div class="hint" id="db_host_hint">本机填 localhost</div>
+          </div>
+          <div class="form-group">
+            <label>端口</label>
+            <input id="db_port" type="number" value="5432">
+          </div>
+          <div class="form-group">
+            <label>用户</label>
+            <input id="db_user" value="postgres">
+          </div>
+          <div class="form-group">
+            <label>密码</label>
+            <input id="db_password" type="password" placeholder="PostgreSQL 用户密码">
+          </div>
+          <div class="form-group form-group-with-test" style="grid-column:1/-1">
+            <label>数据库名</label>
+            <div class="input-test-row">
+              <input id="db_name" value="riveredge">
+              <button class="btn btn-test" onclick="testConnectivity('postgres')" id="btnTestPostgres">测试连通性</button>
+              <span id="postgresTestResult" class="test-result"></span>
+            </div>
+            <div class="hint">不存在时会自动创建</div>
+          </div>
+        </div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">Redis 配置</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>主机</label>
+            <input id="redis_host" value="localhost" placeholder="主机">
+          </div>
+          <div class="form-group">
+            <label>端口</label>
+            <input id="redis_port" type="number" value="6379">
+          </div>
+          <div class="form-group form-group-with-test" style="grid-column:1/-1">
+            <label>密码</label>
+            <div class="input-test-row">
+              <input id="redis_password" type="password" placeholder="无则留空">
+              <button class="btn btn-test" onclick="testConnectivity('redis')" id="btnTestRedis">测试连通性</button>
+              <span id="redisTestResult" class="test-result"></span>
+            </div>
+        </div>
+        </div>
+        <div class="hint">云 Redis 通常需填密码；本地 Redis 一般留空</div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">应用配置</div>
+        <div class="form-group">
+          <label>平台超级管理员密码（首次登录用）</label>
+          <input id="platform_superadmin_password" type="password" placeholder="留空则使用默认密码" style="max-width:320px">
+        </div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">数据库/Redis 初始化指引</div>
+        <p class="hint" style="margin-bottom:12px">本地首次部署时，若数据库尚未创建，可按下方命令初始化（复制后修改密码再执行）：</p>
+        <div class="init-helper-box">
+          <div class="title">方式一：创建独立用户 riveredge</div>
+          <div class="cmd-box" style="font-size:12px;white-space:pre-wrap" id="initCmd1">psql -U postgres -c "CREATE DATABASE riveredge;"
+psql -U postgres -c "CREATE USER riveredge WITH PASSWORD '你的密码';"
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE riveredge TO riveredge;"</div>
+          <button class="btn btn-secondary" style="margin-top:8px" onclick="copyInitCmd('initCmd1')">复制</button>
+        </div>
+        <div class="init-helper-box" style="margin-top:12px">
+          <div class="title">方式二：使用 postgres 超级用户（需先设置密码）</div>
+          <div class="cmd-box" style="font-size:12px;white-space:pre-wrap" id="initCmd2">psql -U postgres -c "ALTER USER postgres PASSWORD '你的密码';"
+createdb -U postgres riveredge</div>
+          <button class="btn btn-secondary" style="margin-top:8px" onclick="copyInitCmd('initCmd2')">复制</button>
+        </div>
+        <p class="hint" style="margin-top:12px">Redis 本地安装通常无需配置；云 Redis 需在控制台设置密码后填入上方 Redis 配置。</p>
+      </div>
+      <div style="margin-top:24px;display:flex;gap:12px">
+        <button class="btn btn-secondary" onclick="goStep(2)">← 返回</button>
+        <button class="btn btn-primary" onclick="saveConfig()" id="btnSaveConfig">保存配置</button>
+        <button class="btn btn-primary" onclick="goStep(4)" id="btnNextDeploy" style="display:none">去部署 →</button>
+      </div>
+    </div>
+
+    <div id="step4" class="card" style="display:none">
+      <h2>第四步：执行部署</h2>
+      <p class="desc">依次执行：生成配置文件 → 数据库迁移 → 启动服务。请确保 PostgreSQL 和 Redis 已启动。</p>
+      <div id="deployError" class="alert alert-error" style="display:none"></div>
+      <div class="step-item" id="deployStep1">
+        <span class="step-num">1</span>
+        <div>
+          <strong>生成 .env 配置文件</strong>
+          <p style="margin:4px 0 0;color:#8c8c8c;font-size:14px">根据您的配置写入 riveredge-backend/.env</p>
+        </div>
+      </div>
+      <div class="step-item" id="deployStep2">
+        <span class="step-num">2</span>
+        <div>
+          <strong>数据库迁移</strong>
+          <p style="margin:4px 0 0;color:#8c8c8c;font-size:14px">执行 <code>uv run aerich upgrade</code>，根据 migrations/ 目录下的 SQL 脚本创建/更新表结构（Aerich 为 Tortoise ORM 迁移工具）</p>
+        </div>
+      </div>
+      <div class="step-item" id="deployStep3">
+        <span class="step-num">3</span>
+        <div>
+          <strong>启动 RiverEdge</strong>
+          <p style="margin:4px 0 0;color:#8c8c8c;font-size:14px">启动后端、前端等服务（需要 Git Bash 或 WSL）</p>
+        </div>
+      </div>
+      <div style="margin-top:24px;display:flex;gap:12px">
+        <button class="btn btn-secondary" onclick="goStep(3)">← 返回</button>
+        <button class="btn btn-primary" onclick="runDeployStep()" id="btnDeploy">执行本步</button>
+      </div>
+    </div>
+
+    <div id="step5" class="card" style="display:none">
+      <div class="success-box">
+        <div class="icon">✓</div>
+        <h3>部署完成！</h3>
+        <p>RiverEdge 已启动。请稍等片刻让服务完全就绪（约 30 秒），然后访问：</p>
+        <div class="success-links">
+          <a href="http://localhost:8100" target="_blank">打开 Web 前端 →</a>
+          <a href="http://localhost:8100/infra" target="_blank">平台登录页 →</a>
+        </div>
+        <p style="margin-top:24px;font-size:13px;color:#8c8c8c">若无法访问，请检查终端是否有报错，或手动运行项目根目录的 Launch.sh</p>
+      </div>
+    </div>
+  </main>
+  <script>
+    const API = '/api';
+    let checkData = null;
+    let deployStep = 0;
+    let currentStep = 1;
+
+    async function fetchApi(path, opts) {
+      const r = await fetch(API + path, opts);
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+
+    function goStep(n) {
+      currentStep = n;
+      document.querySelectorAll('[id^="step"]').forEach(el => { el.style.display = 'none'; });
+      const el = document.getElementById('step' + n);
+      if (el) el.style.display = 'block';
+      document.querySelectorAll('.progress-step').forEach((s, i) => {
+        s.classList.remove('active', 'done');
+        if (i + 1 < n) s.classList.add('done');
+        else if (i + 1 === n) s.classList.add('active');
+      });
+      if (n === 2) loadInstall();
+      if (n === 3) loadConfig();
+    }
+
+    async function runCheck() {
+      const btn = document.getElementById('btnCheck');
+      btn.disabled = true;
+      document.getElementById('checkLoading').style.display = 'block';
+      document.getElementById('checkResult').style.display = 'none';
+      document.getElementById('checkError').style.display = 'none';
+      try {
+        checkData = await fetchApi('/check');
+        document.getElementById('checkLoading').style.display = 'none';
+        document.getElementById('checkResult').style.display = 'block';
+        renderChecks();
+      } catch (e) {
+        document.getElementById('checkLoading').style.display = 'none';
+        document.getElementById('checkError').style.display = 'block';
+        document.getElementById('checkError').textContent = '检测失败：' + (e.message || '请确保部署面板程序正在运行');
+      }
+      btn.disabled = false;
+    }
+
+    const LABELS = { node: 'Node.js 22+', python: 'Python 3.11', uv: 'UV', npm: 'npm', postgresql: 'PostgreSQL 15+', redis: 'Redis 6+', bash: 'Git Bash / WSL', inngest: 'Inngest CLI' };
+    const HINTS = { node: '前端运行环境', python: '后端运行环境', uv: 'Python 包管理', npm: '前端包管理', postgresql: '数据库', redis: '缓存服务', bash: '启动脚本需 bash', inngest: '工作流调度（可选）' };
+
+    function renderChecks() {
+      const checks = checkData?.checks || {};
+      const required = ['node','python','uv','npm','postgresql','redis','bash'];
+      const allOk = required.every(k => checks[k]?.installed && checks[k]?.meets_requirement !== false);
+      const hasMissing = required.some(k => !checks[k]?.installed || checks[k]?.meets_requirement === false);
+      document.getElementById('platform').textContent = checkData.platform || '未知';
+      const tag = document.getElementById('statusTag');
+      tag.textContent = allOk ? '全部通过' : '有未安装项';
+      tag.className = 'tag ' + (allOk ? 'tag-ok' : 'tag-warn');
+      let html = '';
+      for (const [k, v] of Object.entries(checks)) {
+        const ok = v.installed && v.meets_requirement !== false;
+        html += '<div class="check-item"><div><span class="name">' + (LABELS[k] || k) + '</span><div class="hint">' + (HINTS[k] || '') + '</div></div>' +
+          (ok ? '<span class="tag tag-ok">✓ ' + (v.version || '') + '</span>' : '<span class="tag tag-fail">未安装</span>') + '</div>';
+      }
+      document.getElementById('checkGrid').innerHTML = html;
+      document.getElementById('btnNextInstall').style.display = hasMissing ? 'inline-flex' : 'none';
+      document.getElementById('btnNextConfig').style.display = allOk ? 'inline-flex' : 'none';
+    }
+
+    async function loadInstall() {
+      const comps = ['node', 'python', 'uv', 'postgresql', 'redis', 'bash', 'inngest'];
+      const list = document.getElementById('installList');
+      list.innerHTML = '';
+      for (const c of comps) {
+        const inst = checkData?.checks?.[c]?.installed;
+        if (inst) continue;
+        let cmd = '';
+        try { const r = await fetchApi('/install-script/' + c); cmd = r.command || ''; } catch (_) {}
+        const div = document.createElement('div');
+        div.style.marginBottom = '16px';
+        div.innerHTML = '<strong>' + (LABELS[c] || c) + '</strong><div class="cmd-row"><div class="cmd-box">' + cmd.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div><button class="btn btn-primary" onclick="copyText(this)">复制</button></div>';
+        div.querySelector('.cmd-box').dataset.cmd = cmd;
+        list.appendChild(div);
+      }
+      if (list.innerHTML === '') list.innerHTML = '<p class="alert alert-info">所有组件已安装，可直接前往「填写配置」。</p>';
+    }
+
+    async function testConnectivity(typ) {
+      const btn = typ === 'postgres' ? document.getElementById('btnTestPostgres') : document.getElementById('btnTestRedis');
+      const resultEl = typ === 'postgres' ? document.getElementById('postgresTestResult') : document.getElementById('redisTestResult');
+      btn.disabled = true;
+      resultEl.textContent = '测试中...';
+      resultEl.style.color = '#8c8c8c';
+      try {
+        const cfg = {
+          postgres: { db_host: document.getElementById('db_host').value, db_port: parseInt(document.getElementById('db_port').value,10), db_user: document.getElementById('db_user').value, db_password: document.getElementById('db_password').value, db_name: document.getElementById('db_name').value },
+          redis: { redis_host: document.getElementById('redis_host').value, redis_port: parseInt(document.getElementById('redis_port').value,10), redis_password: document.getElementById('redis_password').value }
+        };
+        const r = await fetch(API + '/test-' + typ, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg[typ]) });
+        const data = await r.json().catch(() => ({}));
+        const ok = r.ok && data.ok;
+        resultEl.textContent = ok ? '✓ 连接成功' : ('✗ ' + (data.error || '连接失败'));
+        resultEl.style.color = ok ? '#52c41a' : '#ff4d4f';
+      } catch (e) {
+        resultEl.textContent = '✗ ' + (e.message || '测试失败（需安装 psql/redis-cli）');
+        resultEl.style.color = '#ff4d4f';
+      }
+      btn.disabled = false;
+    }
+
+    function copyInitCmd(id) {
+      const el = document.getElementById(id);
+      if (el) navigator.clipboard.writeText(el.textContent).then(() => alert('已复制'));
+    }
+
+    function copyText(btn) {
+      const box = btn.parentElement.querySelector('.cmd-box');
+      if (box?.dataset?.cmd) navigator.clipboard.writeText(box.dataset.cmd).then(() => { btn.textContent = '已复制'; setTimeout(() => btn.textContent = '复制', 1500); });
+    }
+
+    function setDeployMode(mode, applyDefaults) {
+      document.querySelector('input[name="deploy_mode"][value="' + mode + '"]').checked = true;
+      document.getElementById('opt_local').classList.toggle('selected', mode === 'local');
+      document.getElementById('opt_remote').classList.toggle('selected', mode === 'remote');
+      onDeployModeChange(applyDefaults);
+    }
+
+    function onDeployModeChange(applyDefaults) {
+      const mode = document.querySelector('input[name="deploy_mode"]:checked')?.value || 'local';
+      document.getElementById('sgAlert').style.display = mode === 'remote' ? 'block' : 'none';
+      const hint = document.getElementById('deployModeHint');
+      const dbHint = document.getElementById('db_host_hint');
+      if (mode === 'remote') {
+        hint.textContent = '数据库和 Redis 在云上或其他服务器，填写实例地址或 IP';
+        dbHint.textContent = '云数据库填控制台提供的连接地址（如 xxx.rds.aliyuncs.com）';
+        if (applyDefaults && (!document.getElementById('db_host').value || document.getElementById('db_host').value === 'localhost')) {
+          document.getElementById('db_host').value = '';
+          document.getElementById('db_host').placeholder = '如 1.2.3.4 或 db.xxx.com';
+        }
+        document.getElementById('redis_host').placeholder = 'Redis 实例地址';
+      } else {
+        hint.textContent = '数据库和 Redis 安装在本机，主机填 localhost';
+        dbHint.textContent = '本机填 localhost，云数据库填实例地址';
+        if (applyDefaults) {
+          document.getElementById('db_host').value = 'localhost';
+          document.getElementById('redis_host').value = 'localhost';
+        }
+        document.getElementById('db_host').placeholder = 'localhost 或 远程IP/域名';
+        document.getElementById('redis_host').placeholder = '主机';
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const cfg = await fetchApi('/config');
+        const c = cfg.config || {};
+        const mode = (c.deploy_mode === 'remote' ? 'remote' : 'local');
+        setDeployMode(mode, false);
+        document.getElementById('db_host').value = c.db_host ?? (mode === 'local' ? 'localhost' : '');
+        document.getElementById('db_port').value = c.db_port ?? 5432;
+        document.getElementById('db_user').value = c.db_user || 'postgres';
+        document.getElementById('db_password').value = c.db_password || '';
+        document.getElementById('db_name').value = c.db_name || 'riveredge';
+        document.getElementById('redis_host').value = c.redis_host ?? (mode === 'local' ? 'localhost' : '');
+        document.getElementById('redis_port').value = c.redis_port ?? 6379;
+        document.getElementById('redis_password').value = c.redis_password || '';
+        document.getElementById('platform_superadmin_password').value = c.platform_superadmin_password || '';
+        onDeployModeChange(false);
+      } catch (_) {}
+    }
+
+    async function saveConfig() {
+      const btn = document.getElementById('btnSaveConfig');
+      btn.disabled = true;
+      try {
+        await fetchApi('/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            config: {
+              deploy_mode: document.querySelector('input[name="deploy_mode"]:checked')?.value || 'local',
+              db_host: document.getElementById('db_host').value,
+              db_port: parseInt(document.getElementById('db_port').value, 10),
+              db_user: document.getElementById('db_user').value,
+              db_password: document.getElementById('db_password').value,
+              db_name: document.getElementById('db_name').value,
+              redis_host: document.getElementById('redis_host').value,
+              redis_port: parseInt(document.getElementById('redis_port').value, 10),
+              redis_password: document.getElementById('redis_password').value,
+              backend_port: 8200,
+              frontend_port: 8100,
+              platform_superadmin_password: document.getElementById('platform_superadmin_password').value
+            }
+          })
+        });
+        btn.textContent = '已保存';
+        document.getElementById('btnNextDeploy').style.display = 'inline-flex';
+      } catch (e) {
+        alert('保存失败：' + (e.message || ''));
+      }
+      btn.disabled = false;
+    }
+
+    async function runDeployStep() {
+      const btn = document.getElementById('btnDeploy');
+      document.getElementById('deployError').style.display = 'none';
+      btn.disabled = true;
+      try {
+        if (deployStep === 0) {
+          await fetchApi('/generate-env', { method: 'POST' });
+          document.getElementById('deployStep1').classList.add('done');
+        } else if (deployStep === 1) {
+          await fetchApi('/migrate', { method: 'POST' });
+          document.getElementById('deployStep2').classList.add('done');
+        } else {
+          await fetchApi('/launch', { method: 'POST' });
+          document.getElementById('deployStep3').classList.add('done');
+          goStep(5);
+          return;
+        }
+        deployStep++;
+      } catch (e) {
+        const errEl = document.getElementById('deployError');
+        errEl.style.display = 'block';
+        errEl.textContent = '执行失败：' + (e.message || '请检查 PostgreSQL、Redis 是否已启动，以及配置是否正确');
+      }
+      btn.disabled = false;
+    }
+
+    goStep(1);
+    runCheck();
+  </script>
+</body>
+</html>
