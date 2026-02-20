@@ -444,7 +444,7 @@ func checkRedis() checkItem {
 }
 
 func checkBash() checkItem {
-	// Launch.sh 需要 bash，Windows 上需 Git Bash 或 WSL
+	// Launch.dev.sh 需要 bash，Windows 上需 Git Bash 或 WSL
 	ok, _ := runCmd("bash", "-c", "echo 1")
 	if ok {
 		return checkItem{Installed: true, Version: "available"}
@@ -491,7 +491,7 @@ func checkInngest() checkItem {
 		v := extractVersion(out, `(\d+\.\d+\.\d+)`)
 		return checkItem{Installed: true, Version: v}
 	}
-	// 检查项目 bin 目录（Launch.sh 使用的方式）
+	// 检查项目 bin 目录（Launch.dev.sh 使用的方式）
 	candidates := []string{
 		filepath.Join(projectDir, "bin", "inngest", "inngest.exe"),
 		filepath.Join(projectDir, "bin", "inngest", "inngest"),
@@ -835,9 +835,9 @@ func apiLaunch(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	launchSh := filepath.Join(projectDir, "Launch.sh")
+	launchSh := filepath.Join(projectDir, "Launch.dev.sh")
 	if _, err := os.Stat(launchSh); err != nil {
-		http.Error(w, "Launch.sh not found", http.StatusInternalServerError)
+		http.Error(w, "Launch.dev.sh not found", http.StatusInternalServerError)
 		return
 	}
 	cfg := loadConfig().Config

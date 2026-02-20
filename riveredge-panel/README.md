@@ -13,7 +13,7 @@
 1. **环境检测**：检测 Node.js、Python、UV、npm、PostgreSQL、Redis 安装状态与版本
 2. **配置填写**：数据库、Redis、端口、超管密码等，保存到 `deploy-config.json`
 3. **安装引导**：展示 winget/apt 等安装命令，用户复制执行
-4. **部署执行**：生成 `.env`、执行 `aerich upgrade`、调用 `Launch.sh` 启动主系统
+4. **部署执行**：生成 `.env`、执行 `aerich upgrade`、调用 `Launch.dev.sh` 启动主系统
 5. **生产启动**：构建前端+手机端，启动后端、Inngest、Caddy 反向代理（含 Let's Encrypt 自动 HTTPS）
 
 ## 构建
@@ -41,7 +41,7 @@ make build-all       # 同时生成 Windows 和 Linux 版本
    │   └── riveredge-panel.exe   # 或 riveredge-panel
    ├── riveredge-backend/
    ├── riveredge-frontend/
-   └── Launch.sh
+   └── Launch.dev.sh
    ```
 2. 运行 `riveredge-panel.exe`（Windows 双击或命令行）
 3. 浏览器访问 http://127.0.0.1:8300
@@ -66,5 +66,5 @@ make build-all       # 同时生成 Windows 和 Linux 版本
 ## 与主项目关系
 
 - 部署面板为独立子项目，不依赖主项目业务代码
-- 仅依赖：`riveredge-backend/.env.example`、`Launch.sh`、aerich 迁移
+- 仅依赖：`riveredge-backend/.env.example`、`Launch.dev.sh`、aerich 迁移
 - 主项目 README 或 docs 可增加「使用部署面板」的简要说明
