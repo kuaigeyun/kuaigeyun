@@ -183,6 +183,27 @@ async def lifespan(app: FastAPI):
             if app_routes:
                 logger.debug(f"      路由示例: {app_routes[:3]}")
 
+    # 首次启动时自动创建平台超级管理员（当表为空且已配置密码时）
+    try:
+        from infra.config.infra_config import infra_settings
+        from infra.models.infra_superadmin import InfraSuperAdmin
+        from infra.domain.security.security import hash_password
+
+        existing = await InfraSuperAdmin.get_or_none()
+        if not existing and infra_settings.infra_superadmin_PASSWORD:
+            admin = await InfraSuperAdmin.create(
+                username=infra_settings.infra_superadmin_USERNAME,
+                email=infra_settings.infra_superadmin_EMAIL or None,
+                password_hash=hash_password(infra_settings.infra_superadmin_PASSWORD),
+                full_name=infra_settings.infra_superadmin_FULL_NAME or None,
+                is_active=True,
+            )
+            logger.info(f"✅ 平台超级管理员已自动创建: {admin.username} (ID: {admin.id})")
+        elif not existing:
+            logger.warning("⚠️  infra_superadmin 表为空，请在 .env 中设置 INFRA_SUPERADMIN_PASSWORD 以自动创建平台管理员")
+    except Exception as e:
+        logger.warning(f"⚠️  平台超级管理员初始化检查失败: {e}")
+
     yield
 
     # 关闭 Redis 连接

@@ -118,7 +118,15 @@ jobs:
           provenance: false
           sbom: false
 
-      # 部署配置已 gitignore，需在服务器 /opt/riveredge 手动放置 docker-compose.prod.yml 和 deploy/
+      - name: 同步配置文件到服务器
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "docker-compose.prod.yml,deploy/"
+          target: "/opt/riveredge/"
+
       - name: 部署到服务器
         uses: appleboy/ssh-action@v1.0.3
         with:

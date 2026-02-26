@@ -91,6 +91,5 @@ out/
 Thumbs.db
 .DS_Store
 
-# 部署相关（不推送到远程，需手动放置到服务器）
-deploy/
-docker-compose.prod.yml
+# 部署敏感文件（deploy/ 和 docker-compose 已纳入仓库供 CI/CD 同步，仅排除含密码的 .env）
+deploy/.env

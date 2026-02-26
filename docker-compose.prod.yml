@@ -1,0 +1,122 @@
+# RiverEdge 生产环境 Docker Compose
+# 放置于 /opt/riveredge/，与 .env 同目录
+# .env 需包含：DB_PASSWORD、DOMAIN、INNGEST_EVENT_KEY、INNGEST_SIGNING_KEY
+
+services:
+  backend:
+    image: ghcr.io/kuaigeyun/riveredge-backend:latest
+    container_name: riveredge-backend
+    restart: unless-stopped
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=riveredge
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - HOST=0.0.0.0
+      - PORT=8200
+      - INNGEST_EVENT_API_URL=http://inngest:8288
+      - INNGEST_APP_ID=riveredge
+      - INNGEST_IS_PRODUCTION=true
+      - INNGEST_EVENT_KEY=${INNGEST_EVENT_KEY}
+      - INNGEST_SIGNING_KEY=${INNGEST_SIGNING_KEY}
+      - CORS_ORIGINS=https://kuaigeyun.com,https://www.kuaigeyun.com
+      - INFRA_SUPERADMIN_USERNAME=${INFRA_SUPERADMIN_USERNAME:-infra_admin}
+      - INFRA_SUPERADMIN_PASSWORD=${INFRA_SUPERADMIN_PASSWORD}
+      - INFRA_SUPERADMIN_EMAIL=${INFRA_SUPERADMIN_EMAIL:-infra_admin@riveredge.cn}
+      - INFRA_SUPERADMIN_FULL_NAME=${INFRA_SUPERADMIN_FULL_NAME:-平台超级管理员}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  inngest:
+    image: inngest/inngest:latest
+    container_name: riveredge-inngest
+    restart: unless-stopped
+    command: >
+      inngest start
+      -u http://backend:8200/api/inngest
+      --postgres-uri=postgres://postgres:${DB_PASSWORD}@postgres:5432/inngest
+      --redis-uri=redis://:${REDIS_PASSWORD}@redis:6379
+      --event-key=${INNGEST_EVENT_KEY}
+      --signing-key=${INNGEST_SIGNING_KEY}
+    ports:
+      - "8288:8288"
+      - "8289:8289"
+    environment:
+      - INNGEST_EVENT_KEY=${INNGEST_EVENT_KEY}
+      - INNGEST_SIGNING_KEY=${INNGEST_SIGNING_KEY}
+      - INNGEST_POSTGRES_URI=postgres://postgres:${DB_PASSWORD}@postgres:5432/inngest
+      - INNGEST_REDIS_URI=redis://:${REDIS_PASSWORD}@redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8288/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: ghcr.io/kuaigeyun/riveredge-frontend:latest
+    container_name: riveredge-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: riveredge-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    depends_on:
+      - frontend
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: riveredge-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=riveredge
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init-inngest.sql:/docker-entrypoint-initdb.d/init-inngest.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: riveredge-redis
+    restart: unless-stopped
+    command: redis-server
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

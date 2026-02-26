@@ -1,0 +1,24 @@
+# RiverEdge 生产环境 Caddy 配置
+# 使用环境变量 DOMAIN：设为真实域名时自动 HTTPS，未设或 localhost 时仅 HTTP
+
+# www 重定向到主域名
+www.kuaigeyun.com {
+    redir https://kuaigeyun.com{uri} permanent
+}
+
+{$DOMAIN:localhost} {
+    # 反向代理到前端（前端内部已将 /api/ 代理到后端）
+    reverse_proxy frontend:80
+
+    # 传递真实客户端信息
+    header {
+        X-Forwarded-Proto {scheme}
+        X-Forwarded-For {remote_host}
+    }
+
+    # 日志
+    log {
+        output stdout
+        format console
+    }
+}
