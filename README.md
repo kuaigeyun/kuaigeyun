@@ -118,8 +118,9 @@ cd riveredge
 ## 联系方式
 
 - 官网：https://kuaigeyun.com
-- 文档：`docs/` 目录（含 [项目规范](docs/CONVENTIONS.md)）
 - 反馈：项目 Issue 或内部渠道
+- 邮箱：ludingjie@live.cn
+- V: lu_dingjie
 
 ---
 
