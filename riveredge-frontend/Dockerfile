@@ -19,8 +19,8 @@ RUN npm run build
 # 生产阶段
 FROM nginx:alpine
 
-# 复制构建产物（Vite 默认输出到 dist）
-COPY --from=builder /app/dist /usr/share/nginx/html
+# 复制构建产物（vite build src 时 root 为 src，输出到 src/dist）
+COPY --from=builder /app/src/dist /usr/share/nginx/html
 
 # 复制 nginx 配置
 COPY nginx.conf /etc/nginx/conf.d/default.conf
