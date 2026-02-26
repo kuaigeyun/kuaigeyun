@@ -35,7 +35,7 @@ jobs:
 
       - name: 后端 - 同步依赖
         working-directory: riveredge-backend
-        run: uv sync --no-install-project
+        run: uv sync --no-install-project --extra dev
 
       - name: 后端 - Ruff 检查
         working-directory: riveredge-backend
