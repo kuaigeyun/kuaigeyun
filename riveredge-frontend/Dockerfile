@@ -3,8 +3,15 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# 复制依赖文件及 patches（postinstall 的 patch-package 需要）
 COPY package.json package-lock.json ./
-RUN npm ci
+COPY patches ./patches/
+
+# 将 lock 文件中的 npmmirror 替换为 npm 官方源，确保 GitHub Actions 可拉取
+RUN sed -i 's|registry.npmmirror.com|registry.npmjs.org|g' package-lock.json
+
+RUN npm config set fetch-retries 5 && npm config set fetch-timeout 300000 && \
+    npm ci --legacy-peer-deps
 
 COPY . .
 RUN npm run build
