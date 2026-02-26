@@ -1,0 +1,61 @@
+# RiverEdge 生产环境 Docker Compose
+# 部署前：在 /opt/riveredge 放置本文件及 .env（含 DB_PASSWORD 等）
+
+services:
+  backend:
+    image: ghcr.io/kuaigeyun/riveredge-backend:latest
+    container_name: riveredge-backend
+    restart: unless-stopped
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=riveredge
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - HOST=0.0.0.0
+      - PORT=8200
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    image: ghcr.io/kuaigeyun/riveredge-frontend:latest
+    container_name: riveredge-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: riveredge-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=riveredge
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: riveredge-redis
+    restart: unless-stopped
+    command: redis-server
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
