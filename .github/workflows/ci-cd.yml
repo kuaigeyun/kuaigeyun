@@ -52,10 +52,12 @@ jobs:
           NODE_ENV: production
 
   deploy:
-    name: 构建镜像并部署
+    name: 构建镜像并部署（生产环境）
     needs: ci
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
+    # 仅 main/master 分支推送到生产环境
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
+    environment: production  # 可选：在 GitHub 仓库设置中配置 Environment 以启用审批/保护
     permissions:
       contents: read
       packages: write
@@ -111,6 +113,15 @@ jobs:
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: 同步配置文件到服务器
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "docker-compose.prod.yml"
+          target: "/opt/riveredge/"
 
       - name: 部署到服务器
         uses: appleboy/ssh-action@v1.0.3
