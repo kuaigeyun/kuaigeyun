@@ -1,5 +1,5 @@
-# RiverEdge 后端生产镜像
-FROM python:3.11-slim
+# RiverEdge 后端生产镜像（精简版）
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
@@ -11,8 +11,9 @@ COPY pyproject.toml uv.lock ./
 COPY src ./src
 COPY migrations ./migrations
 
-# 安装依赖（不含项目本身）
-RUN uv sync --no-install-project --frozen --no-dev
+# 安装依赖（不含项目本身），清理缓存减小镜像
+RUN uv sync --no-install-project --frozen --no-dev && \
+    rm -rf /root/.cache /tmp/*
 
 # 设置 Python 路径
 ENV PYTHONPATH=/app/src

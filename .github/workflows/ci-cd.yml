@@ -93,6 +93,8 @@ jobs:
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
 
       - name: 提取元数据（前端）
         id: meta-frontend
@@ -113,6 +115,8 @@ jobs:
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
 
       # 部署配置已 gitignore，需在服务器 /opt/riveredge 手动放置 docker-compose.prod.yml 和 deploy/
       - name: 部署到服务器
@@ -121,7 +125,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          command_timeout: 30m
+          command_timeout: 60m
           script: |
             cd /opt/riveredge
             sudo docker compose -f docker-compose.prod.yml pull
