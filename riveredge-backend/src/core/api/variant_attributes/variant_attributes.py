@@ -31,7 +31,7 @@ router = APIRouter(prefix="/variant-attributes", tags=["Variant Attributes"])
 async def create_attribute_definition(
     data: MaterialVariantAttributeDefinitionCreate,
     tenant_id: int = Depends(get_current_tenant),
-    user_id: Optional[int] = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_current_user_id),
 ):
     """
     创建变体属性定义
@@ -76,11 +76,11 @@ async def create_attribute_definition(
         )
 
 
-@router.get("", response_model=List[MaterialVariantAttributeDefinitionResponse])
+@router.get("", response_model=list[MaterialVariantAttributeDefinitionResponse])
 async def list_attribute_definitions(
     tenant_id: int = Depends(get_current_tenant),
-    is_active: Optional[bool] = Query(None, description="是否启用（用于筛选）"),
-    attribute_type: Optional[str] = Query(None, description="属性类型（用于筛选）"),
+    is_active: bool | None = Query(None, description="是否启用（用于筛选）"),
+    attribute_type: str | None = Query(None, description="属性类型（用于筛选）"),
 ):
     """
     列出变体属性定义
@@ -137,7 +137,7 @@ async def update_attribute_definition(
     uuid: str = Path(..., description="属性定义的UUID"),
     data: MaterialVariantAttributeDefinitionUpdate = Body(...),
     tenant_id: int = Depends(get_current_tenant),
-    user_id: Optional[int] = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_current_user_id),
 ):
     """
     更新变体属性定义
@@ -193,7 +193,7 @@ async def update_attribute_definition(
 async def delete_attribute_definition(
     uuid: str = Path(..., description="属性定义的UUID"),
     tenant_id: int = Depends(get_current_tenant),
-    user_id: Optional[int] = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_current_user_id),
 ):
     """
     删除变体属性定义（软删除）
@@ -229,7 +229,7 @@ async def delete_attribute_definition(
 
 # ==================== 版本历史 ====================
 
-@router.get("/{uuid}/history", response_model=List[MaterialVariantAttributeHistoryResponse])
+@router.get("/{uuid}/history", response_model=list[MaterialVariantAttributeHistoryResponse])
 async def get_attribute_history(
     uuid: str = Path(..., description="属性定义的UUID"),
     tenant_id: int = Depends(get_current_tenant),

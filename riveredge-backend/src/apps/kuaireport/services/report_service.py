@@ -16,7 +16,7 @@ class ReportService(AppBaseService[Report]):
 
     async def list_system_reports(
         self, tenant_id: int, skip: int = 0, limit: int = 100
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取系统预置报表列表"""
         qs = self.model.filter(
             tenant_id=tenant_id,
@@ -29,7 +29,7 @@ class ReportService(AppBaseService[Report]):
 
     async def list_user_reports(
         self, tenant_id: int, user_id: int, skip: int = 0, limit: int = 100
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取当前用户的自制报表列表"""
         qs = self.model.filter(
             tenant_id=tenant_id,
@@ -42,7 +42,7 @@ class ReportService(AppBaseService[Report]):
 
     async def list(
         self, tenant_id: int, skip: int = 0, limit: int = 100
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取全部报表（管理员用）"""
         total = await self.model.filter(tenant_id=tenant_id).count()
         data = await self.list_all(tenant_id, skip, limit)
@@ -65,7 +65,7 @@ class ReportService(AppBaseService[Report]):
 
     async def update(
         self, tenant_id: int, id: int, data: ReportUpdate, updated_by: int,
-        user_id: Optional[int] = None
+        user_id: int | None = None
     ) -> Report:
         """更新报表（系统报表不允许普通用户修改）"""
         report = await self.model.get_or_none(tenant_id=tenant_id, id=id)
@@ -77,7 +77,7 @@ class ReportService(AppBaseService[Report]):
         return await self.update_with_user(tenant_id, id, updated_by, **payload)
 
     async def delete(
-        self, tenant_id: int, id: int, user_id: Optional[int] = None
+        self, tenant_id: int, id: int, user_id: int | None = None
     ) -> bool:
         """删除报表（系统报表不允许普通用户删除）"""
         report = await self.model.get_or_none(tenant_id=tenant_id, id=id)
@@ -90,8 +90,8 @@ class ReportService(AppBaseService[Report]):
     # ── 数据执行 ─────────────────────────────────────────────────
 
     async def execute_report(
-        self, tenant_id: int, report_id: int, filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, tenant_id: int, report_id: int, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         根据报表配置执行动态查询（对接系统级数据集）
         """
@@ -153,8 +153,8 @@ class ReportService(AppBaseService[Report]):
     # ── 分享 ─────────────────────────────────────────────────────
 
     async def share(
-        self, tenant_id: int, report_id: int, expires_days: Optional[int] = 30
-    ) -> Dict[str, Any]:
+        self, tenant_id: int, report_id: int, expires_days: int | None = 30
+    ) -> dict[str, Any]:
         """生成分享链接"""
         report = await self.model.get_or_none(tenant_id=tenant_id, id=report_id)
         if not report:
@@ -181,7 +181,7 @@ class ReportService(AppBaseService[Report]):
         report.share_expires_at = None
         await report.save()
 
-    async def get_by_share_token(self, token: str) -> Optional[Report]:
+    async def get_by_share_token(self, token: str) -> Report | None:
         """通过分享令牌获取报表（公开，无需登录）"""
         report = await self.model.get_or_none(share_token=token)
         if not report:
@@ -191,8 +191,8 @@ class ReportService(AppBaseService[Report]):
         return report
 
     async def execute_report_by_share_token(
-        self, token: str, filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, token: str, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """通过分享令牌执行报表查询（公开）"""
         report = await self.get_by_share_token(token)
         if not report:

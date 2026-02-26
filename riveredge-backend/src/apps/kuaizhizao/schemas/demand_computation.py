@@ -18,14 +18,14 @@ class DemandComputationItemBase(BaseModel):
     material_id: int = Field(..., description="物料ID")
     material_code: str = Field(..., max_length=50, description="物料编码")
     material_name: str = Field(..., max_length=200, description="物料名称")
-    material_spec: Optional[str] = Field(None, max_length=200, description="物料规格")
+    material_spec: str | None = Field(None, max_length=200, description="物料规格")
     material_unit: str = Field(..., max_length=20, description="物料单位")
     
     # 物料来源信息（核心功能，新增）
-    material_source_type: Optional[str] = Field(None, max_length=20, description="物料来源类型（Make/Buy/Phantom/Outsource/Configure）")
-    material_source_config: Optional[Dict[str, Any]] = Field(None, description="物料来源配置信息（JSON格式）")
+    material_source_type: str | None = Field(None, max_length=20, description="物料来源类型（Make/Buy/Phantom/Outsource/Configure）")
+    material_source_config: dict[str, Any] | None = Field(None, description="物料来源配置信息（JSON格式）")
     source_validation_passed: bool = Field(True, description="物料来源验证是否通过")
-    source_validation_errors: Optional[List[str]] = Field(None, description="物料来源验证错误信息列表")
+    source_validation_errors: list[str] | None = Field(None, description="物料来源验证错误信息列表")
     
     # 需求信息（通用）
     required_quantity: Decimal = Field(..., ge=0, description="需求数量")
@@ -33,41 +33,41 @@ class DemandComputationItemBase(BaseModel):
     net_requirement: Decimal = Field(..., ge=0, description="净需求")
     
     # MRP专用字段
-    gross_requirement: Optional[Decimal] = Field(None, ge=0, description="毛需求（MRP专用）")
-    safety_stock: Optional[Decimal] = Field(None, ge=0, description="安全库存（MRP专用）")
-    reorder_point: Optional[Decimal] = Field(None, ge=0, description="再订货点（MRP专用）")
-    planned_receipt: Optional[Decimal] = Field(None, ge=0, description="计划入库（MRP专用）")
-    planned_release: Optional[Decimal] = Field(None, ge=0, description="计划发放（MRP专用）")
+    gross_requirement: Decimal | None = Field(None, ge=0, description="毛需求（MRP专用）")
+    safety_stock: Decimal | None = Field(None, ge=0, description="安全库存（MRP专用）")
+    reorder_point: Decimal | None = Field(None, ge=0, description="再订货点（MRP专用）")
+    planned_receipt: Decimal | None = Field(None, ge=0, description="计划入库（MRP专用）")
+    planned_release: Decimal | None = Field(None, ge=0, description="计划发放（MRP专用）")
     
     # LRP专用字段
-    delivery_date: Optional[date] = Field(None, description="交货日期（LRP专用）")
-    planned_production: Optional[Decimal] = Field(None, ge=0, description="计划生产（LRP专用）")
-    planned_procurement: Optional[Decimal] = Field(None, ge=0, description="计划采购（LRP专用）")
-    production_start_date: Optional[date] = Field(None, description="生产开始日期（LRP专用）")
-    production_completion_date: Optional[date] = Field(None, description="生产完成日期（LRP专用）")
-    procurement_start_date: Optional[date] = Field(None, description="采购开始日期（LRP专用）")
-    procurement_completion_date: Optional[date] = Field(None, description="采购完成日期（LRP专用）")
+    delivery_date: date | None = Field(None, description="交货日期（LRP专用）")
+    planned_production: Decimal | None = Field(None, ge=0, description="计划生产（LRP专用）")
+    planned_procurement: Decimal | None = Field(None, ge=0, description="计划采购（LRP专用）")
+    production_start_date: date | None = Field(None, description="生产开始日期（LRP专用）")
+    production_completion_date: date | None = Field(None, description="生产完成日期（LRP专用）")
+    procurement_start_date: date | None = Field(None, description="采购开始日期（LRP专用）")
+    procurement_completion_date: date | None = Field(None, description="采购完成日期（LRP专用）")
     
     # BOM信息
-    bom_id: Optional[int] = Field(None, description="使用的BOM ID")
-    bom_version: Optional[str] = Field(None, max_length=20, description="BOM版本")
+    bom_id: int | None = Field(None, description="使用的BOM ID")
+    bom_version: str | None = Field(None, max_length=20, description="BOM版本")
     
     # 建议行动
-    suggested_work_order_quantity: Optional[Decimal] = Field(None, ge=0, description="建议工单数量")
-    suggested_purchase_order_quantity: Optional[Decimal] = Field(None, ge=0, description="建议采购订单数量")
+    suggested_work_order_quantity: Decimal | None = Field(None, ge=0, description="建议工单数量")
+    suggested_purchase_order_quantity: Decimal | None = Field(None, ge=0, description="建议采购订单数量")
     
     # 详细结果
-    detail_results: Optional[Dict[str, Any]] = Field(None, description="详细结果（JSON格式）")
-    notes: Optional[str] = Field(None, description="备注")
+    detail_results: dict[str, Any] | None = Field(None, description="详细结果（JSON格式）")
+    notes: str | None = Field(None, description="备注")
 
 
 class DemandComputationBase(BaseModel):
     """需求计算基础Schema"""
-    demand_id: Optional[int] = Field(None, description="需求ID（单需求时使用）")
-    demand_ids: Optional[List[int]] = Field(None, description="需求ID列表（多需求合并时使用，与 demand_id 二选一）")
+    demand_id: int | None = Field(None, description="需求ID（单需求时使用）")
+    demand_ids: list[int] | None = Field(None, description="需求ID列表（多需求合并时使用，与 demand_id 二选一）")
     computation_type: str = Field(..., max_length=20, description="计算类型（MRP/LRP）")
-    computation_params: Dict[str, Any] = Field(..., description="计算参数（JSON格式）")
-    notes: Optional[str] = Field(None, description="备注")
+    computation_params: dict[str, Any] = Field(..., description="计算参数（JSON格式）")
+    notes: str | None = Field(None, description="备注")
     
     @field_validator("computation_type")
     def validate_computation_type(cls, v):
@@ -96,12 +96,12 @@ class DemandComputationBase(BaseModel):
 
 class DemandComputationCreate(DemandComputationBase):
     """创建需求计算Schema"""
-    items: Optional[List[DemandComputationItemBase]] = Field(default_factory=list, description="计算结果明细列表")
+    items: list[DemandComputationItemBase] | None = Field(default_factory=list, description="计算结果明细列表")
 
 
 class ExecuteComputationRequest(BaseModel):
     """执行需求计算请求Schema（可选临时覆盖参数）"""
-    computation_params: Optional[Dict[str, Any]] = Field(
+    computation_params: dict[str, Any] | None = Field(
         None,
         description="临时覆盖的计算参数，仅本次执行生效，不持久化"
     )
@@ -109,10 +109,10 @@ class ExecuteComputationRequest(BaseModel):
 
 class DemandComputationUpdate(BaseModel):
     """更新需求计算Schema"""
-    computation_status: Optional[str] = Field(None, max_length=20, description="计算状态")
-    computation_summary: Optional[Dict[str, Any]] = Field(None, description="计算结果汇总")
-    error_message: Optional[str] = Field(None, description="错误信息")
-    notes: Optional[str] = Field(None, description="备注")
+    computation_status: str | None = Field(None, max_length=20, description="计算状态")
+    computation_summary: dict[str, Any] | None = Field(None, description="计算结果汇总")
+    error_message: str | None = Field(None, description="错误信息")
+    notes: str | None = Field(None, description="备注")
 
 
 class DemandComputationItemResponse(DemandComputationItemBase):
@@ -134,15 +134,15 @@ class DemandComputationResponse(DemandComputationBase):
     demand_type: str
     business_mode: str
     computation_status: str
-    computation_start_time: Optional[datetime]
-    computation_end_time: Optional[datetime]
-    computation_summary: Optional[Dict[str, Any]]
-    error_message: Optional[str]
+    computation_start_time: datetime | None
+    computation_end_time: datetime | None
+    computation_summary: dict[str, Any] | None
+    error_message: str | None
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[int]
-    updated_by: Optional[int]
-    items: Optional[List[DemandComputationItemResponse]] = Field(default_factory=list)
+    created_by: int | None
+    updated_by: int | None
+    items: list[DemandComputationItemResponse] | None = Field(default_factory=list)
     
     class Config:
         from_attributes = True

@@ -90,8 +90,8 @@ class ProductService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None
-    ) -> List[ProductResponse]:
+        is_active: bool | None = None
+    ) -> list[ProductResponse]:
         """
         获取产品列表
 
@@ -268,8 +268,8 @@ class ProductService:
     @staticmethod
     async def get_products_grouped(
         tenant_id: int,
-        is_active: Optional[bool] = True
-    ) -> Dict[str, List[ProductResponse]]:
+        is_active: bool | None = True
+    ) -> dict[str, list[ProductResponse]]:
         """
         获取分组的产品列表（按首字母分组）
 
@@ -293,7 +293,7 @@ class ProductService:
         products = await query.order_by("code").all()
 
         # 按首字母分组
-        grouped_products: Dict[str, List[ProductResponse]] = {}
+        grouped_products: dict[str, list[ProductResponse]] = {}
         for product in products:
             # 获取产品编码的首字母（大写）
             first_char = product.code[0].upper() if product.code else "#"
@@ -313,8 +313,8 @@ class ProductService:
     async def get_products_by_category(
         tenant_id: int,
         category_prefix: str,
-        is_active: Optional[bool] = True
-    ) -> List[ProductResponse]:
+        is_active: bool | None = True
+    ) -> list[ProductResponse]:
         """
         根据分类前缀获取产品列表
 

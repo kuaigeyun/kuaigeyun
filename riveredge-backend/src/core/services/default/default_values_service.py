@@ -368,7 +368,7 @@ class DefaultValuesService:
         return page_code.startswith("kuaizhizao-")
     
     @staticmethod
-    def _build_rule_components(page_code: str, abbreviation: str, page_config: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    def _build_rule_components(page_code: str, abbreviation: str, page_config: dict[str, Any] = None) -> list[dict[str, Any]]:
         """
         构建规则组件列表
         
@@ -417,7 +417,7 @@ class DefaultValuesService:
         return components
     
     @staticmethod
-    async def create_default_code_rules(tenant_id: int) -> List[Dict[str, Any]]:
+    async def create_default_code_rules(tenant_id: int) -> list[dict[str, Any]]:
         """
         为新组织创建默认编码规则
         
@@ -551,7 +551,7 @@ class DefaultValuesService:
             return False
 
     @staticmethod
-    async def create_default_system_parameters(tenant_id: int) -> List[Dict[str, Any]]:
+    async def create_default_system_parameters(tenant_id: int) -> list[dict[str, Any]]:
         """
         为新组织创建默认系统参数
         
@@ -582,7 +582,7 @@ class DefaultValuesService:
         return created_parameters
     
     @staticmethod
-    async def initialize_tenant_defaults(tenant_id: int) -> Dict[str, Any]:
+    async def initialize_tenant_defaults(tenant_id: int) -> dict[str, Any]:
         """
         初始化组织的默认配置
         

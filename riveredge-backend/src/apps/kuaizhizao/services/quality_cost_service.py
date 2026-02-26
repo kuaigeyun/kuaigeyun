@@ -33,13 +33,13 @@ class QualityCostService:
     async def calculate_quality_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        work_order_id: Optional[int] = None,
-        calculation_date: Optional[date] = None,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        work_order_id: int | None = None,
+        calculation_date: date | None = None,
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         核算质量成本
         
@@ -122,9 +122,9 @@ class QualityCostService:
     async def _calculate_prevention_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算预防成本
         
@@ -202,11 +202,11 @@ class QualityCostService:
     async def _calculate_appraisal_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        work_order_id: Optional[int] = None
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        work_order_id: int | None = None
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算鉴定成本
         
@@ -268,11 +268,11 @@ class QualityCostService:
     async def _calculate_incoming_inspection_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
         unit_price: Decimal = Decimal(10.00)
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算来料检验成本
         
@@ -329,12 +329,12 @@ class QualityCostService:
     async def _calculate_process_inspection_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        work_order_id: Optional[int] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        work_order_id: int | None = None,
         unit_price: Decimal = Decimal(10.00)
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算过程检验成本
         
@@ -396,12 +396,12 @@ class QualityCostService:
     async def _calculate_finished_goods_inspection_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        work_order_id: Optional[int] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        work_order_id: int | None = None,
         unit_price: Decimal = Decimal(10.00)
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算成品检验成本
         
@@ -463,11 +463,11 @@ class QualityCostService:
     async def _calculate_internal_failure_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        work_order_id: Optional[int] = None
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        work_order_id: int | None = None
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算内部损失成本
         
@@ -525,11 +525,11 @@ class QualityCostService:
     async def _calculate_external_failure_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        work_order_id: Optional[int] = None
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        work_order_id: int | None = None
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算外部损失成本
         
@@ -567,12 +567,12 @@ class QualityCostService:
     async def _calculate_quality_exception_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        work_order_id: Optional[int] = None,
-        exception_types: List[str] = None
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        work_order_id: int | None = None,
+        exception_types: list[str] = None
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算质量异常处理成本
         
@@ -643,11 +643,11 @@ class QualityCostService:
     async def _calculate_rework_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        work_order_id: Optional[int] = None
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        work_order_id: int | None = None
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算返工成本
         
@@ -749,11 +749,11 @@ class QualityCostService:
     async def _calculate_scrap_cost(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        work_order_id: Optional[int] = None
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        work_order_id: int | None = None
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算废品损失
         

@@ -26,23 +26,23 @@ class SalesForecastBase(BaseSchema):
     start_date: date = Field(..., description="预测开始日期")
     end_date: date = Field(..., description="预测结束日期")
     status: str = Field("草稿", max_length=20, description="预测状态")
-    reviewer_id: Optional[int] = Field(None, description="审核人ID")
-    reviewer_name: Optional[str] = Field(None, max_length=100, description="审核人姓名")
-    review_time: Optional[datetime] = Field(None, description="审核时间")
+    reviewer_id: int | None = Field(None, description="审核人ID")
+    reviewer_name: str | None = Field(None, max_length=100, description="审核人姓名")
+    review_time: datetime | None = Field(None, description="审核时间")
     review_status: str = Field("待审核", max_length=20, description="审核状态")
-    review_remarks: Optional[str] = Field(None, description="审核备注")
-    notes: Optional[str] = Field(None, description="备注")
+    review_remarks: str | None = Field(None, description="审核备注")
+    notes: str | None = Field(None, description="备注")
 
 
 class SalesForecastCreate(SalesForecastBase):
     """销售预测创建schema"""
-    items: Optional[List[SalesForecastItemCreate]] = Field(None, description="预测明细列表")
+    items: list[SalesForecastItemCreate] | None = Field(None, description="预测明细列表")
 
 
 class SalesForecastUpdate(SalesForecastBase):
     """销售预测更新schema"""
-    forecast_code: Optional[str] = Field(None, max_length=50, description="预测编码")
-    items: Optional[List[SalesForecastItemCreate]] = Field(None, description="预测明细列表（提供则覆盖全部明细）")
+    forecast_code: str | None = Field(None, max_length=50, description="预测编码")
+    items: list[SalesForecastItemCreate] | None = Field(None, description="预测明细列表（提供则覆盖全部明细）")
 
 
 class SalesForecastResponse(SalesForecastBase):
@@ -51,7 +51,7 @@ class SalesForecastResponse(SalesForecastBase):
     tenant_id: int = Field(..., description="租户ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    demand_synced: Optional[bool] = Field(None, description="本次操作是否已同步至关联需求")
+    demand_synced: bool | None = Field(None, description="本次操作是否已同步至关联需求")
 
     class Config:
         from_attributes = True
@@ -64,7 +64,7 @@ class SalesForecastListResponse(SalesForecastResponse):
 
 class SalesForecastListResult(BaseSchema):
     """销售预测列表分页结果"""
-    data: List[SalesForecastListResponse] = Field(default_factory=list, description="列表数据")
+    data: list[SalesForecastListResponse] = Field(default_factory=list, description="列表数据")
     total: int = Field(0, description="总条数")
     success: bool = Field(True, description="是否成功")
 
@@ -76,15 +76,15 @@ class SalesForecastItemBase(BaseSchema):
     material_id: int = Field(..., description="物料ID")
     material_code: str = Field(..., max_length=50, description="物料编码")
     material_name: str = Field(..., max_length=200, description="物料名称")
-    material_spec: Optional[str] = Field(None, max_length=200, description="物料规格")
+    material_spec: str | None = Field(None, max_length=200, description="物料规格")
     material_unit: str = Field(..., max_length=20, description="物料单位")
     forecast_quantity: float = Field(..., gt=0, description="预测数量")
     forecast_date: date = Field(..., description="预测日期")
-    historical_sales: Optional[float] = Field(None, ge=0, description="历史销量")
-    historical_period: Optional[str] = Field(None, max_length=20, description="历史周期")
-    confidence_level: Optional[float] = Field(None, ge=0, le=100, description="置信度")
-    forecast_method: Optional[str] = Field(None, max_length=50, description="预测方法")
-    notes: Optional[str] = Field(None, description="备注")
+    historical_sales: float | None = Field(None, ge=0, description="历史销量")
+    historical_period: str | None = Field(None, max_length=20, description="历史周期")
+    confidence_level: float | None = Field(None, ge=0, le=100, description="置信度")
+    forecast_method: str | None = Field(None, max_length=50, description="预测方法")
+    notes: str | None = Field(None, description="备注")
 
 
 class SalesForecastItemCreate(SalesForecastItemBase):
@@ -116,35 +116,35 @@ class SalesOrderBase(BaseSchema):
     order_code: str = Field(..., max_length=50, description="订单编码")
     customer_id: int = Field(..., description="客户ID")
     customer_name: str = Field(..., max_length=200, description="客户名称")
-    customer_contact: Optional[str] = Field(None, max_length=100, description="客户联系人")
-    customer_phone: Optional[str] = Field(None, max_length=20, description="客户电话")
+    customer_contact: str | None = Field(None, max_length=100, description="客户联系人")
+    customer_phone: str | None = Field(None, max_length=20, description="客户电话")
     order_date: date = Field(..., description="订单日期")
     delivery_date: date = Field(..., description="交货日期")
     order_type: str = Field("MTO", max_length=20, description="订单类型")
     total_quantity: float = Field(0, ge=0, description="总数量")
     total_amount: float = Field(0, ge=0, description="总金额")
     status: str = Field("草稿", max_length=20, description="订单状态")
-    reviewer_id: Optional[int] = Field(None, description="审核人ID")
-    reviewer_name: Optional[str] = Field(None, max_length=100, description="审核人姓名")
-    review_time: Optional[datetime] = Field(None, description="审核时间")
+    reviewer_id: int | None = Field(None, description="审核人ID")
+    reviewer_name: str | None = Field(None, max_length=100, description="审核人姓名")
+    review_time: datetime | None = Field(None, description="审核时间")
     review_status: str = Field("待审核", max_length=20, description="审核状态")
-    review_remarks: Optional[str] = Field(None, description="审核备注")
-    salesman_id: Optional[int] = Field(None, description="销售员ID")
-    salesman_name: Optional[str] = Field(None, max_length=100, description="销售员姓名")
-    shipping_address: Optional[str] = Field(None, description="收货地址")
-    shipping_method: Optional[str] = Field(None, max_length=50, description="发货方式")
-    payment_terms: Optional[str] = Field(None, max_length=100, description="付款条件")
-    notes: Optional[str] = Field(None, description="备注")
+    review_remarks: str | None = Field(None, description="审核备注")
+    salesman_id: int | None = Field(None, description="销售员ID")
+    salesman_name: str | None = Field(None, max_length=100, description="销售员姓名")
+    shipping_address: str | None = Field(None, description="收货地址")
+    shipping_method: str | None = Field(None, max_length=50, description="发货方式")
+    payment_terms: str | None = Field(None, max_length=100, description="付款条件")
+    notes: str | None = Field(None, description="备注")
 
 
 class SalesOrderCreate(SalesOrderBase):
     """销售订单创建schema"""
-    items: Optional[List["SalesOrderItemCreate"]] = Field(None, description="订单明细列表")
+    items: list[SalesOrderItemCreate] | None = Field(None, description="订单明细列表")
 
 
 class SalesOrderUpdate(SalesOrderBase):
     """销售订单更新schema"""
-    order_code: Optional[str] = Field(None, max_length=50, description="订单编码")
+    order_code: str | None = Field(None, max_length=50, description="订单编码")
 
 
 class SalesOrderResponse(SalesOrderBase):
@@ -153,7 +153,7 @@ class SalesOrderResponse(SalesOrderBase):
     tenant_id: int = Field(..., description="租户ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    items: Optional[List["SalesOrderItemResponse"]] = Field(None, description="订单明细")
+    items: list[SalesOrderItemResponse] | None = Field(None, description="订单明细")
 
     class Config:
         from_attributes = True
@@ -171,7 +171,7 @@ class SalesOrderItemBase(BaseSchema):
     material_id: int = Field(..., description="物料ID")
     material_code: str = Field(..., max_length=50, description="物料编码")
     material_name: str = Field(..., max_length=200, description="物料名称")
-    material_spec: Optional[str] = Field(None, max_length=200, description="物料规格")
+    material_spec: str | None = Field(None, max_length=200, description="物料规格")
     material_unit: str = Field(..., max_length=20, description="物料单位")
     order_quantity: float = Field(..., gt=0, description="订单数量")
     delivered_quantity: float = Field(0, ge=0, description="已交货数量")
@@ -180,9 +180,9 @@ class SalesOrderItemBase(BaseSchema):
     total_amount: float = Field(..., ge=0, description="金额")
     delivery_date: date = Field(..., description="交货日期")
     delivery_status: str = Field("待交货", max_length=20, description="交货状态")
-    work_order_id: Optional[int] = Field(None, description="工单ID")
-    work_order_code: Optional[str] = Field(None, max_length=50, description="工单编码")
-    notes: Optional[str] = Field(None, description="备注")
+    work_order_id: int | None = Field(None, description="工单ID")
+    work_order_code: str | None = Field(None, max_length=50, description="工单编码")
+    notes: str | None = Field(None, description="备注")
 
 
 class SalesOrderItemCreate(SalesOrderItemBase):

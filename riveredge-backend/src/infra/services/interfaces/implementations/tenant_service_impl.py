@@ -30,7 +30,7 @@ class TenantServiceImpl(TenantServiceInterface):
     def service_version(self) -> str:
         return "1.0.0"
     
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """服务健康检查"""
         return {
             "status": "healthy",
@@ -42,14 +42,14 @@ class TenantServiceImpl(TenantServiceInterface):
         self,
         page: int = 1,
         page_size: int = 10,
-        status: Optional[Any] = None,
-        plan: Optional[Any] = None,
-        name: Optional[str] = None,
-        domain: Optional[str] = None,
-        sort: Optional[str] = None,
-        order: Optional[str] = None,
+        status: Any | None = None,
+        plan: Any | None = None,
+        name: str | None = None,
+        domain: str | None = None,
+        sort: str | None = None,
+        order: str | None = None,
         skip_tenant_filter: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取组织列表"""
         return await self._tenant_service.list_tenants(
             page=page,
@@ -67,7 +67,7 @@ class TenantServiceImpl(TenantServiceInterface):
         self,
         tenant_id: int,
         skip_tenant_filter: bool = True
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """根据ID获取组织"""
         return await self._tenant_service.get_tenant_by_id(
             tenant_id=tenant_id,
@@ -83,7 +83,7 @@ class TenantServiceImpl(TenantServiceInterface):
         tenant_id: int,
         data: Any,
         skip_tenant_filter: bool = True
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """更新组织"""
         return await self._tenant_service.update_tenant(
             tenant_id=tenant_id,

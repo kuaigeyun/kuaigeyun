@@ -22,7 +22,7 @@ router = APIRouter(prefix="/ai/suggestions", tags=["AI Suggestions"])
 @router.get("/{scene}")
 async def get_suggestions(
     scene: str,
-    context: Optional[str] = Query(None, description="上下文信息（JSON字符串，可选）"),
+    context: str | None = Query(None, description="上下文信息（JSON字符串，可选）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -43,7 +43,7 @@ async def get_suggestions(
     try:
         # 解析上下文信息
         import json
-        context_dict: Dict[str, Any] = {}
+        context_dict: dict[str, Any] = {}
         if context:
             try:
                 context_dict = json.loads(context)

@@ -14,7 +14,7 @@ from typing import List, Dict, Any, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 # 页面发现结果缓存：manifest 在运行期极少变更，缓存 5 分钟以减少文件扫描
-_PAGES_CACHE: Optional[Tuple[List[Dict[str, Any]], float]] = None
+_PAGES_CACHE: tuple[list[dict[str, Any]], float] | None = None
 _PAGES_CACHE_TTL = 300  # 秒
 
 
@@ -33,7 +33,7 @@ class CustomFieldPageDiscoveryService:
         return ApplicationService._get_plugins_directory()
     
     @staticmethod
-    def _scan_app_manifests() -> List[Dict[str, Any]]:
+    def _scan_app_manifests() -> list[dict[str, Any]]:
         """
         扫描应用目录，读取所有应用的 manifest.json 文件
         
@@ -59,13 +59,13 @@ class CustomFieldPageDiscoveryService:
             
             try:
                 # 读取 manifest.json
-                with open(manifest_file, 'r', encoding='utf-8') as f:
+                with open(manifest_file, encoding='utf-8') as f:
                     manifest_data = json.load(f)
                 
                 # 添加应用目录路径信息
                 manifest_data['_app_dir'] = str(app_dir)
                 manifests.append(manifest_data)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 # 忽略无法读取的 manifest.json
                 logger.warning(f"警告: 无法读取应用 {app_dir.name} 的 manifest.json: {e}")
                 continue
@@ -73,7 +73,7 @@ class CustomFieldPageDiscoveryService:
         return manifests
     
     @staticmethod
-    def discover_pages() -> List[Dict[str, Any]]:
+    def discover_pages() -> list[dict[str, Any]]:
         """
         发现所有应用的自定义字段页面配置
         
@@ -132,7 +132,7 @@ class CustomFieldPageDiscoveryService:
         return pages
     
     @staticmethod
-    def get_all_pages() -> List[Dict[str, Any]]:
+    def get_all_pages() -> list[dict[str, Any]]:
         """
         获取所有自定义字段页面配置（包含服务发现和硬编码回退）
         

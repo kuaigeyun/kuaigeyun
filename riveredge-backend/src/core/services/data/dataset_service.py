@@ -143,11 +143,11 @@ class DatasetService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        search: Optional[str] = None,
-        query_type: Optional[str] = None,
-        data_source_uuid: Optional[UUID] = None,
-        is_active: Optional[bool] = None,
-    ) -> tuple[List[Dataset], int]:
+        search: str | None = None,
+        query_type: str | None = None,
+        data_source_uuid: UUID | None = None,
+        is_active: bool | None = None,
+    ) -> tuple[list[Dataset], int]:
         """
         获取数据集列表
         
@@ -446,7 +446,7 @@ class DatasetService:
             )
     
     @staticmethod
-    def _convert_named_params_to_positional(sql: str, params: Dict[str, Any]) -> Tuple[str, list]:
+    def _convert_named_params_to_positional(sql: str, params: dict[str, Any]) -> tuple[str, list]:
         """将 :param 占位符转为 asyncpg 的 $1,$2 格式，按 SQL 中首次出现顺序，返回 (sql, args)"""
         if not params:
             return sql, []
@@ -465,7 +465,7 @@ class DatasetService:
         """
         sql = sql.strip()
         sql_upper = sql.upper()
-        tenant_condition = f"tenant_id = :tenant_id"
+        tenant_condition = "tenant_id = :tenant_id"
         if "WHERE" in sql_upper:
             # 已有 WHERE，在 WHERE 后追加 AND tenant_id = :tenant_id
             sql = re.sub(
@@ -489,11 +489,11 @@ class DatasetService:
         self,
         tenant_id: int,
         integration_config: IntegrationConfig,
-        query_config: Dict[str, Any],
-        parameters: Optional[Dict[str, Any]] = None,
+        query_config: dict[str, Any],
+        parameters: dict[str, Any] | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         执行 SQL 查询
 
@@ -597,11 +597,11 @@ class DatasetService:
     async def _execute_app_connector_query(
         self,
         integration_config: IntegrationConfig,
-        query_config: Dict[str, Any],
-        parameters: Optional[Dict[str, Any]] = None,
+        query_config: dict[str, Any],
+        parameters: dict[str, Any] | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         执行应用连接器查询（通用 REST 拉取）
 
@@ -719,11 +719,11 @@ class DatasetService:
         self,
         tenant_id: int,
         integration_config: IntegrationConfig,
-        query_config: Dict[str, Any],
-        parameters: Optional[Dict[str, Any]] = None,
+        query_config: dict[str, Any],
+        parameters: dict[str, Any] | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         执行 API 查询
 
@@ -937,8 +937,8 @@ class DatasetService:
         self,
         tenant_id: int,
         dataset_uuid: UUID,
-        test_parameters: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        test_parameters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         使用接口管理的测试功能测试数据集关联的 API
         
@@ -1053,7 +1053,7 @@ class DatasetService:
         self,
         tenant_id: int,
         dataset_uuid: UUID,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         使用数据源管理的测试功能测试数据集关联的数据源连接
         
@@ -1095,7 +1095,7 @@ class DatasetService:
     async def query_dataset_by_code(
         tenant_id: int,
         dataset_code: str,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: dict[str, Any] | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> ExecuteQueryResponse:

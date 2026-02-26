@@ -23,8 +23,8 @@ optimization_suggestion_service = OptimizationSuggestionService()
 
 @router.get("/suggestions", summary="获取优化建议")
 async def get_suggestions(
-    category: Optional[str] = Query(None, description="分类（可选：function_optimization/data_optimization/performance_optimization）"),
-    priority: Optional[str] = Query(None, description="优先级（可选：high/medium/low）"),
+    category: str | None = Query(None, description="分类（可选：function_optimization/data_optimization/performance_optimization）"),
+    priority: str | None = Query(None, description="优先级（可选：high/medium/low）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -75,7 +75,7 @@ async def get_suggestions(
 
 @router.get("/suggestions/by-category", summary="按分类获取优化建议")
 async def get_suggestions_by_category(
-    category: Optional[str] = Query(None, description="分类"),
+    category: str | None = Query(None, description="分类"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -109,7 +109,7 @@ async def get_suggestions_by_category(
 
 @router.get("/suggestions/by-priority", summary="按优先级获取优化建议")
 async def get_suggestions_by_priority(
-    priority: Optional[str] = Query(None, description="优先级"),
+    priority: str | None = Query(None, description="优先级"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

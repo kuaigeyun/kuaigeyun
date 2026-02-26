@@ -16,12 +16,12 @@ class BusinessConfigResponse(BaseModel):
     running_mode: str = Field(..., description="运行模式（simple/full）")
     industry: str = Field('general', description="所属行业（general/machinery/electronics/machining）")
     scale: str = Field('medium', description="企业规模（small/medium/large）")
-    modules: Dict[str, bool] = Field(default_factory=dict, description="模块开关配置")
-    nodes: Dict[str, Dict[str, Any]] = Field(default_factory=dict, description="节点详细配置")
-    parameters: Dict[str, Dict[str, Any]] = Field(default_factory=dict, description="流程参数配置")
-    mode_switched_at: Optional[str] = Field(None, description="模式切换时间")
-    complexity_level: Optional[str] = Field(None, description="业务复杂度等级（L1/L2/L3/L4/L5）")
-    complexity_name: Optional[str] = Field(None, description="业务模式名称")
+    modules: dict[str, bool] = Field(default_factory=dict, description="模块开关配置")
+    nodes: dict[str, dict[str, Any]] = Field(default_factory=dict, description="节点详细配置")
+    parameters: dict[str, dict[str, Any]] = Field(default_factory=dict, description="流程参数配置")
+    mode_switched_at: str | None = Field(None, description="模式切换时间")
+    complexity_level: str | None = Field(None, description="业务复杂度等级（L1/L2/L3/L4/L5）")
+    complexity_name: str | None = Field(None, description="业务模式名称")
 
 
 class RunningModeSwitchRequest(BaseModel):
@@ -45,13 +45,13 @@ class ProcessParameterUpdateRequest(BaseModel):
 
 class BatchProcessParameterUpdateRequest(BaseModel):
     """批量流程参数更新请求"""
-    parameters: Dict[str, Dict[str, Any]] = Field(..., description="参数配置字典，格式：{\"category\": {\"key\": value}}")
+    parameters: dict[str, dict[str, Any]] = Field(..., description="参数配置字典，格式：{\"category\": {\"key\": value}}")
 
 
 class ConfigTemplateSaveRequest(BaseModel):
     """配置模板保存请求"""
     template_name: str = Field(..., description="模板名称")
-    template_description: Optional[str] = Field(None, description="模板描述")
+    template_description: str | None = Field(None, description="模板描述")
 
 
 class ConfigTemplateApplyRequest(BaseModel):
@@ -61,9 +61,9 @@ class ConfigTemplateApplyRequest(BaseModel):
 
 class NodesUpdateRequest(BaseModel):
     """节点配置更新请求"""
-    nodes: Dict[str, Dict[str, Any]] = Field(..., description="节点配置 map")
-    industry: Optional[str] = Field(None, description="行业")
-    scale: Optional[str] = Field(None, description="规模")
+    nodes: dict[str, dict[str, Any]] = Field(..., description="节点配置 map")
+    industry: str | None = Field(None, description="行业")
+    scale: str | None = Field(None, description="规模")
 
 
 class ComplexityPresetApplyRequest(BaseModel):

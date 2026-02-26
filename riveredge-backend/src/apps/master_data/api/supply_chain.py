@@ -46,14 +46,14 @@ async def create_customer(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/customers", response_model=List[CustomerResponse], summary="获取客户列表")
+@router.get("/customers", response_model=list[CustomerResponse], summary="获取客户列表")
 async def list_customers(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    category: Optional[str] = Query(None, description="客户分类（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    category: str | None = Query(None, description="客户分类（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取客户列表
@@ -157,17 +157,17 @@ async def create_supplier(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/suppliers", response_model=List[SupplierResponse], summary="获取供应商列表")
+@router.get("/suppliers", response_model=list[SupplierResponse], summary="获取供应商列表")
 async def list_suppliers(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    category: Optional[str] = Query(None, description="供应商分类（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用"),
-    keyword: Optional[str] = Query(None, description="搜索关键词（供应商编码或名称）"),
-    code: Optional[str] = Query(None, description="供应商编码（精确匹配）"),
-    name: Optional[str] = Query(None, description="供应商名称（模糊匹配）")
+    category: str | None = Query(None, description="供应商分类（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用"),
+    keyword: str | None = Query(None, description="搜索关键词（供应商编码或名称）"),
+    code: str | None = Query(None, description="供应商编码（精确匹配）"),
+    name: str | None = Query(None, description="供应商名称（模糊匹配）")
 ):
     """
     获取供应商列表

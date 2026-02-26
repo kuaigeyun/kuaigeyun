@@ -313,7 +313,7 @@ class ExceptionProcessService(AppBaseService[ExceptionProcessRecord]):
         tenant_id: int,
         process_record_id: int,
         current_user_id: int,
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ) -> ExceptionProcessRecordResponse:
         """
         取消异常处理流程
@@ -400,13 +400,13 @@ class ExceptionProcessService(AppBaseService[ExceptionProcessRecord]):
     async def list_process_records(
         self,
         tenant_id: int,
-        exception_type: Optional[str] = None,
-        exception_id: Optional[int] = None,
-        process_status: Optional[str] = None,
-        assigned_to: Optional[int] = None,
+        exception_type: str | None = None,
+        exception_id: int | None = None,
+        process_status: str | None = None,
+        assigned_to: int | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[ExceptionProcessRecordListResponse]:
+    ) -> list[ExceptionProcessRecordListResponse]:
         """
         获取异常处理记录列表
 
@@ -518,9 +518,9 @@ class ExceptionProcessService(AppBaseService[ExceptionProcessRecord]):
         process_record_id: int,
         action: str,
         action_by: int,
-        from_step: Optional[str] = None,
-        to_step: Optional[str] = None,
-        comment: Optional[str] = None,
+        from_step: str | None = None,
+        to_step: str | None = None,
+        comment: str | None = None,
     ) -> None:
         """
         创建历史记录

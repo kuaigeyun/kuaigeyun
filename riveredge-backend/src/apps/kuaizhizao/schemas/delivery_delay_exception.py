@@ -23,13 +23,13 @@ class DeliveryDelayExceptionBase(BaseModel):
     work_order_id: int = Field(..., description="工单ID")
     work_order_code: str = Field(..., description="工单编码")
     planned_end_date: datetime = Field(..., description="计划结束日期")
-    actual_end_date: Optional[datetime] = Field(None, description="实际结束日期")
+    actual_end_date: datetime | None = Field(None, description="实际结束日期")
     delay_days: int = Field(..., description="延期天数")
-    delay_reason: Optional[str] = Field(None, description="延期原因")
+    delay_reason: str | None = Field(None, description="延期原因")
     alert_level: str = Field("medium", description="预警级别")
     status: str = Field("pending", description="处理状态")
-    suggested_action: Optional[str] = Field(None, description="建议操作")
-    remarks: Optional[str] = Field(None, description="备注")
+    suggested_action: str | None = Field(None, description="建议操作")
+    remarks: str | None = Field(None, description="备注")
 
 
 class DeliveryDelayExceptionCreate(DeliveryDelayExceptionBase):
@@ -49,9 +49,9 @@ class DeliveryDelayExceptionUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    status: Optional[str] = Field(None, description="处理状态")
-    suggested_action: Optional[str] = Field(None, description="建议操作")
-    remarks: Optional[str] = Field(None, description="备注")
+    status: str | None = Field(None, description="处理状态")
+    suggested_action: str | None = Field(None, description="建议操作")
+    remarks: str | None = Field(None, description="备注")
 
 
 class DeliveryDelayExceptionResponse(DeliveryDelayExceptionBase):
@@ -62,9 +62,9 @@ class DeliveryDelayExceptionResponse(DeliveryDelayExceptionBase):
     """
     id: int = Field(..., description="记录ID")
     uuid: str = Field(..., description="业务ID")
-    handled_by: Optional[int] = Field(None, description="处理人ID")
-    handled_by_name: Optional[str] = Field(None, description="处理人姓名")
-    handled_at: Optional[datetime] = Field(None, description="处理时间")
+    handled_by: int | None = Field(None, description="处理人ID")
+    handled_by_name: str | None = Field(None, description="处理人姓名")
+    handled_at: datetime | None = Field(None, description="处理时间")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 

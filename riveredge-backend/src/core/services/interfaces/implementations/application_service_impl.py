@@ -23,7 +23,7 @@ class ApplicationServiceImpl(ApplicationServiceInterface):
     def __init__(self):
         self._application_service = ApplicationService()
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """服务健康检查"""
         return {
             "service": self.service_name,
@@ -35,8 +35,8 @@ class ApplicationServiceImpl(ApplicationServiceInterface):
     async def get_installed_applications(
         self,
         tenant_id: int,
-        is_active: Optional[bool] = None,
-    ) -> List[Dict[str, Any]]:
+        is_active: bool | None = None,
+    ) -> list[dict[str, Any]]:
         """
         获取已安装的应用列表
 

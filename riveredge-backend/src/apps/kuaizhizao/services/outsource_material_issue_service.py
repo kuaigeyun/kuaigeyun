@@ -145,10 +145,10 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        outsource_work_order_id: Optional[int] = None,
-        status: Optional[str] = None,
-        keyword: Optional[str] = None,
-    ) -> List[OutsourceMaterialIssueResponse]:
+        outsource_work_order_id: int | None = None,
+        status: str | None = None,
+        keyword: str | None = None,
+    ) -> list[OutsourceMaterialIssueResponse]:
         """
         获取委外发料单列表
 

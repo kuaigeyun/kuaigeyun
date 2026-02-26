@@ -79,8 +79,8 @@ class SuggestionService:
         self,
         tenant_id: int,
         scene: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+        context: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """
         获取建议列表
         
@@ -110,7 +110,7 @@ class SuggestionService:
         self,
         tenant_id: int,
         work_order_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取工单相关建议
         
@@ -182,7 +182,7 @@ class SuggestionService:
         self,
         tenant_id: int,
         reporting_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取报工相关建议
         
@@ -204,7 +204,7 @@ class SuggestionService:
     async def get_suggestions_for_inventory(
         self,
         tenant_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取库存相关建议
         
@@ -248,7 +248,7 @@ class SuggestionService:
     async def get_suggestions_for_production(
         self,
         tenant_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取生产看板相关建议
         

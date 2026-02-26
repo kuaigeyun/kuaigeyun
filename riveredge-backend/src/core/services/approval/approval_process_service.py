@@ -23,7 +23,7 @@ class ApprovalProcessService:
     """
     
     @staticmethod
-    def convert_proflow_to_inngest(proflow_config: Dict[str, Any]) -> Dict[str, Any]:
+    def convert_proflow_to_inngest(proflow_config: dict[str, Any]) -> dict[str, Any]:
         """
         将 ProFlow 设计转换为 Inngest 工作流配置
         
@@ -125,8 +125,8 @@ class ApprovalProcessService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None
-    ) -> List[ApprovalProcess]:
+        is_active: bool | None = None
+    ) -> list[ApprovalProcess]:
         """
         获取审批流程列表
         

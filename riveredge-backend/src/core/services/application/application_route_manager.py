@@ -28,14 +28,14 @@ class ApplicationRouteManager:
         """
         self.app = app
         # 记录已注册的路由，用于后续移除
-        self._registered_routes: Dict[str, List[APIRouter]] = {}
+        self._registered_routes: dict[str, list[APIRouter]] = {}
         # 记录路由的注册信息（用于重新注册）
-        self._route_registry: Dict[str, Dict[str, Any]] = {}
+        self._route_registry: dict[str, dict[str, Any]] = {}
     
     def register_app_routes(
         self,
         app_code: str,
-        routers: List[APIRouter],
+        routers: list[APIRouter],
         prefix: str = "/api/v1"
     ) -> None:
         """
@@ -135,7 +135,7 @@ class ApplicationRouteManager:
     def reload_app_routes(
         self,
         app_code: str,
-        routers: List[APIRouter],
+        routers: list[APIRouter],
         prefix: str = "/api/v1"
     ) -> None:
         """
@@ -152,7 +152,7 @@ class ApplicationRouteManager:
         self.unregister_app_routes(app_code)
         self.register_app_routes(app_code, routers, prefix)
     
-    def get_registered_routes(self) -> Dict[str, List[APIRouter]]:
+    def get_registered_routes(self) -> dict[str, list[APIRouter]]:
         """
         获取已注册的路由
         
@@ -175,10 +175,10 @@ class ApplicationRouteManager:
 
 
 # 全局路由管理器实例（在应用启动时初始化）
-_route_manager: Optional[ApplicationRouteManager] = None
+_route_manager: ApplicationRouteManager | None = None
 
 
-def get_route_manager() -> Optional[ApplicationRouteManager]:
+def get_route_manager() -> ApplicationRouteManager | None:
     """
     获取路由管理器实例
     

@@ -55,13 +55,13 @@ async def create_scheduled_task(
         )
 
 
-@router.get("", response_model=List[ScheduledTaskResponse])
+@router.get("", response_model=list[ScheduledTaskResponse])
 async def list_scheduled_tasks(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    type: Optional[str] = Query(None, description="任务类型（可选）"),
-    trigger_type: Optional[str] = Query(None, description="触发器类型（可选）"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    type: str | None = Query(None, description="任务类型（可选）"),
+    trigger_type: str | None = Query(None, description="触发器类型（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -258,7 +258,7 @@ async def stop_scheduled_task(
 @router.post("/{uuid}/mark-running", response_model=ScheduledTaskResponse)
 async def mark_task_running(
     uuid: str,
-    inngest_run_id: Optional[str] = Query(None, description="Inngest 运行ID（可选）"),
+    inngest_run_id: str | None = Query(None, description="Inngest 运行ID（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -295,8 +295,8 @@ async def mark_task_running(
 async def update_task_execution_result(
     uuid: str,
     status: str = Query(..., description="执行状态（success、failed）"),
-    error: Optional[str] = Query(None, description="错误信息（可选）"),
-    inngest_run_id: Optional[str] = Query(None, description="Inngest 运行ID（可选）"),
+    error: str | None = Query(None, description="错误信息（可选）"),
+    inngest_run_id: str | None = Query(None, description="Inngest 运行ID（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

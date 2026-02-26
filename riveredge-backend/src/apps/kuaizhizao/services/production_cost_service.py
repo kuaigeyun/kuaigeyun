@@ -38,10 +38,10 @@ class ProductionCostService:
         tenant_id: int,
         material_id: int,
         quantity: Decimal,
-        variant_attributes: Optional[Dict[str, Any]] = None,
-        calculation_date: Optional[date] = None,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        variant_attributes: dict[str, Any] | None = None,
+        calculation_date: date | None = None,
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         核算生产成本
         
@@ -120,8 +120,8 @@ class ProductionCostService:
         material: Material,
         quantity: Decimal,
         calculation_date: date,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         计算自制件成本
         
@@ -189,7 +189,7 @@ class ProductionCostService:
         material: Material,
         quantity: Decimal,
         calculation_date: date
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         计算虚拟件成本
         
@@ -249,10 +249,10 @@ class ProductionCostService:
         tenant_id: int,
         material: Material,
         quantity: Decimal,
-        variant_attributes: Dict[str, Any],
+        variant_attributes: dict[str, Any],
         calculation_date: date,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         计算配置件成本
         
@@ -345,8 +345,8 @@ class ProductionCostService:
         tenant_id: int,
         material: Material,
         quantity: Decimal,
-        variant_attributes: Optional[Dict[str, Any]] = None
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+        variant_attributes: dict[str, Any] | None = None
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         从BOM计算材料成本
         
@@ -363,7 +363,7 @@ class ProductionCostService:
         """
         total_cost = Decimal(0)
         cost_breakdown = []
-        processed_materials: Set[int] = set()  # 防止循环引用
+        processed_materials: set[int] = set()  # 防止循环引用
         
         async def expand_bom(material_id: int, qty: Decimal, level: int = 0) -> Decimal:
             """递归展开BOM"""
@@ -504,7 +504,7 @@ class ProductionCostService:
         tenant_id: int,
         material: Material,
         quantity: Decimal
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算加工成本（工序成本）
         
@@ -584,7 +584,7 @@ class ProductionCostService:
         quantity: Decimal,
         material_cost: Decimal,
         labor_cost: Decimal
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算制造费用
         

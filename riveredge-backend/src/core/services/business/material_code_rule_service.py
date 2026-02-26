@@ -30,7 +30,7 @@ class MaterialCodeRuleService:
     """
     
     @staticmethod
-    async def get_active_main_rule(tenant_id: int) -> Optional[MaterialCodeRuleMain]:
+    async def get_active_main_rule(tenant_id: int) -> MaterialCodeRuleMain | None:
         """
         获取当前生效的主编码规则
         
@@ -53,10 +53,10 @@ class MaterialCodeRuleService:
         tenant_id: int,
         rule_name: str,
         template: str,
-        prefix: Optional[str] = None,
-        sequence_config: Optional[Dict[str, Any]] = None,
-        material_types: Optional[List[Dict[str, Any]]] = None,
-        created_by: Optional[int] = None,
+        prefix: str | None = None,
+        sequence_config: dict[str, Any] | None = None,
+        material_types: list[dict[str, Any]] | None = None,
+        created_by: int | None = None,
     ) -> MaterialCodeRuleMain:
         """
         创建主编码规则
@@ -135,12 +135,12 @@ class MaterialCodeRuleService:
     async def update_main_rule(
         tenant_id: int,
         rule_id: int,
-        rule_name: Optional[str] = None,
-        template: Optional[str] = None,
-        prefix: Optional[str] = None,
-        sequence_config: Optional[Dict[str, Any]] = None,
-        material_types: Optional[List[Dict[str, Any]]] = None,
-        updated_by: Optional[int] = None,
+        rule_name: str | None = None,
+        template: str | None = None,
+        prefix: str | None = None,
+        sequence_config: dict[str, Any] | None = None,
+        material_types: list[dict[str, Any]] | None = None,
+        updated_by: int | None = None,
     ) -> MaterialCodeRuleMain:
         """
         更新主编码规则
@@ -215,7 +215,7 @@ class MaterialCodeRuleService:
     async def activate_main_rule(
         tenant_id: int,
         rule_id: int,
-        updated_by: Optional[int] = None,
+        updated_by: int | None = None,
     ) -> MaterialCodeRuleMain:
         """
         启用主编码规则（禁用其他规则）
@@ -259,7 +259,7 @@ class MaterialCodeRuleService:
     async def get_alias_rule(
         tenant_id: int,
         code_type: str
-    ) -> Optional[MaterialCodeRuleAlias]:
+    ) -> MaterialCodeRuleAlias | None:
         """
         获取部门编码规则
         
@@ -284,11 +284,11 @@ class MaterialCodeRuleService:
         tenant_id: int,
         code_type: str,
         code_type_name: str,
-        template: Optional[str] = None,
-        prefix: Optional[str] = None,
-        validation_pattern: Optional[str] = None,
-        departments: Optional[List[str]] = None,
-        created_by: Optional[int] = None,
+        template: str | None = None,
+        prefix: str | None = None,
+        validation_pattern: str | None = None,
+        departments: list[str] | None = None,
+        created_by: int | None = None,
     ) -> MaterialCodeRuleAlias:
         """
         创建部门编码规则
@@ -372,11 +372,11 @@ class MaterialCodeRuleService:
     async def preview_code(
         tenant_id: int,
         template: str,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         material_type: str = "RAW",
         sample_sequence: int = 1,
-        sequence_config: Optional[Dict[str, Any]] = None,
-    ) -> tuple[str, Optional[str]]:
+        sequence_config: dict[str, Any] | None = None,
+    ) -> tuple[str, str | None]:
         """
         预览编码生成效果
         
@@ -406,9 +406,9 @@ class MaterialCodeRuleService:
         rule_type: str,
         rule_id: int,
         version: int,
-        rule_config: Dict[str, Any],
-        changed_by: Optional[int] = None,
-        change_description: Optional[str] = None,
+        rule_config: dict[str, Any],
+        changed_by: int | None = None,
+        change_description: str | None = None,
     ) -> MaterialCodeRuleHistory:
         """
         保存规则版本历史

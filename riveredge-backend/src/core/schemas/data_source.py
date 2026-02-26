@@ -14,9 +14,9 @@ class DataSourceBase(BaseModel):
     """数据源基础 Schema"""
     name: str = Field(..., max_length=100, description="数据源名称")
     code: str = Field(..., max_length=50, description="数据源代码")
-    description: Optional[str] = Field(None, description="数据源描述")
+    description: str | None = Field(None, description="数据源描述")
     type: str = Field(..., max_length=20, description="数据源类型")
-    config: Dict[str, Any] = Field(..., description="连接配置")
+    config: dict[str, Any] = Field(..., description="连接配置")
     is_active: bool = Field(True, description="是否启用")
     
     @field_validator('type')
@@ -36,12 +36,12 @@ class DataSourceCreate(DataSourceBase):
 
 class DataSourceUpdate(BaseModel):
     """更新数据源 Schema"""
-    name: Optional[str] = Field(None, max_length=100, description="数据源名称")
-    code: Optional[str] = Field(None, max_length=50, description="数据源代码")
-    description: Optional[str] = Field(None, description="数据源描述")
-    type: Optional[str] = Field(None, max_length=20, description="数据源类型")
-    config: Optional[Dict[str, Any]] = Field(None, description="连接配置")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    name: str | None = Field(None, max_length=100, description="数据源名称")
+    code: str | None = Field(None, max_length=50, description="数据源代码")
+    description: str | None = Field(None, description="数据源描述")
+    type: str | None = Field(None, max_length=20, description="数据源类型")
+    config: dict[str, Any] | None = Field(None, description="连接配置")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class DataSourceResponse(DataSourceBase):
@@ -49,8 +49,8 @@ class DataSourceResponse(DataSourceBase):
     uuid: UUID = Field(..., description="数据源UUID")
     tenant_id: int = Field(..., description="组织ID")
     is_connected: bool = Field(..., description="是否已连接")
-    last_connected_at: Optional[datetime] = Field(None, description="最后连接时间")
-    last_error: Optional[str] = Field(None, description="最后连接错误信息")
+    last_connected_at: datetime | None = Field(None, description="最后连接时间")
+    last_error: str | None = Field(None, description="最后连接错误信息")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     

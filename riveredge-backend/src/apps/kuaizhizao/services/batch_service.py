@@ -21,13 +21,13 @@ class BatchOperationService:
     async def batch_create(
         self,
         tenant_id: int,
-        model_class: Type,
-        create_data_list: List[Dict[str, Any]],
+        model_class: type,
+        create_data_list: list[dict[str, Any]],
         created_by: int,
-        validate_func: Optional[callable] = None,
+        validate_func: callable | None = None,
         batch_size: int = 100,
         use_bulk: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         批量创建记录（优化版，支持批量插入）
 
@@ -134,13 +134,13 @@ class BatchOperationService:
     async def batch_update(
         self,
         tenant_id: int,
-        model_class: Type,
-        update_data_list: List[Dict[str, Any]],
+        model_class: type,
+        update_data_list: list[dict[str, Any]],
         updated_by: int,
         id_field: str = "id",
-        validate_func: Optional[callable] = None,
+        validate_func: callable | None = None,
         batch_size: int = 100
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         批量更新记录（优化版，支持批量更新）
 
@@ -239,13 +239,13 @@ class BatchOperationService:
     async def batch_delete(
         self,
         tenant_id: int,
-        model_class: Type,
-        record_ids: List[int],
+        model_class: type,
+        record_ids: list[int],
         id_field: str = "id",
         soft_delete: bool = True,
-        validate_func: Optional[callable] = None,
+        validate_func: callable | None = None,
         batch_size: int = 100
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         批量删除记录（优化版，支持批量删除）
 

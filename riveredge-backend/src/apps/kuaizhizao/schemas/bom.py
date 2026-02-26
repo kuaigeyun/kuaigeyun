@@ -27,7 +27,7 @@ class BOMExpansionItem(BaseSchema):
     unit_cost: float = Field(..., description="单价")
     total_cost: float = Field(..., description="总成本")
     lead_time: int = Field(..., description="前置时间（天）")
-    operation_name: Optional[str] = Field(None, description="工序名称")
+    operation_name: str | None = Field(None, description="工序名称")
 
 
 class BOMExpansionResult(BaseSchema):
@@ -39,7 +39,7 @@ class BOMExpansionResult(BaseSchema):
     expansion_quantity: float = Field(..., description="展开数量")
     total_cost: float = Field(..., description="总成本")
     max_lead_time: int = Field(..., description="最大前置时间")
-    items: List[BOMExpansionItem] = Field(..., description="展开明细")
+    items: list[BOMExpansionItem] = Field(..., description="展开明细")
 
 
 # === 物料需求计算 ===
@@ -63,4 +63,4 @@ class MRPRequirement(BaseSchema):
     material_id: int = Field(..., description="物料ID")
     material_code: str = Field(..., description="物料编码")
     material_name: str = Field(..., description="物料名称")
-    requirements: List[dict] = Field(..., description="各时段需求")
+    requirements: list[dict] = Field(..., description="各时段需求")

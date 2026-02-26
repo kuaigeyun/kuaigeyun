@@ -32,8 +32,8 @@ class CustomerCollaborationService(BaseService):
         self,
         tenant_id: int,
         customer_id: int,
-        status: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        status: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         获取客户的销售订单列表
         
@@ -74,7 +74,7 @@ class CustomerCollaborationService(BaseService):
         self,
         tenant_id: int,
         sales_order_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取销售订单的生产进度
         
@@ -143,7 +143,7 @@ class CustomerCollaborationService(BaseService):
         self,
         tenant_id: int,
         customer_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取客户订单汇总
         

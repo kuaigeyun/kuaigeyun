@@ -12,15 +12,15 @@ from uuid import UUID
 
 class LoginLogBase(BaseModel):
     """登录日志基础 Schema"""
-    tenant_id: Optional[int] = Field(None, description="组织ID（登录失败时可能为空）")
-    user_id: Optional[int] = Field(None, description="登录用户ID（登录失败时可能为空）")
-    username: Optional[str] = Field(None, description="登录账号")
+    tenant_id: int | None = Field(None, description="组织ID（登录失败时可能为空）")
+    user_id: int | None = Field(None, description="登录用户ID（登录失败时可能为空）")
+    username: str | None = Field(None, description="登录账号")
     login_ip: str = Field(..., description="登录IP地址")
-    login_location: Optional[str] = Field(None, description="登录地点")
-    login_device: Optional[str] = Field(None, description="登录设备")
-    login_browser: Optional[str] = Field(None, description="登录浏览器")
+    login_location: str | None = Field(None, description="登录地点")
+    login_device: str | None = Field(None, description="登录设备")
+    login_browser: str | None = Field(None, description="登录浏览器")
     login_status: str = Field(..., description="登录状态（success、failed）")
-    failure_reason: Optional[str] = Field(None, description="失败原因")
+    failure_reason: str | None = Field(None, description="失败原因")
 
 
 class LoginLogCreate(LoginLogBase):
@@ -31,7 +31,7 @@ class LoginLogCreate(LoginLogBase):
 class LoginLogResponse(LoginLogBase):
     """登录日志响应 Schema"""
     uuid: UUID = Field(..., description="登录日志UUID")
-    tenant_id: Optional[int] = Field(None, description="组织ID")
+    tenant_id: int | None = Field(None, description="组织ID")
     created_at: datetime = Field(..., description="创建时间")
     
     model_config = ConfigDict(from_attributes=True)

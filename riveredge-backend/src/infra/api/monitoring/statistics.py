@@ -20,10 +20,8 @@ from infra.models.tenant import Tenant, TenantStatus, TenantPlan
 import psutil
 import sys
 import platform as std_platform  # 使用标准库的 platform，避免与项目模块冲突
-from datetime import datetime
 import socket
 from infra.domain.package_config import get_all_package_configs
-from typing import Dict, Any
 
 # 创建路由器
 router = APIRouter(prefix="/monitoring", tags=["Infra Monitoring"])
@@ -31,7 +29,7 @@ router = APIRouter(prefix="/monitoring", tags=["Infra Monitoring"])
 # 响应模型
 class TenantStatisticsResponse:
     """组织统计响应模型"""
-    def __init__(self, total: int, by_status: Dict[str, int], by_plan: Dict[str, int], updated_at: str):
+    def __init__(self, total: int, by_status: dict[str, int], by_plan: dict[str, int], updated_at: str):
         self.total = total
         self.by_status = by_status
         self.by_plan = by_plan

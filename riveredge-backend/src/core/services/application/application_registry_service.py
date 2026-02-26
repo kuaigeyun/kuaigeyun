@@ -31,9 +31,9 @@ class ApplicationRegistryService:
     """
 
     # 已注册的应用缓存
-    _registered_apps: Dict[str, Dict[str, Any]] = {}
-    _registered_models: Set[str] = set()
-    _registered_routes: Dict[str, List[Any]] = {}
+    _registered_apps: dict[str, dict[str, Any]] = {}
+    _registered_models: set[str] = set()
+    _registered_routes: dict[str, list[Any]] = {}
 
     @classmethod
     async def initialize(cls) -> None:
@@ -66,7 +66,7 @@ class ApplicationRegistryService:
             raise
 
     @classmethod
-    async def _discover_installed_apps(cls) -> List[Dict[str, Any]]:
+    async def _discover_installed_apps(cls) -> list[dict[str, Any]]:
         """
         发现所有已安装的应用
 
@@ -169,7 +169,7 @@ class ApplicationRegistryService:
                 await conn.close()
 
     @classmethod
-    async def _register_app_models(cls, apps: List[Dict[str, Any]]) -> None:
+    async def _register_app_models(cls, apps: list[dict[str, Any]]) -> None:
         """
         注册应用模型到Tortoise ORM
 
@@ -246,7 +246,7 @@ class ApplicationRegistryService:
             logger.info("ℹ️ 没有应用模型需要注册")
 
     @classmethod
-    async def _register_app_routes(cls, apps: List[Dict[str, Any]]) -> None:
+    async def _register_app_routes(cls, apps: list[dict[str, Any]]) -> None:
         """
         注册应用路由
 
@@ -310,7 +310,7 @@ class ApplicationRegistryService:
                             logger.warning(f"⚠️ 应用 {app_name}({app_code}) 的路由模块中未找到router对象")
                     except ImportError as ie:
                         logger.error(f"❌ 导入应用 {app_name}({app_code}) 路由模块失败: {ie}")
-                        logger.info(f"💡 这可能是由于缺少运行时依赖导致的，请确保所有依赖都已正确安装")
+                        logger.info("💡 这可能是由于缺少运行时依赖导致的，请确保所有依赖都已正确安装")
                     except Exception as e:
                         import traceback
                         error_trace = traceback.format_exc()
@@ -373,7 +373,7 @@ class ApplicationRegistryService:
             return False
 
     @classmethod
-    def get_registered_models(cls) -> List[str]:
+    def get_registered_models(cls) -> list[str]:
         """
         获取已注册的模型模块列表
 
@@ -383,7 +383,7 @@ class ApplicationRegistryService:
         return list(cls._registered_models)
 
     @classmethod
-    def get_registered_routes(cls) -> Dict[str, List[Any]]:
+    def get_registered_routes(cls) -> dict[str, list[Any]]:
         """
         获取已注册的路由对象
 
@@ -393,7 +393,7 @@ class ApplicationRegistryService:
         return cls._registered_routes.copy()
 
     @classmethod
-    def get_registered_app_codes(cls) -> List[str]:
+    def get_registered_app_codes(cls) -> list[str]:
         """
         获取已注册的应用代码列表
 
@@ -542,7 +542,7 @@ class ApplicationRegistryService:
         return app_code in cls._registered_apps
 
     @classmethod
-    async def get_app_info(cls, app_code: str) -> Optional[Dict[str, Any]]:
+    async def get_app_info(cls, app_code: str) -> dict[str, Any] | None:
         """
         获取应用信息
 

@@ -46,10 +46,10 @@ class InitialDataService:
     async def import_initial_inventory(
         self,
         tenant_id: int,
-        data: List[List[Any]],  # 二维数组数据（从 uni_import 组件传递）
-        snapshot_time: Optional[datetime] = None,
+        data: list[list[Any]],  # 二维数组数据（从 uni_import 组件传递）
+        snapshot_time: datetime | None = None,
         created_by: int = 1
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         导入期初库存
         
@@ -122,7 +122,7 @@ class InitialDataService:
         errors = []
         
         # 用于批量创建入库单（按仓库分组）
-        receipts_by_warehouse: Dict[str, Dict[str, Any]] = {}
+        receipts_by_warehouse: dict[str, dict[str, Any]] = {}
         
         async with in_transaction():
             for row, row_idx in non_empty_rows:
@@ -213,7 +213,7 @@ class InitialDataService:
                         quantity = Decimal(str(row_data['quantity']))
                         if quantity <= 0:
                             raise ValueError("数量必须大于0")
-                    except (ValueError, TypeError) as e:
+                    except (ValueError, TypeError):
                         errors.append({
                             "row": row_idx,
                             "error": f"期初数量格式错误: {row_data['quantity']}"
@@ -342,10 +342,10 @@ class InitialDataService:
     async def import_initial_wip(
         self,
         tenant_id: int,
-        data: List[List[Any]],  # 二维数组数据（从 uni_import 组件传递）
-        snapshot_time: Optional[datetime] = None,
+        data: list[list[Any]],  # 二维数组数据（从 uni_import 组件传递）
+        snapshot_time: datetime | None = None,
         created_by: int = 1
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         导入期初在制品
         
@@ -508,7 +508,7 @@ class InitialDataService:
                         wip_quantity = Decimal(str(row_data['wip_quantity']))
                         if wip_quantity <= 0:
                             raise ValueError("在制品数量必须大于0")
-                    except (ValueError, TypeError) as e:
+                    except (ValueError, TypeError):
                         errors.append({
                             "row": row_idx,
                             "error": f"在制品数量格式错误: {row_data['wip_quantity']}"
@@ -642,10 +642,10 @@ class InitialDataService:
     async def import_initial_receivables_payables(
         self,
         tenant_id: int,
-        data: List[List[Any]],  # 二维数组数据（从 uni_import 组件传递）
-        snapshot_time: Optional[datetime] = None,
+        data: list[list[Any]],  # 二维数组数据（从 uni_import 组件传递）
+        snapshot_time: datetime | None = None,
         created_by: int = 1
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         导入期初应收应付
         

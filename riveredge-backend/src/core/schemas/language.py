@@ -17,7 +17,7 @@ class LanguageBase(BaseModel):
     """
     code: str = Field(..., min_length=2, max_length=10, description="语言代码（ISO 639-1，如：zh、en、ja）")
     name: str = Field(..., min_length=1, max_length=50, description="语言名称（如：中文、English、日本語）")
-    native_name: Optional[str] = Field(None, max_length=50, description="本地名称（如：中文、English、日本語）")
+    native_name: str | None = Field(None, max_length=50, description="本地名称（如：中文、English、日本語）")
     is_default: bool = Field(default=False, description="是否默认语言")
     is_active: bool = Field(default=True, description="是否启用")
     sort_order: int = Field(default=0, description="排序顺序")
@@ -29,7 +29,7 @@ class LanguageCreate(LanguageBase):
     
     用于创建新语言的请求数据。
     """
-    translations: Optional[Dict[str, str]] = Field(None, description="翻译内容（可选，创建时可初始化）")
+    translations: dict[str, str] | None = Field(None, description="翻译内容（可选，创建时可初始化）")
 
 
 class LanguageUpdate(BaseModel):
@@ -38,11 +38,11 @@ class LanguageUpdate(BaseModel):
     
     用于更新语言的请求数据，所有字段可选。
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=50, description="语言名称")
-    native_name: Optional[str] = Field(None, max_length=50, description="本地名称")
-    is_default: Optional[bool] = Field(None, description="是否默认语言")
-    is_active: Optional[bool] = Field(None, description="是否启用")
-    sort_order: Optional[int] = Field(None, description="排序顺序")
+    name: str | None = Field(None, min_length=1, max_length=50, description="语言名称")
+    native_name: str | None = Field(None, max_length=50, description="本地名称")
+    is_default: bool | None = Field(None, description="是否默认语言")
+    is_active: bool | None = Field(None, description="是否启用")
+    sort_order: int | None = Field(None, description="排序顺序")
 
 
 class LanguageResponse(LanguageBase):
@@ -53,7 +53,7 @@ class LanguageResponse(LanguageBase):
     """
     uuid: str = Field(..., description="语言UUID（对外暴露，业务标识）")
     tenant_id: int = Field(..., description="组织ID")
-    translations: Dict[str, str] = Field(..., description="翻译内容（JSON 字典）")
+    translations: dict[str, str] = Field(..., description="翻译内容（JSON 字典）")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     
@@ -66,7 +66,7 @@ class LanguageListResponse(BaseModel):
 
     用于返回语言列表（分页）。
     """
-    items: List[LanguageResponse] = Field(..., description="语言列表")
+    items: list[LanguageResponse] = Field(..., description="语言列表")
     total: int = Field(..., ge=0, description="总数")
 
 
@@ -76,7 +76,7 @@ class TranslationUpdateRequest(BaseModel):
     
     用于更新翻译内容的请求数据。
     """
-    translations: Dict[str, str] = Field(..., description="翻译内容（key-value 映射）")
+    translations: dict[str, str] = Field(..., description="翻译内容（key-value 映射）")
 
 
 class TranslationGetResponse(BaseModel):
@@ -85,7 +85,7 @@ class TranslationGetResponse(BaseModel):
     
     用于返回翻译内容。
     """
-    translations: Dict[str, str] = Field(..., description="翻译内容（key-value 映射）")
+    translations: dict[str, str] = Field(..., description="翻译内容（key-value 映射）")
     language_code: str = Field(..., description="语言代码")
     language_name: str = Field(..., description="语言名称")
 

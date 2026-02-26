@@ -33,7 +33,7 @@ class PluginManagerService:
         self.discovery_service = PluginDiscoveryService(apps_dir)
         self.loader_service = PluginLoaderService(apps_dir)
 
-    async def discover_and_register_plugins(self, tenant_id: int) -> Dict[str, Any]:
+    async def discover_and_register_plugins(self, tenant_id: int) -> dict[str, Any]:
         """
         发现并注册所有插件
 
@@ -89,7 +89,7 @@ class PluginManagerService:
         finally:
             await conn.close()
 
-    async def load_enabled_plugins(self, tenant_id: int) -> List[Dict[str, Any]]:
+    async def load_enabled_plugins(self, tenant_id: int) -> list[dict[str, Any]]:
         """
         加载所有启用的插件
 
@@ -105,7 +105,7 @@ class PluginManagerService:
         # 加载插件
         return self.loader_service.load_enabled_plugins(enabled_plugins)
 
-    async def enable_plugin(self, tenant_id: int, plugin_code: str) -> Dict[str, Any]:
+    async def enable_plugin(self, tenant_id: int, plugin_code: str) -> dict[str, Any]:
         """
         启用插件
 
@@ -136,7 +136,7 @@ class PluginManagerService:
         finally:
             await conn.close()
 
-    async def disable_plugin(self, tenant_id: int, plugin_code: str) -> Dict[str, Any]:
+    async def disable_plugin(self, tenant_id: int, plugin_code: str) -> dict[str, Any]:
         """
         停用插件
 
@@ -167,7 +167,7 @@ class PluginManagerService:
         finally:
             await conn.close()
 
-    async def get_enabled_plugins(self, tenant_id: int) -> List[str]:
+    async def get_enabled_plugins(self, tenant_id: int) -> list[str]:
         """
         获取启用的插件列表
 
@@ -192,7 +192,7 @@ class PluginManagerService:
         finally:
             await conn.close()
 
-    async def get_available_plugins(self, tenant_id: int) -> List[Dict[str, Any]]:
+    async def get_available_plugins(self, tenant_id: int) -> list[dict[str, Any]]:
         """
         获取所有可用插件（包括注册状态）
 

@@ -14,14 +14,14 @@ class APIBase(BaseModel):
     """接口基础 Schema"""
     name: str = Field(..., max_length=100, description="接口名称")
     code: str = Field(..., max_length=50, description="接口代码")
-    description: Optional[str] = Field(None, description="接口描述")
+    description: str | None = Field(None, description="接口描述")
     path: str = Field(..., max_length=500, description="接口路径")
     method: str = Field(..., max_length=10, description="请求方法")
-    request_headers: Optional[Dict[str, Any]] = Field(None, description="请求头")
-    request_params: Optional[Dict[str, Any]] = Field(None, description="请求参数")
-    request_body: Optional[Dict[str, Any]] = Field(None, description="请求体")
-    response_format: Optional[Dict[str, Any]] = Field(None, description="响应格式")
-    response_example: Optional[Dict[str, Any]] = Field(None, description="响应示例")
+    request_headers: dict[str, Any] | None = Field(None, description="请求头")
+    request_params: dict[str, Any] | None = Field(None, description="请求参数")
+    request_body: dict[str, Any] | None = Field(None, description="请求体")
+    response_format: dict[str, Any] | None = Field(None, description="响应格式")
+    response_example: dict[str, Any] | None = Field(None, description="响应示例")
     is_active: bool = Field(True, description="是否启用")
     is_system: bool = Field(False, description="是否系统接口")
 
@@ -33,17 +33,17 @@ class APICreate(APIBase):
 
 class APIUpdate(BaseModel):
     """更新接口 Schema"""
-    name: Optional[str] = Field(None, max_length=100, description="接口名称")
-    code: Optional[str] = Field(None, max_length=50, description="接口代码")
-    description: Optional[str] = Field(None, description="接口描述")
-    path: Optional[str] = Field(None, max_length=500, description="接口路径")
-    method: Optional[str] = Field(None, max_length=10, description="请求方法")
-    request_headers: Optional[Dict[str, Any]] = Field(None, description="请求头")
-    request_params: Optional[Dict[str, Any]] = Field(None, description="请求参数")
-    request_body: Optional[Dict[str, Any]] = Field(None, description="请求体")
-    response_format: Optional[Dict[str, Any]] = Field(None, description="响应格式")
-    response_example: Optional[Dict[str, Any]] = Field(None, description="响应示例")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    name: str | None = Field(None, max_length=100, description="接口名称")
+    code: str | None = Field(None, max_length=50, description="接口代码")
+    description: str | None = Field(None, description="接口描述")
+    path: str | None = Field(None, max_length=500, description="接口路径")
+    method: str | None = Field(None, max_length=10, description="请求方法")
+    request_headers: dict[str, Any] | None = Field(None, description="请求头")
+    request_params: dict[str, Any] | None = Field(None, description="请求参数")
+    request_body: dict[str, Any] | None = Field(None, description="请求体")
+    response_format: dict[str, Any] | None = Field(None, description="响应格式")
+    response_example: dict[str, Any] | None = Field(None, description="响应示例")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class APIResponse(APIBase):
@@ -58,15 +58,15 @@ class APIResponse(APIBase):
 
 class APITestRequest(BaseModel):
     """接口测试请求 Schema"""
-    headers: Optional[Dict[str, Any]] = Field(None, description="请求头（覆盖接口定义）")
-    params: Optional[Dict[str, Any]] = Field(None, description="请求参数（覆盖接口定义）")
-    body: Optional[Dict[str, Any]] = Field(None, description="请求体（覆盖接口定义）")
+    headers: dict[str, Any] | None = Field(None, description="请求头（覆盖接口定义）")
+    params: dict[str, Any] | None = Field(None, description="请求参数（覆盖接口定义）")
+    body: dict[str, Any] | None = Field(None, description="请求体（覆盖接口定义）")
 
 
 class APITestResponse(BaseModel):
     """接口测试响应 Schema"""
     status_code: int = Field(..., description="响应状态码")
-    headers: Dict[str, Any] = Field(..., description="响应头")
+    headers: dict[str, Any] = Field(..., description="响应头")
     body: Any = Field(..., description="响应体")
     elapsed_time: float = Field(..., description="请求耗时（秒）")
 

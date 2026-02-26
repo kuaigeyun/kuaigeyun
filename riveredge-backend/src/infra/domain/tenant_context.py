@@ -8,10 +8,10 @@ from contextvars import ContextVar
 from typing import Optional
 
 # 组织上下文变量（使用 ContextVar 实现线程/协程级别的上下文隔离）
-_tenant_context: ContextVar[Optional[int]] = ContextVar("tenant_context", default=None)
+_tenant_context: ContextVar[int | None] = ContextVar("tenant_context", default=None)
 
 
-def get_current_tenant_id() -> Optional[int]:
+def get_current_tenant_id() -> int | None:
     """
     获取当前请求的组织 ID
     
@@ -29,7 +29,7 @@ def get_current_tenant_id() -> Optional[int]:
     return _tenant_context.get()
 
 
-def set_current_tenant_id(tenant_id: Optional[int]) -> None:
+def set_current_tenant_id(tenant_id: int | None) -> None:
     """
     设置当前请求的组织 ID
     

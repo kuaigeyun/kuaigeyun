@@ -44,9 +44,9 @@ class Suggestion:
     priority: SuggestionPriority  # 建议优先级
     title: str  # 建议标题
     content: str  # 建议内容
-    action: Optional[str] = None  # 建议操作（可选，如跳转链接、操作按钮等）
-    action_label: Optional[str] = None  # 操作按钮标签
-    metadata: Optional[Dict[str, Any]] = None  # 元数据（可选，用于存储额外信息）
+    action: str | None = None  # 建议操作（可选，如跳转链接、操作按钮等）
+    action_label: str | None = None  # 操作按钮标签
+    metadata: dict[str, Any] | None = None  # 元数据（可选，用于存储额外信息）
     created_at: datetime = None  # 创建时间
     
     def __post_init__(self):
@@ -54,7 +54,7 @@ class Suggestion:
         if self.created_at is None:
             self.created_at = datetime.now()
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "id": self.id,
@@ -87,7 +87,7 @@ class SuggestionRule:
         self.rule_id = rule_id
         self.rule_name = rule_name
     
-    async def check(self, tenant_id: int, context: Dict[str, Any]) -> List[Suggestion]:
+    async def check(self, tenant_id: int, context: dict[str, Any]) -> list[Suggestion]:
         """
         检查并生成建议
         
@@ -110,7 +110,7 @@ class SuggestionEngine:
     
     def __init__(self):
         """初始化建议引擎"""
-        self.rules: Dict[str, List[SuggestionRule]] = {}
+        self.rules: dict[str, list[SuggestionRule]] = {}
     
     def register_rule(self, scene: str, rule: SuggestionRule):
         """
@@ -125,7 +125,7 @@ class SuggestionEngine:
         self.rules[scene].append(rule)
         logger.debug(f"注册建议规则: {scene}.{rule.rule_id}")
     
-    def register_rules(self, scene: str, rules: List[SuggestionRule]):
+    def register_rules(self, scene: str, rules: list[SuggestionRule]):
         """
         批量注册建议规则
         
@@ -140,8 +140,8 @@ class SuggestionEngine:
         self,
         tenant_id: int,
         scene: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> List[Suggestion]:
+        context: dict[str, Any] | None = None
+    ) -> list[Suggestion]:
         """
         获取建议列表
         
@@ -185,7 +185,7 @@ class SuggestionEngine:
 
 
 # 全局建议引擎实例
-_suggestion_engine: Optional[SuggestionEngine] = None
+_suggestion_engine: SuggestionEngine | None = None
 
 
 def get_suggestion_engine() -> SuggestionEngine:

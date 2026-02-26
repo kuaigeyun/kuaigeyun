@@ -18,9 +18,9 @@ router = APIRouter(prefix="/data-backups", tags=["Data Backups"])
 async def get_backups(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=1000),
-    backup_type: Optional[str] = None,
-    backup_scope: Optional[str] = None,
-    backup_status: Optional[str] = Query(None, alias="status"),
+    backup_type: str | None = None,
+    backup_scope: str | None = None,
+    backup_status: str | None = Query(None, alias="status"),
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """

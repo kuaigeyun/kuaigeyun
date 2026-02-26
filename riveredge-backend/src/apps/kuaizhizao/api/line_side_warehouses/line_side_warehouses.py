@@ -61,9 +61,9 @@ async def list_line_side_warehouses(
 )
 async def list_line_side_inventory(
     tenant_id: int = Depends(get_current_tenant),
-    warehouse_id: Optional[int] = Query(None, description="线边仓ID"),
-    material_code: Optional[str] = Query(None, description="物料编码（模糊）"),
-    material_name: Optional[str] = Query(None, description="物料名称（模糊）"),
+    warehouse_id: int | None = Query(None, description="线边仓ID"),
+    material_code: str | None = Query(None, description="物料编码（模糊）"),
+    material_name: str | None = Query(None, description="物料名称（模糊）"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ) -> LineSideInventoryListResponse:
@@ -95,9 +95,9 @@ async def list_line_side_inventory(
 )
 async def list_backflush_records(
     tenant_id: int = Depends(get_current_tenant),
-    work_order_code: Optional[str] = Query(None, description="工单编码（模糊）"),
-    material_code: Optional[str] = Query(None, description="物料编码（模糊）"),
-    status: Optional[str] = Query(None, description="状态：pending/completed/failed"),
+    work_order_code: str | None = Query(None, description="工单编码（模糊）"),
+    material_code: str | None = Query(None, description="物料编码（模糊）"),
+    status: str | None = Query(None, description="状态：pending/completed/failed"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ) -> BackflushRecordListResponse:
@@ -151,7 +151,7 @@ async def get_backflush_record(
 async def retry_backflush_record(
     record_id: int,
     tenant_id: int = Depends(get_current_tenant),
-    user_id: Optional[int] = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_current_user_id),
 ) -> dict:
     """重试失败的倒冲记录"""
     service = BackflushService()

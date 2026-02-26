@@ -20,13 +20,13 @@ class HelpDocumentService:
     
     # 帮助文档存储（可以存储在数据库或配置文件中）
     # 这里使用内存存储作为示例，实际应该存储在数据库中
-    _help_documents: Dict[str, Dict[str, Any]] = {}
+    _help_documents: dict[str, dict[str, Any]] = {}
     
     @staticmethod
     async def get_help_document(
         tenant_id: int,
         document_key: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取帮助文档
         
@@ -56,7 +56,7 @@ class HelpDocumentService:
         return HelpDocumentService._get_default_document(document_key)
     
     @staticmethod
-    def _get_default_document(document_key: str) -> Dict[str, Any]:
+    def _get_default_document(document_key: str) -> dict[str, Any]:
         """
         获取默认帮助文档
         
@@ -84,8 +84,8 @@ class HelpDocumentService:
         tenant_id: int,
         document_key: str,
         title: str,
-        sections: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        sections: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         创建或更新帮助文档
         
@@ -115,7 +115,7 @@ class HelpDocumentService:
     @staticmethod
     async def list_help_documents(
         tenant_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         列出所有帮助文档
         
@@ -140,7 +140,7 @@ class HelpDocumentService:
         return documents
     
     @staticmethod
-    def _get_all_default_documents() -> Dict[str, Dict[str, Any]]:
+    def _get_all_default_documents() -> dict[str, dict[str, Any]]:
         """
         获取所有默认帮助文档
         
@@ -210,7 +210,7 @@ class HelpDocumentService:
     async def search_help_documents(
         tenant_id: int,
         keyword: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         搜索帮助文档
         

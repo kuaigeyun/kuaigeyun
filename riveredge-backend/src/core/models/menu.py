@@ -90,7 +90,7 @@ class Menu(BaseModel):
             ("tenant_id", "parent_id", "is_active"),  # 按组织+父菜单+启用状态查询（树形结构查询）
         ]
     
-    def get_meta(self) -> Dict[str, Any]:
+    def get_meta(self) -> dict[str, Any]:
         """
         获取菜单元数据
         
@@ -99,7 +99,7 @@ class Menu(BaseModel):
         """
         return self.meta or {}
     
-    def set_meta(self, meta: Dict[str, Any]) -> None:
+    def set_meta(self, meta: dict[str, Any]) -> None:
         """
         设置菜单元数据
         

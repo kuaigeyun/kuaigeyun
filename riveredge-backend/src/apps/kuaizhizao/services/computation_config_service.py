@@ -109,12 +109,12 @@ class ComputationConfigService(AppBaseService[ComputationConfig]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 20,
-        config_scope: Optional[str] = None,
-        material_id: Optional[int] = None,
-        warehouse_id: Optional[int] = None,
-        is_template: Optional[bool] = None,
-        is_active: Optional[bool] = None,
-        keyword: Optional[str] = None
+        config_scope: str | None = None,
+        material_id: int | None = None,
+        warehouse_id: int | None = None,
+        is_template: bool | None = None,
+        is_active: bool | None = None,
+        keyword: str | None = None
     ) -> ComputationConfigListResponse:
         """
         查询参数配置列表
@@ -227,9 +227,9 @@ class ComputationConfigService(AppBaseService[ComputationConfig]):
     async def get_config_for_computation(
         self,
         tenant_id: int,
-        material_id: Optional[int] = None,
-        warehouse_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        material_id: int | None = None,
+        warehouse_id: int | None = None
+    ) -> dict[str, Any]:
         """
         获取用于计算的参数配置（按优先级合并）
         
@@ -290,7 +290,7 @@ class ComputationConfigService(AppBaseService[ComputationConfig]):
             configs.append(config)
         
         # 合并参数（后面的覆盖前面的）
-        merged_params: Dict[str, Any] = {}
+        merged_params: dict[str, Any] = {}
         for config in configs:
             if config.computation_params:
                 merged_params.update(config.computation_params)

@@ -19,7 +19,7 @@ from infra.models.user import User
 router = APIRouter(prefix="/connector-definitions", tags=["ConnectorDefinitions"])
 
 # 预置应用连接器定义（与前端 connectors.tsx 保持一致，icon 为字符串供前端映射）
-PRESET_APP_CONNECTORS: List[Dict[str, Any]] = [
+PRESET_APP_CONNECTORS: list[dict[str, Any]] = [
     {"id": "feishu", "name": "飞书", "type": "feishu", "category": "collaboration", "description": "飞书开放平台自建应用", "icon": "MessageOutlined", "default_config": {"app_id": "", "app_secret": "", "encrypt_key": "", "verification_token": ""}},
     {"id": "dingtalk", "name": "钉钉", "type": "dingtalk", "category": "collaboration", "description": "钉钉企业内部应用", "icon": "MessageOutlined", "default_config": {"corpid": "", "agent_id": "", "app_key": "", "app_secret": "", "aes_key": "", "token": ""}},
     {"id": "wecom", "name": "企业微信", "type": "wecom", "category": "collaboration", "description": "企业微信自建应用", "icon": "MessageOutlined", "default_config": {"corp_id": "", "corp_secret": "", "agent_id": "", "token": "", "encoding_aes_key": ""}},
@@ -86,7 +86,7 @@ CATEGORIES = [
 
 @router.get("", response_model=dict)
 async def list_connector_definitions(
-    category: Optional[str] = None,
+    category: str | None = None,
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

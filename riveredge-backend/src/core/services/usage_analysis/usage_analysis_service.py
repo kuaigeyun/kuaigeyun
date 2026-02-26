@@ -24,7 +24,7 @@ class UsageAnalysisService:
         tenant_id: int,
         start_date: datetime = None,
         end_date: datetime = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         分析功能使用情况
         
@@ -106,7 +106,7 @@ class UsageAnalysisService:
     async def analyze_data_quality(
         self,
         tenant_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         分析数据质量
         
@@ -159,7 +159,7 @@ class UsageAnalysisService:
         tenant_id: int,
         start_date: datetime = None,
         end_date: datetime = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         分析系统性能
         
@@ -218,7 +218,7 @@ class UsageAnalysisService:
     async def generate_usage_report(
         self,
         tenant_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成使用情况分析报告
         

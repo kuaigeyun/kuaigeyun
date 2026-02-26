@@ -28,7 +28,7 @@ class InfraSuperAdminAuthService:
     async def login(
         self,
         data: InfraSuperAdminLoginRequest
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         平台超级管理员登录
         

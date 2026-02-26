@@ -23,7 +23,7 @@ from infra.domain.tenant_context import get_current_tenant_id
     name="设备维护提醒调度器",
     trigger=TriggerCron(cron="0 8 * * *"),  # 每天上午8点执行
 )
-async def maintenance_reminder_scheduler_function(*args, **kwargs) -> Dict[str, Any]:
+async def maintenance_reminder_scheduler_function(*args, **kwargs) -> dict[str, Any]:
     """
     设备维护提醒调度器工作流函数
     
@@ -69,7 +69,7 @@ async def maintenance_reminder_scheduler_function(*args, **kwargs) -> Dict[str, 
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def maintenance_reminder_checker_function(event: Event) -> Dict[str, Any]:
+async def maintenance_reminder_checker_function(event: Event) -> dict[str, Any]:
     """
     设备维护提醒检查工作流函数
     

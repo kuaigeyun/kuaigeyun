@@ -30,7 +30,7 @@ class SavedSearchServiceImpl(SavedSearchServiceInterface):
     def service_version(self) -> str:
         return "1.0.0"
     
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """服务健康检查"""
         return {
             "status": "healthy",
@@ -43,7 +43,7 @@ class SavedSearchServiceImpl(SavedSearchServiceInterface):
         page: int = 1,
         page_size: int = 10,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取保存的搜索条件列表"""
         # SavedSearchService.list_saved_searches需要page_path和user_id参数
         page_path = kwargs.get('page_path', '')
@@ -66,7 +66,7 @@ class SavedSearchServiceImpl(SavedSearchServiceInterface):
             tenant_id=tenant_id
         )
     
-    async def create_saved_search(self, data: Any, user_id: int = None, tenant_id: Optional[int] = None) -> Any:
+    async def create_saved_search(self, data: Any, user_id: int = None, tenant_id: int | None = None) -> Any:
         """创建保存的搜索条件"""
         # SavedSearchService.create_saved_search需要user_id和tenant_id参数
         # 如果方法参数中没有提供，尝试从data中获取
@@ -85,7 +85,7 @@ class SavedSearchServiceImpl(SavedSearchServiceInterface):
             tenant_id=tenant_id
         )
     
-    async def get_saved_search_by_uuid(self, uuid: str) -> Optional[Any]:
+    async def get_saved_search_by_uuid(self, uuid: str) -> Any | None:
         """根据UUID获取保存的搜索条件"""
         # SavedSearchService.get_saved_search_by_uuid需要user_id参数
         # 这里需要从上下文获取user_id，实际使用时需要从依赖注入获取
@@ -99,7 +99,7 @@ class SavedSearchServiceImpl(SavedSearchServiceInterface):
         uuid: str,
         data: Any,
         user_id: int = None
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """更新保存的搜索条件"""
         # SavedSearchService.update_saved_search需要user_id参数
         # 如果方法参数中没有提供，尝试从data中获取

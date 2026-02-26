@@ -31,7 +31,7 @@ class CodeGenerationService:
     async def generate_code(
         tenant_id: int,
         rule_code: str,
-        context: Optional[Dict] = None
+        context: dict | None = None
     ) -> str:
         """
         根据规则生成编码（会更新序号）
@@ -152,9 +152,9 @@ class CodeGenerationService:
     async def test_generate_code(
         tenant_id: int,
         rule_code: str,
-        context: Optional[Dict] = None,
+        context: dict | None = None,
         check_duplicate: bool = False,
-        entity_type: Optional[str] = None
+        entity_type: str | None = None
     ) -> str:
         """
         测试生成编码（不更新序号）
@@ -406,7 +406,7 @@ class CodeGenerationService:
     async def _render_expression(
         rule: CodeRule,
         current_seq: int,
-        context: Optional[Dict] = None
+        context: dict | None = None
     ) -> str:
         """
         渲染编码表达式
@@ -473,7 +473,7 @@ class CodeGenerationService:
         return code
 
     @staticmethod
-    def _get_prefix_for_rule(rule: CodeRule, components: Optional[List[Dict[str, Any]]]) -> Optional[str]:
+    def _get_prefix_for_rule(rule: CodeRule, components: list[dict[str, Any]] | None) -> str | None:
         """
         从规则中解析编码前缀（序号前的固定部分），用于从库中匹配已有编码并解析最大序号。
         组件格式：收集所有 fixed_text 按 order 排序后拼接（避免 order 相同或缺失时取不到前缀）。
@@ -495,7 +495,7 @@ class CodeGenerationService:
         tenant_id: int,
         rule_code: str,
         prefix: str,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         从库中查询该规则对应实体的编码字段，解析前缀后的数字部分，返回最大序号。
         用于导入数据后校准序列号，使新生成的序号接着已有数据往后排。
@@ -543,7 +543,7 @@ class CodeGenerationService:
         scope_key: str,
         sequence: CodeSequence,
         seq_step: int,
-        components: Optional[List[Dict[str, Any]]],
+        components: list[dict[str, Any]] | None,
     ) -> None:
         """
         根据库中已有编码的最大序号校准 current_seq，避免导入数据后新生成的序号与已有编码冲突。
@@ -559,7 +559,7 @@ class CodeGenerationService:
             )
             return
 
-        def _entity_config_for(code: Optional[str]) -> Optional[tuple]:
+        def _entity_config_for(code: str | None) -> tuple | None:
             if not code:
                 return None
             c = RULE_CODE_ENTITY_FOR_SEQ_SYNC.get(code)

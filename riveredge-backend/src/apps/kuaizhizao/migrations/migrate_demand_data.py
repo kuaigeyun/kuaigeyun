@@ -24,10 +24,10 @@ class DemandDataMigration:
     """需求数据迁移类"""
     
     def __init__(self):
-        self.migration_log: List[Dict[str, Any]] = []
-        self.rollback_data: List[Dict[str, Any]] = []
+        self.migration_log: list[dict[str, Any]] = []
+        self.rollback_data: list[dict[str, Any]] = []
     
-    async def migrate_all(self, tenant_id: int, dry_run: bool = False) -> Dict[str, Any]:
+    async def migrate_all(self, tenant_id: int, dry_run: bool = False) -> dict[str, Any]:
         """
         迁移所有数据
         
@@ -79,7 +79,7 @@ class DemandDataMigration:
         self, 
         tenant_id: int, 
         dry_run: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         迁移销售预测数据到统一需求表
         
@@ -300,7 +300,7 @@ class DemandDataMigration:
         self, 
         tenant_id: int, 
         dry_run: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         迁移销售订单数据到统一需求表
         
@@ -427,7 +427,7 @@ class DemandDataMigration:
     async def validate_migration(
         self, 
         tenant_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         验证迁移数据的完整性
         
@@ -551,8 +551,8 @@ class DemandDataMigration:
     async def rollback_migration(
         self, 
         tenant_id: int,
-        source_type: Optional[str] = None
-    ) -> Dict[str, Any]:
+        source_type: str | None = None
+    ) -> dict[str, Any]:
         """
         回滚迁移数据
         

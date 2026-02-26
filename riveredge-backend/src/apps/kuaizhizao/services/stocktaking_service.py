@@ -28,7 +28,6 @@ from apps.kuaizhizao.schemas.stocktaking import (
 )
 
 from apps.base_service import AppBaseService
-from apps.base_service import AppBaseService
 from infra.exceptions.exceptions import NotFoundError, ValidationError, BusinessLogicError
 from infra.services.business_config_service import BusinessConfigService
 
@@ -395,12 +394,12 @@ class StocktakingService(AppBaseService[Stocktaking]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        code: Optional[str] = None,
-        warehouse_id: Optional[int] = None,
-        status: Optional[str] = None,
-        stocktaking_type: Optional[str] = None,
-        stocktaking_date_start: Optional[datetime] = None,
-        stocktaking_date_end: Optional[datetime] = None,
+        code: str | None = None,
+        warehouse_id: int | None = None,
+        status: str | None = None,
+        stocktaking_type: str | None = None,
+        stocktaking_date_start: datetime | None = None,
+        stocktaking_date_end: datetime | None = None,
     ) -> StocktakingListResponse:
         """
         获取库存盘点单列表
@@ -442,7 +441,6 @@ class StocktakingService(AppBaseService[Stocktaking]):
         stocktakings = await query.order_by('-created_at').offset(skip).limit(limit)
 
         # 返回分页响应
-        from typing import List
         return StocktakingListResponse(
             items=[StocktakingResponse.model_validate(st) for st in stocktakings],
             total=total
@@ -452,9 +450,9 @@ class StocktakingService(AppBaseService[Stocktaking]):
         self,
         tenant_id: int,
         stocktaking_id: int,
-        items: List[StocktakingItemCreate],
+        items: list[StocktakingItemCreate],
         created_by: int
-    ) -> List[StocktakingItemResponse]:
+    ) -> list[StocktakingItemResponse]:
         """
         添加盘点明细
 
@@ -538,7 +536,7 @@ class StocktakingService(AppBaseService[Stocktaking]):
         item_id: int,
         actual_quantity: Decimal,
         counted_by: int,
-        remarks: Optional[str] = None
+        remarks: str | None = None
     ) -> StocktakingItemResponse:
         """
         执行盘点明细（更新实际数量）

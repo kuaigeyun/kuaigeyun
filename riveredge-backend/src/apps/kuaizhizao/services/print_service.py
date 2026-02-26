@@ -64,10 +64,10 @@ class DocumentPrintService:
         tenant_id: int,
         document_type: str,
         document_id: int,
-        template_code: Optional[str] = None,
-        template_uuid: Optional[str] = None,
+        template_code: str | None = None,
+        template_uuid: str | None = None,
         output_format: str = "html"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         打印单据
 
@@ -144,7 +144,7 @@ class DocumentPrintService:
         tenant_id: int,
         document_type: str,
         document_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取单据数据"""
         if document_type == "work_order":
             document = await WorkOrder.get_or_none(tenant_id=tenant_id, id=document_id)
@@ -249,13 +249,13 @@ class DocumentPrintService:
         else:
             raise ValidationError(f"不支持的单据类型: {document_type}")
 
-    async def _format_work_order_data(self, work_order: WorkOrder) -> Dict[str, Any]:
+    async def _format_work_order_data(self, work_order: WorkOrder) -> dict[str, Any]:
         """格式化工单数据，包含工序列表"""
         operations = await WorkOrderOperation.filter(
             work_order_id=work_order.id, deleted_at__isnull=True
         ).order_by("sequence")
 
-        data: Dict[str, Any] = {
+        data: dict[str, Any] = {
             "document_type": "work_order",
             "code": work_order.code,
             "name": work_order.name,
@@ -298,7 +298,7 @@ class DocumentPrintService:
 
         return data
 
-    async def _format_production_picking_data(self, picking: ProductionPicking) -> Dict[str, Any]:
+    async def _format_production_picking_data(self, picking: ProductionPicking) -> dict[str, Any]:
         """格式化生产领料单数据"""
         # TODO: 加载明细数据
         return {
@@ -312,7 +312,7 @@ class DocumentPrintService:
             "created_at": picking.created_at.isoformat() if picking.created_at else None,
         }
 
-    async def _format_production_return_data(self, ret: ProductionReturn) -> Dict[str, Any]:
+    async def _format_production_return_data(self, ret: ProductionReturn) -> dict[str, Any]:
         """格式化生产退料单数据"""
         return {
             "document_type": "production_return",
@@ -327,7 +327,7 @@ class DocumentPrintService:
             "created_at": ret.created_at.isoformat() if ret.created_at else None,
         }
 
-    async def _format_finished_goods_receipt_data(self, receipt: FinishedGoodsReceipt) -> Dict[str, Any]:
+    async def _format_finished_goods_receipt_data(self, receipt: FinishedGoodsReceipt) -> dict[str, Any]:
         """格式化成品入库单数据"""
         # TODO: 加载明细数据
         return {
@@ -342,7 +342,7 @@ class DocumentPrintService:
             "created_at": receipt.created_at.isoformat() if receipt.created_at else None,
         }
 
-    async def _format_sales_delivery_data(self, delivery: SalesDelivery) -> Dict[str, Any]:
+    async def _format_sales_delivery_data(self, delivery: SalesDelivery) -> dict[str, Any]:
         """格式化销售出库单数据"""
         # TODO: 加载明细数据
         return {
@@ -359,7 +359,7 @@ class DocumentPrintService:
             "created_at": delivery.created_at.isoformat() if delivery.created_at else None,
         }
 
-    async def _format_purchase_order_data(self, order: PurchaseOrder) -> Dict[str, Any]:
+    async def _format_purchase_order_data(self, order: PurchaseOrder) -> dict[str, Any]:
         """格式化采购单数据"""
         # TODO: 加载明细数据
         return {
@@ -374,7 +374,7 @@ class DocumentPrintService:
             "created_at": order.created_at.isoformat() if order.created_at else None,
         }
 
-    async def _format_purchase_receipt_data(self, receipt: PurchaseReceipt) -> Dict[str, Any]:
+    async def _format_purchase_receipt_data(self, receipt: PurchaseReceipt) -> dict[str, Any]:
         """格式化采购入库单数据"""
         # TODO: 加载明细数据
         return {
@@ -391,7 +391,7 @@ class DocumentPrintService:
             "created_at": receipt.created_at.isoformat() if receipt.created_at else None,
         }
 
-    async def _format_sales_forecast_data(self, forecast: SalesForecast) -> Dict[str, Any]:
+    async def _format_sales_forecast_data(self, forecast: SalesForecast) -> dict[str, Any]:
         """格式化销售预测数据"""
         # TODO: 加载明细数据
         return {
@@ -405,7 +405,7 @@ class DocumentPrintService:
             "created_at": forecast.created_at.isoformat() if forecast.created_at else None,
         }
 
-    async def _format_sales_order_data(self, order: SalesOrder) -> Dict[str, Any]:
+    async def _format_sales_order_data(self, order: SalesOrder) -> dict[str, Any]:
         """格式化销售订单数据"""
         # TODO: 加载明细数据
         return {
@@ -421,7 +421,7 @@ class DocumentPrintService:
             "created_at": order.created_at.isoformat() if order.created_at else None,
         }
 
-    async def _format_other_inbound_data(self, inbound: OtherInbound) -> Dict[str, Any]:
+    async def _format_other_inbound_data(self, inbound: OtherInbound) -> dict[str, Any]:
         """格式化其他入库单数据"""
         items = await OtherInboundItem.filter(tenant_id=inbound.tenant_id, inbound_id=inbound.id).all()
         items_data = [
@@ -453,7 +453,7 @@ class DocumentPrintService:
             "items": items_data,
         }
 
-    async def _format_other_outbound_data(self, outbound: OtherOutbound) -> Dict[str, Any]:
+    async def _format_other_outbound_data(self, outbound: OtherOutbound) -> dict[str, Any]:
         """格式化其他出库单数据"""
         items = await OtherOutboundItem.filter(tenant_id=outbound.tenant_id, outbound_id=outbound.id).all()
         items_data = [
@@ -485,7 +485,7 @@ class DocumentPrintService:
             "items": items_data,
         }
 
-    async def _format_quotation_data(self, quotation: Quotation) -> Dict[str, Any]:
+    async def _format_quotation_data(self, quotation: Quotation) -> dict[str, Any]:
         """格式化报价单数据"""
         items = await QuotationItem.filter(tenant_id=quotation.tenant_id, quotation_id=quotation.id).all()
         items_data = [
@@ -523,7 +523,7 @@ class DocumentPrintService:
             "items": items_data,
         }
 
-    async def _format_material_borrow_data(self, borrow: MaterialBorrow) -> Dict[str, Any]:
+    async def _format_material_borrow_data(self, borrow: MaterialBorrow) -> dict[str, Any]:
         """格式化借料单数据"""
         items = await MaterialBorrowItem.filter(tenant_id=borrow.tenant_id, borrow_id=borrow.id).all()
         items_data = [
@@ -554,7 +554,7 @@ class DocumentPrintService:
             "items": items_data,
         }
 
-    async def _format_material_return_data(self, return_obj: MaterialReturn) -> Dict[str, Any]:
+    async def _format_material_return_data(self, return_obj: MaterialReturn) -> dict[str, Any]:
         """格式化还料单数据"""
         items = await MaterialReturnItem.filter(tenant_id=return_obj.tenant_id, return_id=return_obj.id).all()
         items_data = [
@@ -583,7 +583,7 @@ class DocumentPrintService:
             "items": items_data,
         }
 
-    async def _format_delivery_notice_data(self, notice) -> Dict[str, Any]:
+    async def _format_delivery_notice_data(self, notice) -> dict[str, Any]:
         """格式化送货单数据"""
         from apps.kuaizhizao.models.delivery_notice_item import DeliveryNoticeItem
         items = await DeliveryNoticeItem.filter(tenant_id=notice.tenant_id, notice_id=notice.id).all()
@@ -621,7 +621,7 @@ class DocumentPrintService:
             "items": items_data,
         }
 
-    async def _format_sample_trial_data(self, trial) -> Dict[str, Any]:
+    async def _format_sample_trial_data(self, trial) -> dict[str, Any]:
         """格式化样品试用单数据"""
         from apps.kuaizhizao.models.sample_trial_item import SampleTrialItem
         items = await SampleTrialItem.filter(tenant_id=trial.tenant_id, trial_id=trial.id).all()
@@ -660,9 +660,9 @@ class DocumentPrintService:
     async def _generate_default_print(
         self,
         document_type: str,
-        document_data: Dict[str, Any],
+        document_data: dict[str, Any],
         output_format: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """生成默认打印格式（当没有模板时）"""
         # 生成简单的HTML格式
         html_content = f"""

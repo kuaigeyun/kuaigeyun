@@ -40,8 +40,8 @@ async def create_payable(
 async def list_payables(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1),
-    status: Optional[str] = None,
-    supplier_id: Optional[int] = None,
+    status: str | None = None,
+    supplier_id: int | None = None,
     tenant_id: int = Depends(get_current_tenant)
 ):
     # Note: Service returns list, we wrap logic here or in service. 
@@ -93,7 +93,7 @@ async def record_payment(
 @router.post("/{id}/approve", response_model=PayableResponse)
 async def approve_payable(
     id: int,
-    rejection_reason: Optional[str] = Query(None),
+    rejection_reason: str | None = Query(None),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):

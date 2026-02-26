@@ -33,8 +33,8 @@ class IndustryTemplateBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="模板名称")
     code: str = Field(..., min_length=1, max_length=50, description="模板代码（唯一）")
     industry: str = Field(..., min_length=1, max_length=50, description="行业类型（manufacturing、retail、service等）")
-    description: Optional[str] = Field(None, description="模板描述")
-    config: Dict[str, Any] = Field(..., description="模板配置（JSON格式）")
+    description: str | None = Field(None, description="模板描述")
+    config: dict[str, Any] = Field(..., description="模板配置（JSON格式）")
     is_active: bool = Field(default=True, description="是否启用")
     is_default: bool = Field(default=False, description="是否默认模板")
     sort_order: int = Field(default=0, description="排序顺序")
@@ -57,14 +57,14 @@ class IndustryTemplateUpdate(BaseModel):
     所有字段都是可选的，只更新提供的字段。
     """
     
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="模板名称")
-    code: Optional[str] = Field(None, min_length=1, max_length=50, description="模板代码")
-    industry: Optional[str] = Field(None, min_length=1, max_length=50, description="行业类型")
-    description: Optional[str] = Field(None, description="模板描述")
-    config: Optional[Dict[str, Any]] = Field(None, description="模板配置（JSON格式）")
-    is_active: Optional[bool] = Field(None, description="是否启用")
-    is_default: Optional[bool] = Field(None, description="是否默认模板")
-    sort_order: Optional[int] = Field(None, description="排序顺序")
+    name: str | None = Field(None, min_length=1, max_length=100, description="模板名称")
+    code: str | None = Field(None, min_length=1, max_length=50, description="模板代码")
+    industry: str | None = Field(None, min_length=1, max_length=50, description="行业类型")
+    description: str | None = Field(None, description="模板描述")
+    config: dict[str, Any] | None = Field(None, description="模板配置（JSON格式）")
+    is_active: bool | None = Field(None, description="是否启用")
+    is_default: bool | None = Field(None, description="是否默认模板")
+    sort_order: int | None = Field(None, description="排序顺序")
 
 
 class IndustryTemplateResponse(IndustryTemplateBase):
@@ -77,7 +77,7 @@ class IndustryTemplateResponse(IndustryTemplateBase):
     id: int = Field(..., description="模板ID")
     uuid: str = Field(..., description="模板UUID")
     usage_count: int = Field(..., description="使用次数")
-    last_used_at: Optional[datetime] = Field(None, description="最后使用时间")
+    last_used_at: datetime | None = Field(None, description="最后使用时间")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     

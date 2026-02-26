@@ -24,7 +24,7 @@ from infra.services.infra_superadmin_service import InfraSuperAdminService
 from infra.services.saved_search_service import SavedSearchService
 
 
-def get_auth_service() -> Optional[AuthServiceInterface]:
+def get_auth_service() -> AuthServiceInterface | None:
     """
     获取认证服务（依赖注入）
     
@@ -41,7 +41,7 @@ def get_auth_service() -> Optional[AuthServiceInterface]:
         return None
 
 
-def get_tenant_service() -> Optional[TenantServiceInterface]:
+def get_tenant_service() -> TenantServiceInterface | None:
     """
     获取组织服务（依赖注入）
     
@@ -54,7 +54,7 @@ def get_tenant_service() -> Optional[TenantServiceInterface]:
         return None
 
 
-def get_package_service() -> Optional[PackageServiceInterface]:
+def get_package_service() -> PackageServiceInterface | None:
     """
     获取套餐服务（依赖注入）
     
@@ -67,7 +67,7 @@ def get_package_service() -> Optional[PackageServiceInterface]:
         return None
 
 
-def get_infra_superadmin_service() -> Optional[InfraSuperAdminServiceInterface]:
+def get_infra_superadmin_service() -> InfraSuperAdminServiceInterface | None:
     """
     获取平台超级管理员服务（依赖注入）
     
@@ -80,7 +80,7 @@ def get_infra_superadmin_service() -> Optional[InfraSuperAdminServiceInterface]:
         return None
 
 
-def get_saved_search_service() -> Optional[SavedSearchServiceInterface]:
+def get_saved_search_service() -> SavedSearchServiceInterface | None:
     """
     获取保存搜索服务（依赖注入）
     
@@ -112,19 +112,19 @@ def get_auth_service_with_fallback() -> Any:
         def __init__(self):
             self._auth_service = AuthService()
         
-        async def login(self, data: Any, request: Any) -> Dict[str, Any]:
+        async def login(self, data: Any, request: Any) -> dict[str, Any]:
             return await self._auth_service.login(data, request)
         
         async def register(self, data: Any) -> Any:
             return await self._auth_service.register(data)
         
-        async def guest_login(self, request: Any = None) -> Dict[str, Any]:
+        async def guest_login(self, request: Any = None) -> dict[str, Any]:
             return await self._auth_service.guest_login(request)
         
-        async def register_personal(self, data: Any) -> Dict[str, Any]:
+        async def register_personal(self, data: Any) -> dict[str, Any]:
             return await self._auth_service.register_personal(data)
         
-        async def register_organization(self, data: Any) -> Dict[str, Any]:
+        async def register_organization(self, data: Any) -> dict[str, Any]:
             return await self._auth_service.register_organization(data)
     
     return AuthServiceAdapter()
@@ -137,7 +137,6 @@ def get_tenant_service_with_fallback() -> Any:
     Returns:
         组织服务实例（TenantServiceImpl）或适配器对象（向后兼容）
     """
-    from typing import Dict, Optional
     
     service = get_tenant_service()
     if service:
@@ -149,16 +148,16 @@ def get_tenant_service_with_fallback() -> Any:
         def __init__(self):
             self._tenant_service = TenantService()
         
-        async def list_tenants(self, **kwargs) -> Dict[str, Any]:
+        async def list_tenants(self, **kwargs) -> dict[str, Any]:
             return await self._tenant_service.list_tenants(**kwargs)
         
-        async def get_tenant_by_id(self, tenant_id: int, **kwargs) -> Optional[Any]:
+        async def get_tenant_by_id(self, tenant_id: int, **kwargs) -> Any | None:
             return await self._tenant_service.get_tenant_by_id(tenant_id, **kwargs)
         
         async def create_tenant(self, data: Any) -> Any:
             return await self._tenant_service.create_tenant(data)
         
-        async def update_tenant(self, tenant_id: int, data: Any, **kwargs) -> Optional[Any]:
+        async def update_tenant(self, tenant_id: int, data: Any, **kwargs) -> Any | None:
             return await self._tenant_service.update_tenant(tenant_id, data, **kwargs)
         
         async def delete_tenant(self, tenant_id: int, **kwargs) -> bool:
@@ -184,10 +183,10 @@ def get_package_service_with_fallback() -> Any:
         def __init__(self):
             self._package_service = PackageService()
         
-        async def list_packages(self, **kwargs) -> Dict[str, Any]:
+        async def list_packages(self, **kwargs) -> dict[str, Any]:
             return await self._package_service.list_packages(**kwargs)
         
-        async def get_package_by_id(self, package_id: int) -> Optional[Any]:
+        async def get_package_by_id(self, package_id: int) -> Any | None:
             return await self._package_service.get_package_by_id(package_id)
     
     return PackageServiceAdapter()
@@ -210,7 +209,7 @@ def get_infra_superadmin_service_with_fallback() -> Any:
         def __init__(self):
             self._admin_service = InfraSuperAdminService()
         
-        async def get_current_admin(self) -> Optional[Any]:
+        async def get_current_admin(self) -> Any | None:
             return await self._admin_service.get_infra_superadmin()
         
         async def create_admin(self, data: Any) -> Any:
@@ -246,16 +245,16 @@ def get_saved_search_service_with_fallback() -> Any:
         def __init__(self):
             self._saved_search_service = SavedSearchService()
         
-        async def list_saved_searches(self, page_path: str, user_id: int, include_shared: bool = True, tenant_id: Optional[int] = None) -> Dict[str, Any]:
+        async def list_saved_searches(self, page_path: str, user_id: int, include_shared: bool = True, tenant_id: int | None = None) -> dict[str, Any]:
             return await self._saved_search_service.list_saved_searches(page_path, user_id, include_shared, tenant_id)
         
-        async def create_saved_search(self, data: Any, user_id: int, tenant_id: Optional[int] = None) -> Any:
+        async def create_saved_search(self, data: Any, user_id: int, tenant_id: int | None = None) -> Any:
             return await self._saved_search_service.create_saved_search(data, user_id, tenant_id)
         
-        async def get_saved_search_by_uuid(self, uuid: str, user_id: int) -> Optional[Any]:
+        async def get_saved_search_by_uuid(self, uuid: str, user_id: int) -> Any | None:
             return await self._saved_search_service.get_saved_search_by_uuid(uuid, user_id)
         
-        async def update_saved_search(self, uuid: str, data: Any, user_id: int) -> Optional[Any]:
+        async def update_saved_search(self, uuid: str, data: Any, user_id: int) -> Any | None:
             return await self._saved_search_service.update_saved_search(uuid, data, user_id)
         
         async def delete_saved_search(self, uuid: str, user_id: int) -> bool:

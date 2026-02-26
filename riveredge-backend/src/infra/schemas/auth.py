@@ -23,7 +23,7 @@ class LoginRequest(BaseModel):
 
     username: str = Field(..., min_length=1, max_length=255, description="用户名或手机号（支持用户名或手机号登录）")
     password: str = Field(..., min_length=1, description="密码")
-    tenant_id: Optional[int] = Field(None, description="组织 ID（可选，如果提供则直接设置组织上下文）")
+    tenant_id: int | None = Field(None, description="组织 ID（可选，如果提供则直接设置组织上下文）")
 
 
 class TenantInfo(BaseModel):
@@ -66,9 +66,9 @@ class LoginResponse(BaseModel):
     access_token: str = Field(..., description="JWT 访问令牌")
     token_type: str = Field(default="bearer", description="令牌类型")
     expires_in: int = Field(..., description="令牌过期时间（秒）")
-    user: Optional[dict] = Field(None, description="用户信息（可选）")
-    tenants: Optional[List[TenantInfo]] = Field(None, description="用户可访问的组织列表（可选）")
-    default_tenant_id: Optional[int] = Field(None, description="默认组织 ID（可选，超级用户使用）")
+    user: dict | None = Field(None, description="用户信息（可选）")
+    tenants: list[TenantInfo] | None = Field(None, description="用户可访问的组织列表（可选）")
+    default_tenant_id: int | None = Field(None, description="默认组织 ID（可选，超级用户使用）")
     requires_tenant_selection: bool = Field(default=False, description="是否需要选择组织（当用户有多个组织时）")
 
 
@@ -87,9 +87,9 @@ class UserRegisterRequest(BaseModel):
     """
     
     username: str = Field(..., min_length=3, max_length=50, description="用户名（3-50 字符）")
-    email: Optional[str] = Field(None, description="用户邮箱（可选，符合中国用户使用习惯）")
+    email: str | None = Field(None, description="用户邮箱（可选，符合中国用户使用习惯）")
     password: str = Field(..., min_length=8, description="密码（至少8个字符）")
-    full_name: Optional[str] = Field(None, max_length=100, description="用户全名（可选）")
+    full_name: str | None = Field(None, max_length=100, description="用户全名（可选）")
     tenant_id: int = Field(..., description="组织 ID（用于多组织隔离）")
 
 
@@ -111,10 +111,10 @@ class PersonalRegisterRequest(BaseModel):
 
     username: str = Field(..., min_length=3, max_length=50, description="用户名（3-50 字符）")
     phone: str = Field(..., pattern=r'^1[3-9]\d{9}$', description="手机号（必填，11位中国大陆手机号）")
-    email: Optional[str] = Field(None, description="用户邮箱（可选，用于邮件通知）")
+    email: str | None = Field(None, description="用户邮箱（可选，用于邮件通知）")
     password: str = Field(..., min_length=8, description="密码（至少8个字符）")
-    full_name: Optional[str] = Field(None, max_length=100, description="用户全名（可选）")
-    tenant_id: Optional[int] = Field(None, description="组织 ID（可选，如果提供则在指定组织中创建用户，否则在默认组织中创建）")
+    full_name: str | None = Field(None, max_length=100, description="用户全名（可选）")
+    tenant_id: int | None = Field(None, description="组织 ID（可选，如果提供则在指定组织中创建用户，否则在默认组织中创建）")
 
     @field_validator('email', mode='before')
     @classmethod
@@ -145,8 +145,8 @@ class SendVerificationCodeRequest(BaseModel):
         phone: 手机号（可选，用于短信验证码）
         email: 邮箱地址（可选，用于邮箱验证码）
     """
-    phone: Optional[str] = Field(None, pattern=r'^1[3-9]\d{9}$', description="手机号（可选，11位中国大陆手机号）")
-    email: Optional[str] = Field(None, description="邮箱地址（可选）")
+    phone: str | None = Field(None, pattern=r'^1[3-9]\d{9}$', description="手机号（可选，11位中国大陆手机号）")
+    email: str | None = Field(None, description="邮箱地址（可选）")
 
 
 class SendVerificationCodeResponse(BaseModel):
@@ -161,7 +161,7 @@ class SendVerificationCodeResponse(BaseModel):
     """
     success: bool = Field(..., description="是否发送成功")
     message: str = Field(..., description="响应消息")
-    invite_code: Optional[str] = Field(None, max_length=100, description="邀请码（可选，如果同时提供组织ID和邀请码，则直接注册成功）")
+    invite_code: str | None = Field(None, max_length=100, description="邀请码（可选，如果同时提供组织ID和邀请码，则直接注册成功）")
 
 
 class OrganizationRegisterRequest(BaseModel):
@@ -184,9 +184,9 @@ class OrganizationRegisterRequest(BaseModel):
     tenant_name: str = Field(..., min_length=1, max_length=100, description="组织名称")
     phone: str = Field(..., pattern=r'^1[3-9]\d{9}$', description="手机号（必填，11位中国大陆手机号，自动作为登录账号）")
     password: str = Field(..., min_length=8, max_length=100, description="管理员密码（最少 8 字符）")
-    tenant_domain: Optional[str] = Field(None, max_length=100, description="组织域名（可选，留空则自动生成8位随机域名，格式：riveredge.cn/xxxxx）")
-    email: Optional[str] = Field(None, description="管理员邮箱（可选，用于找回密码）")
-    full_name: Optional[str] = Field(None, max_length=100, description="管理员全名（可选）")
+    tenant_domain: str | None = Field(None, max_length=100, description="组织域名（可选，留空则自动生成8位随机域名，格式：riveredge.cn/xxxxx）")
+    email: str | None = Field(None, description="管理员邮箱（可选，用于找回密码）")
+    full_name: str | None = Field(None, max_length=100, description="管理员全名（可选）")
     
     @field_validator('email', mode='before')
     @classmethod
@@ -217,9 +217,9 @@ class TenantJoinRequest(BaseModel):
     
     tenant_id: int = Field(..., description="组织 ID")
     username: str = Field(..., min_length=3, max_length=50, description="用户名（3-50 字符）")
-    email: Optional[str] = Field(None, description="邮箱（可选）")
+    email: str | None = Field(None, description="邮箱（可选）")
     password: str = Field(..., min_length=8, description="密码（至少8个字符）")
-    full_name: Optional[str] = Field(None, max_length=100, description="全名（可选）")
+    full_name: str | None = Field(None, max_length=100, description="全名（可选）")
 
 
 class RegisterResponse(BaseModel):
@@ -238,8 +238,8 @@ class RegisterResponse(BaseModel):
     
     id: int = Field(..., description="用户 ID")
     username: str = Field(..., description="用户名")
-    email: Optional[str] = Field(None, description="用户邮箱（可选）")
-    tenant_domain: Optional[str] = Field(None, description="组织域名（可选，组织注册时返回，格式：riveredge.cn/xxxxx）")
+    email: str | None = Field(None, description="用户邮箱（可选）")
+    tenant_domain: str | None = Field(None, description="组织域名（可选，组织注册时返回，格式：riveredge.cn/xxxxx）")
     message: str = Field(default="注册成功", description="注册成功消息")
 
 
@@ -253,7 +253,7 @@ class TokenRefreshRequest(BaseModel):
         refresh_token: 刷新令牌（可选，如果未提供则使用当前访问令牌）
     """
     
-    refresh_token: Optional[str] = Field(None, description="刷新令牌（可选）")
+    refresh_token: str | None = Field(None, description="刷新令牌（可选）")
 
 
 class TokenRefreshResponse(BaseModel):
@@ -295,19 +295,19 @@ class CurrentUserResponse(BaseModel):
     id: int = Field(..., description="用户 ID（内部使用）")
     uuid: str = Field(..., description="用户 UUID（对外暴露，业务标识）")
     username: str = Field(..., description="用户名")
-    email: Optional[str] = Field(None, description="用户邮箱（可选）")
-    full_name: Optional[str] = Field(None, description="用户全名")
-    avatar: Optional[str] = Field(None, description="用户头像")
-    tenant_id: Optional[int] = Field(None, description="组织 ID（平台管理可能没有组织）")
-    tenant_name: Optional[str] = Field(None, description="组织名称（可选，如果用户有组织则返回）")
+    email: str | None = Field(None, description="用户邮箱（可选）")
+    full_name: str | None = Field(None, description="用户全名")
+    avatar: str | None = Field(None, description="用户头像")
+    tenant_id: int | None = Field(None, description="组织 ID（平台管理可能没有组织）")
+    tenant_name: str | None = Field(None, description="组织名称（可选，如果用户有组织则返回）")
     is_active: bool = Field(..., description="是否激活")
     is_infra_admin: bool = Field(..., description="是否为平台管理（系统级超级管理员）")
     is_tenant_admin: bool = Field(..., description="是否为组织管理员")
-    permissions: List[str] = Field(default_factory=list, description="当前用户权限代码列表")
+    permissions: list[str] = Field(default_factory=list, description="当前用户权限代码列表")
     permission_version: int = Field(default=1, description="权限版本号")
-    department: Optional[dict] = Field(None, description="部门信息（轻量）")
-    position: Optional[dict] = Field(None, description="职位信息（轻量）")
-    roles: List[dict] = Field(default_factory=list, description="角色信息（轻量）")
+    department: dict | None = Field(None, description="部门信息（轻量）")
+    position: dict | None = Field(None, description="职位信息（轻量）")
+    roles: list[dict] = Field(default_factory=list, description="角色信息（轻量）")
 
 
 class AccessCheckRequest(BaseModel):
@@ -316,7 +316,7 @@ class AccessCheckRequest(BaseModel):
 
 
 class BatchAccessCheckRequest(BaseModel):
-    checks: List[AccessCheckRequest] = Field(..., description="批量检查项")
+    checks: list[AccessCheckRequest] = Field(..., description="批量检查项")
     check_abac: bool = Field(default=True, description="是否检查ABAC策略")
 
 

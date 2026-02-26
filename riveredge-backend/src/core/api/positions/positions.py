@@ -92,11 +92,11 @@ async def create_position(
 async def get_position_list(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    keyword: Optional[str] = Query(None, description="关键词搜索"),
-    name: Optional[str] = Query(None, description="职位名称筛选"),
-    code: Optional[str] = Query(None, description="职位代码筛选"),
-    department_uuid: Optional[str] = Query(None, description="部门UUID筛选"),
-    is_active: Optional[bool] = Query(None, description="是否启用筛选"),
+    keyword: str | None = Query(None, description="关键词搜索"),
+    name: str | None = Query(None, description="职位名称筛选"),
+    code: str | None = Query(None, description="职位代码筛选"),
+    department_uuid: str | None = Query(None, description="部门UUID筛选"),
+    is_active: bool | None = Query(None, description="是否启用筛选"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

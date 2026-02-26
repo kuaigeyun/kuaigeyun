@@ -58,12 +58,12 @@ async def create_application(
         )
 
 
-@router.get("", response_model=List[ApplicationResponse])
+@router.get("", response_model=list[ApplicationResponse])
 async def list_applications(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_installed: Optional[bool] = Query(None, description="是否已安装（可选）"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    is_installed: bool | None = Query(None, description="是否已安装（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -135,9 +135,9 @@ async def list_applications(
     return result
 
 
-@router.get("/installed", response_model=List[ApplicationResponse])
+@router.get("/installed", response_model=list[ApplicationResponse])
 async def list_installed_applications(
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -396,7 +396,7 @@ async def disable_application(
         )
 
 
-@router.post("/scan", response_model=List[ApplicationResponse])
+@router.post("/scan", response_model=list[ApplicationResponse])
 async def scan_and_register_plugins(
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -508,7 +508,7 @@ async def sync_application_manifest(
             )
 
         # 读取manifest.json
-        with open(manifest_path, 'r', encoding='utf-8') as f:
+        with open(manifest_path, encoding='utf-8') as f:
             manifest = json.load(f)
 
         # 获取应用信息

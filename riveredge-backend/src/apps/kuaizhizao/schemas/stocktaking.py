@@ -25,7 +25,7 @@ class StocktakingBase(BaseModel):
     warehouse_name: str = Field(..., description="仓库名称")
     stocktaking_date: datetime = Field(..., description="盘点日期")
     stocktaking_type: str = Field("full", description="盘点类型（full/partial/cycle）")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class StocktakingCreate(StocktakingBase):
@@ -45,11 +45,11 @@ class StocktakingUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    warehouse_id: Optional[int] = Field(None, description="仓库ID")
-    warehouse_name: Optional[str] = Field(None, description="仓库名称")
-    stocktaking_date: Optional[datetime] = Field(None, description="盘点日期")
-    stocktaking_type: Optional[str] = Field(None, description="盘点类型")
-    remarks: Optional[str] = Field(None, description="备注")
+    warehouse_id: int | None = Field(None, description="仓库ID")
+    warehouse_name: str | None = Field(None, description="仓库名称")
+    stocktaking_date: datetime | None = Field(None, description="盘点日期")
+    stocktaking_type: str | None = Field(None, description="盘点类型")
+    remarks: str | None = Field(None, description="备注")
 
 
 class StocktakingResponse(StocktakingBase):
@@ -66,16 +66,16 @@ class StocktakingResponse(StocktakingBase):
     counted_items: int = Field(..., description="已盘点物料数")
     total_differences: int = Field(..., description="差异总数")
     total_difference_amount: Decimal = Field(..., description="差异总金额")
-    approved_by: Optional[int] = Field(None, description="审核人ID")
-    approved_by_name: Optional[str] = Field(None, description="审核人姓名")
-    approved_at: Optional[datetime] = Field(None, description="审核时间")
-    completed_by: Optional[int] = Field(None, description="完成人ID")
-    completed_by_name: Optional[str] = Field(None, description="完成人姓名")
-    completed_at: Optional[datetime] = Field(None, description="完成时间")
+    approved_by: int | None = Field(None, description="审核人ID")
+    approved_by_name: str | None = Field(None, description="审核人姓名")
+    approved_at: datetime | None = Field(None, description="审核时间")
+    completed_by: int | None = Field(None, description="完成人ID")
+    completed_by_name: str | None = Field(None, description="完成人姓名")
+    completed_at: datetime | None = Field(None, description="完成时间")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
+    created_by: int | None = Field(None, description="创建人ID")
+    created_by_name: str | None = Field(None, description="创建人姓名")
 
 
 class StocktakingListResponse(BaseModel):
@@ -84,7 +84,7 @@ class StocktakingListResponse(BaseModel):
 
     用于库存盘点单列表API的响应数据格式。
     """
-    items: List[StocktakingResponse] = Field(default_factory=list, description="盘点单列表")
+    items: list[StocktakingResponse] = Field(default_factory=list, description="盘点单列表")
     total: int = Field(..., description="总数")
 
 
@@ -101,13 +101,13 @@ class StocktakingItemBase(BaseModel):
     material_code: str = Field(..., description="物料编码")
     material_name: str = Field(..., description="物料名称")
     warehouse_id: int = Field(..., description="仓库ID")
-    location_id: Optional[int] = Field(None, description="库位ID（可选）")
-    location_code: Optional[str] = Field(None, description="库位编码（可选）")
-    batch_no: Optional[str] = Field(None, description="批次号（可选）")
+    location_id: int | None = Field(None, description="库位ID（可选）")
+    location_code: str | None = Field(None, description="库位编码（可选）")
+    batch_no: str | None = Field(None, description="批次号（可选）")
     book_quantity: Decimal = Field(..., description="账面数量")
-    actual_quantity: Optional[Decimal] = Field(None, description="实际数量")
+    actual_quantity: Decimal | None = Field(None, description="实际数量")
     unit_price: Decimal = Field(default=0, description="单价")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class StocktakingItemCreate(StocktakingItemBase):
@@ -127,8 +127,8 @@ class StocktakingItemUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    actual_quantity: Optional[Decimal] = Field(None, description="实际数量")
-    remarks: Optional[str] = Field(None, description="备注")
+    actual_quantity: Decimal | None = Field(None, description="实际数量")
+    remarks: str | None = Field(None, description="备注")
 
 
 class StocktakingItemResponse(StocktakingItemBase):
@@ -141,9 +141,9 @@ class StocktakingItemResponse(StocktakingItemBase):
     uuid: str = Field(..., description="业务ID")
     difference_quantity: Decimal = Field(..., description="差异数量")
     difference_amount: Decimal = Field(..., description="差异金额")
-    counted_by: Optional[int] = Field(None, description="盘点人ID")
-    counted_by_name: Optional[str] = Field(None, description="盘点人姓名")
-    counted_at: Optional[datetime] = Field(None, description="盘点时间")
+    counted_by: int | None = Field(None, description="盘点人ID")
+    counted_by_name: str | None = Field(None, description="盘点人姓名")
+    counted_at: datetime | None = Field(None, description="盘点时间")
     status: str = Field(..., description="状态")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
@@ -164,5 +164,5 @@ class StocktakingWithItemsResponse(StocktakingResponse):
 
     用于返回盘点单及其明细的完整信息。
     """
-    items: List[StocktakingItemResponse] = Field(default_factory=list, description="盘点明细列表")
+    items: list[StocktakingItemResponse] = Field(default_factory=list, description="盘点明细列表")
 

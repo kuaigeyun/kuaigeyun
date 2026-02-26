@@ -207,7 +207,7 @@ class DemandService(AppBaseService[Demand]):
         skip: int = 0, 
         limit: int = 20, 
         **filters
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取需求列表
         
@@ -426,7 +426,7 @@ class DemandService(AppBaseService[Demand]):
         tenant_id: int, 
         demand_id: int, 
         approved_by: int, 
-        rejection_reason: Optional[str] = None
+        rejection_reason: str | None = None
     ) -> DemandResponse:
         """
         审核需求
@@ -1069,8 +1069,8 @@ class DemandService(AppBaseService[Demand]):
     async def bulk_delete_demands(
         self,
         tenant_id: int,
-        demand_ids: List[int]
-    ) -> Dict[str, Any]:
+        demand_ids: list[int]
+    ) -> dict[str, Any]:
         """
         批量删除需求
         
@@ -1100,7 +1100,7 @@ class DemandService(AppBaseService[Demand]):
             "failed_items": failed_items
         }
 
-    async def inspect_orphan_demands(self, tenant_id: int) -> Dict[str, Any]:
+    async def inspect_orphan_demands(self, tenant_id: int) -> dict[str, Any]:
         """
         巡检孤儿需求：统计当前租户的销售订单数、销售预测数、需求数，并列出来源已不存在的需求（孤儿）ID。
         仅查询不修改，用于确认数据后再决定是否调用 clean_orphan_demands。
@@ -1164,7 +1164,7 @@ class DemandService(AppBaseService[Demand]):
             "orphan_count": len(orphan_ids),
         }
 
-    async def clean_orphan_demands(self, tenant_id: int) -> Dict[str, Any]:
+    async def clean_orphan_demands(self, tenant_id: int) -> dict[str, Any]:
         """
         清理孤儿需求：来源单据（销售订单或销售预测）已被删除、但需求记录仍存在的需求。
         直接物理删除（先删明细再删需求），不从库中保留。
@@ -1264,7 +1264,7 @@ class DemandService(AppBaseService[Demand]):
         source_type: str,
         source_id: int,
         operator_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         根据上游单据（销售订单/销售预测）同步并重算关联需求。
         写需求快照与重算历史；若需求已下推计算则仅标记并触发下游重算提醒（策略 A）。
@@ -1282,7 +1282,7 @@ class DemandService(AppBaseService[Demand]):
         had_pushed = demand.pushed_to_computation
         computation_id = demand.computation_id
         computation_code = demand.computation_code or ""
-        snapshot_id_saved: Optional[int] = None
+        snapshot_id_saved: int | None = None
 
         try:
             async with in_transaction():
@@ -1456,7 +1456,7 @@ class DemandService(AppBaseService[Demand]):
             )
             raise
 
-    def _demand_to_snapshot_dict(self, demand: Demand) -> Dict[str, Any]:
+    def _demand_to_snapshot_dict(self, demand: Demand) -> dict[str, Any]:
         """将 Demand 转为可 JSON 序列化的快照字典"""
         return {
             "demand_code": demand.demand_code,
@@ -1470,7 +1470,7 @@ class DemandService(AppBaseService[Demand]):
             "source_id": demand.source_id,
         }
 
-    def _demand_item_to_snapshot_dict(self, item: DemandItem) -> Dict[str, Any]:
+    def _demand_item_to_snapshot_dict(self, item: DemandItem) -> dict[str, Any]:
         """将 DemandItem 转为可 JSON 序列化的快照字典"""
         return {
             "material_code": item.material_code,
@@ -1526,7 +1526,7 @@ class DemandService(AppBaseService[Demand]):
 
     async def list_demand_recalc_history(
         self, tenant_id: int, demand_id: int, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取需求重算历史列表，供前端「重算过程」展示。"""
         await self.get_demand_by_id(tenant_id, demand_id)
         rows = await DemandRecalcHistory.filter(
@@ -1550,7 +1550,7 @@ class DemandService(AppBaseService[Demand]):
 
     async def list_demand_snapshots(
         self, tenant_id: int, demand_id: int, limit: int = 20
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取需求快照列表。"""
         await self.get_demand_by_id(tenant_id, demand_id)
         rows = await DemandSnapshot.filter(
@@ -1573,7 +1573,7 @@ class DemandService(AppBaseService[Demand]):
         tenant_id: int,
         demand_id: int,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         将需求下推到物料需求运算
         

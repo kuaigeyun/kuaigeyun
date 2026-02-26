@@ -118,9 +118,9 @@ class ProcessRouteChangeService:
     @staticmethod
     async def list_changes(
         tenant_id: int,
-        process_route_uuid: Optional[str] = None,
-        change_type: Optional[str] = None,
-        status: Optional[str] = None,
+        process_route_uuid: str | None = None,
+        change_type: str | None = None,
+        status: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> ProcessRouteChangeListResponse:
@@ -227,7 +227,7 @@ class ProcessRouteChangeService:
         change_uuid: str,
         approver_id: int,
         approved: bool,
-        approval_comment: Optional[str] = None
+        approval_comment: str | None = None
     ) -> ProcessRouteChangeResponse:
         """
         审批变更记录

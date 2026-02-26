@@ -25,7 +25,7 @@ class UserActivityServiceImpl(UserActivityServiceInterface):
     def __init__(self):
         self._online_user_service = OnlineUserService()
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """服务健康检查"""
         return {
             "service": self.service_name,
@@ -38,8 +38,8 @@ class UserActivityServiceImpl(UserActivityServiceInterface):
         self,
         tenant_id: int,
         user_id: int,
-        login_ip: Optional[str] = None,
-        login_time: Optional[datetime] = None,
+        login_ip: str | None = None,
+        login_time: datetime | None = None,
     ) -> None:
         """
         更新用户活动时间
@@ -61,7 +61,7 @@ class UserActivityServiceImpl(UserActivityServiceInterface):
         self,
         tenant_id: int,
         user_id: int,
-    ) -> Optional[datetime]:
+    ) -> datetime | None:
         """
         获取用户最后活动时间
 

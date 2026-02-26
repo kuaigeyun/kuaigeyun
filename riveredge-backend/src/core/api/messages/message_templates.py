@@ -55,12 +55,12 @@ async def create_message_template(
         )
 
 
-@router.get("", response_model=List[MessageTemplateResponse])
+@router.get("", response_model=list[MessageTemplateResponse])
 async def list_message_templates(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    type: Optional[str] = Query(None, description="消息类型（可选）"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    type: str | None = Query(None, description="消息类型（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

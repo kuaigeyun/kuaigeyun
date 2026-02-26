@@ -155,11 +155,11 @@ class MenuService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 100,
-        parent_uuid: Optional[str] = None,
-        application_uuid: Optional[str] = None,
-        is_active: Optional[bool] = None,
+        parent_uuid: str | None = None,
+        application_uuid: str | None = None,
+        is_active: bool | None = None,
         use_cache: bool = True
-    ) -> List[MenuResponse]:
+    ) -> list[MenuResponse]:
         """
         获取菜单列表
         
@@ -236,11 +236,11 @@ class MenuService:
     @staticmethod
     async def get_menu_tree(
         tenant_id: int,
-        parent_uuid: Optional[str] = None,
-        application_uuid: Optional[str] = None,
-        is_active: Optional[bool] = None,
+        parent_uuid: str | None = None,
+        application_uuid: str | None = None,
+        is_active: bool | None = None,
         use_cache: bool = True
-    ) -> List[MenuTreeResponse]:
+    ) -> list[MenuTreeResponse]:
         """
         获取菜单树
         
@@ -264,7 +264,7 @@ class MenuService:
                 cached = await cache_manager.get("menu", cache_key)
                 if cached:
                     # 从缓存的字典数据重建菜单树
-                    def rebuild_tree(items: List[Dict[str, Any]]) -> List[MenuTreeResponse]:
+                    def rebuild_tree(items: list[dict[str, Any]]) -> list[MenuTreeResponse]:
                         """递归重建菜单树"""
                         result = []
                         for item in items:
@@ -296,8 +296,8 @@ class MenuService:
         all_menus = await query.order_by("sort_order", "created_at").all()
         
         # 构建菜单映射
-        menu_map: Dict[int, MenuTreeResponse] = {}
-        root_menus: List[MenuTreeResponse] = []
+        menu_map: dict[int, MenuTreeResponse] = {}
+        root_menus: list[MenuTreeResponse] = []
         
         # 第一遍：创建所有菜单的响应对象
         # 构建 parent_id 到 parent_uuid 的映射
@@ -373,7 +373,7 @@ class MenuService:
         # 缓存结果（序列化为字典列表，包含树形结构）
         if use_cache:
             try:
-                def serialize_tree(items: List[MenuTreeResponse]) -> List[Dict[str, Any]]:
+                def serialize_tree(items: list[MenuTreeResponse]) -> list[dict[str, Any]]:
                     """递归序列化菜单树"""
                     result = []
                     for item in items:
@@ -544,7 +544,7 @@ class MenuService:
     @staticmethod
     async def update_menu_order(
         tenant_id: int,
-        menu_orders: List[Dict[str, Any]]
+        menu_orders: list[dict[str, Any]]
     ) -> bool:
         """
         更新菜单排序
@@ -628,7 +628,7 @@ class MenuService:
     async def sync_menus_from_application_config(
         tenant_id: int,
         application_uuid: str,
-        menu_config: Dict[str, Any],
+        menu_config: dict[str, Any],
         is_active: bool = True
     ) -> int:
         """
@@ -670,10 +670,10 @@ class MenuService:
         created_count = 0
         
         async def _create_or_update_menu(
-            menu_item: Dict[str, Any],
-            parent_uuid: Optional[str] = None,
-            parent_id: Optional[int] = None
-        ) -> Optional[Menu]:
+            menu_item: dict[str, Any],
+            parent_uuid: str | None = None,
+            parent_id: int | None = None
+        ) -> Menu | None:
             nonlocal created_count  # 允许修改外部函数的变量
             """
             递归创建或更新菜单项

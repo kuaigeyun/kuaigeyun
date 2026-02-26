@@ -118,11 +118,11 @@ class MaterialCodeMappingService:
     @staticmethod
     async def list_mappings(
         tenant_id: int,
-        material_uuid: Optional[str] = None,
-        external_system: Optional[str] = None,
-        internal_code: Optional[str] = None,
-        external_code: Optional[str] = None,
-        is_active: Optional[bool] = None,
+        material_uuid: str | None = None,
+        external_system: str | None = None,
+        internal_code: str | None = None,
+        external_code: str | None = None,
+        is_active: bool | None = None,
         page: int = 1,
         page_size: int = 20
     ) -> MaterialCodeMappingListResponse:
@@ -342,8 +342,8 @@ class MaterialCodeMappingService:
     @staticmethod
     async def batch_create_mappings(
         tenant_id: int,
-        mappings_data: List[MaterialCodeMappingCreate]
-    ) -> Dict[str, Any]:
+        mappings_data: list[MaterialCodeMappingCreate]
+    ) -> dict[str, Any]:
         """
         批量创建映射
         

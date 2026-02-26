@@ -25,7 +25,7 @@ from infra.domain.tenant_context import get_current_tenant_id
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def exception_process_workflow_function(event: Event) -> Dict[str, Any]:
+async def exception_process_workflow_function(event: Event) -> dict[str, Any]:
     """
     异常处理流程工作流函数
     
@@ -111,7 +111,7 @@ async def exception_process_workflow_function(event: Event) -> Dict[str, Any]:
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def exception_process_step_transition_workflow_function(event: Event) -> Dict[str, Any]:
+async def exception_process_step_transition_workflow_function(event: Event) -> dict[str, Any]:
     """
     异常处理步骤流转工作流函数
     

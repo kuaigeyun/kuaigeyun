@@ -114,12 +114,12 @@ class ReportTemplateService(BaseService):
     async def list_templates(
         self,
         tenant_id: int,
-        type: Optional[str] = None,
-        category: Optional[str] = None,
-        status: Optional[str] = None,
+        type: str | None = None,
+        category: str | None = None,
+        status: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[ReportTemplateListResponse]:
+    ) -> list[ReportTemplateListResponse]:
         """
         获取报表模板列表
 
@@ -234,7 +234,7 @@ class ReportTemplateService(BaseService):
         template.deleted_at = datetime.now()
         await template.save()
 
-    async def _validate_config(self, config: Dict[str, Any]) -> None:
+    async def _validate_config(self, config: dict[str, Any]) -> None:
         """
         验证报表配置格式
 
@@ -256,7 +256,7 @@ class ReportTemplateService(BaseService):
         tenant_id: int,
         template_id: int,
         format: str = "excel",
-        params: Optional[Dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
     ) -> bytes:
         """
         生成报表文件
@@ -301,10 +301,10 @@ class ReportTemplateService(BaseService):
 
     async def _fetch_report_data(
         self,
-        config: Dict[str, Any],
-        params: Dict[str, Any],
+        config: dict[str, Any],
+        params: dict[str, Any],
         tenant_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取报表数据
 

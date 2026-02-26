@@ -25,7 +25,7 @@ from infra.exceptions.exceptions import NotFoundError, ValidationError
 from loguru import logger
 
 
-def _material_to_response_data(material) -> Dict[str, Any]:
+def _material_to_response_data(material) -> dict[str, Any]:
     """
     从 Material ORM 实例构建 MaterialResponse 所需的字典（不含 code_aliases）。
     model_validate 不支持 exclude，故用字典校验避免 ReverseRelation 传入。
@@ -158,9 +158,9 @@ class MaterialService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        parent_id: Optional[int] = None,
-        is_active: Optional[bool] = None
-    ) -> List[MaterialGroupResponse]:
+        parent_id: int | None = None,
+        is_active: bool | None = None
+    ) -> list[MaterialGroupResponse]:
         """
         获取物料分组列表
         
@@ -757,10 +757,10 @@ class MaterialService:
     @staticmethod
     async def get_material_variants(
         tenant_id: int,
-        master_material_id: Optional[int] = None,
-        master_material_uuid: Optional[str] = None,
-        main_code: Optional[str] = None
-    ) -> List[MaterialResponse]:
+        master_material_id: int | None = None,
+        master_material_uuid: str | None = None,
+        main_code: str | None = None
+    ) -> list[MaterialResponse]:
         """
         获取主物料的所有变体
         
@@ -875,17 +875,17 @@ class MaterialService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        group_id: Optional[int] = None,
-        is_active: Optional[bool] = None,
-        keyword: Optional[str] = None,
-        code: Optional[str] = None,
-        name: Optional[str] = None,
-        material_type: Optional[str] = None,
-        specification: Optional[str] = None,
-        brand: Optional[str] = None,
-        model: Optional[str] = None,
-        base_unit: Optional[str] = None
-    ) -> List[MaterialResponse]:
+        group_id: int | None = None,
+        is_active: bool | None = None,
+        keyword: str | None = None,
+        code: str | None = None,
+        name: str | None = None,
+        material_type: str | None = None,
+        specification: str | None = None,
+        brand: str | None = None,
+        model: str | None = None,
+        base_unit: str | None = None
+    ) -> list[MaterialResponse]:
         """
         获取物料列表
 
@@ -914,7 +914,7 @@ class MaterialService:
 
         if group_id is not None:
             # 递归获取所有子分组ID（包括当前分组本身）
-            async def get_all_child_group_ids(parent_group_id: int) -> List[int]:
+            async def get_all_child_group_ids(parent_group_id: int) -> list[int]:
                 """递归获取所有子分组ID（包括父分组本身）"""
                 group_ids = [parent_group_id]
                 # 获取直接子分组
@@ -1012,7 +1012,7 @@ class MaterialService:
         tenant_id: int,
         material_uuid: str,
         data: MaterialUpdate,
-        updated_by: Optional[int] = None,
+        updated_by: int | None = None,
     ) -> MaterialResponse:
         """
         更新物料
@@ -1357,7 +1357,7 @@ class MaterialService:
     async def create_bom_batch(
         tenant_id: int,
         data: BOMBatchCreate
-    ) -> List[BOMResponse]:
+    ) -> list[BOMResponse]:
         """
         批量创建BOM（为一个主物料添加多个子物料）
         
@@ -1421,7 +1421,7 @@ class MaterialService:
         if not data.bom_code:
             try:
                 # 构建编码规则的上下文
-                context: Dict[str, Any] = {
+                context: dict[str, Any] = {
                     "version": data.version or "1.0",
                 }
                 
@@ -1510,9 +1510,9 @@ class MaterialService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        material_id: Optional[int] = None,
-        is_active: Optional[bool] = None
-    ) -> List[BOMResponse]:
+        material_id: int | None = None,
+        is_active: bool | None = None
+    ) -> list[BOMResponse]:
         """
         获取BOM列表
         
@@ -1709,7 +1709,7 @@ class MaterialService:
         tenant_id: int,
         bom_uuid: str,
         approved_by: int,
-        approval_comment: Optional[str] = None,
+        approval_comment: str | None = None,
         approved: bool = True
     ) -> BOMResponse:
         """
@@ -1750,13 +1750,13 @@ class MaterialService:
     @staticmethod
     async def batch_approve_bom(
         tenant_id: int,
-        bom_uuids: List[str],
+        bom_uuids: list[str],
         approved_by: int,
-        approval_comment: Optional[str] = None,
+        approval_comment: str | None = None,
         approved: bool = True,
         recursive: bool = False,
         is_reverse: bool = False
-    ) -> List[BOMResponse]:
+    ) -> list[BOMResponse]:
         """
         批量审核BOM
         
@@ -1855,7 +1855,7 @@ class MaterialService:
     async def copy_bom(
         tenant_id: int,
         bom_uuid: str,
-        new_version: Optional[str] = None
+        new_version: str | None = None
     ) -> BOMResponse:
         """
         复制BOM（创建新版本）
@@ -1962,7 +1962,7 @@ class MaterialService:
     async def revise_bom(
         tenant_id: int,
         bom_uuid: str,
-        new_version: Optional[str] = None
+        new_version: str | None = None
     ) -> BOMResponse:
         """
         BOM升版（Revise）
@@ -1980,9 +1980,9 @@ class MaterialService:
     async def get_bom_by_material(
         tenant_id: int,
         material_id: int,
-        version: Optional[str] = None,
+        version: str | None = None,
         only_active: bool = True
-    ) -> List[BOMResponse]:
+    ) -> list[BOMResponse]:
         """
         根据主物料获取BOM列表（支持版本过滤）
         
@@ -2014,9 +2014,9 @@ class MaterialService:
     @staticmethod
     async def batch_check_has_bom(
         tenant_id: int,
-        material_ids: List[int],
+        material_ids: list[int],
         only_active: bool = True
-    ) -> Dict[int, bool]:
+    ) -> dict[int, bool]:
         """
         批量检查物料是否有BOM配置（用于销售订单明细视图等批量检查场景）
 
@@ -2048,7 +2048,7 @@ class MaterialService:
     async def get_bom_versions(
         tenant_id: int,
         bom_code: str
-    ) -> List[BOMResponse]:
+    ) -> list[BOMResponse]:
         """
         获取指定BOM编码的所有版本
         
@@ -2072,8 +2072,8 @@ class MaterialService:
     @staticmethod
     async def get_material_group_tree(
         tenant_id: int,
-        is_active: Optional[bool] = None
-    ) -> List["MaterialGroupTreeResponse"]:
+        is_active: bool | None = None
+    ) -> list["MaterialGroupTreeResponse"]:
         """
         获取物料分组树形结构（物料分组→物料）
         
@@ -2114,7 +2114,7 @@ class MaterialService:
         materials = await material_query.prefetch_related("group", "process_route").order_by("code").all()
         
         # 构建物料映射（按分组ID分组）
-        material_map: dict[Optional[int], List[MaterialTreeResponse]] = {}
+        material_map: dict[int | None, list[MaterialTreeResponse]] = {}
         for material in materials:
             group_id = material.group_id
             if group_id not in material_map:
@@ -2129,7 +2129,7 @@ class MaterialService:
                 continue
         
         # 构建分组映射（按父分组ID分组）
-        group_map: dict[Optional[int], List[MaterialGroupTreeResponse]] = {}
+        group_map: dict[int | None, list[MaterialGroupTreeResponse]] = {}
         for group in groups:
             parent_id = group.parent_id
             if parent_id not in group_map:
@@ -2163,9 +2163,9 @@ class MaterialService:
             group_map[parent_id].append(group_response)
         
         # 递归构建分组树形结构
-        def build_tree(parent_id: Optional[int]) -> List[MaterialGroupTreeResponse]:
+        def build_tree(parent_id: int | None) -> list[MaterialGroupTreeResponse]:
             """递归构建分组树"""
-            result: List[MaterialGroupTreeResponse] = []
+            result: list[MaterialGroupTreeResponse] = []
             if parent_id not in group_map:
                 return result
             
@@ -2185,7 +2185,7 @@ class MaterialService:
     async def batch_import_bom(
         tenant_id: int,
         data: BOMBatchImport
-    ) -> List[BOMResponse]:
+    ) -> list[BOMResponse]:
         """
         批量导入BOM（支持universheet批量导入，支持部门编码自动映射）
         
@@ -2496,8 +2496,8 @@ class MaterialService:
     async def generate_bom_hierarchy(
         tenant_id: int,
         material_id: int,
-        version: Optional[str] = None
-    ) -> Dict[str, Any]:
+        version: str | None = None
+    ) -> dict[str, Any]:
         """
         生成BOM层级结构
         
@@ -2539,7 +2539,7 @@ class MaterialService:
             }
         
         # 构建层级结构
-        async def build_tree(parent_id: int, level: int = 0, path: str = "", use_version: Optional[str] = None) -> List[Dict[str, Any]]:
+        async def build_tree(parent_id: int, level: int = 0, path: str = "", use_version: str | None = None) -> list[dict[str, Any]]:
             """递归构建BOM树"""
             result = []
             
@@ -2651,8 +2651,8 @@ class MaterialService:
         tenant_id: int,
         material_id: int,
         parent_quantity: Decimal = Decimal("1.0"),
-        version: Optional[str] = None
-    ) -> Dict[str, Any]:
+        version: str | None = None
+    ) -> dict[str, Any]:
         """
         计算BOM用量（考虑多层级和损耗率）
         
@@ -2764,7 +2764,7 @@ class MaterialService:
         tenant_id: int,
         material_id: int,
         data: BOMVersionCreate
-    ) -> List[BOMResponse]:
+    ) -> list[BOMResponse]:
         """
         创建BOM新版本
         
@@ -2832,7 +2832,7 @@ class MaterialService:
         tenant_id: int,
         material_id: int,
         data: BOMVersionCompare
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         对比BOM版本
         

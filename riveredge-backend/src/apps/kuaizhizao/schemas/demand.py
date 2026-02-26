@@ -28,20 +28,20 @@ class DemandBase(BaseSchema):
     demand_name: str = Field(..., max_length=200, description="需求名称")
     business_mode: Literal["MTS", "MTO"] = Field(..., description="业务模式（MTS/MTO）")
     start_date: date = Field(..., description="开始日期")
-    end_date: Optional[date] = Field(None, description="结束日期（销售订单可为空）")
+    end_date: date | None = Field(None, description="结束日期（销售订单可为空）")
     
     # 客户信息（销售订单专用，销售预测可为空）
-    customer_id: Optional[int] = Field(None, description="客户ID")
-    customer_name: Optional[str] = Field(None, max_length=200, description="客户名称")
-    customer_contact: Optional[str] = Field(None, max_length=100, description="客户联系人")
-    customer_phone: Optional[str] = Field(None, max_length=20, description="客户电话")
+    customer_id: int | None = Field(None, description="客户ID")
+    customer_name: str | None = Field(None, max_length=200, description="客户名称")
+    customer_contact: str | None = Field(None, max_length=100, description="客户联系人")
+    customer_phone: str | None = Field(None, max_length=20, description="客户电话")
     
     # 销售预测专用字段
-    forecast_period: Optional[str] = Field(None, max_length=20, description="预测周期（销售预测专用）")
+    forecast_period: str | None = Field(None, max_length=20, description="预测周期（销售预测专用）")
     
     # 销售订单专用字段
-    order_date: Optional[date] = Field(None, description="订单日期（销售订单专用）")
-    delivery_date: Optional[date] = Field(None, description="交货日期（销售订单专用）")
+    order_date: date | None = Field(None, description="订单日期（销售订单专用）")
+    delivery_date: date | None = Field(None, description="交货日期（销售订单专用）")
     
     # 金额信息（通用）
     total_quantity: Decimal = Field(Decimal("0"), ge=0, description="总数量")
@@ -51,28 +51,28 @@ class DemandBase(BaseSchema):
     status: DemandStatus = Field(DemandStatus.DRAFT, description="需求状态")
     
     # 时间节点记录（用于耗时统计）
-    submit_time: Optional[datetime] = Field(None, description="提交时间")
+    submit_time: datetime | None = Field(None, description="提交时间")
     
     # 审核信息（通用）
-    reviewer_id: Optional[int] = Field(None, description="审核人ID")
-    reviewer_name: Optional[str] = Field(None, max_length=100, description="审核人姓名")
-    review_time: Optional[datetime] = Field(None, description="审核时间")
+    reviewer_id: int | None = Field(None, description="审核人ID")
+    reviewer_name: str | None = Field(None, max_length=100, description="审核人姓名")
+    review_time: datetime | None = Field(None, description="审核时间")
     review_status: ReviewStatus = Field(ReviewStatus.PENDING, description="审核状态")
-    review_remarks: Optional[str] = Field(None, description="审核备注")
+    review_remarks: str | None = Field(None, description="审核备注")
     
     # 销售信息（销售订单专用）
-    salesman_id: Optional[int] = Field(None, description="销售员ID")
-    salesman_name: Optional[str] = Field(None, max_length=100, description="销售员姓名")
+    salesman_id: int | None = Field(None, description="销售员ID")
+    salesman_name: str | None = Field(None, max_length=100, description="销售员姓名")
     
     # 物流信息（销售订单专用）
-    shipping_address: Optional[str] = Field(None, description="收货地址")
-    shipping_method: Optional[str] = Field(None, max_length=50, description="发货方式")
-    payment_terms: Optional[str] = Field(None, max_length=100, description="付款条件")
+    shipping_address: str | None = Field(None, description="收货地址")
+    shipping_method: str | None = Field(None, max_length=50, description="发货方式")
+    payment_terms: str | None = Field(None, max_length=100, description="付款条件")
 
     # 优先级（数字越小优先级越高，生产排产时按此排序）
     priority: int = Field(5, ge=1, le=10, description="优先级（1=高、5=中、10=低）")
     
-    notes: Optional[str] = Field(None, description="备注")
+    notes: str | None = Field(None, description="备注")
     
     @model_validator(mode='after')
     def validate_demand_type_fields(self):
@@ -104,7 +104,7 @@ class DemandBase(BaseSchema):
 
 class DemandCreate(DemandBase):
     """统一需求创建schema"""
-    items: Optional[List["DemandItemCreate"]] = Field(None, description="需求明细列表")
+    items: list[DemandItemCreate] | None = Field(None, description="需求明细列表")
     
     @model_validator(mode='after')
     def validate_items(self):
@@ -123,33 +123,33 @@ class DemandCreate(DemandBase):
 
 class DemandUpdate(BaseSchema):
     """统一需求更新schema"""
-    demand_code: Optional[str] = Field(None, max_length=50, description="需求编码")
-    demand_name: Optional[str] = Field(None, max_length=200, description="需求名称")
-    start_date: Optional[date] = Field(None, description="开始日期")
-    end_date: Optional[date] = Field(None, description="结束日期")
-    customer_id: Optional[int] = Field(None, description="客户ID")
-    customer_name: Optional[str] = Field(None, max_length=200, description="客户名称")
-    customer_contact: Optional[str] = Field(None, max_length=100, description="客户联系人")
-    customer_phone: Optional[str] = Field(None, max_length=20, description="客户电话")
-    forecast_period: Optional[str] = Field(None, max_length=20, description="预测周期")
-    order_date: Optional[date] = Field(None, description="订单日期")
-    delivery_date: Optional[date] = Field(None, description="交货日期")
-    total_quantity: Optional[Decimal] = Field(None, ge=0, description="总数量")
-    total_amount: Optional[Decimal] = Field(None, ge=0, description="总金额")
-    status: Optional[str] = Field(None, max_length=20, description="需求状态")
-    submit_time: Optional[datetime] = Field(None, description="提交时间")
-    reviewer_id: Optional[int] = Field(None, description="审核人ID")
-    reviewer_name: Optional[str] = Field(None, max_length=100, description="审核人姓名")
-    review_time: Optional[datetime] = Field(None, description="审核时间")
-    review_status: Optional[str] = Field(None, max_length=20, description="审核状态")
-    review_remarks: Optional[str] = Field(None, description="审核备注")
-    salesman_id: Optional[int] = Field(None, description="销售员ID")
-    salesman_name: Optional[str] = Field(None, max_length=100, description="销售员姓名")
-    shipping_address: Optional[str] = Field(None, description="收货地址")
-    shipping_method: Optional[str] = Field(None, max_length=50, description="发货方式")
-    payment_terms: Optional[str] = Field(None, max_length=100, description="付款条件")
-    priority: Optional[int] = Field(None, ge=1, le=10, description="优先级（1=高、5=中、10=低）")
-    notes: Optional[str] = Field(None, description="备注")
+    demand_code: str | None = Field(None, max_length=50, description="需求编码")
+    demand_name: str | None = Field(None, max_length=200, description="需求名称")
+    start_date: date | None = Field(None, description="开始日期")
+    end_date: date | None = Field(None, description="结束日期")
+    customer_id: int | None = Field(None, description="客户ID")
+    customer_name: str | None = Field(None, max_length=200, description="客户名称")
+    customer_contact: str | None = Field(None, max_length=100, description="客户联系人")
+    customer_phone: str | None = Field(None, max_length=20, description="客户电话")
+    forecast_period: str | None = Field(None, max_length=20, description="预测周期")
+    order_date: date | None = Field(None, description="订单日期")
+    delivery_date: date | None = Field(None, description="交货日期")
+    total_quantity: Decimal | None = Field(None, ge=0, description="总数量")
+    total_amount: Decimal | None = Field(None, ge=0, description="总金额")
+    status: str | None = Field(None, max_length=20, description="需求状态")
+    submit_time: datetime | None = Field(None, description="提交时间")
+    reviewer_id: int | None = Field(None, description="审核人ID")
+    reviewer_name: str | None = Field(None, max_length=100, description="审核人姓名")
+    review_time: datetime | None = Field(None, description="审核时间")
+    review_status: str | None = Field(None, max_length=20, description="审核状态")
+    review_remarks: str | None = Field(None, description="审核备注")
+    salesman_id: int | None = Field(None, description="销售员ID")
+    salesman_name: str | None = Field(None, max_length=100, description="销售员姓名")
+    shipping_address: str | None = Field(None, description="收货地址")
+    shipping_method: str | None = Field(None, max_length=50, description="发货方式")
+    payment_terms: str | None = Field(None, max_length=100, description="付款条件")
+    priority: int | None = Field(None, ge=1, le=10, description="优先级（1=高、5=中、10=低）")
+    notes: str | None = Field(None, description="备注")
 
 
 class DemandResponse(DemandBase):
@@ -159,30 +159,30 @@ class DemandResponse(DemandBase):
     tenant_id: int = Field(..., description="租户ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
+    created_by: int | None = Field(None, description="创建人ID")
+    updated_by: int | None = Field(None, description="更新人ID")
     is_active: bool = Field(True, description="是否有效")
     
     # 需求关联信息
-    source_id: Optional[int] = Field(None, description="来源ID")
-    source_type: Optional[str] = Field(None, max_length=50, description="来源类型")
-    source_code: Optional[str] = Field(None, max_length=50, description="来源编码")
+    source_id: int | None = Field(None, description="来源ID")
+    source_type: str | None = Field(None, max_length=50, description="来源类型")
+    source_code: str | None = Field(None, max_length=50, description="来源编码")
 
     # 优先级
     priority: int = Field(5, description="优先级（1=高、5=中、10=低）")
     
     # 下推信息
     pushed_to_computation: bool = Field(False, description="是否已下推到需求计算")
-    computation_id: Optional[int] = Field(None, description="关联的需求计算ID")
-    computation_code: Optional[str] = Field(None, max_length=50, description="关联的需求计算编码")
+    computation_id: int | None = Field(None, description="关联的需求计算ID")
+    computation_code: str | None = Field(None, max_length=50, description="关联的需求计算编码")
     
     # 关联明细
-    items: Optional[List["DemandItemResponse"]] = Field(None, description="需求明细列表")
+    items: list[DemandItemResponse] | None = Field(None, description="需求明细列表")
     
     # 耗时统计（可选）
-    duration_info: Optional[dict] = Field(None, description="耗时统计信息")
+    duration_info: dict | None = Field(None, description="耗时统计信息")
     # 生命周期（后端计算，供前端 UniLifecycleStepper 展示）
-    lifecycle: Optional[dict] = Field(None, description="生命周期节点与当前阶段")
+    lifecycle: dict | None = Field(None, description="生命周期节点与当前阶段")
 
     class Config:
         from_attributes = True
@@ -198,25 +198,25 @@ class DemandListResponse(BaseSchema):
     demand_name: str = Field(..., description="需求名称")
     business_mode: str = Field(..., description="业务模式")
     start_date: date = Field(..., description="开始日期")
-    end_date: Optional[date] = Field(None, description="结束日期")
-    delivery_date: Optional[date] = Field(None, description="交货日期")
-    customer_id: Optional[int] = Field(None, description="客户ID")
-    customer_name: Optional[str] = Field(None, description="客户名称")
-    forecast_period: Optional[str] = Field(None, description="预测周期")
-    order_date: Optional[date] = Field(None, description="订单日期")
+    end_date: date | None = Field(None, description="结束日期")
+    delivery_date: date | None = Field(None, description="交货日期")
+    customer_id: int | None = Field(None, description="客户ID")
+    customer_name: str | None = Field(None, description="客户名称")
+    forecast_period: str | None = Field(None, description="预测周期")
+    order_date: date | None = Field(None, description="订单日期")
     total_quantity: Decimal = Field(..., description="总数量")
     total_amount: Decimal = Field(..., description="总金额")
     status: str = Field(..., description="需求状态")
     review_status: str = Field(..., description="审核状态")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
-    lifecycle: Optional[dict] = Field(None, description="生命周期（后端计算）")
+    created_by: int | None = Field(None, description="创建人ID")
+    updated_by: int | None = Field(None, description="更新人ID")
+    lifecycle: dict | None = Field(None, description="生命周期（后端计算）")
     # 来源：上游单据类型与编码（销售订单/销售预测审核通过后下推生成需求时填充）
-    source_type: Optional[str] = Field(None, description="来源类型（sales_order/sales_forecast）")
-    source_id: Optional[int] = Field(None, description="来源ID")
-    source_code: Optional[str] = Field(None, description="来源编码")
+    source_type: str | None = Field(None, description="来源类型（sales_order/sales_forecast）")
+    source_id: int | None = Field(None, description="来源ID")
+    source_code: str | None = Field(None, description="来源编码")
 
     class Config:
         from_attributes = True
@@ -229,31 +229,31 @@ class DemandItemBase(BaseSchema):
     material_id: int = Field(..., description="物料ID")
     material_code: str = Field(..., max_length=50, description="物料编码")
     material_name: str = Field(..., max_length=200, description="物料名称")
-    material_spec: Optional[str] = Field(None, max_length=200, description="物料规格")
+    material_spec: str | None = Field(None, max_length=200, description="物料规格")
     material_unit: str = Field(..., max_length=20, description="物料单位")
     required_quantity: Decimal = Field(..., gt=0, description="需求数量")
     
     # 销售预测专用字段
-    forecast_date: Optional[date] = Field(None, description="预测日期（销售预测专用）")
-    forecast_month: Optional[str] = Field(None, max_length=7, description="预测月份（YYYY-MM，销售预测专用）")
-    historical_sales: Optional[Decimal] = Field(None, ge=0, description="历史销量")
-    historical_period: Optional[str] = Field(None, max_length=20, description="历史周期")
-    confidence_level: Optional[Decimal] = Field(None, ge=0, le=100, description="置信度")
-    forecast_method: Optional[str] = Field(None, max_length=50, description="预测方法")
+    forecast_date: date | None = Field(None, description="预测日期（销售预测专用）")
+    forecast_month: str | None = Field(None, max_length=7, description="预测月份（YYYY-MM，销售预测专用）")
+    historical_sales: Decimal | None = Field(None, ge=0, description="历史销量")
+    historical_period: str | None = Field(None, max_length=20, description="历史周期")
+    confidence_level: Decimal | None = Field(None, ge=0, le=100, description="置信度")
+    forecast_method: str | None = Field(None, max_length=50, description="预测方法")
     
     # 销售订单专用字段
-    delivery_date: Optional[date] = Field(None, description="交货日期（销售订单专用）")
+    delivery_date: date | None = Field(None, description="交货日期（销售订单专用）")
     delivered_quantity: Decimal = Field(Decimal("0"), ge=0, description="已交货数量")
-    remaining_quantity: Optional[Decimal] = Field(None, ge=0, description="剩余数量")
-    unit_price: Optional[Decimal] = Field(None, ge=0, description="单价")
-    item_amount: Optional[Decimal] = Field(None, ge=0, description="金额")
-    delivery_status: Optional[str] = Field(None, max_length=20, description="交货状态")
+    remaining_quantity: Decimal | None = Field(None, ge=0, description="剩余数量")
+    unit_price: Decimal | None = Field(None, ge=0, description="单价")
+    item_amount: Decimal | None = Field(None, ge=0, description="金额")
+    delivery_status: str | None = Field(None, max_length=20, description="交货状态")
     
     # 关联工单（MTO模式）
-    work_order_id: Optional[int] = Field(None, description="工单ID")
-    work_order_code: Optional[str] = Field(None, max_length=50, description="工单编码")
+    work_order_id: int | None = Field(None, description="工单ID")
+    work_order_code: str | None = Field(None, max_length=50, description="工单编码")
     
-    notes: Optional[str] = Field(None, description="备注")
+    notes: str | None = Field(None, description="备注")
     
     @field_validator('forecast_month')
     @classmethod
@@ -280,11 +280,11 @@ class DemandItemCreate(DemandItemBase):
 
 class DemandItemUpdate(DemandItemBase):
     """统一需求明细更新schema"""
-    material_id: Optional[int] = Field(None, description="物料ID")
-    material_code: Optional[str] = Field(None, max_length=50, description="物料编码")
-    material_name: Optional[str] = Field(None, max_length=200, description="物料名称")
-    material_unit: Optional[str] = Field(None, max_length=20, description="物料单位")
-    required_quantity: Optional[Decimal] = Field(None, gt=0, description="需求数量")
+    material_id: int | None = Field(None, description="物料ID")
+    material_code: str | None = Field(None, max_length=50, description="物料编码")
+    material_name: str | None = Field(None, max_length=200, description="物料名称")
+    material_unit: str | None = Field(None, max_length=20, description="物料单位")
+    required_quantity: Decimal | None = Field(None, gt=0, description="需求数量")
 
 
 class DemandItemResponse(DemandItemBase):

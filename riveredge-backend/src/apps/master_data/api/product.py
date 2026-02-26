@@ -44,13 +44,13 @@ async def create_product(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("", response_model=List[ProductResponse], summary="获取产品列表")
+@router.get("", response_model=list[ProductResponse], summary="获取产品列表")
 async def list_products(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取产品列表
@@ -169,11 +169,11 @@ async def get_product_bom(
 
 # ==================== 级联选择相关接口 ====================
 
-@router.get("/grouped", response_model=Dict[str, List[ProductResponse]], summary="获取分组的产品列表")
+@router.get("/grouped", response_model=dict[str, list[ProductResponse]], summary="获取分组的产品列表")
 async def get_products_grouped(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    is_active: Optional[bool] = Query(True, description="是否只查询启用的产品（默认：true）")
+    is_active: bool | None = Query(True, description="是否只查询启用的产品（默认：true）")
 ):
     """
     获取按首字母分组的产品列表
@@ -205,12 +205,12 @@ async def get_products_grouped(
     return await ProductService.get_products_grouped(tenant_id, is_active)
 
 
-@router.get("/by-category/{category_prefix}", response_model=List[ProductResponse], summary="根据分类前缀获取产品列表")
+@router.get("/by-category/{category_prefix}", response_model=list[ProductResponse], summary="根据分类前缀获取产品列表")
 async def get_products_by_category(
     category_prefix: str,
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    is_active: Optional[bool] = Query(True, description="是否只查询启用的产品（默认：true）")
+    is_active: bool | None = Query(True, description="是否只查询启用的产品（默认：true）")
 ):
     """
     根据分类前缀获取产品列表

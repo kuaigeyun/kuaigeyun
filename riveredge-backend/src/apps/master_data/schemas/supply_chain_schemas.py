@@ -14,12 +14,12 @@ class CustomerBase(BaseModel):
 
     code: str = Field(..., max_length=50, description="客户编码")
     name: str = Field(..., max_length=200, description="客户名称")
-    short_name: Optional[str] = Field(None, max_length=100, description="简称", alias="shortName")
-    contact_person: Optional[str] = Field(None, max_length=100, description="联系人", alias="contactPerson")
-    phone: Optional[str] = Field(None, max_length=20, description="电话")
-    email: Optional[str] = Field(None, max_length=100, description="邮箱")
-    address: Optional[str] = Field(None, description="地址")
-    category: Optional[str] = Field(None, max_length=50, description="客户分类")
+    short_name: str | None = Field(None, max_length=100, description="简称", alias="shortName")
+    contact_person: str | None = Field(None, max_length=100, description="联系人", alias="contactPerson")
+    phone: str | None = Field(None, max_length=20, description="电话")
+    email: str | None = Field(None, max_length=100, description="邮箱")
+    address: str | None = Field(None, description="地址")
+    category: str | None = Field(None, max_length=50, description="客户分类")
     is_active: bool = Field(True, alias="isActive", description="是否启用")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -47,15 +47,15 @@ class CustomerCreate(CustomerBase):
 class CustomerUpdate(BaseModel):
     """更新客户 Schema"""
 
-    code: Optional[str] = Field(None, max_length=50, description="客户编码")
-    name: Optional[str] = Field(None, max_length=200, description="客户名称")
-    short_name: Optional[str] = Field(None, max_length=100, description="简称", alias="shortName")
-    contact_person: Optional[str] = Field(None, max_length=100, description="联系人", alias="contactPerson")
-    phone: Optional[str] = Field(None, max_length=20, description="电话")
-    email: Optional[str] = Field(None, max_length=100, description="邮箱")
-    address: Optional[str] = Field(None, description="地址")
-    category: Optional[str] = Field(None, max_length=50, description="客户分类")
-    is_active: Optional[bool] = Field(None, alias="isActive", description="是否启用")
+    code: str | None = Field(None, max_length=50, description="客户编码")
+    name: str | None = Field(None, max_length=200, description="客户名称")
+    short_name: str | None = Field(None, max_length=100, description="简称", alias="shortName")
+    contact_person: str | None = Field(None, max_length=100, description="联系人", alias="contactPerson")
+    phone: str | None = Field(None, max_length=20, description="电话")
+    email: str | None = Field(None, max_length=100, description="邮箱")
+    address: str | None = Field(None, description="地址")
+    category: str | None = Field(None, max_length=50, description="客户分类")
+    is_active: bool | None = Field(None, alias="isActive", description="是否启用")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -82,7 +82,7 @@ class CustomerResponse(CustomerBase):
     tenant_id: int = Field(..., description="租户ID", alias="tenantId")
     created_at: datetime = Field(..., description="创建时间", alias="createdAt")
     updated_at: datetime = Field(..., description="更新时间", alias="updatedAt")
-    deleted_at: Optional[datetime] = Field(None, description="删除时间", alias="deletedAt")
+    deleted_at: datetime | None = Field(None, description="删除时间", alias="deletedAt")
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, by_alias=True)
 
@@ -92,12 +92,12 @@ class SupplierBase(BaseModel):
 
     code: str = Field(..., max_length=50, description="供应商编码")
     name: str = Field(..., max_length=200, description="供应商名称")
-    short_name: Optional[str] = Field(None, max_length=100, description="简称", alias="shortName")
-    contact_person: Optional[str] = Field(None, max_length=100, description="联系人", alias="contactPerson")
-    phone: Optional[str] = Field(None, max_length=20, description="电话")
-    email: Optional[str] = Field(None, max_length=100, description="邮箱")
-    address: Optional[str] = Field(None, description="地址")
-    category: Optional[str] = Field(None, max_length=50, description="供应商分类")
+    short_name: str | None = Field(None, max_length=100, description="简称", alias="shortName")
+    contact_person: str | None = Field(None, max_length=100, description="联系人", alias="contactPerson")
+    phone: str | None = Field(None, max_length=20, description="电话")
+    email: str | None = Field(None, max_length=100, description="邮箱")
+    address: str | None = Field(None, description="地址")
+    category: str | None = Field(None, max_length=50, description="供应商分类")
     is_active: bool = Field(True, alias="isActive", description="是否启用")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -125,15 +125,15 @@ class SupplierCreate(SupplierBase):
 class SupplierUpdate(BaseModel):
     """更新供应商 Schema"""
 
-    code: Optional[str] = Field(None, max_length=50, description="供应商编码")
-    name: Optional[str] = Field(None, max_length=200, description="供应商名称")
-    short_name: Optional[str] = Field(None, max_length=100, description="简称", alias="shortName")
-    contact_person: Optional[str] = Field(None, max_length=100, description="联系人", alias="contactPerson")
-    phone: Optional[str] = Field(None, max_length=20, description="电话")
-    email: Optional[str] = Field(None, max_length=100, description="邮箱")
-    address: Optional[str] = Field(None, description="地址")
-    category: Optional[str] = Field(None, max_length=50, description="供应商分类")
-    is_active: Optional[bool] = Field(None, alias="isActive", description="是否启用")
+    code: str | None = Field(None, max_length=50, description="供应商编码")
+    name: str | None = Field(None, max_length=200, description="供应商名称")
+    short_name: str | None = Field(None, max_length=100, description="简称", alias="shortName")
+    contact_person: str | None = Field(None, max_length=100, description="联系人", alias="contactPerson")
+    phone: str | None = Field(None, max_length=20, description="电话")
+    email: str | None = Field(None, max_length=100, description="邮箱")
+    address: str | None = Field(None, description="地址")
+    category: str | None = Field(None, max_length=50, description="供应商分类")
+    is_active: bool | None = Field(None, alias="isActive", description="是否启用")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -160,7 +160,7 @@ class SupplierResponse(SupplierBase):
     tenant_id: int = Field(..., description="租户ID", alias="tenantId")
     created_at: datetime = Field(..., description="创建时间", alias="createdAt")
     updated_at: datetime = Field(..., description="更新时间", alias="updatedAt")
-    deleted_at: Optional[datetime] = Field(None, description="删除时间", alias="deletedAt")
+    deleted_at: datetime | None = Field(None, description="删除时间", alias="deletedAt")
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, by_alias=True)
 

@@ -27,7 +27,7 @@ class InitOrganizationInfoRule(SuggestionRule):
     def __init__(self):
         super().__init__("init_organization_info", "组织信息完善建议")
     
-    async def check(self, tenant_id: int, context: Dict[str, Any]) -> List[Suggestion]:
+    async def check(self, tenant_id: int, context: dict[str, Any]) -> list[Suggestion]:
         """检查组织信息是否完善"""
         suggestions = []
         
@@ -53,7 +53,7 @@ class InitDefaultSettingsRule(SuggestionRule):
     def __init__(self):
         super().__init__("init_default_settings", "默认设置建议")
     
-    async def check(self, tenant_id: int, context: Dict[str, Any]) -> List[Suggestion]:
+    async def check(self, tenant_id: int, context: dict[str, Any]) -> list[Suggestion]:
         """检查默认设置是否配置"""
         suggestions = []
         
@@ -81,7 +81,7 @@ class WorkOrderMaterialShortageRule(SuggestionRule):
     def __init__(self):
         super().__init__("work_order_material_shortage", "工单缺料建议")
     
-    async def check(self, tenant_id: int, context: Dict[str, Any]) -> List[Suggestion]:
+    async def check(self, tenant_id: int, context: dict[str, Any]) -> list[Suggestion]:
         """检查工单是否缺料"""
         suggestions = []
         
@@ -109,7 +109,7 @@ class WorkOrderDelayRule(SuggestionRule):
     def __init__(self):
         super().__init__("work_order_delay", "工单延期建议")
     
-    async def check(self, tenant_id: int, context: Dict[str, Any]) -> List[Suggestion]:
+    async def check(self, tenant_id: int, context: dict[str, Any]) -> list[Suggestion]:
         """检查工单是否延期"""
         suggestions = []
         
@@ -142,7 +142,7 @@ class ReportingQualityIssueRule(SuggestionRule):
     def __init__(self):
         super().__init__("reporting_quality_issue", "报工质量问题建议")
     
-    async def check(self, tenant_id: int, context: Dict[str, Any]) -> List[Suggestion]:
+    async def check(self, tenant_id: int, context: dict[str, Any]) -> list[Suggestion]:
         """检查报工质量问题"""
         suggestions = []
         
@@ -172,7 +172,7 @@ class InventoryLowStockRule(SuggestionRule):
     def __init__(self):
         super().__init__("inventory_low_stock", "库存低库存建议")
     
-    async def check(self, tenant_id: int, context: Dict[str, Any]) -> List[Suggestion]:
+    async def check(self, tenant_id: int, context: dict[str, Any]) -> list[Suggestion]:
         """检查低库存物料"""
         suggestions = []
         
@@ -202,7 +202,7 @@ class ProductionEfficiencyRule(SuggestionRule):
     def __init__(self):
         super().__init__("production_efficiency", "生产效率建议")
     
-    async def check(self, tenant_id: int, context: Dict[str, Any]) -> List[Suggestion]:
+    async def check(self, tenant_id: int, context: dict[str, Any]) -> list[Suggestion]:
         """检查生产效率"""
         suggestions = []
         

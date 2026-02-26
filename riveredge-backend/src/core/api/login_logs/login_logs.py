@@ -26,12 +26,12 @@ router = APIRouter(prefix="/login-logs", tags=["LoginLogs"])
 async def get_login_logs(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    user_id: Optional[int] = Query(None, description="用户ID过滤"),
-    username: Optional[str] = Query(None, description="用户名过滤"),
-    login_status: Optional[str] = Query(None, description="登录状态过滤（success、failed）"),
-    login_ip: Optional[str] = Query(None, description="登录IP过滤"),
-    start_time: Optional[datetime] = Query(None, description="开始时间过滤"),
-    end_time: Optional[datetime] = Query(None, description="结束时间过滤"),
+    user_id: int | None = Query(None, description="用户ID过滤"),
+    username: str | None = Query(None, description="用户名过滤"),
+    login_status: str | None = Query(None, description="登录状态过滤（success、failed）"),
+    login_ip: str | None = Query(None, description="登录IP过滤"),
+    start_time: datetime | None = Query(None, description="开始时间过滤"),
+    end_time: datetime | None = Query(None, description="结束时间过滤"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

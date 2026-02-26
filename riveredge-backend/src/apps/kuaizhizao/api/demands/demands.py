@@ -29,7 +29,6 @@ from apps.kuaizhizao.schemas.demand import (
     DemandItemUpdate,
     DemandItemResponse,
 )
-from typing import List
 
 # 初始化服务实例
 demand_service = DemandService()
@@ -67,9 +66,9 @@ async def create_demand(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建需求失败")
 
 
-@router.post("/batch", response_model=Dict[str, Any], summary="批量创建需求")
+@router.post("/batch", response_model=dict[str, Any], summary="批量创建需求")
 async def batch_create_demands(
-    demands_data: List[DemandCreate],
+    demands_data: list[DemandCreate],
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -122,11 +121,11 @@ async def batch_create_demands(
 async def list_demands(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(20, ge=1, le=100, description="限制数量"),
-    demand_type: Optional[str] = Query(None, description="需求类型（sales_forecast 或 sales_order）"),
-    demand_status: Optional[str] = Query(None, description="需求状态", alias="status"),
-    pushed_to_computation: Optional[bool] = Query(None, description="是否已下推计算"),
-    business_mode: Optional[str] = Query(None, description="业务模式（MTS 或 MTO）"),
-    review_status: Optional[str] = Query(None, description="审核状态"),
+    demand_type: str | None = Query(None, description="需求类型（sales_forecast 或 sales_order）"),
+    demand_status: str | None = Query(None, description="需求状态", alias="status"),
+    pushed_to_computation: bool | None = Query(None, description="是否已下推计算"),
+    business_mode: str | None = Query(None, description="业务模式（MTS 或 MTO）"),
+    review_status: str | None = Query(None, description="审核状态"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -160,7 +159,7 @@ async def list_demands(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取需求列表失败")
 
 
-@router.get("/orphan-report", response_model=Dict[str, Any], summary="巡检孤儿需求（仅查询）")
+@router.get("/orphan-report", response_model=dict[str, Any], summary="巡检孤儿需求（仅查询）")
 async def inspect_orphan_demands(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -467,7 +466,7 @@ async def delete_demand_item(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="删除需求明细失败")
 
 
-@router.post("/{demand_id}/push-to-computation", response_model=Dict[str, Any], summary="下推需求到物料需求运算")
+@router.post("/{demand_id}/push-to-computation", response_model=dict[str, Any], summary="下推需求到物料需求运算")
 async def push_demand_to_computation(
     demand_id: int = Path(..., description="需求ID"),
     current_user: User = Depends(get_current_user),
@@ -523,7 +522,7 @@ async def withdraw_demand_from_computation(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"撤回需求计算失败: {str(e)}")
 
 
-@router.post("/clean-orphans", response_model=Dict[str, Any], summary="清理孤儿需求")
+@router.post("/clean-orphans", response_model=dict[str, Any], summary="清理孤儿需求")
 async def clean_orphan_demands(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),

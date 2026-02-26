@@ -15,8 +15,8 @@ class MaterialGroupBase(BaseModel):
     
     code: str = Field(..., max_length=50, description="分组编码")
     name: str = Field(..., max_length=200, description="分组名称")
-    parent_id: Optional[int] = Field(None, alias="parentId", description="父分组ID（用于层级结构）")
-    description: Optional[str] = Field(None, description="描述")
+    parent_id: int | None = Field(None, alias="parentId", description="父分组ID（用于层级结构）")
+    description: str | None = Field(None, description="描述")
     is_active: bool = Field(True, alias="isActive", description="是否启用")
     
     model_config = ConfigDict(
@@ -46,11 +46,11 @@ class MaterialGroupCreate(MaterialGroupBase):
 class MaterialGroupUpdate(BaseModel):
     """更新物料分组 Schema"""
     
-    code: Optional[str] = Field(None, max_length=50, description="分组编码")
-    name: Optional[str] = Field(None, max_length=200, description="分组名称")
-    parent_id: Optional[int] = Field(None, alias="parentId", description="父分组ID")
-    description: Optional[str] = Field(None, description="描述")
-    is_active: Optional[bool] = Field(None, alias="isActive", description="是否启用")
+    code: str | None = Field(None, max_length=50, description="分组编码")
+    name: str | None = Field(None, max_length=200, description="分组名称")
+    parent_id: int | None = Field(None, alias="parentId", description="父分组ID")
+    description: str | None = Field(None, description="描述")
+    is_active: bool | None = Field(None, alias="isActive", description="是否启用")
     
     model_config = ConfigDict(
         populate_by_name=True,  # 允许同时使用字段名和别名
@@ -77,12 +77,12 @@ class MaterialGroupResponse(MaterialGroupBase):
     id: int = Field(..., description="主键ID")
     uuid: str = Field(..., description="UUID")
     tenant_id: int = Field(..., alias="tenantId", description="租户ID")
-    parent_id: Optional[int] = Field(None, alias="parentId", description="父分组ID")
-    process_route_id: Optional[int] = Field(None, alias="processRouteId", description="工艺路线ID")
-    process_route_name: Optional[str] = Field(None, alias="processRouteName", description="工艺路线名称")
+    parent_id: int | None = Field(None, alias="parentId", description="父分组ID")
+    process_route_id: int | None = Field(None, alias="processRouteId", description="工艺路线ID")
+    process_route_name: str | None = Field(None, alias="processRouteName", description="工艺路线名称")
     created_at: datetime = Field(..., alias="createdAt", description="创建时间")
     updated_at: datetime = Field(..., alias="updatedAt", description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, alias="deletedAt", description="删除时间")
+    deleted_at: datetime | None = Field(None, alias="deletedAt", description="删除时间")
     is_active: bool = Field(True, alias="isActive", description="是否启用")
     
     model_config = ConfigDict(
@@ -95,41 +95,41 @@ class MaterialGroupResponse(MaterialGroupBase):
 class MaterialBase(BaseModel):
     """物料基础 Schema"""
     
-    main_code: Optional[str] = Field(None, alias="mainCode", max_length=50, description="主编码（系统自动生成，格式：MAT-{类型}-{序号}）")
-    code: Optional[str] = Field(None, max_length=50, description="物料编码（已废弃，保留用于向后兼容，建议使用部门编码）")
+    main_code: str | None = Field(None, alias="mainCode", max_length=50, description="主编码（系统自动生成，格式：MAT-{类型}-{序号}）")
+    code: str | None = Field(None, max_length=50, description="物料编码（已废弃，保留用于向后兼容，建议使用部门编码）")
     name: str = Field(..., max_length=200, description="物料名称")
-    material_type: Optional[str] = Field(None, alias="materialType", max_length=20, description="物料类型（FIN/SEMI/RAW/PACK/AUX）")
-    group_id: Optional[int] = Field(None, alias="groupId", description="物料分组ID")
-    specification: Optional[str] = Field(None, max_length=500, description="规格")
+    material_type: str | None = Field(None, alias="materialType", max_length=20, description="物料类型（FIN/SEMI/RAW/PACK/AUX）")
+    group_id: int | None = Field(None, alias="groupId", description="物料分组ID")
+    specification: str | None = Field(None, max_length=500, description="规格")
     base_unit: str = Field(..., alias="baseUnit", max_length=20, description="基础单位")
-    units: Optional[Dict[str, Any]] = Field(None, description="多单位管理（JSON格式）")
+    units: dict[str, Any] | None = Field(None, description="多单位管理（JSON格式）")
     batch_managed: bool = Field(False, alias="batchManaged", description="是否启用批号管理")
-    default_batch_rule_id: Optional[int] = Field(None, alias="defaultBatchRuleId", description="默认批号规则ID（可选）")
+    default_batch_rule_id: int | None = Field(None, alias="defaultBatchRuleId", description="默认批号规则ID（可选）")
     serial_managed: bool = Field(False, alias="serialManaged", description="是否启用序列号管理")
-    default_serial_rule_id: Optional[int] = Field(None, alias="defaultSerialRuleId", description="默认序列号规则ID（可选）")
+    default_serial_rule_id: int | None = Field(None, alias="defaultSerialRuleId", description="默认序列号规则ID（可选）")
     variant_managed: bool = Field(False, alias="variantManaged", description="是否启用变体管理")
-    variant_attributes: Optional[Dict[str, Any]] = Field(None, alias="variantAttributes", description="变体属性（JSON格式）")
-    description: Optional[str] = Field(None, description="描述")
-    brand: Optional[str] = Field(None, max_length=100, description="品牌")
-    model: Optional[str] = Field(None, max_length=100, description="型号")
-    images: Optional[List[str]] = Field(None, description="产品图片列表")
+    variant_attributes: dict[str, Any] | None = Field(None, alias="variantAttributes", description="变体属性（JSON格式）")
+    description: str | None = Field(None, description="描述")
+    brand: str | None = Field(None, max_length=100, description="品牌")
+    model: str | None = Field(None, max_length=100, description="型号")
+    images: list[str] | None = Field(None, description="产品图片列表")
     is_active: bool = Field(True, alias="isActive", description="是否启用")
     
     # 部门编码列表（用于创建时输入）
-    department_codes: Optional[List[Dict[str, Any]]] = Field(None, alias="departmentCodes", description="部门编码列表，格式：[{'code_type': 'SALE', 'code': 'SALE-A001', 'department': '销售部'}]")
+    department_codes: list[dict[str, Any]] | None = Field(None, alias="departmentCodes", description="部门编码列表，格式：[{'code_type': 'SALE', 'code': 'SALE-A001', 'department': '销售部'}]")
     
     # 客户编码列表（用于创建时输入）
-    customer_codes: Optional[List[Dict[str, Any]]] = Field(None, alias="customerCodes", description="客户编码列表，格式：[{'customer_id': 1, 'code': 'CUST-A-PART-12345', 'description': '描述'}]")
+    customer_codes: list[dict[str, Any]] | None = Field(None, alias="customerCodes", description="客户编码列表，格式：[{'customer_id': 1, 'code': 'CUST-A-PART-12345', 'description': '描述'}]")
     
     # 供应商编码列表（用于创建时输入）
-    supplier_codes: Optional[List[Dict[str, Any]]] = Field(None, alias="supplierCodes", description="供应商编码列表，格式：[{'supplier_id': 1, 'code': 'SUP-B-MAT-67890', 'description': '描述'}]")
+    supplier_codes: list[dict[str, Any]] | None = Field(None, alias="supplierCodes", description="供应商编码列表，格式：[{'supplier_id': 1, 'code': 'SUP-B-MAT-67890', 'description': '描述'}]")
     
     # 默认值设置（用于创建时输入）
-    defaults: Optional[Dict[str, Any]] = Field(None, description="默认值设置（JSON格式），包含财务、采购、销售、库存、生产的默认值")
+    defaults: dict[str, Any] | None = Field(None, description="默认值设置（JSON格式），包含财务、采购、销售、库存、生产的默认值")
     
     # 物料来源控制（核心功能，新增）
-    source_type: Optional[str] = Field(None, alias="sourceType", max_length=20, description="物料来源类型（Make/Buy/Phantom/Outsource/Configure）：Make(自制件)、Buy(采购件)、Phantom(虚拟件)、Outsource(委外件)、Configure(配置件)")
-    source_config: Optional[Dict[str, Any]] = Field(None, alias="sourceConfig", description="物料来源相关配置（JSON格式），自制件含 manufacturing_mode（fabrication加工型/assembly装配型）、工艺路线、BOM等；采购件含供应商；委外件含委外供应商/工序；配置件含变体属性等")
+    source_type: str | None = Field(None, alias="sourceType", max_length=20, description="物料来源类型（Make/Buy/Phantom/Outsource/Configure）：Make(自制件)、Buy(采购件)、Phantom(虚拟件)、Outsource(委外件)、Configure(配置件)")
+    source_config: dict[str, Any] | None = Field(None, alias="sourceConfig", description="物料来源相关配置（JSON格式），自制件含 manufacturing_mode（fabrication加工型/assembly装配型）、工艺路线、BOM等；采购件含供应商；委外件含委外供应商/工序；配置件含变体属性等")
     
     model_config = ConfigDict(
         populate_by_name=True,  # 允许同时使用字段名和别名
@@ -168,41 +168,41 @@ class MaterialCreate(MaterialBase):
 class MaterialUpdate(BaseModel):
     """更新物料 Schema"""
     
-    code: Optional[str] = Field(None, max_length=50, description="物料编码")
-    name: Optional[str] = Field(None, max_length=200, description="物料名称")
-    group_id: Optional[int] = Field(None, description="物料分组ID")
-    process_route_id: Optional[int] = Field(None, alias="processRouteId", description="默认工艺路线ID（自制件时使用）")
-    material_type: Optional[str] = Field(None, max_length=20, description="物料类型（FIN/SEMI/RAW/PACK/AUX）")
-    specification: Optional[str] = Field(None, max_length=500, description="规格")
-    base_unit: Optional[str] = Field(None, max_length=20, description="基础单位")
-    units: Optional[Dict[str, Any]] = Field(None, description="多单位管理（JSON格式）")
-    batch_managed: Optional[bool] = Field(None, description="是否启用批号管理")
-    default_batch_rule_id: Optional[int] = Field(None, alias="defaultBatchRuleId", description="默认批号规则ID（可选）")
-    serial_managed: Optional[bool] = Field(None, description="是否启用序列号管理")
-    default_serial_rule_id: Optional[int] = Field(None, alias="defaultSerialRuleId", description="默认序列号规则ID（可选）")
-    variant_managed: Optional[bool] = Field(None, description="是否启用变体管理")
-    variant_attributes: Optional[Dict[str, Any]] = Field(None, description="变体属性（JSON格式）")
-    description: Optional[str] = Field(None, description="描述")
-    brand: Optional[str] = Field(None, max_length=100, description="品牌")
-    model: Optional[str] = Field(None, max_length=100, description="型号")
-    images: Optional[List[str]] = Field(None, description="产品图片列表")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    code: str | None = Field(None, max_length=50, description="物料编码")
+    name: str | None = Field(None, max_length=200, description="物料名称")
+    group_id: int | None = Field(None, description="物料分组ID")
+    process_route_id: int | None = Field(None, alias="processRouteId", description="默认工艺路线ID（自制件时使用）")
+    material_type: str | None = Field(None, max_length=20, description="物料类型（FIN/SEMI/RAW/PACK/AUX）")
+    specification: str | None = Field(None, max_length=500, description="规格")
+    base_unit: str | None = Field(None, max_length=20, description="基础单位")
+    units: dict[str, Any] | None = Field(None, description="多单位管理（JSON格式）")
+    batch_managed: bool | None = Field(None, description="是否启用批号管理")
+    default_batch_rule_id: int | None = Field(None, alias="defaultBatchRuleId", description="默认批号规则ID（可选）")
+    serial_managed: bool | None = Field(None, description="是否启用序列号管理")
+    default_serial_rule_id: int | None = Field(None, alias="defaultSerialRuleId", description="默认序列号规则ID（可选）")
+    variant_managed: bool | None = Field(None, description="是否启用变体管理")
+    variant_attributes: dict[str, Any] | None = Field(None, description="变体属性（JSON格式）")
+    description: str | None = Field(None, description="描述")
+    brand: str | None = Field(None, max_length=100, description="品牌")
+    model: str | None = Field(None, max_length=100, description="型号")
+    images: list[str] | None = Field(None, description="产品图片列表")
+    is_active: bool | None = Field(None, description="是否启用")
     
     # 部门编码列表（用于更新时输入）
-    department_codes: Optional[List[Dict[str, Any]]] = Field(None, description="部门编码列表")
+    department_codes: list[dict[str, Any]] | None = Field(None, description="部门编码列表")
     
     # 客户编码列表（用于更新时输入）
-    customer_codes: Optional[List[Dict[str, Any]]] = Field(None, description="客户编码列表")
+    customer_codes: list[dict[str, Any]] | None = Field(None, description="客户编码列表")
     
     # 供应商编码列表（用于更新时输入）
-    supplier_codes: Optional[List[Dict[str, Any]]] = Field(None, description="供应商编码列表")
+    supplier_codes: list[dict[str, Any]] | None = Field(None, description="供应商编码列表")
     
     # 默认值设置（用于更新时输入）
-    defaults: Optional[Dict[str, Any]] = Field(None, description="默认值设置（JSON格式）")
+    defaults: dict[str, Any] | None = Field(None, description="默认值设置（JSON格式）")
 
     # 物料来源控制（与 MaterialBase 一致，支持更新时保存）
-    source_type: Optional[str] = Field(None, alias="sourceType", max_length=20, description="物料来源类型（Make/Buy/Phantom/Outsource/Configure）")
-    source_config: Optional[Dict[str, Any]] = Field(None, alias="sourceConfig", description="物料来源相关配置（JSON格式）")
+    source_type: str | None = Field(None, alias="sourceType", max_length=20, description="物料来源类型（Make/Buy/Phantom/Outsource/Configure）")
+    source_config: dict[str, Any] | None = Field(None, alias="sourceConfig", description="物料来源相关配置（JSON格式）")
 
     model_config = ConfigDict(populate_by_name=True)
     
@@ -234,10 +234,10 @@ class MaterialCodeAliasResponse(BaseModel):
     id: int = Field(..., description="主键ID")
     code_type: str = Field(..., description="编码类型")
     code: str = Field(..., description="编码（部门编码、客户编码或供应商编码）")
-    department: Optional[str] = Field(None, description="部门名称（可选，用于部门编码）")
-    external_entity_type: Optional[str] = Field(None, description="外部实体类型（customer/supplier，用于客户编码和供应商编码）")
-    external_entity_id: Optional[int] = Field(None, description="外部实体ID（客户ID或供应商ID）")
-    description: Optional[str] = Field(None, description="描述")
+    department: str | None = Field(None, description="部门名称（可选，用于部门编码）")
+    external_entity_type: str | None = Field(None, description="外部实体类型（customer/supplier，用于客户编码和供应商编码）")
+    external_entity_id: int | None = Field(None, description="外部实体ID（客户ID或供应商ID）")
+    description: str | None = Field(None, description="描述")
     is_primary: bool = Field(False, description="是否为主要编码")
     
     model_config = ConfigDict(from_attributes=True)
@@ -251,19 +251,19 @@ class MaterialResponse(MaterialBase):
     tenant_id: int = Field(..., alias="tenantId", description="租户ID")
     # main_code 从 MaterialBase 继承，但在这里确保它是必填的（实际数据库中总是有值）
     main_code: str = Field(..., description="主编码（系统内部唯一标识）")
-    group_id: Optional[int] = Field(None, alias="groupId", description="物料分组ID")
-    process_route_id: Optional[int] = Field(None, alias="processRouteId", description="工艺路线ID")
-    process_route_name: Optional[str] = Field(None, alias="processRouteName", description="工艺路线名称")
+    group_id: int | None = Field(None, alias="groupId", description="物料分组ID")
+    process_route_id: int | None = Field(None, alias="processRouteId", description="工艺路线ID")
+    process_route_name: str | None = Field(None, alias="processRouteName", description="工艺路线名称")
     created_at: datetime = Field(..., alias="createdAt", description="创建时间")
     updated_at: datetime = Field(..., alias="updatedAt", description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, alias="deletedAt", description="删除时间")
+    deleted_at: datetime | None = Field(None, alias="deletedAt", description="删除时间")
     is_active: bool = Field(True, alias="isActive", description="是否启用")
     
     # 默认值设置（从数据库加载）
-    defaults: Optional[Dict[str, Any]] = Field(None, description="默认值设置（JSON格式）")
+    defaults: dict[str, Any] | None = Field(None, description="默认值设置（JSON格式）")
     
     # 编码别名列表（可选，需要时加载）
-    code_aliases: Optional[List[MaterialCodeAliasResponse]] = Field(None, description="编码别名列表")
+    code_aliases: list[MaterialCodeAliasResponse] | None = Field(None, description="编码别名列表")
     
     model_config = ConfigDict(
         from_attributes=True,
@@ -282,8 +282,8 @@ class MaterialTreeResponse(MaterialResponse):
 class MaterialGroupTreeResponse(MaterialGroupResponse):
     """物料分组树形响应 Schema（用于级联查询）"""
     
-    children: List["MaterialGroupTreeResponse"] = Field(default_factory=list, alias="children", description="子分组列表")
-    materials: List[MaterialTreeResponse] = Field(default_factory=list, alias="materials", description="物料列表")
+    children: list["MaterialGroupTreeResponse"] = Field(default_factory=list, alias="children", description="子分组列表")
+    materials: list[MaterialTreeResponse] = Field(default_factory=list, alias="materials", description="物料列表")
     
     model_config = ConfigDict(
         from_attributes=True,
@@ -302,7 +302,7 @@ class BOMBase(BaseModel):
     material_id: int = Field(..., description="主物料ID（父件）")
     component_id: int = Field(..., description="子物料ID（子件）")
     quantity: Decimal = Field(..., description="用量（必填，数字）")
-    unit: Optional[str] = Field(None, max_length=20, description="单位（可选，如：个、kg、m等）")
+    unit: str | None = Field(None, max_length=20, description="单位（可选，如：个、kg、m等）")
     
     # 损耗率和必选标识（根据优化设计规范新增）
     waste_rate: Decimal = Field(
@@ -313,16 +313,16 @@ class BOMBase(BaseModel):
     
     # 层级信息（用于多层级BOM展开，根据优化设计规范新增）
     level: int = Field(default=0, description="层级深度（0为顶层，用于多层级BOM展开）")
-    path: Optional[str] = Field(None, max_length=500, description="层级路径（如：1/2/3，用于快速查询和排序）")
+    path: str | None = Field(None, max_length=500, description="层级路径（如：1/2/3，用于快速查询和排序）")
     
     # 版本控制
     version: str = Field("1.0", max_length=50, description="BOM版本号")
-    bom_code: Optional[str] = Field(None, max_length=100, description="BOM编码")
+    bom_code: str | None = Field(None, max_length=100, description="BOM编码")
     is_default: bool = Field(False, description="是否为默认版本（每个物料至多一个）")
     
     # 有效期管理
-    effective_date: Optional[datetime] = Field(None, description="生效日期")
-    expiry_date: Optional[datetime] = Field(None, description="失效日期")
+    effective_date: datetime | None = Field(None, description="生效日期")
+    expiry_date: datetime | None = Field(None, description="失效日期")
     
     # 审核管理
     approval_status: str = Field(
@@ -330,18 +330,18 @@ class BOMBase(BaseModel):
         max_length=20,
         description="审核状态：draft(草稿), pending(待审核), approved(已审核), rejected(已拒绝)"
     )
-    approved_by: Optional[int] = Field(None, description="审核人ID")
-    approved_at: Optional[datetime] = Field(None, description="审核时间")
-    approval_comment: Optional[str] = Field(None, description="审核意见")
+    approved_by: int | None = Field(None, description="审核人ID")
+    approved_at: datetime | None = Field(None, description="审核时间")
+    approval_comment: str | None = Field(None, description="审核意见")
     
     # 替代料管理
     is_alternative: bool = Field(False, description="是否为替代料")
-    alternative_group_id: Optional[int] = Field(None, description="替代料组ID")
+    alternative_group_id: int | None = Field(None, description="替代料组ID")
     priority: int = Field(0, description="优先级（数字越小优先级越高）")
     
     # 扩展信息
-    description: Optional[str] = Field(None, description="描述")
-    remark: Optional[str] = Field(None, description="备注")
+    description: str | None = Field(None, description="描述")
+    remark: str | None = Field(None, description="备注")
     is_active: bool = Field(True, description="是否启用")
     
     @validator("quantity")
@@ -387,50 +387,50 @@ class BOMUpdate(BaseModel):
     
     model_config = ConfigDict(populate_by_name=True)
     
-    material_id: Optional[int] = Field(None, description="主物料ID（父件）")
-    component_id: Optional[int] = Field(None, description="子物料ID（子件）")
-    quantity: Optional[Decimal] = Field(None, description="用量（必填，数字）")
-    unit: Optional[str] = Field(None, max_length=20, description="单位（可选，如：个、kg、m等）")
+    material_id: int | None = Field(None, description="主物料ID（父件）")
+    component_id: int | None = Field(None, description="子物料ID（子件）")
+    quantity: Decimal | None = Field(None, description="用量（必填，数字）")
+    unit: str | None = Field(None, max_length=20, description="单位（可选，如：个、kg、m等）")
     
     # 损耗率和必选标识（根据优化设计规范新增）
-    waste_rate: Optional[Decimal] = Field(
+    waste_rate: Decimal | None = Field(
         None,
         description="损耗率（百分比，如：5.00表示5%，用于计算实际用料数量）"
     )
-    is_required: Optional[bool] = Field(None, description="是否必选（是/否，默认：是）")
+    is_required: bool | None = Field(None, description="是否必选（是/否，默认：是）")
     
     # 层级信息（用于多层级BOM展开，根据优化设计规范新增）
-    level: Optional[int] = Field(None, description="层级深度（0为顶层，用于多层级BOM展开）")
-    path: Optional[str] = Field(None, max_length=500, description="层级路径（如：1/2/3，用于快速查询和排序）")
+    level: int | None = Field(None, description="层级深度（0为顶层，用于多层级BOM展开）")
+    path: str | None = Field(None, max_length=500, description="层级路径（如：1/2/3，用于快速查询和排序）")
     
     # 版本控制
-    version: Optional[str] = Field(None, max_length=50, description="BOM版本号")
-    bom_code: Optional[str] = Field(None, max_length=100, description="BOM编码")
-    is_default: Optional[bool] = Field(None, alias="isDefault", description="是否为默认版本")
+    version: str | None = Field(None, max_length=50, description="BOM版本号")
+    bom_code: str | None = Field(None, max_length=100, description="BOM编码")
+    is_default: bool | None = Field(None, alias="isDefault", description="是否为默认版本")
     
     # 有效期管理
-    effective_date: Optional[datetime] = Field(None, description="生效日期")
-    expiry_date: Optional[datetime] = Field(None, description="失效日期")
+    effective_date: datetime | None = Field(None, description="生效日期")
+    expiry_date: datetime | None = Field(None, description="失效日期")
     
     # 审核管理
-    approval_status: Optional[str] = Field(
+    approval_status: str | None = Field(
         None,
         max_length=20,
         description="审核状态：draft(草稿), pending(待审核), approved(已审核), rejected(已拒绝)"
     )
-    approved_by: Optional[int] = Field(None, description="审核人ID")
-    approved_at: Optional[datetime] = Field(None, description="审核时间")
-    approval_comment: Optional[str] = Field(None, description="审核意见")
+    approved_by: int | None = Field(None, description="审核人ID")
+    approved_at: datetime | None = Field(None, description="审核时间")
+    approval_comment: str | None = Field(None, description="审核意见")
     
     # 替代料管理
-    is_alternative: Optional[bool] = Field(None, description="是否为替代料")
-    alternative_group_id: Optional[int] = Field(None, description="替代料组ID")
-    priority: Optional[int] = Field(None, description="优先级")
+    is_alternative: bool | None = Field(None, description="是否为替代料")
+    alternative_group_id: int | None = Field(None, description="替代料组ID")
+    priority: int | None = Field(None, description="优先级")
     
     # 扩展信息
-    description: Optional[str] = Field(None, description="描述")
-    remark: Optional[str] = Field(None, description="备注")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    description: str | None = Field(None, description="描述")
+    remark: str | None = Field(None, description="备注")
+    is_active: bool | None = Field(None, description="是否启用")
     
     @validator("quantity")
     def validate_quantity(cls, v):
@@ -472,7 +472,7 @@ class BOMResponse(BOMBase):
     tenant_id: int = Field(..., description="租户ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, description="删除时间")
+    deleted_at: datetime | None = Field(None, description="删除时间")
     
     class Config:
         from_attributes = True
@@ -487,7 +487,7 @@ class BOMItemCreate(BaseModel):
     
     component_id: int = Field(..., description="子物料ID")
     quantity: Decimal = Field(..., description="用量（必填，数字）")
-    unit: Optional[str] = Field(None, max_length=20, description="单位（可选，如：个、kg、m等）")
+    unit: str | None = Field(None, max_length=20, description="单位（可选，如：个、kg、m等）")
     
     # 损耗率和必选标识（根据优化设计规范新增）
     waste_rate: Decimal = Field(
@@ -497,10 +497,10 @@ class BOMItemCreate(BaseModel):
     is_required: bool = Field(default=True, description="是否必选（是/否，默认：是）")
     
     is_alternative: bool = Field(False, description="是否为替代料")
-    alternative_group_id: Optional[int] = Field(None, description="替代料组ID")
+    alternative_group_id: int | None = Field(None, description="替代料组ID")
     priority: int = Field(0, description="优先级（数字越小优先级越高）")
-    description: Optional[str] = Field(None, description="描述")
-    remark: Optional[str] = Field(None, description="备注")
+    description: str | None = Field(None, description="描述")
+    remark: str | None = Field(None, description="备注")
     
     @validator("quantity")
     def validate_quantity(cls, v):
@@ -528,15 +528,15 @@ class BOMBatchCreate(BaseModel):
     """批量创建BOM Schema"""
     
     material_id: int = Field(..., description="主物料ID")
-    items: List[BOMItemCreate] = Field(..., min_items=1, description="子物料项列表")
+    items: list[BOMItemCreate] = Field(..., min_items=1, description="子物料项列表")
     
     # 版本控制
     version: str = Field("1.0", max_length=50, description="BOM版本号")
-    bom_code: Optional[str] = Field(None, max_length=100, description="BOM编码")
+    bom_code: str | None = Field(None, max_length=100, description="BOM编码")
     
     # 有效期管理
-    effective_date: Optional[datetime] = Field(None, description="生效日期")
-    expiry_date: Optional[datetime] = Field(None, description="失效日期")
+    effective_date: datetime | None = Field(None, description="生效日期")
+    expiry_date: datetime | None = Field(None, description="失效日期")
     
     # 审核管理
     approval_status: str = Field(
@@ -546,8 +546,8 @@ class BOMBatchCreate(BaseModel):
     )
     
     # 扩展信息
-    description: Optional[str] = Field(None, description="描述")
-    remark: Optional[str] = Field(None, description="备注")
+    description: str | None = Field(None, description="描述")
+    remark: str | None = Field(None, description="备注")
     is_active: bool = Field(True, description="是否启用")
     
     @validator("items")
@@ -591,10 +591,10 @@ class BOMBatchImportItem(BaseModel):
     parent_code: str = Field(..., description="父件编码（支持任意部门编码：SALE-A001、DES-A001、主编码MAT-FIN-0001）")
     component_code: str = Field(..., description="子件编码（支持任意部门编码：PROD-A001、主编码MAT-SEMI-0001）")
     quantity: Decimal = Field(..., description="子件数量（必填，数字）")
-    unit: Optional[str] = Field(None, description="子件单位（可选，如：个、kg、m等）")
-    waste_rate: Optional[Decimal] = Field(None, description="损耗率（可选，百分比，如：5%表示5.00）")
-    is_required: Optional[bool] = Field(True, description="是否必选（可选，是/否，默认：是）")
-    remark: Optional[str] = Field(None, description="备注（可选）")
+    unit: str | None = Field(None, description="子件单位（可选，如：个、kg、m等）")
+    waste_rate: Decimal | None = Field(None, description="损耗率（可选，百分比，如：5%表示5.00）")
+    is_required: bool | None = Field(True, description="是否必选（可选，是/否，默认：是）")
+    remark: str | None = Field(None, description="备注（可选）")
     
     @validator("quantity")
     def validate_quantity(cls, v):
@@ -619,11 +619,11 @@ class BOMBatchImport(BaseModel):
     支持使用任意部门编码，系统自动映射到主编码。
     """
     
-    items: List[BOMBatchImportItem] = Field(..., min_items=1, description="BOM导入项列表")
-    version: Optional[str] = Field("1.0", max_length=50, description="BOM版本号（可选，默认：1.0）")
-    bom_code: Optional[str] = Field(None, max_length=100, description="BOM编码（可选）")
-    effective_date: Optional[datetime] = Field(None, description="生效日期（可选）")
-    description: Optional[str] = Field(None, description="描述（可选）")
+    items: list[BOMBatchImportItem] = Field(..., min_items=1, description="BOM导入项列表")
+    version: str | None = Field("1.0", max_length=50, description="BOM版本号（可选，默认：1.0）")
+    bom_code: str | None = Field(None, max_length=100, description="BOM编码（可选）")
+    effective_date: datetime | None = Field(None, description="生效日期（可选）")
+    description: str | None = Field(None, description="描述（可选）")
     
     @validator("items")
     def validate_items(cls, v):
@@ -641,8 +641,8 @@ class BOMVersionCreate(BaseModel):
     """
     
     version: str = Field(..., max_length=50, description="版本号（如：v1.1）")
-    version_description: Optional[str] = Field(None, description="版本说明")
-    effective_date: Optional[datetime] = Field(None, description="生效日期（可选）")
+    version_description: str | None = Field(None, description="版本说明")
+    effective_date: datetime | None = Field(None, description="生效日期（可选）")
     apply_strategy: str = Field(
         "new_only",
         description="版本应用策略：new_only（仅新工单使用新版本，推荐）或 all（所有工单使用新版本，谨慎使用）"
@@ -677,7 +677,7 @@ class MaterialCodeMappingBase(BaseModel):
     internal_code: str = Field(..., max_length=50, description="内部编码（物料编码）")
     external_code: str = Field(..., max_length=100, description="外部编码（外部系统的编码）")
     external_system: str = Field(..., max_length=50, description="外部系统名称（如：ERP、WMS、MES等）")
-    description: Optional[str] = Field(None, description="描述")
+    description: str | None = Field(None, description="描述")
     is_active: bool = Field(True, description="是否启用")
     
     @validator("internal_code")
@@ -710,12 +710,12 @@ class MaterialCodeMappingCreate(MaterialCodeMappingBase):
 class MaterialCodeMappingUpdate(BaseModel):
     """更新物料编码映射 Schema"""
     
-    material_uuid: Optional[str] = Field(None, description="物料UUID（关联内部物料）")
-    internal_code: Optional[str] = Field(None, max_length=50, description="内部编码（物料编码）")
-    external_code: Optional[str] = Field(None, max_length=100, description="外部编码（外部系统的编码）")
-    external_system: Optional[str] = Field(None, max_length=50, description="外部系统名称（如：ERP、WMS、MES等）")
-    description: Optional[str] = Field(None, description="描述")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    material_uuid: str | None = Field(None, description="物料UUID（关联内部物料）")
+    internal_code: str | None = Field(None, max_length=50, description="内部编码（物料编码）")
+    external_code: str | None = Field(None, max_length=100, description="外部编码（外部系统的编码）")
+    external_system: str | None = Field(None, max_length=50, description="外部系统名称（如：ERP、WMS、MES等）")
+    description: str | None = Field(None, description="描述")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class MaterialCodeMappingResponse(MaterialCodeMappingBase):
@@ -727,7 +727,7 @@ class MaterialCodeMappingResponse(MaterialCodeMappingBase):
     material_id: int = Field(..., description="物料ID（内部使用）")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, description="删除时间")
+    deleted_at: datetime | None = Field(None, description="删除时间")
     
     model_config = ConfigDict(
         from_attributes=True,
@@ -739,7 +739,7 @@ class MaterialCodeMappingResponse(MaterialCodeMappingBase):
 class MaterialCodeMappingListResponse(BaseModel):
     """物料编码映射列表响应 Schema"""
     
-    items: List[MaterialCodeMappingResponse] = Field(..., description="映射列表")
+    items: list[MaterialCodeMappingResponse] = Field(..., description="映射列表")
     total: int = Field(..., description="总数")
 
 
@@ -766,12 +766,12 @@ class MaterialBatchBase(BaseModel):
     
     material_uuid: str = Field(..., description="物料UUID")
     batch_no: str = Field(..., max_length=100, description="批号（必填，同一物料下唯一）")
-    production_date: Optional[date] = Field(None, description="生产日期（可选）")
-    expiry_date: Optional[date] = Field(None, description="有效期（可选，用于有保质期的物料）")
-    supplier_batch_no: Optional[str] = Field(None, max_length=100, description="供应商批号（可选）")
+    production_date: date | None = Field(None, description="生产日期（可选）")
+    expiry_date: date | None = Field(None, description="有效期（可选，用于有保质期的物料）")
+    supplier_batch_no: str | None = Field(None, max_length=100, description="供应商批号（可选）")
     quantity: Decimal = Field(0, description="批号数量（当前库存数量）")
     status: str = Field("in_stock", description="批号状态（在库、已出库、已过期、已报废等）")
-    remark: Optional[str] = Field(None, description="备注（可选）")
+    remark: str | None = Field(None, description="备注（可选）")
 
 
 class MaterialBatchCreate(MaterialBatchBase):
@@ -782,12 +782,12 @@ class MaterialBatchCreate(MaterialBatchBase):
 class MaterialBatchUpdate(BaseModel):
     """更新物料批号 Schema"""
     
-    production_date: Optional[date] = Field(None, description="生产日期（可选）")
-    expiry_date: Optional[date] = Field(None, description="有效期（可选）")
-    supplier_batch_no: Optional[str] = Field(None, max_length=100, description="供应商批号（可选）")
-    quantity: Optional[Decimal] = Field(None, description="批号数量（当前库存数量）")
-    status: Optional[str] = Field(None, description="批号状态")
-    remark: Optional[str] = Field(None, description="备注（可选）")
+    production_date: date | None = Field(None, description="生产日期（可选）")
+    expiry_date: date | None = Field(None, description="有效期（可选）")
+    supplier_batch_no: str | None = Field(None, max_length=100, description="供应商批号（可选）")
+    quantity: Decimal | None = Field(None, description="批号数量（当前库存数量）")
+    status: str | None = Field(None, description="批号状态")
+    remark: str | None = Field(None, description="备注（可选）")
 
 
 class MaterialBatchResponse(MaterialBatchBase):
@@ -797,10 +797,10 @@ class MaterialBatchResponse(MaterialBatchBase):
     uuid: str = Field(..., description="UUID")
     tenant_id: int = Field(..., alias="tenantId", description="租户ID")
     material_id: int = Field(..., alias="materialId", description="物料ID")
-    material_name: Optional[str] = Field(None, alias="materialName", description="物料名称")
+    material_name: str | None = Field(None, alias="materialName", description="物料名称")
     created_at: datetime = Field(..., alias="createdAt", description="创建时间")
     updated_at: datetime = Field(..., alias="updatedAt", description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, alias="deletedAt", description="删除时间")
+    deleted_at: datetime | None = Field(None, alias="deletedAt", description="删除时间")
     
     model_config = ConfigDict(
         from_attributes=True,
@@ -812,7 +812,7 @@ class MaterialBatchResponse(MaterialBatchBase):
 class MaterialBatchListResponse(BaseModel):
     """物料批号列表响应 Schema"""
     
-    items: List[MaterialBatchResponse] = Field(..., description="批号列表")
+    items: list[MaterialBatchResponse] = Field(..., description="批号列表")
     total: int = Field(..., description="总数")
 
 
@@ -823,11 +823,11 @@ class MaterialSerialBase(BaseModel):
     
     material_uuid: str = Field(..., description="物料UUID")
     serial_no: str = Field(..., max_length=100, description="序列号（必填，全局唯一）")
-    production_date: Optional[date] = Field(None, description="生产日期（可选）")
-    factory_date: Optional[date] = Field(None, description="出厂日期（可选）")
-    supplier_serial_no: Optional[str] = Field(None, max_length=100, description="供应商序列号（可选）")
+    production_date: date | None = Field(None, description="生产日期（可选）")
+    factory_date: date | None = Field(None, description="出厂日期（可选）")
+    supplier_serial_no: str | None = Field(None, max_length=100, description="供应商序列号（可选）")
     status: str = Field("in_stock", description="序列号状态（在库、已出库、已销售、已报废、已退货等）")
-    remark: Optional[str] = Field(None, description="备注（可选）")
+    remark: str | None = Field(None, description="备注（可选）")
 
 
 class MaterialSerialCreate(MaterialSerialBase):
@@ -838,11 +838,11 @@ class MaterialSerialCreate(MaterialSerialBase):
 class MaterialSerialUpdate(BaseModel):
     """更新物料序列号 Schema"""
     
-    production_date: Optional[date] = Field(None, description="生产日期（可选）")
-    factory_date: Optional[date] = Field(None, description="出厂日期（可选）")
-    supplier_serial_no: Optional[str] = Field(None, max_length=100, description="供应商序列号（可选）")
-    status: Optional[str] = Field(None, description="序列号状态")
-    remark: Optional[str] = Field(None, description="备注（可选）")
+    production_date: date | None = Field(None, description="生产日期（可选）")
+    factory_date: date | None = Field(None, description="出厂日期（可选）")
+    supplier_serial_no: str | None = Field(None, max_length=100, description="供应商序列号（可选）")
+    status: str | None = Field(None, description="序列号状态")
+    remark: str | None = Field(None, description="备注（可选）")
 
 
 class MaterialSerialResponse(MaterialSerialBase):
@@ -852,10 +852,10 @@ class MaterialSerialResponse(MaterialSerialBase):
     uuid: str = Field(..., description="UUID")
     tenant_id: int = Field(..., alias="tenantId", description="租户ID")
     material_id: int = Field(..., alias="materialId", description="物料ID")
-    material_name: Optional[str] = Field(None, alias="materialName", description="物料名称")
+    material_name: str | None = Field(None, alias="materialName", description="物料名称")
     created_at: datetime = Field(..., alias="createdAt", description="创建时间")
     updated_at: datetime = Field(..., alias="updatedAt", description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, alias="deletedAt", description="删除时间")
+    deleted_at: datetime | None = Field(None, alias="deletedAt", description="删除时间")
     
     model_config = ConfigDict(
         from_attributes=True,
@@ -867,5 +867,5 @@ class MaterialSerialResponse(MaterialSerialBase):
 class MaterialSerialListResponse(BaseModel):
     """物料序列号列表响应 Schema"""
     
-    items: List[MaterialSerialResponse] = Field(..., description="序列号列表")
+    items: list[MaterialSerialResponse] = Field(..., description="序列号列表")
     total: int = Field(..., description="总数")

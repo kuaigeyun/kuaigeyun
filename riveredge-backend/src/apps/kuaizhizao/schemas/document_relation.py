@@ -16,21 +16,21 @@ class DocumentRelationBase(BaseModel):
     """单据关联关系基础Schema"""
     source_type: str = Field(..., max_length=50, description="源单据类型")
     source_id: int = Field(..., description="源单据ID")
-    source_code: Optional[str] = Field(None, max_length=50, description="源单据编码")
-    source_name: Optional[str] = Field(None, max_length=200, description="源单据名称")
+    source_code: str | None = Field(None, max_length=50, description="源单据编码")
+    source_name: str | None = Field(None, max_length=200, description="源单据名称")
     
     target_type: str = Field(..., max_length=50, description="目标单据类型")
     target_id: int = Field(..., description="目标单据ID")
-    target_code: Optional[str] = Field(None, max_length=50, description="目标单据编码")
-    target_name: Optional[str] = Field(None, max_length=200, description="目标单据名称")
+    target_code: str | None = Field(None, max_length=50, description="目标单据编码")
+    target_name: str | None = Field(None, max_length=200, description="目标单据名称")
     
     relation_type: str = Field(..., max_length=20, description="关联类型（source/target）")
     relation_mode: str = Field("push", max_length=20, description="关联方式（push/pull/manual）")
-    relation_desc: Optional[str] = Field(None, max_length=200, description="关联描述")
+    relation_desc: str | None = Field(None, max_length=200, description="关联描述")
     
-    business_mode: Optional[str] = Field(None, max_length=20, description="业务模式（MTS/MTO）")
-    demand_id: Optional[int] = Field(None, description="关联的需求ID")
-    notes: Optional[str] = Field(None, description="备注")
+    business_mode: str | None = Field(None, max_length=20, description="业务模式（MTS/MTO）")
+    demand_id: int | None = Field(None, description="关联的需求ID")
+    notes: str | None = Field(None, description="备注")
     
     @field_validator("relation_type")
     def validate_relation_type(cls, v):
@@ -59,7 +59,7 @@ class DocumentRelationResponse(DocumentRelationBase):
     tenant_id: int
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[int]
+    created_by: int | None
     
     class Config:
         from_attributes = True
@@ -67,24 +67,24 @@ class DocumentRelationResponse(DocumentRelationBase):
 
 class DocumentRelationListResponse(BaseModel):
     """单据关联关系列表响应Schema"""
-    upstream: List[DocumentRelationResponse] = Field(default_factory=list, description="上游单据列表")
-    downstream: List[DocumentRelationResponse] = Field(default_factory=list, description="下游单据列表")
+    upstream: list[DocumentRelationResponse] = Field(default_factory=list, description="上游单据列表")
+    downstream: list[DocumentRelationResponse] = Field(default_factory=list, description="下游单据列表")
 
 
 class DocumentRef(BaseModel):
     """单据引用（用于关联关系API）"""
     document_type: str = Field(..., description="单据类型")
     document_id: int = Field(..., description="单据ID")
-    document_code: Optional[str] = Field(None, description="单据编码")
-    document_name: Optional[str] = Field(None, description="单据名称")
+    document_code: str | None = Field(None, description="单据编码")
+    document_name: str | None = Field(None, description="单据名称")
 
 
 class GetDocumentRelationsResponse(BaseModel):
     """获取单据关联关系API响应Schema"""
     document_type: str = Field(..., description="单据类型")
     document_id: int = Field(..., description="单据ID")
-    upstream_documents: List[DocumentRef] = Field(default_factory=list, description="上游单据列表")
-    downstream_documents: List[DocumentRef] = Field(default_factory=list, description="下游单据列表")
+    upstream_documents: list[DocumentRef] = Field(default_factory=list, description="上游单据列表")
+    downstream_documents: list[DocumentRef] = Field(default_factory=list, description="下游单据列表")
     upstream_count: int = Field(0, description="上游单据数量")
     downstream_count: int = Field(0, description="下游单据数量")
 
@@ -93,20 +93,20 @@ class DocumentTraceNode(BaseModel):
     """单据追溯节点"""
     document_type: str = Field(..., description="单据类型")
     document_id: int = Field(..., description="单据ID")
-    document_code: Optional[str] = Field(None, description="单据编码")
-    document_name: Optional[str] = Field(None, description="单据名称")
+    document_code: str | None = Field(None, description="单据编码")
+    document_name: str | None = Field(None, description="单据名称")
     level: int = Field(..., description="层级（从根节点开始的层级）")
-    children: List["DocumentTraceNode"] = Field(default_factory=list, description="子节点（下游或上游）")
+    children: list["DocumentTraceNode"] = Field(default_factory=list, description="子节点（下游或上游）")
 
 
 class DocumentTraceResponse(BaseModel):
     """单据追溯响应Schema"""
     document_type: str = Field(..., description="根单据类型")
     document_id: int = Field(..., description="根单据ID")
-    document_code: Optional[str] = Field(None, description="根单据编码")
-    document_name: Optional[str] = Field(None, description="根单据名称")
-    upstream_chain: List[DocumentTraceNode] = Field(default_factory=list, description="上游追溯链")
-    downstream_chain: List[DocumentTraceNode] = Field(default_factory=list, description="下游追溯链")
+    document_code: str | None = Field(None, description="根单据编码")
+    document_name: str | None = Field(None, description="根单据名称")
+    upstream_chain: list[DocumentTraceNode] = Field(default_factory=list, description="上游追溯链")
+    downstream_chain: list[DocumentTraceNode] = Field(default_factory=list, description="下游追溯链")
 
 
 # === 变更影响（排程管理增强） ===
@@ -114,16 +114,16 @@ class DocumentTraceResponse(BaseModel):
 class ChangeImpactItem(BaseModel):
     """变更影响项"""
     id: int = Field(..., description="单据ID")
-    code: Optional[str] = Field(None, description="单据编码")
-    name: Optional[str] = Field(None, description="单据名称")
-    status: Optional[str] = Field(None, description="状态")
+    code: str | None = Field(None, description="单据编码")
+    name: str | None = Field(None, description="单据名称")
+    status: str | None = Field(None, description="状态")
 
 
 class ChangeImpactResponse(BaseModel):
     """上游变更影响响应Schema"""
     upstream_change: dict = Field(..., description="上游变更单据信息")
-    affected_demands: List[ChangeImpactItem] = Field(default_factory=list, description="受影响的需求")
-    affected_computations: List[ChangeImpactItem] = Field(default_factory=list, description="受影响的需求计算")
-    affected_plans: List[ChangeImpactItem] = Field(default_factory=list, description="受影响的生产计划")
-    affected_work_orders: List[ChangeImpactItem] = Field(default_factory=list, description="受影响的工单")
-    recommended_actions: List[str] = Field(default_factory=list, description="建议操作")
+    affected_demands: list[ChangeImpactItem] = Field(default_factory=list, description="受影响的需求")
+    affected_computations: list[ChangeImpactItem] = Field(default_factory=list, description="受影响的需求计算")
+    affected_plans: list[ChangeImpactItem] = Field(default_factory=list, description="受影响的生产计划")
+    affected_work_orders: list[ChangeImpactItem] = Field(default_factory=list, description="受影响的工单")
+    recommended_actions: list[str] = Field(default_factory=list, description="建议操作")

@@ -92,9 +92,9 @@ async def create_dictionary(
 async def list_dictionaries(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=1000, description="每页数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
-    name: Optional[str] = Query(None, description="字典名称（模糊搜索）"),
-    code: Optional[str] = Query(None, description="字典代码（模糊搜索）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
+    name: str | None = Query(None, description="字典名称（模糊搜索）"),
+    code: str | None = Query(None, description="字典代码（模糊搜索）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -322,10 +322,10 @@ async def create_item(
         )
 
 
-@router.get("/{dictionary_uuid}/items", response_model=List[DictionaryItemResponse])
+@router.get("/{dictionary_uuid}/items", response_model=list[DictionaryItemResponse])
 async def list_items(
     dictionary_uuid: str,
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

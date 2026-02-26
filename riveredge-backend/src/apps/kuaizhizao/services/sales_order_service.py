@@ -52,8 +52,8 @@ class SalesOrderService:
         to_state: str,
         operator_id: int,
         operator_name: str,
-        reason: Optional[str] = None,
-        reason_extra: Optional[str] = None,
+        reason: str | None = None,
+        reason_extra: str | None = None,
     ) -> None:
         """写入状态流转日志，供单据操作记录展示。表不存在时静默跳过，避免阻塞主流程。"""
         try:
@@ -75,13 +75,13 @@ class SalesOrderService:
     def _order_to_response(
         self,
         order: SalesOrder,
-        items: Optional[List[SalesOrderItem]] = None,
-        demand: Optional[Demand] = None,
-        duration_info: Optional[dict] = None,
-        delivery_progress: Optional[float] = None,
-        invoice_progress: Optional[float] = None,
-        material_code_fallback: Optional[Dict[int, str]] = None,
-        material_fallback: Optional[Dict[int, Dict[str, Any]]] = None,
+        items: list[SalesOrderItem] | None = None,
+        demand: Demand | None = None,
+        duration_info: dict | None = None,
+        delivery_progress: float | None = None,
+        invoice_progress: float | None = None,
+        material_code_fallback: dict[int, str] | None = None,
+        material_fallback: dict[int, dict[str, Any]] | None = None,
     ) -> SalesOrderResponse:
         """将 SalesOrder 转为 SalesOrderResponse"""
         from apps.kuaizhizao.services.document_lifecycle_service import get_sales_order_lifecycle
@@ -189,7 +189,7 @@ class SalesOrderService:
 
     async def _get_linked_demand(
         self, tenant_id: int, sales_order_id: int
-    ) -> Optional[Demand]:
+    ) -> Demand | None:
         """获取与销售订单关联的 Demand（下推时生成）"""
         return await Demand.get_or_none(
             tenant_id=tenant_id,
@@ -221,7 +221,7 @@ class SalesOrderService:
         """判断是否已审核（兼容中英文状态）"""
         return status in LEGACY_AUDITED_VALUES or status == DemandStatus.AUDITED
 
-    def _is_review_approved(self, review_status: Optional[str]) -> bool:
+    def _is_review_approved(self, review_status: str | None) -> bool:
         """判断 review_status 是否已审核通过（与 document_lifecycle _is_approved 一致）"""
         r = (review_status or "").strip()
         return r in ("APPROVED", "审核通过", "通过", "已通过", "已审核")
@@ -230,7 +230,7 @@ class SalesOrderService:
         """判断是否草稿（兼容中英文状态）"""
         return status in (DemandStatus.DRAFT, "DRAFT", "草稿")
 
-    async def _generate_order_code(self, tenant_id: int, order_date: Optional[date]) -> str:
+    async def _generate_order_code(self, tenant_id: int, order_date: date | None) -> str:
         """生成销售订单编码"""
         from core.config.code_rule_pages import CODE_RULE_PAGES
         from core.services.business.code_generation_service import CodeGenerationService
@@ -348,8 +348,8 @@ class SalesOrderService:
             order = await SalesOrder.get(tenant_id=tenant_id, id=sales_order_id)
 
         items = None
-        material_code_fallback: Dict[int, str] = {}
-        material_fallback: Dict[int, Dict[str, Any]] = {}
+        material_code_fallback: dict[int, str] = {}
+        material_fallback: dict[int, dict[str, Any]] = {}
         if include_items:
             items = await SalesOrderItem.filter(
                 tenant_id=tenant_id, sales_order_id=sales_order_id
@@ -395,12 +395,12 @@ class SalesOrderService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        status: Optional[str] = None,
-        review_status: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        customer_name: Optional[str] = None,
-        order_by: Optional[str] = None,
+        status: str | None = None,
+        review_status: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        customer_name: str | None = None,
+        order_by: str | None = None,
         include_items: bool = False,
     ) -> SalesOrderListResponse:
         """获取销售订单列表。order_by 如 order_code、-created_at（前缀-表示降序）"""
@@ -448,10 +448,10 @@ class SalesOrderService:
             source_id__in=order_ids,
             deleted_at__isnull=True,
         ).all()
-        demand_by_order: Dict[int, Demand] = {d.source_id: d for d in demands}
+        demand_by_order: dict[int, Demand] = {d.source_id: d for d in demands}
 
         # 3. 批量查询 SalesOrderItem
-        items_by_order: Dict[int, List[SalesOrderItem]] = {}
+        items_by_order: dict[int, list[SalesOrderItem]] = {}
         if include_items:
             all_items = await SalesOrderItem.filter(
                 tenant_id=tenant_id,
@@ -471,8 +471,8 @@ class SalesOrderService:
                 )
 
         # 4. 批量 Material 补全（仅 include_items 时）
-        material_code_fallback_all: Dict[int, Dict[int, str]] = {}
-        material_fallback_all: Dict[int, Dict[int, Dict[str, Any]]] = {}
+        material_code_fallback_all: dict[int, dict[int, str]] = {}
+        material_fallback_all: dict[int, dict[int, dict[str, Any]]] = {}
         if include_items:
             need_fallback_ids: set = set()
             for oid, items in items_by_order.items():
@@ -489,10 +489,10 @@ class SalesOrderService:
                 materials = await Material.filter(
                     id__in=list(need_fallback_ids), deleted_at__isnull=True
                 ).all()
-                material_by_id: Dict[int, Any] = {m.id: m for m in materials}
+                material_by_id: dict[int, Any] = {m.id: m for m in materials}
                 for oid, items in items_by_order.items():
-                    fallback: Dict[int, str] = {}
-                    mat_fallback: Dict[int, Dict[str, Any]] = {}
+                    fallback: dict[int, str] = {}
+                    mat_fallback: dict[int, dict[str, Any]] = {}
                     for it in items:
                         if not it.material_id or it.material_id not in material_by_id:
                             continue
@@ -521,11 +521,11 @@ class SalesOrderService:
             deleted_at__isnull=True,
         ).values_list("id", "sales_order_id")
         delivery_ids = [d[0] for d in deliveries]
-        order_to_deliveries: Dict[int, List[int]] = {}
+        order_to_deliveries: dict[int, list[int]] = {}
         for did, oid in deliveries:
             order_to_deliveries.setdefault(oid, []).append(did)
 
-        invoiced_by_order: Dict[int, Decimal] = {}
+        invoiced_by_order: dict[int, Decimal] = {}
         if delivery_ids:
             receivables = await Receivable.filter(
                 tenant_id=tenant_id,
@@ -534,7 +534,7 @@ class SalesOrderService:
                 invoice_issued=True,
                 deleted_at__isnull=True,
             ).values_list("source_id", "total_amount")
-            delivery_to_invoiced: Dict[int, Decimal] = {}
+            delivery_to_invoiced: dict[int, Decimal] = {}
             for did, amt in receivables:
                 delivery_to_invoiced[did] = delivery_to_invoiced.get(did, Decimal("0")) + Decimal(str(amt or 0))
             for oid, dids in order_to_deliveries.items():
@@ -546,14 +546,14 @@ class SalesOrderService:
             items = items_by_order.get(order.id) or []
             items_for_response = items if include_items else None
 
-            delivery_progress: Optional[float] = None
+            delivery_progress: float | None = None
             if items:
                 total_qty = sum(Decimal(str(getattr(it, "order_quantity", 0) or 0)) for it in items)
                 total_delivered = sum(Decimal(str(getattr(it, "delivered_quantity", 0) or 0)) for it in items)
                 if total_qty and total_qty > 0:
                     delivery_progress = float(min(100, (total_delivered / total_qty) * 100))
 
-            invoice_progress_val: Optional[float] = None
+            invoice_progress_val: float | None = None
             order_amount = Decimal(str(order.total_amount or 0))
             if order_amount and order_amount > 0:
                 invoiced = invoiced_by_order.get(order.id, Decimal("0"))
@@ -956,7 +956,7 @@ class SalesOrderService:
         tenant_id: int,
         sales_order_id: int,
         created_by: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         下推销售订单到需求计算。
 
@@ -985,7 +985,7 @@ class SalesOrderService:
 
     async def preview_push_sales_order_to_computation(
         self, tenant_id: int, sales_order_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """下推需求计算预览：返回将参与计算的订单明细，不实际创建"""
         order = await SalesOrder.get_or_none(
             tenant_id=tenant_id, id=sales_order_id, deleted_at__isnull=True
@@ -1103,7 +1103,7 @@ class SalesOrderService:
         tenant_id: int,
         sales_order_id: int,
         created_by: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         直推销售订单到生产计划（跳过需求计算）。
         订单明细直接转为生产计划明细，不要求BOM，原材料由用户自行计算采购。
@@ -1211,7 +1211,7 @@ class SalesOrderService:
 
     async def preview_push_sales_order_to_production_plan(
         self, tenant_id: int, sales_order_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """下推生产计划预览：返回将生成的生产计划明细，不实际创建"""
         order = await SalesOrder.get_or_none(
             tenant_id=tenant_id, id=sales_order_id, deleted_at__isnull=True
@@ -1253,7 +1253,7 @@ class SalesOrderService:
         tenant_id: int,
         sales_order_id: int,
         created_by: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         直推销售订单到工单（跳过需求计算）。
         - 若产品无BOM：订单明细直接转为工单，原材料由用户自行计算采购。
@@ -1287,7 +1287,7 @@ class SalesOrderService:
         )
 
         # 汇总待生成工单的物料：material_id -> {qty, material_code, material_name, delivery_date}
-        wo_pool: Dict[int, Dict[str, Any]] = {}
+        wo_pool: dict[int, dict[str, Any]] = {}
 
         def _add_to_pool(material_id: int, material_code: str, material_name: str, qty: float, delivery_date):
             if qty <= 0:
@@ -1413,7 +1413,7 @@ class SalesOrderService:
 
     async def preview_push_sales_order_to_work_order(
         self, tenant_id: int, sales_order_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """下推工单预览：返回将生成的工单列表，不实际创建"""
         order = await SalesOrder.get_or_none(
             tenant_id=tenant_id, id=sales_order_id, deleted_at__isnull=True
@@ -1437,7 +1437,7 @@ class SalesOrderService:
             SOURCE_TYPE_CONFIGURE,
         )
 
-        wo_pool: Dict[int, Dict[str, Any]] = {}
+        wo_pool: dict[int, dict[str, Any]] = {}
 
         def _add_to_pool(material_id: int, material_code: str, material_name: str, qty: float, delivery_date):
             if qty <= 0:
@@ -1516,9 +1516,9 @@ class SalesOrderService:
         sales_order_id: int,
         recipient_user_uuid: str,
         action_type: str,
-        remarks: Optional[str],
+        remarks: str | None,
         created_by: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         创建销售订单提醒，发送站内信给指定用户。
         """
@@ -1647,8 +1647,8 @@ class SalesOrderService:
     async def bulk_delete_sales_orders(
         self,
         tenant_id: int,
-        sales_order_ids: List[int],
-    ) -> Dict[str, Any]:
+        sales_order_ids: list[int],
+    ) -> dict[str, Any]:
         """批量删除销售订单"""
         deleted = 0
         for oid in sales_order_ids:
@@ -1686,10 +1686,10 @@ class SalesOrderService:
         tenant_id: int,
         sales_order_id: int,
         created_by: int,
-        delivery_quantities: Optional[Dict[int, float]] = None,
-        warehouse_id: Optional[int] = None,
-        warehouse_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        delivery_quantities: dict[int, float] | None = None,
+        warehouse_id: int | None = None,
+        warehouse_name: str | None = None,
+    ) -> dict[str, Any]:
         """下推销售订单到销售出库"""
         from apps.kuaizhizao.services.warehouse_service import SalesDeliveryService
         from apps.master_data.models.warehouse import Warehouse
@@ -1723,7 +1723,7 @@ class SalesOrderService:
         tenant_id: int,
         sales_order_id: int,
         created_by: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """下推销售订单到发货通知单"""
         order = await SalesOrder.get_or_none(
             tenant_id=tenant_id, id=sales_order_id, deleted_at__isnull=True
@@ -1799,7 +1799,7 @@ class SalesOrderService:
         tenant_id: int,
         sales_order_id: int,
         created_by: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """下推销售订单到销售发票（销项发票）"""
         order = await SalesOrder.get_or_none(
             tenant_id=tenant_id, id=sales_order_id, deleted_at__isnull=True

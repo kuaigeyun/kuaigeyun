@@ -57,12 +57,12 @@ async def send_message(
         )
 
 
-@router.get("/logs", response_model=List[MessageLogResponse])
+@router.get("/logs", response_model=list[MessageLogResponse])
 async def list_message_logs(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    type: Optional[str] = Query(None, description="消息类型（可选）"),
-    status: Optional[str] = Query(None, description="发送状态（可选）"),
+    type: str | None = Query(None, description="消息类型（可选）"),
+    status: str | None = Query(None, description="发送状态（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

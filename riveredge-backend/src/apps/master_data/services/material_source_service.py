@@ -38,7 +38,7 @@ class MaterialSourceValidationService:
     async def validate_material_source(
         tenant_id: int,
         material_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         验证物料来源配置
         
@@ -91,8 +91,8 @@ class MaterialSourceValidationService:
     @staticmethod
     async def validate_batch_materials(
         tenant_id: int,
-        material_uuids: List[str]
-    ) -> Dict[str, Dict[str, Any]]:
+        material_uuids: list[str]
+    ) -> dict[str, dict[str, Any]]:
         """
         批量验证物料来源配置
         
@@ -135,7 +135,7 @@ class MaterialSourceChangeService:
         tenant_id: int,
         material_uuid: str,
         new_source_type: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         检查物料来源类型变更的影响
         
@@ -226,7 +226,7 @@ class MaterialSourceChangeService:
         tenant_id: int,
         material_uuid: str,
         new_source_type: str,
-        new_source_config: Optional[Dict[str, Any]] = None,
+        new_source_config: dict[str, Any] | None = None,
         updated_by: int = 1
     ) -> Material:
         """
@@ -313,7 +313,7 @@ class MaterialSourceSuggestionService:
     async def suggest_source_type(
         tenant_id: int,
         material_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         建议物料来源类型
         
@@ -436,7 +436,7 @@ class MaterialSourceSuggestionService:
     async def check_config_completeness(
         tenant_id: int,
         material_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         检查物料来源配置完整性
         

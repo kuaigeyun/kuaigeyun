@@ -30,7 +30,7 @@ class TenantQuerySet(Generic[T]):
     def __init__(
         self,
         model: type[T],
-        tenant_id: Optional[int] = None,
+        tenant_id: int | None = None,
         skip_tenant_filter: bool = False
     ):
         """
@@ -45,7 +45,7 @@ class TenantQuerySet(Generic[T]):
         self.tenant_id = tenant_id
         self.skip_tenant_filter = skip_tenant_filter
     
-    def _get_tenant_id(self) -> Optional[int]:
+    def _get_tenant_id(self) -> int | None:
         """
         获取组织 ID
         
@@ -164,7 +164,7 @@ class TenantQuerySet(Generic[T]):
 
 def get_tenant_queryset(
     model: type[T],
-    tenant_id: Optional[int] = None,
+    tenant_id: int | None = None,
     skip_tenant_filter: bool = False
 ) -> TenantQuerySet[T]:
     """

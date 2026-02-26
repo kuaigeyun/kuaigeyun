@@ -23,7 +23,7 @@ class BatchRuleService:
     """批号规则服务"""
 
     @staticmethod
-    async def get_rule_by_id(tenant_id: int, rule_id: int) -> Optional[BatchRule]:
+    async def get_rule_by_id(tenant_id: int, rule_id: int) -> BatchRule | None:
         """根据ID获取批号规则"""
         return await BatchRule.filter(
             tenant_id=tenant_id,
@@ -33,7 +33,7 @@ class BatchRuleService:
         ).first()
 
     @staticmethod
-    async def get_rule_by_uuid(tenant_id: int, rule_uuid: str) -> Optional[BatchRule]:
+    async def get_rule_by_uuid(tenant_id: int, rule_uuid: str) -> BatchRule | None:
         """根据UUID获取批号规则"""
         return await BatchRule.filter(
             tenant_id=tenant_id,
@@ -43,7 +43,7 @@ class BatchRuleService:
         ).first()
 
     @staticmethod
-    async def get_rule_by_code(tenant_id: int, code: str) -> Optional[BatchRule]:
+    async def get_rule_by_code(tenant_id: int, code: str) -> BatchRule | None:
         """根据规则代码获取批号规则"""
         return await BatchRule.filter(
             tenant_id=tenant_id,
@@ -57,8 +57,8 @@ class BatchRuleService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        is_active: Optional[bool] = None,
-    ) -> tuple[List[BatchRule], int]:
+        is_active: bool | None = None,
+    ) -> tuple[list[BatchRule], int]:
         """获取批号规则列表"""
         qs = BatchRule.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if is_active is not None:
@@ -116,7 +116,7 @@ class BatchRuleService:
     async def generate_by_rule(
         tenant_id: int,
         rule: BatchRule,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         scope_key: str = "",
     ) -> str:
         """

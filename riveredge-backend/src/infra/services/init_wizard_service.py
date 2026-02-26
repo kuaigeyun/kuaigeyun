@@ -147,8 +147,8 @@ class InitWizardService:
         self,
         tenant_id: int,
         step_id: str,
-        data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         完成初始化步骤
         
@@ -249,7 +249,7 @@ class InitWizardService:
         self,
         tenant_id: int,
         init_data: InitWizardData
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         完成初始化向导
         

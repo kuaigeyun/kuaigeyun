@@ -87,11 +87,11 @@ class RoleService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        keyword: Optional[str] = None,
-        name: Optional[str] = None,
-        code: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        is_system: Optional[bool] = None,
+        keyword: str | None = None,
+        name: str | None = None,
+        code: str | None = None,
+        is_active: bool | None = None,
+        is_system: bool | None = None,
     ) -> dict:
         """
         获取角色列表
@@ -309,7 +309,7 @@ class RoleService:
     async def assign_permissions(
         tenant_id: int,
         role_uuid: str,
-        permission_uuids: List[str],
+        permission_uuids: list[str],
         current_user_id: int
     ) -> dict:
         """
@@ -432,7 +432,7 @@ class RoleService:
     async def get_role_permissions(
         tenant_id: int,
         role_uuid: str
-    ) -> List[Permission]:
+    ) -> list[Permission]:
         """
         获取角色关联的权限列表
         

@@ -51,7 +51,7 @@ async def create_scheduling_config(
 async def list_scheduling_configs(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(20, ge=1, le=100, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用筛选"),
+    is_active: bool | None = Query(None, description="是否启用筛选"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

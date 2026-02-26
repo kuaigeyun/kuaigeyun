@@ -26,7 +26,7 @@ class InfraSuperAdminService:
     平台超级管理员是平台唯一的，只能有一个。
     """
     
-    async def get_infra_superadmin(self) -> Optional[InfraSuperAdmin]:
+    async def get_infra_superadmin(self) -> InfraSuperAdmin | None:
         """
         获取平台超级管理员
         
@@ -101,7 +101,7 @@ class InfraSuperAdminService:
     async def update_infra_superadmin(
         self,
         data: InfraSuperAdminUpdate
-    ) -> Optional[InfraSuperAdmin]:
+    ) -> InfraSuperAdmin | None:
         """
         更新平台超级管理员信息
         
@@ -143,7 +143,7 @@ class InfraSuperAdminService:
         self,
         username: str,
         password: str
-    ) -> Optional[InfraSuperAdmin]:
+    ) -> InfraSuperAdmin | None:
         """
         验证平台超级管理员凭据
         
@@ -177,7 +177,7 @@ class InfraSuperAdminService:
         if not password_valid:
             logger.warning(f"密码验证失败: username={username}, password_length={len(password) if password else 0}")
             # 提示：密码应该从 .env 文件中的 infra_superadmin_PASSWORD 读取
-            logger.info(f"提示：请检查 .env 文件中的 infra_superadmin_PASSWORD 配置是否正确")
+            logger.info("提示：请检查 .env 文件中的 infra_superadmin_PASSWORD 配置是否正确")
             return None
         
         # 更新最后登录时间

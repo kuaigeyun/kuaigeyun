@@ -22,8 +22,8 @@ class LLMService:
     提供统一的 LLM 调用接口，自动选择配置的提供商。
     """
     
-    _provider: Optional[LLMProvider] = None
-    _provider_name: Optional[str] = None
+    _provider: LLMProvider | None = None
+    _provider_name: str | None = None
     
     @classmethod
     def _get_provider(cls) -> LLMProvider:
@@ -85,9 +85,9 @@ class LLMService:
     @classmethod
     async def chat_completion(
         cls,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs
     ) -> LLMResponse:
         """
@@ -121,9 +121,9 @@ class LLMService:
     async def generate_text(
         cls,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs
     ) -> str:
         """
@@ -153,9 +153,9 @@ class LLMService:
     async def generate_suggestions(
         cls,
         prompt: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> str:
         """
         生成建议（业务场景专用）

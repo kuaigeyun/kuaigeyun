@@ -24,11 +24,11 @@ class BatchImportResult:
         self.total = 0
         self.success_count = 0
         self.failure_count = 0
-        self.errors: List[Dict[str, Any]] = []
-        self.success_items: List[Any] = []
-        self.failure_items: List[Any] = []
+        self.errors: list[dict[str, Any]] = []
+        self.success_items: list[Any] = []
+        self.failure_items: list[Any] = []
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "success": self.failure_count == 0,
@@ -55,11 +55,11 @@ class BatchOperationService:
     
     @staticmethod
     async def batch_import(
-        items: List[Dict[str, Any]],
-        import_func: Callable[[Dict[str, Any], int], Awaitable[Any]],
+        items: list[dict[str, Any]],
+        import_func: Callable[[dict[str, Any], int], Awaitable[Any]],
         concurrency: int = DEFAULT_CONCURRENCY,
         retry_count: int = DEFAULT_RETRY_COUNT,
-        on_progress: Optional[Callable[[int, int, int, int], None]] = None
+        on_progress: Callable[[int, int, int, int], None] | None = None
     ) -> BatchImportResult:
         """
         批量导入数据（支持并发和重试）
@@ -84,9 +84,9 @@ class BatchOperationService:
         semaphore = asyncio.Semaphore(concurrency)
         
         async def import_with_retry(
-            item: Dict[str, Any],
+            item: dict[str, Any],
             index: int
-        ) -> tuple[bool, Any, Optional[str]]:
+        ) -> tuple[bool, Any, str | None]:
             """带重试的导入函数"""
             last_error = None
             
@@ -150,9 +150,9 @@ class BatchOperationService:
     
     @staticmethod
     async def batch_export_to_csv(
-        items: List[Dict[str, Any]],
-        headers: List[str],
-        field_mapping: Dict[str, str],
+        items: list[dict[str, Any]],
+        headers: list[str],
+        field_mapping: dict[str, str],
         filename_prefix: str = "export"
     ) -> str:
         """
@@ -203,9 +203,9 @@ class BatchOperationService:
     
     @staticmethod
     async def batch_export_stream(
-        query_func: Callable[[int, int], Awaitable[tuple[List[Any], int]]],
-        headers: List[str],
-        field_mapping: Dict[str, str],
+        query_func: Callable[[int, int], Awaitable[tuple[list[Any], int]]],
+        headers: list[str],
+        field_mapping: dict[str, str],
         filename_prefix: str = "export",
         page_size: int = 1000
     ) -> str:
@@ -276,11 +276,11 @@ class BatchOperationService:
     
     @staticmethod
     async def batch_process(
-        items: List[Any],
+        items: list[Any],
         process_func: Callable[[Any, int], Awaitable[Any]],
         concurrency: int = DEFAULT_CONCURRENCY,
-        on_progress: Optional[Callable[[int, int, int, int], None]] = None
-    ) -> Dict[str, Any]:
+        on_progress: Callable[[int, int, int, int], None] | None = None
+    ) -> dict[str, Any]:
         """
         批量处理数据（支持批量删除、批量更新等）
         
@@ -296,7 +296,7 @@ class BatchOperationService:
         total = len(items)
         success_count = 0
         failure_count = 0
-        errors: List[Dict[str, Any]] = []
+        errors: list[dict[str, Any]] = []
         
         if not items:
             return {
@@ -310,7 +310,7 @@ class BatchOperationService:
         # 创建信号量控制并发
         semaphore = asyncio.Semaphore(concurrency)
         
-        async def process_item(item: Any, index: int) -> tuple[bool, Optional[str]]:
+        async def process_item(item: Any, index: int) -> tuple[bool, str | None]:
             """处理单个数据项"""
             try:
                 async with semaphore:

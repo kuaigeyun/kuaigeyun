@@ -29,10 +29,10 @@ router = APIRouter(prefix="/maintenance-reminders", tags=["Kuaige Zhizao Mainten
 async def list_maintenance_reminders(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    reminder_type: Optional[str] = Query(None, description="提醒类型（可选）"),
-    is_read: Optional[bool] = Query(None, description="是否已读（可选）"),
-    is_handled: Optional[bool] = Query(None, description="是否已处理（可选）"),
-    equipment_uuid: Optional[str] = Query(None, description="设备UUID（可选）"),
+    reminder_type: str | None = Query(None, description="提醒类型（可选）"),
+    is_read: bool | None = Query(None, description="是否已读（可选）"),
+    is_handled: bool | None = Query(None, description="是否已处理（可选）"),
+    equipment_uuid: str | None = Query(None, description="设备UUID（可选）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

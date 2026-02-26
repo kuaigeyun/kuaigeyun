@@ -105,7 +105,7 @@ class DeliveryNoticeService(AppBaseService[DeliveryNotice]):
         skip: int = 0,
         limit: int = 20,
         **filters
-    ) -> List[DeliveryNoticeListResponse]:
+    ) -> list[DeliveryNoticeListResponse]:
         """获取送货单列表"""
         query = DeliveryNotice.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if filters.get("status"):

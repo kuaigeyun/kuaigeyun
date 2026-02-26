@@ -21,7 +21,7 @@ class OutsourceOrderBase(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    code: Optional[str] = Field(None, description="委外单编码（可选，创建时自动生成）")
+    code: str | None = Field(None, description="委外单编码（可选，创建时自动生成）")
     work_order_id: int = Field(..., description="工单ID")
     work_order_code: str = Field(..., description="工单编码")
     work_order_operation_id: int = Field(..., description="工单工序ID")
@@ -32,14 +32,14 @@ class OutsourceOrderBase(BaseModel):
     supplier_code: str = Field(..., description="供应商编码")
     supplier_name: str = Field(..., description="供应商名称")
     outsource_quantity: Decimal = Field(..., description="委外数量")
-    unit_price: Optional[Decimal] = Field(None, description="单价")
+    unit_price: Decimal | None = Field(None, description="单价")
     total_amount: Decimal = Field(Decimal("0"), description="总金额")
 
     # 时间信息
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始日期")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束日期")
-    actual_start_date: Optional[datetime] = Field(None, description="实际开始日期")
-    actual_end_date: Optional[datetime] = Field(None, description="实际结束日期")
+    planned_start_date: datetime | None = Field(None, description="计划开始日期")
+    planned_end_date: datetime | None = Field(None, description="计划结束日期")
+    actual_start_date: datetime | None = Field(None, description="实际开始日期")
+    actual_end_date: datetime | None = Field(None, description="实际结束日期")
 
     # 状态信息
     status: str = Field("draft", description="委外单状态（draft/released/in_progress/completed/cancelled）")
@@ -50,11 +50,11 @@ class OutsourceOrderBase(BaseModel):
     unqualified_quantity: Decimal = Field(Decimal("0"), description="不合格数量")
 
     # 采购入库关联
-    purchase_receipt_id: Optional[int] = Field(None, description="采购入库单ID")
-    purchase_receipt_code: Optional[str] = Field(None, description="采购入库单编码")
+    purchase_receipt_id: int | None = Field(None, description="采购入库单ID")
+    purchase_receipt_code: str | None = Field(None, description="采购入库单编码")
 
     # 备注
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class OutsourceOrderCreate(OutsourceOrderBase):
@@ -63,7 +63,7 @@ class OutsourceOrderCreate(OutsourceOrderBase):
 
     用于创建新委外单的数据验证。
     """
-    code: Optional[str] = Field(None, description="委外单编码（可选，如果不提供则自动生成）")
+    code: str | None = Field(None, description="委外单编码（可选，如果不提供则自动生成）")
 
 
 class OutsourceOrderCreateFromWorkOrder(BaseModel):
@@ -75,10 +75,10 @@ class OutsourceOrderCreateFromWorkOrder(BaseModel):
     work_order_operation_id: int = Field(..., description="工单工序ID")
     supplier_id: int = Field(..., description="供应商ID")
     outsource_quantity: Decimal = Field(..., description="委外数量")
-    unit_price: Optional[Decimal] = Field(None, description="单价")
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始日期")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束日期")
-    remarks: Optional[str] = Field(None, description="备注")
+    unit_price: Decimal | None = Field(None, description="单价")
+    planned_start_date: datetime | None = Field(None, description="计划开始日期")
+    planned_end_date: datetime | None = Field(None, description="计划结束日期")
+    remarks: str | None = Field(None, description="备注")
 
 
 class OutsourceOrderUpdate(BaseModel):
@@ -89,23 +89,23 @@ class OutsourceOrderUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    supplier_id: Optional[int] = Field(None, description="供应商ID")
-    supplier_code: Optional[str] = Field(None, description="供应商编码")
-    supplier_name: Optional[str] = Field(None, description="供应商名称")
-    outsource_quantity: Optional[Decimal] = Field(None, description="委外数量")
-    unit_price: Optional[Decimal] = Field(None, description="单价")
-    total_amount: Optional[Decimal] = Field(None, description="总金额")
-    status: Optional[str] = Field(None, description="委外单状态")
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始日期")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束日期")
-    actual_start_date: Optional[datetime] = Field(None, description="实际开始日期")
-    actual_end_date: Optional[datetime] = Field(None, description="实际结束日期")
-    received_quantity: Optional[Decimal] = Field(None, description="已接收数量")
-    qualified_quantity: Optional[Decimal] = Field(None, description="合格数量")
-    unqualified_quantity: Optional[Decimal] = Field(None, description="不合格数量")
-    purchase_receipt_id: Optional[int] = Field(None, description="采购入库单ID")
-    purchase_receipt_code: Optional[str] = Field(None, description="采购入库单编码")
-    remarks: Optional[str] = Field(None, description="备注")
+    supplier_id: int | None = Field(None, description="供应商ID")
+    supplier_code: str | None = Field(None, description="供应商编码")
+    supplier_name: str | None = Field(None, description="供应商名称")
+    outsource_quantity: Decimal | None = Field(None, description="委外数量")
+    unit_price: Decimal | None = Field(None, description="单价")
+    total_amount: Decimal | None = Field(None, description="总金额")
+    status: str | None = Field(None, description="委外单状态")
+    planned_start_date: datetime | None = Field(None, description="计划开始日期")
+    planned_end_date: datetime | None = Field(None, description="计划结束日期")
+    actual_start_date: datetime | None = Field(None, description="实际开始日期")
+    actual_end_date: datetime | None = Field(None, description="实际结束日期")
+    received_quantity: Decimal | None = Field(None, description="已接收数量")
+    qualified_quantity: Decimal | None = Field(None, description="合格数量")
+    unqualified_quantity: Decimal | None = Field(None, description="不合格数量")
+    purchase_receipt_id: int | None = Field(None, description="采购入库单ID")
+    purchase_receipt_code: str | None = Field(None, description="采购入库单编码")
+    remarks: str | None = Field(None, description="备注")
 
 
 class OutsourceOrderResponse(OutsourceOrderBase):
@@ -117,10 +117,10 @@ class OutsourceOrderResponse(OutsourceOrderBase):
     id: int = Field(..., description="委外单ID")
     uuid: str = Field(..., description="业务ID")
     tenant_id: int = Field(..., description="组织ID")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
-    updated_by_name: Optional[str] = Field(None, description="更新人姓名")
+    created_by: int | None = Field(None, description="创建人ID")
+    created_by_name: str | None = Field(None, description="创建人姓名")
+    updated_by: int | None = Field(None, description="更新人ID")
+    updated_by_name: str | None = Field(None, description="更新人姓名")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
@@ -144,7 +144,7 @@ class OutsourceOrderListResponse(BaseModel):
     received_quantity: Decimal = Field(..., description="已接收数量")
     qualified_quantity: Decimal = Field(..., description="合格数量")
     status: str = Field(..., description="委外单状态")
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始日期")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束日期")
+    planned_start_date: datetime | None = Field(None, description="计划开始日期")
+    planned_end_date: datetime | None = Field(None, description="计划结束日期")
     total_amount: Decimal = Field(..., description="总金额")
     created_at: datetime = Field(..., description="创建时间")

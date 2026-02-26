@@ -23,7 +23,7 @@ from infra.domain.tenant_context import get_current_tenant_id
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def sop_execution_workflow_function(event: Event) -> Dict[str, Any]:
+async def sop_execution_workflow_function(event: Event) -> dict[str, Any]:
     """
     SOP 执行流程工作流函数
     
@@ -124,7 +124,7 @@ async def sop_execution_workflow_function(event: Event) -> Dict[str, Any]:
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def sop_node_complete_workflow_function(event: Event) -> Dict[str, Any]:
+async def sop_node_complete_workflow_function(event: Event) -> dict[str, Any]:
     """
     SOP 节点完成工作流函数
     
@@ -235,7 +235,7 @@ async def sop_node_complete_workflow_function(event: Event) -> Dict[str, Any]:
         }
 
 
-def _get_start_node(nodes: list) -> Optional[Dict[str, Any]]:
+def _get_start_node(nodes: list) -> dict[str, Any] | None:
     """
     获取起始节点
     
@@ -262,7 +262,7 @@ def _get_start_node(nodes: list) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _get_next_node(nodes: list, edges: list, current_node_id: str) -> Optional[Dict[str, Any]]:
+def _get_next_node(nodes: list, edges: list, current_node_id: str) -> dict[str, Any] | None:
     """
     获取下一个节点
     

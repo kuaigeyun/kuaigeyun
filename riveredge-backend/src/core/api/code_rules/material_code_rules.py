@@ -58,7 +58,7 @@ async def get_active_main_rule(
 async def create_main_rule(
     data: MaterialCodeRuleMainCreate,
     tenant_id: int = Depends(get_current_tenant),
-    user_id: Optional[int] = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_current_user_id),
 ):
     """
     创建主编码规则
@@ -97,7 +97,7 @@ async def update_main_rule(
     rule_id: int = Path(..., description="规则ID"),
     data: MaterialCodeRuleMainUpdate = Body(...),
     tenant_id: int = Depends(get_current_tenant),
-    user_id: Optional[int] = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_current_user_id),
 ):
     """
     更新主编码规则
@@ -142,7 +142,7 @@ async def update_main_rule(
 async def activate_main_rule(
     rule_id: int = Path(..., description="规则ID"),
     tenant_id: int = Depends(get_current_tenant),
-    user_id: Optional[int] = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_current_user_id),
 ):
     """
     启用主编码规则（禁用其他规则）
@@ -208,7 +208,7 @@ async def get_alias_rule(
 async def create_alias_rule(
     data: MaterialCodeRuleAliasCreate,
     tenant_id: int = Depends(get_current_tenant),
-    user_id: Optional[int] = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_current_user_id),
 ):
     """
     创建部门编码规则

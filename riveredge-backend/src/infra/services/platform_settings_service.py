@@ -24,7 +24,7 @@ class PlatformSettingsService:
     处理平台设置相关的所有业务逻辑
     """
     
-    async def get_settings(self) -> Optional[PlatformSettingsResponse]:
+    async def get_settings(self) -> PlatformSettingsResponse | None:
         """
         获取平台设置
         

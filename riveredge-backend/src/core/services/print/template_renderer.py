@@ -23,7 +23,7 @@ def is_pdfme_template(content: str) -> bool:
         return False
 
 
-def _resolve_value(key: str, data: Dict[str, Any]) -> Any:
+def _resolve_value(key: str, data: dict[str, Any]) -> Any:
     """按点号路径从嵌套 dict 中取值，如 operations.0.operation_name"""
     keys = key.strip().split(".")
     val: Any = data
@@ -54,7 +54,7 @@ def _format_value(val: Any) -> str:
     return str(val)
 
 
-def render_plain_template(template_content: str, data: Dict[str, Any]) -> str:
+def render_plain_template(template_content: str, data: dict[str, Any]) -> str:
     """
     渲染纯文本模板：替换 {{key}} 占位符，支持点号路径
 
@@ -76,7 +76,7 @@ def render_plain_template(template_content: str, data: Dict[str, Any]) -> str:
     return result
 
 
-def render_template_to_html(template_content: str, data: Dict[str, Any]) -> str:
+def render_template_to_html(template_content: str, data: dict[str, Any]) -> str:
     """
     渲染模板并输出为 HTML，用于服务端打印接口
 

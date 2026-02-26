@@ -11,7 +11,7 @@ class DataBackupBase(BaseModel):
     name: str = Field(..., description="备份名称")
     backup_type: str = Field("full", description="备份类型 (full, incremental)")
     backup_scope: str = Field("all", description="备份范围 (all, tenant, table)")
-    backup_tables: Optional[List[str]] = Field(None, description="备份的表列表")
+    backup_tables: list[str] | None = Field(None, description="备份的表列表")
 
 
 class DataBackupCreate(DataBackupBase):
@@ -20,15 +20,15 @@ class DataBackupCreate(DataBackupBase):
 
 class DataBackupResponse(DataBackupBase):
     uuid: str
-    tenant_id: Optional[int]
-    file_path: Optional[str] = None
-    file_uuid: Optional[str] = None
-    file_size: Optional[int] = None
+    tenant_id: int | None
+    file_path: str | None = None
+    file_uuid: str | None = None
+    file_size: int | None = None
     status: str
-    inngest_run_id: Optional[str] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    error_message: Optional[str] = None
+    inngest_run_id: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error_message: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -37,7 +37,7 @@ class DataBackupResponse(DataBackupBase):
 
 
 class DataBackupListResponse(BaseModel):
-    items: List[DataBackupResponse]
+    items: list[DataBackupResponse]
     total: int
     page: int
     page_size: int

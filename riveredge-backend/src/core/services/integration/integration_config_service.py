@@ -82,7 +82,7 @@ class IntegrationConfigService:
     async def get_integration_by_code(
         tenant_id: int,
         code: str
-    ) -> Optional[IntegrationConfig]:
+    ) -> IntegrationConfig | None:
         """
         根据代码获取集成配置
         
@@ -104,9 +104,9 @@ class IntegrationConfigService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        type: Optional[str] = None,
-        is_active: Optional[bool] = None
-    ) -> List[IntegrationConfig]:
+        type: str | None = None,
+        is_active: bool | None = None
+    ) -> list[IntegrationConfig]:
         """
         获取集成配置列表
         
@@ -189,7 +189,7 @@ class IntegrationConfigService:
     async def test_connection(
         tenant_id: int,
         uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         测试连接
         
@@ -264,7 +264,7 @@ class IntegrationConfigService:
             }
     
     @staticmethod
-    async def _test_api_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_api_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """
         测试 API 连接
         
@@ -296,7 +296,7 @@ class IntegrationConfigService:
             }
     
     @staticmethod
-    async def _test_oauth_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_oauth_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """
         测试 OAuth 连接
         
@@ -321,7 +321,7 @@ class IntegrationConfigService:
         }
     
     @staticmethod
-    async def _test_webhook_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_webhook_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """
         测试 Webhook 连接
         
@@ -356,7 +356,7 @@ class IntegrationConfigService:
             }
     
     @staticmethod
-    async def _test_database_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_database_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """
         测试数据库连接
         
@@ -384,7 +384,7 @@ class IntegrationConfigService:
         }
 
     @staticmethod
-    async def test_config(type_: str, config: Dict[str, Any]) -> Dict[str, Any]:
+    async def test_config(type_: str, config: dict[str, Any]) -> dict[str, Any]:
         """
         保存前测试连接配置（不落库）
         
@@ -396,10 +396,10 @@ class IntegrationConfigService:
             Dict[str, Any]: 测试结果 { success, message, data?, error? }
         """
         class _TempConfig:
-            def __init__(self, t: str, c: Dict[str, Any]):
+            def __init__(self, t: str, c: dict[str, Any]):
                 self.type = t
                 self.config = c or {}
-            def get_config(self) -> Dict[str, Any]:
+            def get_config(self) -> dict[str, Any]:
                 return self.config
 
         temp = _TempConfig(type_, config)
@@ -458,7 +458,7 @@ class IntegrationConfigService:
             }
 
     @staticmethod
-    async def get_schema(tenant_id: int, uuid: str) -> Dict[str, Any]:
+    async def get_schema(tenant_id: int, uuid: str) -> dict[str, Any]:
         """
         获取数据源的表/列元数据（用于图形化查询构建器）
         目前仅支持 PostgreSQL。
@@ -496,7 +496,7 @@ class IntegrationConfigService:
                 """
             )
             await conn.close()
-            tables_map: Dict[str, List[Dict[str, str]]] = {}
+            tables_map: dict[str, list[dict[str, str]]] = {}
             for row in rows:
                 tbl = f"{row['table_schema']}.{row['table_name']}"
                 if tbl not in tables_map:
@@ -514,7 +514,7 @@ class IntegrationConfigService:
             return {"tables": [], "error": str(e)}
 
     @staticmethod
-    async def _test_postgresql_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_postgresql_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """测试 PostgreSQL 连接（config: host, port, database, user/username, password）"""
         config = integration.get_config()
         try:
@@ -538,7 +538,7 @@ class IntegrationConfigService:
             return {"success": False, "message": f"PostgreSQL 连接失败: {str(e)}"}
 
     @staticmethod
-    async def _test_mysql_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_mysql_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """测试 MySQL 连接（暂未实现实际连接，仅校验必要字段）"""
         config = integration.get_config()
         user = config.get("user") or config.get("username")
@@ -549,7 +549,7 @@ class IntegrationConfigService:
         }
 
     @staticmethod
-    async def _test_mongodb_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_mongodb_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """测试 MongoDB 连接（暂未实现实际连接）"""
         config = integration.get_config()
         if not config.get("host") and not config.get("uri"):
@@ -559,7 +559,7 @@ class IntegrationConfigService:
         }
 
     @staticmethod
-    async def _test_database_config_validation(integration: Any) -> Dict[str, Any]:
+    async def _test_database_config_validation(integration: Any) -> dict[str, Any]:
         """通用数据库配置校验（暂未实现实际连接）"""
         config = integration.get_config()
         if not config.get("host"):
@@ -571,7 +571,7 @@ class IntegrationConfigService:
     # ── 应用连接器测试（协作、ERP、PLM、CRM）────────────────────────────────────
 
     @staticmethod
-    async def _test_feishu_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_feishu_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """测试飞书连接（调用 app_access_token 接口）"""
         config = integration.get_config()
         app_id = config.get("app_id")
@@ -591,7 +591,7 @@ class IntegrationConfigService:
             return {"message": "飞书连接成功", "tenant_access_token": "***"}
 
     @staticmethod
-    async def _test_dingtalk_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_dingtalk_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """测试钉钉连接（调用 gettoken 接口）"""
         config = integration.get_config()
         app_key = config.get("app_key")
@@ -611,7 +611,7 @@ class IntegrationConfigService:
             return {"message": "钉钉连接成功", "access_token": "***"}
 
     @staticmethod
-    async def _test_wecom_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_wecom_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """测试企业微信连接（调用 gettoken 接口）"""
         config = integration.get_config()
         corp_id = config.get("corp_id")
@@ -631,7 +631,7 @@ class IntegrationConfigService:
             return {"message": "企业微信连接成功", "access_token": "***"}
 
     @staticmethod
-    async def _test_rest_api_connection(integration: IntegrationConfig) -> Dict[str, Any]:
+    async def _test_rest_api_connection(integration: IntegrationConfig) -> dict[str, Any]:
         """通用 REST API 连接测试（ERP/PLM/CRM 等）"""
         config = integration.get_config()
         base_url = (config.get("base_url") or config.get("url") or "").rstrip("/")

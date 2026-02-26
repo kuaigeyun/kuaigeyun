@@ -28,9 +28,9 @@ router = APIRouter(prefix="/reports", tags=["报表"])
 @router.get("/inventory", summary="获取库存报表")
 async def get_inventory_report(
     report_type: str = Query("summary", description="报表类型（summary/turnover/abc/slow_moving）"),
-    date_start: Optional[str] = Query(None, description="开始日期（YYYY-MM-DD）"),
-    date_end: Optional[str] = Query(None, description="结束日期（YYYY-MM-DD）"),
-    warehouse_id: Optional[int] = Query(None, description="仓库ID"),
+    date_start: str | None = Query(None, description="开始日期（YYYY-MM-DD）"),
+    date_end: str | None = Query(None, description="结束日期（YYYY-MM-DD）"),
+    warehouse_id: int | None = Query(None, description="仓库ID"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> dict:
@@ -74,10 +74,10 @@ async def get_inventory_report(
 
 @router.get("/inventory/batch-query", summary="批次库存查询")
 async def query_batch_inventory(
-    material_id: Optional[int] = Query(None, description="物料ID（与 material_ids 二选一）"),
-    material_ids: Optional[List[int]] = Query(None, description="物料ID列表（批量查询，与 material_id 二选一）"),
-    warehouse_id: Optional[int] = Query(None, description="仓库ID"),
-    batch_number: Optional[str] = Query(None, description="批号"),
+    material_id: int | None = Query(None, description="物料ID（与 material_ids 二选一）"),
+    material_ids: list[int] | None = Query(None, description="物料ID列表（批量查询，与 material_id 二选一）"),
+    warehouse_id: int | None = Query(None, description="仓库ID"),
+    batch_number: str | None = Query(None, description="批号"),
     include_expired: bool = Query(False, description="是否包含过期批次"),
     summary_only: bool = Query(False, description="是否仅返回物料汇总（material_totals），用于批量检查"),
     current_user: User = Depends(get_current_user),

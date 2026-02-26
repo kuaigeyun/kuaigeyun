@@ -27,10 +27,10 @@ class DataBackupService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        backup_type: Optional[str] = None,
-        backup_scope: Optional[str] = None,
-        status: Optional[str] = None
-    ) -> Tuple[List[DataBackup], int]:
+        backup_type: str | None = None,
+        backup_scope: str | None = None,
+        status: str | None = None
+    ) -> tuple[list[DataBackup], int]:
         """
         获取备份列表
         

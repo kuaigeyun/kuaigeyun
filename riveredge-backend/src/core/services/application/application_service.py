@@ -18,7 +18,7 @@ from infra.infrastructure.database.database import get_db_connection
 from loguru import logger
 
 # 由于使用直接 asyncpg 连接，类型注解使用 Dict[str, Any]
-ApplicationDict = Dict[str, Any]
+ApplicationDict = dict[str, Any]
 
 
 class ApplicationService:
@@ -130,7 +130,7 @@ class ApplicationService:
     async def get_application_by_code(
         tenant_id: int,
         code: str
-    ) -> Optional[ApplicationDict]:
+    ) -> ApplicationDict | None:
         """
         根据代码获取应用
         
@@ -170,9 +170,9 @@ class ApplicationService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_installed: Optional[bool] = None,
-        is_active: Optional[bool] = None
-    ) -> List[Dict[str, Any]]:
+        is_installed: bool | None = None,
+        is_active: bool | None = None
+    ) -> list[dict[str, Any]]:
         """
         获取应用列表
 
@@ -573,8 +573,8 @@ class ApplicationService:
     @staticmethod
     async def get_installed_applications(
         tenant_id: int,
-        is_active: Optional[bool] = None
-    ) -> List[ApplicationDict]:
+        is_active: bool | None = None
+    ) -> list[ApplicationDict]:
         """
         获取已安装的应用列表
 
@@ -610,7 +610,7 @@ class ApplicationService:
                       AND is_installed = TRUE
                       AND deleted_at IS NULL
                       AND code NOT IN ({})
-                """.format(','.join(['${}'.format(i + 2) for i in range(len(disabled_apps))]))
+                """.format(','.join([f'${i + 2}' for i in range(len(disabled_apps))]))
                 params = [tenant_id] + list(disabled_apps)
             else:
                 base_sql = """
@@ -658,7 +658,7 @@ class ApplicationService:
         return plugins_dir
     
     @staticmethod
-    def _scan_plugin_manifests() -> List[Dict[str, Any]]:
+    def _scan_plugin_manifests() -> list[dict[str, Any]]:
         """
         扫描插件目录，读取所有插件的 manifest.json 文件
         
@@ -683,13 +683,13 @@ class ApplicationService:
             
             try:
                 # 读取 manifest.json
-                with open(manifest_file, 'r', encoding='utf-8') as f:
+                with open(manifest_file, encoding='utf-8') as f:
                     manifest_data = json.load(f)
                 
                 # 添加插件目录路径信息
                 manifest_data['_plugin_dir'] = str(plugin_dir)
                 plugins.append(manifest_data)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 # 忽略无法读取的 manifest.json
                 logger.warning(f"警告: 无法读取插件 {plugin_dir.name} 的 manifest.json: {e}")
                 continue
@@ -697,7 +697,7 @@ class ApplicationService:
         return plugins
     
     @staticmethod
-    async def scan_and_register_plugins(tenant_id: int) -> List[ApplicationDict]:
+    async def scan_and_register_plugins(tenant_id: int) -> list[ApplicationDict]:
         """
         扫描插件目录并自动注册插件应用
 

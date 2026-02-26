@@ -40,8 +40,8 @@ class DocumentTimingService(AppBaseService[DocumentNodeTiming]):
         document_code: str,
         node_name: str,
         node_code: str,
-        operator_id: Optional[int] = None,
-        operator_name: Optional[str] = None,
+        operator_id: int | None = None,
+        operator_name: str | None = None,
     ) -> DocumentNodeTimingResponse:
         """
         记录节点开始时间
@@ -94,8 +94,8 @@ class DocumentTimingService(AppBaseService[DocumentNodeTiming]):
         document_type: str,
         document_id: int,
         node_code: str,
-        operator_id: Optional[int] = None,
-        operator_name: Optional[str] = None,
+        operator_id: int | None = None,
+        operator_name: str | None = None,
     ) -> DocumentNodeTimingResponse:
         """
         记录节点结束时间
@@ -193,10 +193,10 @@ class DocumentTimingService(AppBaseService[DocumentNodeTiming]):
     async def list_documents_with_timing(
         self,
         tenant_id: int,
-        document_type: Optional[str] = None,
+        document_type: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[DocumentTimingSummaryResponse]:
+    ) -> list[DocumentTimingSummaryResponse]:
         """
         获取有耗时记录的单据列表
 
@@ -246,9 +246,9 @@ class DocumentTimingService(AppBaseService[DocumentNodeTiming]):
     async def get_document_efficiency(
         self,
         tenant_id: int,
-        document_type: Optional[str] = None,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
+        document_type: str | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
     ) -> dict:
         """
         获取单据执行效率分析

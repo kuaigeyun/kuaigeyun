@@ -24,19 +24,19 @@ class CodeRuleBase(BaseModel):
     """
     name: str = Field(..., min_length=1, max_length=100, description="规则名称")
     code: str = Field(..., min_length=1, max_length=50, description="规则代码（唯一，用于程序识别）")
-    expression: Optional[str] = Field(None, min_length=1, max_length=500, description="规则表达式（旧格式，向后兼容）")
-    rule_components: Optional[List[Dict[str, Any]]] = Field(None, description="规则组件列表（新格式，完全可配置）")
-    description: Optional[str] = Field(None, description="规则描述")
+    expression: str | None = Field(None, min_length=1, max_length=500, description="规则表达式（旧格式，向后兼容）")
+    rule_components: list[dict[str, Any]] | None = Field(None, description="规则组件列表（新格式，完全可配置）")
+    description: str | None = Field(None, description="规则描述")
     seq_start: int = Field(default=1, ge=0, description="序号起始值（向后兼容，从自动计数组件读取）")
     seq_step: int = Field(default=1, ge=1, description="序号步长（向后兼容）")
-    seq_reset_rule: Optional[str] = Field(None, description="序号重置规则：never、daily、monthly、yearly（向后兼容，从自动计数组件读取）")
+    seq_reset_rule: str | None = Field(None, description="序号重置规则：never、daily、monthly、yearly（向后兼容，从自动计数组件读取）")
     is_system: bool = Field(default=False, description="是否系统规则")
     is_active: bool = Field(default=True, description="是否启用")
     allow_manual_edit: bool = Field(default=True, description="允许手动填写（如果为True，用户可以手动修改自动生成的编码）")
     
     @field_validator("seq_reset_rule")
     @classmethod
-    def validate_reset_rule(cls, v: Optional[str]) -> Optional[str]:
+    def validate_reset_rule(cls, v: str | None) -> str | None:
         """
         验证序号重置规则
         
@@ -55,7 +55,7 @@ class CodeRuleBase(BaseModel):
     
     @field_validator("rule_components")
     @classmethod
-    def validate_rule_components(cls, v: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
+    def validate_rule_components(cls, v: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
         """
         验证规则组件列表
         
@@ -90,19 +90,19 @@ class CodeRuleUpdate(BaseModel):
     
     用于更新编码规则的请求数据，所有字段可选。
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="规则名称")
-    expression: Optional[str] = Field(None, min_length=1, max_length=500, description="规则表达式（旧格式，向后兼容）")
-    rule_components: Optional[List[Dict[str, Any]]] = Field(None, description="规则组件列表（新格式，完全可配置）")
-    description: Optional[str] = Field(None, description="规则描述")
-    seq_start: Optional[int] = Field(None, ge=0, description="序号起始值（向后兼容）")
-    seq_step: Optional[int] = Field(None, ge=1, description="序号步长（向后兼容）")
-    seq_reset_rule: Optional[str] = Field(None, description="序号重置规则：never、daily、monthly、yearly（向后兼容）")
-    is_active: Optional[bool] = Field(None, description="是否启用")
-    allow_manual_edit: Optional[bool] = Field(None, description="允许手动填写")
+    name: str | None = Field(None, min_length=1, max_length=100, description="规则名称")
+    expression: str | None = Field(None, min_length=1, max_length=500, description="规则表达式（旧格式，向后兼容）")
+    rule_components: list[dict[str, Any]] | None = Field(None, description="规则组件列表（新格式，完全可配置）")
+    description: str | None = Field(None, description="规则描述")
+    seq_start: int | None = Field(None, ge=0, description="序号起始值（向后兼容）")
+    seq_step: int | None = Field(None, ge=1, description="序号步长（向后兼容）")
+    seq_reset_rule: str | None = Field(None, description="序号重置规则：never、daily、monthly、yearly（向后兼容）")
+    is_active: bool | None = Field(None, description="是否启用")
+    allow_manual_edit: bool | None = Field(None, description="允许手动填写")
     
     @field_validator("seq_reset_rule")
     @classmethod
-    def validate_reset_rule(cls, v: Optional[str]) -> Optional[str]:
+    def validate_reset_rule(cls, v: str | None) -> str | None:
         """
         验证序号重置规则
         
@@ -121,7 +121,7 @@ class CodeRuleUpdate(BaseModel):
     
     @field_validator("rule_components")
     @classmethod
-    def validate_rule_components(cls, v: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
+    def validate_rule_components(cls, v: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
         """
         验证规则组件列表
         
@@ -161,10 +161,10 @@ class CodeGenerationRequest(BaseModel):
     
     用于测试编码生成功能。
     """
-    check_duplicate: Optional[bool] = Field(default=False, description="是否检查重复（如果为True，会自动递增直到找到不重复的编码）")
-    entity_type: Optional[str] = Field(default=None, description="实体类型（如：'material'，用于检查重复）")
+    check_duplicate: bool | None = Field(default=False, description="是否检查重复（如果为True，会自动递增直到找到不重复的编码）")
+    entity_type: str | None = Field(default=None, description="实体类型（如：'material'，用于检查重复）")
     rule_code: str = Field(..., description="规则代码")
-    context: Optional[dict] = Field(None, description="上下文变量（可选，用于自定义变量）")
+    context: dict | None = Field(None, description="上下文变量（可选，用于自定义变量）")
 
 
 class CodeGenerationResponse(BaseModel):
@@ -184,7 +184,7 @@ class CodeRulePageFieldConfig(BaseModel):
     field_name: str = Field(..., description="字段名称")
     field_label: str = Field(..., description="字段显示名称")
     field_type: str = Field(..., description="字段类型")
-    description: Optional[str] = Field(None, description="字段描述")
+    description: str | None = Field(None, description="字段描述")
 
 
 class CodeRulePageConfigResponse(BaseModel):
@@ -199,11 +199,11 @@ class CodeRulePageConfigResponse(BaseModel):
     code_field: str = Field(..., description="编码字段名称")
     code_field_label: str = Field(..., description="编码字段显示名称")
     module: str = Field(..., description="所属模块")
-    module_icon: Optional[str] = Field(None, description="模块图标")
+    module_icon: str | None = Field(None, description="模块图标")
     auto_generate: bool = Field(default=False, description="是否启用自动编码")
-    rule_code: Optional[str] = Field(None, description="关联的编码规则代码")
+    rule_code: str | None = Field(None, description="关联的编码规则代码")
     allow_manual_edit: bool = Field(default=True, description="允许手动填写（如果为True，用户可以手动修改自动生成的编码）")
-    available_fields: Optional[list[CodeRulePageFieldConfig]] = Field(None, description="可用字段列表（用于字段引用）")
+    available_fields: list[CodeRulePageFieldConfig] | None = Field(None, description="可用字段列表（用于字段引用）")
 
 
 # ==================== 规则组件相关 Schema ====================
@@ -239,8 +239,8 @@ class DateComponent(CodeRuleComponentBase):
     """
     type: Literal["date"] = "date"
     format_type: Literal["preset", "custom"] = Field(default="preset", description="格式类型：预定义或自定义")
-    preset_format: Optional[str] = Field(None, description="预定义格式（如：YYYYMMDD）")
-    custom_format: Optional[str] = Field(None, description="自定义格式（使用y、M、d表示年月日）")
+    preset_format: str | None = Field(None, description="预定义格式（如：YYYYMMDD）")
+    custom_format: str | None = Field(None, description="自定义格式（使用y、M、d表示年月日）")
 
 
 class FixedTextComponent(CodeRuleComponentBase):
@@ -273,11 +273,11 @@ class CodeRuleComponentsConfig(BaseModel):
     
     用于存储规则组件的完整配置。
     """
-    components: List[Dict[str, Any]] = Field(..., description="规则组件列表（JSON格式）")
+    components: list[dict[str, Any]] = Field(..., description="规则组件列表（JSON格式）")
     
     @field_validator("components")
     @classmethod
-    def validate_components(cls, v: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def validate_components(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         验证规则组件列表
         

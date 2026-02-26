@@ -45,7 +45,7 @@ class MessageService:
             NotFoundError: 当模板或配置不存在时抛出
         """
         # 获取消息模板（如果提供了 template_uuid 或 template_code）
-        template: Optional[MessageTemplate] = None
+        template: MessageTemplate | None = None
         if request.template_uuid:
             template = await MessageTemplateService.get_message_template_by_uuid(
                 tenant_id, str(request.template_uuid)
@@ -66,7 +66,7 @@ class MessageService:
                 raise ValidationError("消息内容不能为空（未提供模板时）")
         
         # 获取消息配置（如果提供了 config_uuid，否则使用默认配置）
-        config: Optional[MessageConfig] = None
+        config: MessageConfig | None = None
         if request.config_uuid:
             config = await MessageConfigService.get_message_config_by_uuid(
                 tenant_id, str(request.config_uuid)
@@ -146,8 +146,8 @@ class MessageService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        type: Optional[str] = None,
-        status: Optional[str] = None
+        type: str | None = None,
+        status: str | None = None
     ) -> list[MessageLog]:
         """
         获取消息发送记录列表

@@ -28,8 +28,8 @@ class DocumentStateEngine:
         document_id: int,
         reverse_type: str,
         operator_id: int,
-        reason: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        reason: str | None = None,
+    ) -> dict[str, Any]:
         """
         统一反向操作入口
 
@@ -79,8 +79,8 @@ class DocumentStateEngine:
         return dict(obj) if hasattr(obj, "__iter__") and not isinstance(obj, (str, bytes)) else {"id": getattr(obj, "id", None)}
 
     async def _reverse_demand_submit(
-        self, tenant_id: int, document_id: int, operator_id: int, reason: Optional[str]
-    ) -> Dict[str, Any]:
+        self, tenant_id: int, document_id: int, operator_id: int, reason: str | None
+    ) -> dict[str, Any]:
         """需求：提交撤回"""
         from apps.kuaizhizao.services.demand_service import DemandService
 
@@ -89,8 +89,8 @@ class DocumentStateEngine:
         return {"document_type": "demand", "document": self._to_dict(demand)}
 
     async def _reverse_demand_push(
-        self, tenant_id: int, document_id: int, operator_id: int, reason: Optional[str]
-    ) -> Dict[str, Any]:
+        self, tenant_id: int, document_id: int, operator_id: int, reason: str | None
+    ) -> dict[str, Any]:
         """需求：下推撤回（撤回需求计算）"""
         from apps.kuaizhizao.services.demand_service import DemandService
 
@@ -99,8 +99,8 @@ class DocumentStateEngine:
         return {"document_type": "demand", "document": self._to_dict(demand)}
 
     async def _reverse_sales_order_submit(
-        self, tenant_id: int, document_id: int, operator_id: int, reason: Optional[str]
-    ) -> Dict[str, Any]:
+        self, tenant_id: int, document_id: int, operator_id: int, reason: str | None
+    ) -> dict[str, Any]:
         """销售订单：提交撤回"""
         from apps.kuaizhizao.services.sales_order_service import SalesOrderService
 
@@ -109,8 +109,8 @@ class DocumentStateEngine:
         return {"document_type": "sales_order", "document": self._to_dict(order)}
 
     async def _reverse_sales_order_push(
-        self, tenant_id: int, document_id: int, operator_id: int, reason: Optional[str]
-    ) -> Dict[str, Any]:
+        self, tenant_id: int, document_id: int, operator_id: int, reason: str | None
+    ) -> dict[str, Any]:
         """销售订单：下推撤回（撤回需求计算）"""
         from apps.kuaizhizao.services.sales_order_service import SalesOrderService
 
@@ -119,8 +119,8 @@ class DocumentStateEngine:
         return {"document_type": "sales_order", "document": self._to_dict(order)}
 
     async def _reverse_work_order_state(
-        self, tenant_id: int, document_id: int, operator_id: int, reason: Optional[str]
-    ) -> Dict[str, Any]:
+        self, tenant_id: int, document_id: int, operator_id: int, reason: str | None
+    ) -> dict[str, Any]:
         """工单：状态撤回（已下达/指定结束→草稿）"""
         from apps.kuaizhizao.services.work_order_service import WorkOrderService
 
@@ -128,7 +128,7 @@ class DocumentStateEngine:
         wo = await svc.revoke_work_order(tenant_id, document_id, revoked_by=operator_id)
         return {"document_type": "work_order", "document": self._to_dict(wo)}
 
-    def get_supported_reverses(self) -> Dict[str, list]:
+    def get_supported_reverses(self) -> dict[str, list]:
         """
         返回支持的反向操作配置，供前端展示可用按钮
 

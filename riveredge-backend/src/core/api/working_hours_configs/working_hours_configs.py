@@ -53,13 +53,13 @@ async def create_working_hours_config(
         )
 
 
-@router.get("", response_model=List[WorkingHoursConfigListResponse], summary="获取工作时间段配置列表")
+@router.get("", response_model=list[WorkingHoursConfigListResponse], summary="获取工作时间段配置列表")
 async def list_working_hours_configs(
-    scope_type: Optional[str] = Query(None, description="适用范围类型"),
-    scope_id: Optional[int] = Query(None, description="适用范围ID"),
-    is_enabled: Optional[bool] = Query(None, description="是否启用"),
+    scope_type: str | None = Query(None, description="适用范围类型"),
+    scope_id: int | None = Query(None, description="适用范围ID"),
+    is_enabled: bool | None = Query(None, description="是否启用"),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[WorkingHoursConfigListResponse]:
+) -> list[WorkingHoursConfigListResponse]:
     """
     获取工作时间段配置列表
 
@@ -143,8 +143,8 @@ async def delete_working_hours_config(
 async def calculate_working_hours(
     start_time: datetime = Query(..., description="开始时间"),
     end_time: datetime = Query(..., description="结束时间"),
-    scope_type: Optional[str] = Query(None, description="适用范围类型（可选）"),
-    scope_id: Optional[int] = Query(None, description="适用范围ID（可选）"),
+    scope_type: str | None = Query(None, description="适用范围类型（可选）"),
+    scope_id: int | None = Query(None, description="适用范围ID（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ) -> dict:
     """

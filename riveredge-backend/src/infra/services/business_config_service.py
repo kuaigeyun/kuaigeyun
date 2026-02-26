@@ -23,7 +23,7 @@ _NODE_AUDIT = {"enabled": True, "auditRequired": True}
 
 def _build_preset_nodes(all_nodes: list, *pairs) -> dict:
     """(node_id, mode) 其中 mode 为 'off'|'on'|'audit'"""
-    d = {n: _NODE_OFF for n in all_nodes}
+    d = dict.fromkeys(all_nodes, _NODE_OFF)
     for nid, mode in pairs:
         if mode == "audit":
             d[nid] = _NODE_AUDIT
@@ -213,7 +213,7 @@ class BusinessConfigService:
         require_plan = config.get("parameters", {}).get("planning", {}).get("require_production_plan", False)
         return not require_plan
 
-    async def get_planning_config(self, tenant_id: int) -> Dict[str, Any]:
+    async def get_planning_config(self, tenant_id: int) -> dict[str, Any]:
         """
         获取计划管理相关配置，供前端展示当前模式。
         """
@@ -477,7 +477,7 @@ class BusinessConfigService:
     # PRO版套餐列表
     PRO_PLANS = ["professional", "enterprise"]
     
-    async def get_business_config(self, tenant_id: int) -> Dict[str, Any]:
+    async def get_business_config(self, tenant_id: int) -> dict[str, Any]:
         """
         获取业务配置
         
@@ -554,7 +554,7 @@ class BusinessConfigService:
         tenant_id: int,
         mode: str,
         apply_defaults: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         切换运行模式
         
@@ -608,7 +608,7 @@ class BusinessConfigService:
         self,
         tenant_id: int,
         level: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         应用业务复杂度预设（L1-L5）
 
@@ -660,7 +660,7 @@ class BusinessConfigService:
             "config": business_config,
         }
 
-    async def get_complexity_presets(self) -> Dict[str, Any]:
+    async def get_complexity_presets(self) -> dict[str, Any]:
         """
         获取八级业务复杂度预设列表 L0-L7（供前端选择器使用）
         """
@@ -678,7 +678,7 @@ class BusinessConfigService:
         tenant_id: int,
         module_code: str,
         enabled: bool
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         更新模块开关
         
@@ -727,7 +727,7 @@ class BusinessConfigService:
         category: str,
         parameter_key: str,
         value: Any
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         更新流程参数
         
@@ -775,8 +775,8 @@ class BusinessConfigService:
     async def batch_update_process_parameters(
         self,
         tenant_id: int,
-        parameters: Dict[str, Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        parameters: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         批量更新流程参数
         
@@ -819,10 +819,10 @@ class BusinessConfigService:
     async def update_nodes_config(
         self,
         tenant_id: int,
-        nodes: Dict[str, Dict[str, Any]],
-        industry: Optional[str] = None,
-        scale: Optional[str] = None
-    ) -> Dict[str, Any]:
+        nodes: dict[str, dict[str, Any]],
+        industry: str | None = None,
+        scale: str | None = None
+    ) -> dict[str, Any]:
         """
         更新节点配置
         """
@@ -864,7 +864,7 @@ class BusinessConfigService:
         tenant_id: int,
         feature_type: str,
         feature_code: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         检查PRO版功能访问权限
         
@@ -907,7 +907,7 @@ class BusinessConfigService:
             "upgrade_message": "此功能需要专业套餐或企业套餐，请升级后使用" if not has_access else None,
         }
     
-    async def get_pro_features_list(self, tenant_id: int) -> Dict[str, Any]:
+    async def get_pro_features_list(self, tenant_id: int) -> dict[str, Any]:
         """
         获取PRO版功能列表
         
@@ -930,7 +930,7 @@ class BusinessConfigService:
             "pro_parameters": self.PRO_FEATURES["parameters"],
         }
 
-    async def get_config_templates(self, tenant_id: int) -> List[Dict[str, Any]]:
+    async def get_config_templates(self, tenant_id: int) -> list[dict[str, Any]]:
         """
         获取配置模板列表
         
@@ -951,8 +951,8 @@ class BusinessConfigService:
         self,
         tenant_id: int,
         template_name: str,
-        template_description: Optional[str] = None
-    ) -> Dict[str, Any]:
+        template_description: str | None = None
+    ) -> dict[str, Any]:
         """
         保存配置模板
         
@@ -998,7 +998,7 @@ class BusinessConfigService:
         self,
         tenant_id: int,
         template_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         应用配置模板
         
@@ -1039,7 +1039,7 @@ class BusinessConfigService:
         self,
         tenant_id: int,
         template_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         删除配置模板
         

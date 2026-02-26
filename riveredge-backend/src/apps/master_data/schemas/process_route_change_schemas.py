@@ -17,11 +17,11 @@ class ProcessRouteChangeBase(BaseModel):
     
     process_route_uuid: str = Field(..., description="工艺路线UUID")
     change_type: str = Field(..., max_length=50, description="变更类型（operation_change:工序变更, time_change:标准工时变更, sop_change:SOP变更, other:其他）")
-    change_content: Optional[Dict[str, Any]] = Field(None, description="变更内容（JSON格式）")
-    change_reason: Optional[str] = Field(None, description="变更原因")
-    change_impact: Optional[Dict[str, Any]] = Field(None, description="变更影响分析（JSON格式）")
+    change_content: dict[str, Any] | None = Field(None, description="变更内容（JSON格式）")
+    change_reason: str | None = Field(None, description="变更原因")
+    change_impact: dict[str, Any] | None = Field(None, description="变更影响分析（JSON格式）")
     status: str = Field("pending", max_length=20, description="变更状态")
-    approval_comment: Optional[str] = Field(None, description="审批意见（可选）")
+    approval_comment: str | None = Field(None, description="审批意见（可选）")
     
     @validator("change_type")
     def validate_change_type(cls, v):
@@ -48,11 +48,11 @@ class ProcessRouteChangeCreate(ProcessRouteChangeBase):
 class ProcessRouteChangeUpdate(BaseModel):
     """更新工艺路线变更记录 Schema"""
     
-    change_content: Optional[Dict[str, Any]] = Field(None, description="变更内容（JSON格式）")
-    change_reason: Optional[str] = Field(None, description="变更原因")
-    change_impact: Optional[Dict[str, Any]] = Field(None, description="变更影响分析（JSON格式）")
-    status: Optional[str] = Field(None, max_length=20, description="变更状态")
-    approval_comment: Optional[str] = Field(None, description="审批意见（可选）")
+    change_content: dict[str, Any] | None = Field(None, description="变更内容（JSON格式）")
+    change_reason: str | None = Field(None, description="变更原因")
+    change_impact: dict[str, Any] | None = Field(None, description="变更影响分析（JSON格式）")
+    status: str | None = Field(None, max_length=20, description="变更状态")
+    approval_comment: str | None = Field(None, description="审批意见（可选）")
     
     @validator("status")
     def validate_status(cls, v):
@@ -71,16 +71,16 @@ class ProcessRouteChangeResponse(ProcessRouteChangeBase):
     uuid: str = Field(..., description="UUID")
     tenant_id: int = Field(..., description="租户ID")
     process_route_id: int = Field(..., description="工艺路线ID")
-    process_route_code: Optional[str] = Field(None, description="工艺路线编码")
-    process_route_name: Optional[str] = Field(None, description="工艺路线名称")
+    process_route_code: str | None = Field(None, description="工艺路线编码")
+    process_route_name: str | None = Field(None, description="工艺路线名称")
     applicant_id: int = Field(..., description="申请人ID")
-    applicant_name: Optional[str] = Field(None, description="申请人姓名")
-    approver_id: Optional[int] = Field(None, description="审批人ID")
-    approver_name: Optional[str] = Field(None, description="审批人姓名")
-    applied_at: Optional[datetime] = Field(None, description="应用时间")
+    applicant_name: str | None = Field(None, description="申请人姓名")
+    approver_id: int | None = Field(None, description="审批人ID")
+    approver_name: str | None = Field(None, description="审批人姓名")
+    applied_at: datetime | None = Field(None, description="应用时间")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, description="删除时间")
+    deleted_at: datetime | None = Field(None, description="删除时间")
     
     class Config:
         from_attributes = True
@@ -89,5 +89,5 @@ class ProcessRouteChangeResponse(ProcessRouteChangeBase):
 class ProcessRouteChangeListResponse(BaseModel):
     """工艺路线变更记录列表响应 Schema"""
     
-    items: List[ProcessRouteChangeResponse] = Field(..., description="变更记录列表")
+    items: list[ProcessRouteChangeResponse] = Field(..., description="变更记录列表")
     total: int = Field(..., description="总数")

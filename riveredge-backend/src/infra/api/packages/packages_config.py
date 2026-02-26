@@ -13,7 +13,7 @@ from infra.domain.package_config import get_all_package_configs
 router = APIRouter()
 
 
-@router.get("/packages/config", response_model=Dict[str, Any])
+@router.get("/packages/config", response_model=dict[str, Any])
 async def get_all_package_configs_endpoint():
     """
     获取所有套餐配置（公开接口）

@@ -7,8 +7,8 @@ router = APIRouter(tags=["追溯管理"])
 service = TraceabilityService()
 
 class TraceGraphResponse(BaseModel):
-    nodes: List[Dict]
-    edges: List[Dict]
+    nodes: list[dict]
+    edges: list[dict]
 
 @router.get("/graph", response_model=TraceGraphResponse, summary="获取追溯图谱")
 async def get_trace_graph(

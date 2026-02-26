@@ -136,7 +136,7 @@ class PackingBindingService(AppBaseService[PackingBinding]):
         self,
         tenant_id: int,
         receipt_id: int
-    ) -> List[PackingBindingListResponse]:
+    ) -> list[PackingBindingListResponse]:
         """
         根据成品入库单ID获取装箱绑定记录列表
 
@@ -188,10 +188,10 @@ class PackingBindingService(AppBaseService[PackingBinding]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        receipt_id: Optional[int] = None,
-        product_id: Optional[int] = None,
-        box_no: Optional[str] = None,
-    ) -> List[PackingBindingListResponse]:
+        receipt_id: int | None = None,
+        product_id: int | None = None,
+        box_no: str | None = None,
+    ) -> list[PackingBindingListResponse]:
         """
         获取装箱绑定记录列表
 

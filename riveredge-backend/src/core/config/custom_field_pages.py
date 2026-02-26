@@ -8,10 +8,10 @@
 from typing import List, Dict, Any
 
 # 页面配置数据结构
-CustomFieldPageConfig = Dict[str, Any]
+CustomFieldPageConfig = dict[str, Any]
 
 # 功能页面配置列表（主数据 + 快格轻制造）
-CUSTOM_FIELD_PAGES: List[CustomFieldPageConfig] = [
+CUSTOM_FIELD_PAGES: list[CustomFieldPageConfig] = [
     # ==================== 主数据管理 ====================
     # 工厂建模
     {

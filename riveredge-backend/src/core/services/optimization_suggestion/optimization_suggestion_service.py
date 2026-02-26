@@ -27,7 +27,7 @@ class OptimizationSuggestionService:
     async def generate_suggestions(
         self,
         tenant_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         生成优化建议
         
@@ -100,7 +100,7 @@ class OptimizationSuggestionService:
         self,
         tenant_id: int,
         category: str = None
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         按分类获取优化建议
         
@@ -136,7 +136,7 @@ class OptimizationSuggestionService:
         self,
         tenant_id: int,
         priority: str = None
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         按优先级获取优化建议
         

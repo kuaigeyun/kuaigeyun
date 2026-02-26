@@ -20,8 +20,8 @@ class Cache:
     提供 Redis 缓存的常用操作方法
     """
 
-    _redis: Optional[Redis] = None
-    _pool: Optional[ConnectionPool] = None
+    _redis: Redis | None = None
+    _pool: ConnectionPool | None = None
 
     @classmethod
     async def connect(cls) -> None:
@@ -61,7 +61,7 @@ class Cache:
         logger.info("Redis 连接已关闭")
 
     @classmethod
-    async def get(cls, key: str) -> Optional[str]:
+    async def get(cls, key: str) -> str | None:
         """
         获取缓存值
 
@@ -81,7 +81,7 @@ class Cache:
         cls,
         key: str,
         value: str,
-        expire: Optional[int] = None,
+        expire: int | None = None,
     ) -> bool:
         """
         设置缓存值

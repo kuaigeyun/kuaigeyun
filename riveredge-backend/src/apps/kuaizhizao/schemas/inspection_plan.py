@@ -20,11 +20,11 @@ class InspectionPlanStepBase(BaseSchema):
     """质检方案步骤基础 schema"""
     sequence: int = Field(0, description="步骤序号")
     inspection_item: str = Field(..., max_length=200, description="检验项目名称")
-    inspection_method: Optional[str] = Field(None, max_length=200, description="检验方法")
-    acceptance_criteria: Optional[str] = Field(None, description="合格标准")
+    inspection_method: str | None = Field(None, max_length=200, description="检验方法")
+    acceptance_criteria: str | None = Field(None, description="合格标准")
     sampling_type: str = Field("full", max_length=20, description="抽样方式（full/sampling）")
-    quality_standard_id: Optional[int] = Field(None, description="引用的质检标准ID（可选）")
-    remarks: Optional[str] = Field(None, description="备注")
+    quality_standard_id: int | None = Field(None, description="引用的质检标准ID（可选）")
+    remarks: str | None = Field(None, description="备注")
 
 
 class InspectionPlanStepCreate(InspectionPlanStepBase):
@@ -34,8 +34,8 @@ class InspectionPlanStepCreate(InspectionPlanStepBase):
 
 class InspectionPlanStepUpdate(InspectionPlanStepBase):
     """质检方案步骤更新 schema"""
-    sequence: Optional[int] = Field(None, description="步骤序号")
-    inspection_item: Optional[str] = Field(None, max_length=200, description="检验项目名称")
+    sequence: int | None = Field(None, description="步骤序号")
+    inspection_item: str | None = Field(None, max_length=200, description="检验项目名称")
 
 
 class InspectionPlanStepResponse(InspectionPlanStepBase):
@@ -54,37 +54,37 @@ class InspectionPlanBase(BaseSchema):
     plan_code: str = Field(..., max_length=50, description="方案编码")
     plan_name: str = Field(..., max_length=200, description="方案名称")
     plan_type: str = Field(..., max_length=50, description="类型（incoming/process/finished）")
-    material_id: Optional[int] = Field(None, description="适用物料ID（可选）")
-    material_code: Optional[str] = Field(None, max_length=50, description="物料编码")
-    material_name: Optional[str] = Field(None, max_length=200, description="物料名称")
-    operation_id: Optional[int] = Field(None, description="适用工序ID（过程检验时）")
+    material_id: int | None = Field(None, description="适用物料ID（可选）")
+    material_code: str | None = Field(None, max_length=50, description="物料编码")
+    material_name: str | None = Field(None, max_length=200, description="物料名称")
+    operation_id: int | None = Field(None, description="适用工序ID（过程检验时）")
     version: str = Field("1.0", max_length=20, description="版本号")
     is_active: bool = Field(True, description="是否启用")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class InspectionPlanCreate(InspectionPlanBase):
     """质检方案创建 schema"""
-    plan_code: Optional[str] = Field(None, max_length=50, description="方案编码（可选，不提供则自动生成）")
-    steps: Optional[List[InspectionPlanStepCreate]] = Field(None, description="检验步骤列表")
+    plan_code: str | None = Field(None, max_length=50, description="方案编码（可选，不提供则自动生成）")
+    steps: list[InspectionPlanStepCreate] | None = Field(None, description="检验步骤列表")
 
 
 class InspectionPlanUpdate(InspectionPlanBase):
     """质检方案更新 schema"""
-    plan_code: Optional[str] = Field(None, max_length=50, description="方案编码")
-    plan_name: Optional[str] = Field(None, max_length=200, description="方案名称")
-    plan_type: Optional[str] = Field(None, max_length=50, description="类型")
-    steps: Optional[List[InspectionPlanStepCreate]] = Field(None, description="检验步骤列表（全量替换）")
+    plan_code: str | None = Field(None, max_length=50, description="方案编码")
+    plan_name: str | None = Field(None, max_length=200, description="方案名称")
+    plan_type: str | None = Field(None, max_length=50, description="类型")
+    steps: list[InspectionPlanStepCreate] | None = Field(None, description="检验步骤列表（全量替换）")
 
 
 class InspectionPlanResponse(InspectionPlanBase):
     """质检方案响应 schema"""
     id: int = Field(..., description="方案ID")
-    uuid: Optional[str] = Field(None, description="业务ID")
-    tenant_id: Optional[int] = Field(None, description="组织ID")
+    uuid: str | None = Field(None, description="业务ID")
+    tenant_id: int | None = Field(None, description="组织ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    steps: Optional[List[InspectionPlanStepResponse]] = Field(None, description="检验步骤列表")
+    steps: list[InspectionPlanStepResponse] | None = Field(None, description="检验步骤列表")
 
     class Config:
         from_attributes = True
@@ -92,4 +92,4 @@ class InspectionPlanResponse(InspectionPlanBase):
 
 class InspectionPlanListResponse(InspectionPlanResponse):
     """质检方案列表响应 schema（简化版）"""
-    steps: Optional[List[InspectionPlanStepResponse]] = Field(None, description="检验步骤列表（列表页可省略）")
+    steps: list[InspectionPlanStepResponse] | None = Field(None, description="检验步骤列表（列表页可省略）")

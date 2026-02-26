@@ -19,7 +19,7 @@ class DynamicDatabaseConfigService:
     """
 
     @staticmethod
-    async def generate_tortoise_config() -> Dict[str, Any]:
+    async def generate_tortoise_config() -> dict[str, Any]:
         """
         动态生成Tortoise ORM配置
 
@@ -58,7 +58,7 @@ class DynamicDatabaseConfigService:
         return config
 
     @staticmethod
-    async def _get_active_models() -> List[str]:
+    async def _get_active_models() -> list[str]:
         """
         获取所有活跃应用的模型模块列表
 
@@ -328,7 +328,7 @@ class DynamicDatabaseConfigService:
         return final_models
 
     @staticmethod
-    async def _get_active_app_models() -> List[str]:
+    async def _get_active_app_models() -> list[str]:
         """
         获取活跃应用的模型模块列表
 
@@ -521,7 +521,7 @@ class DynamicDatabaseConfigService:
         return validated_models
 
     # 模块存在性缓存，避免重复 import 或 find_spec 调用
-    _module_exists_cache: Dict[str, bool] = {}
+    _module_exists_cache: dict[str, bool] = {}
 
     @staticmethod
     def _module_exists(module_path: str) -> bool:
@@ -552,7 +552,7 @@ class DynamicDatabaseConfigService:
         return result
 
     @staticmethod
-    async def validate_app_models(app_code: str) -> Dict[str, Any]:
+    async def validate_app_models(app_code: str) -> dict[str, Any]:
         """
         验证应用的所有模型模块是否正确
 
@@ -602,7 +602,7 @@ class DynamicDatabaseConfigService:
         return result
 
     @staticmethod
-    async def get_model_dependencies() -> Dict[str, List[str]]:
+    async def get_model_dependencies() -> dict[str, list[str]]:
         """
         获取模型依赖关系
 

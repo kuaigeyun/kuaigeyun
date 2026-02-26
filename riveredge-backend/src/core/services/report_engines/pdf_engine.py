@@ -32,7 +32,7 @@ class PDFEngine:
     使用WeasyPrint生成PDF文件。
     """
 
-    def generate(self, config: Dict[str, Any], data: Dict[str, Any]) -> BytesIO:
+    def generate(self, config: dict[str, Any], data: dict[str, Any]) -> BytesIO:
         """
         生成PDF报表
 
@@ -71,7 +71,7 @@ class PDFEngine:
 
         return output
 
-    def _generate_html(self, config: Dict[str, Any], data: Dict[str, Any]) -> str:
+    def _generate_html(self, config: dict[str, Any], data: dict[str, Any]) -> str:
         """
         生成HTML内容
 
@@ -111,7 +111,7 @@ class PDFEngine:
 
         return "\n".join(html_parts)
 
-    def _render_component_html(self, component: Dict[str, Any], data: Dict[str, Any]) -> str:
+    def _render_component_html(self, component: dict[str, Any], data: dict[str, Any]) -> str:
         """
         渲染组件HTML
 
@@ -137,7 +137,7 @@ class PDFEngine:
         else:
             return ""
 
-    def _render_table_html(self, component: Dict[str, Any], data: Dict[str, Any]) -> str:
+    def _render_table_html(self, component: dict[str, Any], data: dict[str, Any]) -> str:
         """
         渲染表格HTML
 
@@ -172,7 +172,7 @@ class PDFEngine:
 
         return "\n".join(html_parts)
 
-    def _render_text_html(self, component: Dict[str, Any]) -> str:
+    def _render_text_html(self, component: dict[str, Any]) -> str:
         """
         渲染文本HTML
 
@@ -193,7 +193,7 @@ class PDFEngine:
         else:
             return f"<p>{content}</p>"
 
-    def _render_image_html(self, component: Dict[str, Any]) -> str:
+    def _render_image_html(self, component: dict[str, Any]) -> str:
         """
         渲染图片HTML
 

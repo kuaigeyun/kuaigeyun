@@ -74,7 +74,7 @@ class SiteSetting(BaseModel):
             self.settings = {}
         self.settings[key] = value
     
-    def update_settings(self, settings: Dict[str, Any]) -> None:
+    def update_settings(self, settings: dict[str, Any]) -> None:
         """
         批量更新设置项
         

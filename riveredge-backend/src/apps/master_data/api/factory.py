@@ -49,16 +49,16 @@ async def create_plant(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/plants", response_model=List[PlantResponse], response_model_by_alias=True, summary="获取厂区列表")
+@router.get("/plants", response_model=list[PlantResponse], response_model_by_alias=True, summary="获取厂区列表")
 async def list_plants(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用"),
-    keyword: Optional[str] = Query(None, description="搜索关键词（厂区编码或名称）"),
-    code: Optional[str] = Query(None, description="厂区编码（精确匹配）"),
-    name: Optional[str] = Query(None, description="厂区名称（模糊匹配）")
+    is_active: bool | None = Query(None, description="是否启用"),
+    keyword: str | None = Query(None, description="搜索关键词（厂区编码或名称）"),
+    code: str | None = Query(None, description="厂区编码（精确匹配）"),
+    name: str | None = Query(None, description="厂区名称（模糊匹配）")
 ):
     """
     获取厂区列表
@@ -196,16 +196,16 @@ async def create_workshop(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/workshops", response_model=List[WorkshopResponse], response_model_by_alias=True, summary="获取车间列表")
+@router.get("/workshops", response_model=list[WorkshopResponse], response_model_by_alias=True, summary="获取车间列表")
 async def list_workshops(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用"),
-    keyword: Optional[str] = Query(None, description="搜索关键词（车间编码或名称）"),
-    code: Optional[str] = Query(None, description="车间编码（精确匹配）"),
-    name: Optional[str] = Query(None, description="车间名称（模糊匹配）")
+    is_active: bool | None = Query(None, description="是否启用"),
+    keyword: str | None = Query(None, description="搜索关键词（车间编码或名称）"),
+    code: str | None = Query(None, description="车间编码（精确匹配）"),
+    name: str | None = Query(None, description="车间名称（模糊匹配）")
 ):
     """
     获取车间列表
@@ -343,14 +343,14 @@ async def create_production_line(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/production-lines", response_model=List[ProductionLineResponse], response_model_by_alias=True, summary="获取产线列表")
+@router.get("/production-lines", response_model=list[ProductionLineResponse], response_model_by_alias=True, summary="获取产线列表")
 async def list_production_lines(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    workshop_id: Optional[int] = Query(None, description="车间ID（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    workshop_id: int | None = Query(None, description="车间ID（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取产线列表
@@ -479,14 +479,14 @@ async def create_workstation(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/workstations", response_model=List[WorkstationResponse], response_model_by_alias=True, summary="获取工位列表")
+@router.get("/workstations", response_model=list[WorkstationResponse], response_model_by_alias=True, summary="获取工位列表")
 async def list_workstations(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    production_line_id: Optional[int] = Query(None, description="产线ID（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    production_line_id: int | None = Query(None, description="产线ID（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取工位列表
@@ -608,16 +608,16 @@ async def create_work_center(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/work-centers", response_model=List[WorkCenterResponse], response_model_by_alias=True, summary="获取工作中心列表")
+@router.get("/work-centers", response_model=list[WorkCenterResponse], response_model_by_alias=True, summary="获取工作中心列表")
 async def list_work_centers(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用"),
-    keyword: Optional[str] = Query(None, description="搜索关键词（工作中心编码或名称）"),
-    code: Optional[str] = Query(None, description="工作中心编码（精确匹配）"),
-    name: Optional[str] = Query(None, description="工作中心名称（模糊匹配）")
+    is_active: bool | None = Query(None, description="是否启用"),
+    keyword: str | None = Query(None, description="搜索关键词（工作中心编码或名称）"),
+    code: str | None = Query(None, description="工作中心编码（精确匹配）"),
+    name: str | None = Query(None, description="工作中心名称（模糊匹配）")
 ):
     """
     获取工作中心列表
@@ -728,11 +728,11 @@ async def delete_work_center(
 
 # ==================== 级联查询接口 ====================
 
-@router.get("/tree", response_model=List[WorkshopTreeResponse], response_model_by_alias=True, summary="获取工厂数据树形结构")
+@router.get("/tree", response_model=list[WorkshopTreeResponse], response_model_by_alias=True, summary="获取工厂数据树形结构")
 async def get_factory_tree(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    is_active: Optional[bool] = Query(None, description="是否只查询启用的数据（可选）")
+    is_active: bool | None = Query(None, description="是否只查询启用的数据（可选）")
 ):
     """
     获取工厂数据树形结构（车间→产线→工位）

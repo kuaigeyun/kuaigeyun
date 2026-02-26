@@ -65,7 +65,7 @@ class PackageService:
         )
         return package
     
-    async def get_package_by_id(self, package_id: int) -> Optional[Package]:
+    async def get_package_by_id(self, package_id: int) -> Package | None:
         """
         根据 ID 获取套餐
         
@@ -77,7 +77,7 @@ class PackageService:
         """
         return await Package.get_or_none(id=package_id)
     
-    async def get_package_by_plan(self, plan: TenantPlan) -> Optional[Package]:
+    async def get_package_by_plan(self, plan: TenantPlan) -> Package | None:
         """
         根据套餐类型获取套餐
         
@@ -93,12 +93,12 @@ class PackageService:
         self,
         page: int = 1,
         page_size: int = 10,
-        plan: Optional[TenantPlan] = None,
-        name: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        allow_pro_apps: Optional[bool] = None,
-        sort: Optional[str] = None,
-        order: Optional[str] = None
+        plan: TenantPlan | None = None,
+        name: str | None = None,
+        is_active: bool | None = None,
+        allow_pro_apps: bool | None = None,
+        sort: str | None = None,
+        order: str | None = None
     ) -> dict:
         """
         获取套餐列表
@@ -172,7 +172,7 @@ class PackageService:
         self,
         package_id: int,
         data: PackageUpdate
-    ) -> Optional[Package]:
+    ) -> Package | None:
         """
         更新套餐
         
@@ -212,7 +212,7 @@ class PackageService:
         await package.delete()
         return True
     
-    async def get_package_config_for_plan(self, plan: TenantPlan) -> Dict[str, Any]:
+    async def get_package_config_for_plan(self, plan: TenantPlan) -> dict[str, Any]:
         """
         获取套餐配置（从配置模块）
         

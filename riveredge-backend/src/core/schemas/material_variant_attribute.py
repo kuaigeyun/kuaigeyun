@@ -23,13 +23,13 @@ class MaterialVariantAttributeDefinitionBase(BaseModel):
     attribute_name: str = Field(..., min_length=1, max_length=50, description="属性名称（唯一标识，如：颜色、尺寸）")
     attribute_type: str = Field(..., description="属性类型（enum/text/number/date/boolean）")
     display_name: str = Field(..., min_length=1, max_length=100, description="显示名称（如：产品颜色）")
-    description: Optional[str] = Field(None, description="属性描述")
+    description: str | None = Field(None, description="属性描述")
     is_required: bool = Field(default=False, description="是否必填")
     display_order: int = Field(default=0, description="显示顺序")
-    enum_values: Optional[List[str]] = Field(None, description="枚举值列表（如果type=enum）")
-    validation_rules: Optional[Dict[str, Any]] = Field(None, description="验证规则（JSON格式）")
-    default_value: Optional[str] = Field(None, max_length=200, description="默认值")
-    dependencies: Optional[Dict[str, Any]] = Field(None, description="依赖关系（JSON格式）")
+    enum_values: list[str] | None = Field(None, description="枚举值列表（如果type=enum）")
+    validation_rules: dict[str, Any] | None = Field(None, description="验证规则（JSON格式）")
+    default_value: str | None = Field(None, max_length=200, description="默认值")
+    dependencies: dict[str, Any] | None = Field(None, description="依赖关系（JSON格式）")
     is_active: bool = Field(default=True, description="是否启用")
     
     @field_validator("attribute_type")
@@ -54,7 +54,7 @@ class MaterialVariantAttributeDefinitionBase(BaseModel):
     
     @field_validator("enum_values")
     @classmethod
-    def validate_enum_values(cls, v: Optional[List[str]], info) -> Optional[List[str]]:
+    def validate_enum_values(cls, v: list[str] | None, info) -> list[str] | None:
         """
         验证枚举值列表
         
@@ -91,21 +91,21 @@ class MaterialVariantAttributeDefinitionUpdate(BaseModel):
     
     用于更新变体属性定义，所有字段都是可选的。
     """
-    attribute_name: Optional[str] = Field(None, min_length=1, max_length=50, description="属性名称")
-    attribute_type: Optional[str] = Field(None, description="属性类型")
-    display_name: Optional[str] = Field(None, min_length=1, max_length=100, description="显示名称")
-    description: Optional[str] = Field(None, description="属性描述")
-    is_required: Optional[bool] = Field(None, description="是否必填")
-    display_order: Optional[int] = Field(None, description="显示顺序")
-    enum_values: Optional[List[str]] = Field(None, description="枚举值列表")
-    validation_rules: Optional[Dict[str, Any]] = Field(None, description="验证规则")
-    default_value: Optional[str] = Field(None, max_length=200, description="默认值")
-    dependencies: Optional[Dict[str, Any]] = Field(None, description="依赖关系")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    attribute_name: str | None = Field(None, min_length=1, max_length=50, description="属性名称")
+    attribute_type: str | None = Field(None, description="属性类型")
+    display_name: str | None = Field(None, min_length=1, max_length=100, description="显示名称")
+    description: str | None = Field(None, description="属性描述")
+    is_required: bool | None = Field(None, description="是否必填")
+    display_order: int | None = Field(None, description="显示顺序")
+    enum_values: list[str] | None = Field(None, description="枚举值列表")
+    validation_rules: dict[str, Any] | None = Field(None, description="验证规则")
+    default_value: str | None = Field(None, max_length=200, description="默认值")
+    dependencies: dict[str, Any] | None = Field(None, description="依赖关系")
+    is_active: bool | None = Field(None, description="是否启用")
     
     @field_validator("attribute_type")
     @classmethod
-    def validate_attribute_type(cls, v: Optional[str]) -> Optional[str]:
+    def validate_attribute_type(cls, v: str | None) -> str | None:
         """验证属性类型"""
         if v is not None:
             valid_types = ["enum", "text", "number", "date", "boolean"]
@@ -125,8 +125,8 @@ class MaterialVariantAttributeDefinitionResponse(MaterialVariantAttributeDefinit
     version: int = Field(..., description="版本号")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
+    created_by: int | None = Field(None, description="创建人ID")
+    updated_by: int | None = Field(None, description="更新人ID")
     
     model_config = ConfigDict(
         from_attributes=True,
@@ -145,10 +145,10 @@ class MaterialVariantAttributeHistoryResponse(BaseModel):
     tenant_id: int = Field(..., description="组织ID")
     attribute_definition_id: int = Field(..., description="关联的属性定义ID")
     version: int = Field(..., description="版本号")
-    attribute_config: Dict[str, Any] = Field(..., description="完整的属性配置（JSON格式）")
-    change_description: Optional[str] = Field(None, description="变更说明")
-    changed_by: Optional[int] = Field(None, description="变更人ID")
-    changed_at: Optional[datetime] = Field(None, description="变更时间")
+    attribute_config: dict[str, Any] = Field(..., description="完整的属性配置（JSON格式）")
+    change_description: str | None = Field(None, description="变更说明")
+    changed_by: int | None = Field(None, description="变更人ID")
+    changed_at: datetime | None = Field(None, description="变更时间")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     
@@ -176,4 +176,4 @@ class VariantAttributeValidationResponse(BaseModel):
     用于返回变体属性验证结果。
     """
     is_valid: bool = Field(..., description="是否有效")
-    error_message: Optional[str] = Field(None, description="错误信息（如果无效）")
+    error_message: str | None = Field(None, description="错误信息（如果无效）")

@@ -20,7 +20,7 @@ class ValidationIssue:
     field: str
     issue_type: str  # error, warning
     message: str
-    suggestion: Optional[str] = None
+    suggestion: str | None = None
 
 
 @dataclass
@@ -30,7 +30,7 @@ class ValidationReport:
     valid_rows: int
     error_rows: int
     warning_rows: int
-    issues: List[ValidationIssue]
+    issues: list[ValidationIssue]
     is_valid: bool
 
 
@@ -39,7 +39,7 @@ class DataCleaningSuggestion:
     """数据清洗建议"""
     issue_type: str  # duplicate, anomaly, missing, format
     description: str
-    affected_rows: List[int]
+    affected_rows: list[int]
     suggestion: str
     auto_fixable: bool = False
 
@@ -50,8 +50,8 @@ class DataQualityReport:
     completeness: float  # 完整性（0-100）
     accuracy: float  # 准确性（0-100）
     consistency: float  # 一致性（0-100）
-    issues: List[ValidationIssue]
-    suggestions: List[DataCleaningSuggestion]
+    issues: list[ValidationIssue]
+    suggestions: list[DataCleaningSuggestion]
     generated_at: datetime
 
 
@@ -64,11 +64,11 @@ class DataQualityService:
     
     @staticmethod
     async def validate_data_before_import(
-        data: List[List[Any]],
-        headers: List[str],
-        field_rules: Dict[str, Dict[str, Any]],
-        required_fields: List[str],
-        reference_data: Optional[Dict[str, Any]] = None
+        data: list[list[Any]],
+        headers: list[str],
+        field_rules: dict[str, dict[str, Any]],
+        required_fields: list[str],
+        reference_data: dict[str, Any] | None = None
     ) -> ValidationReport:
         """
         导入前数据验证
@@ -83,7 +83,7 @@ class DataQualityService:
         Returns:
             ValidationReport: 验证报告
         """
-        issues: List[ValidationIssue] = []
+        issues: list[ValidationIssue] = []
         valid_rows = 0
         error_rows = 0
         warning_rows = 0
@@ -216,10 +216,10 @@ class DataQualityService:
     
     @staticmethod
     async def detect_data_issues(
-        data: List[List[Any]],
-        headers: List[str],
-        key_fields: List[str]
-    ) -> List[DataCleaningSuggestion]:
+        data: list[list[Any]],
+        headers: list[str],
+        key_fields: list[str]
+    ) -> list[DataCleaningSuggestion]:
         """
         检测数据问题并提供清洗建议
         
@@ -231,7 +231,7 @@ class DataQualityService:
         Returns:
             List[DataCleaningSuggestion]: 数据清洗建议列表
         """
-        suggestions: List[DataCleaningSuggestion] = []
+        suggestions: list[DataCleaningSuggestion] = []
         
         # 检测重复数据
         if key_fields:
@@ -317,7 +317,7 @@ class DataQualityService:
     @staticmethod
     async def generate_quality_report(
         validation_report: ValidationReport,
-        cleaning_suggestions: List[DataCleaningSuggestion]
+        cleaning_suggestions: list[DataCleaningSuggestion]
     ) -> DataQualityReport:
         """
         生成数据质量报告

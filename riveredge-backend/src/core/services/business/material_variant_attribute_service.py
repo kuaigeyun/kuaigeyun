@@ -32,15 +32,15 @@ class MaterialVariantAttributeService:
         attribute_name: str,
         attribute_type: str,
         display_name: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         is_required: bool = False,
         display_order: int = 0,
-        enum_values: Optional[List[str]] = None,
-        validation_rules: Optional[Dict[str, Any]] = None,
-        default_value: Optional[str] = None,
-        dependencies: Optional[Dict[str, Any]] = None,
+        enum_values: list[str] | None = None,
+        validation_rules: dict[str, Any] | None = None,
+        default_value: str | None = None,
+        dependencies: dict[str, Any] | None = None,
         is_active: bool = True,
-        created_by: Optional[int] = None,
+        created_by: int | None = None,
     ) -> MaterialVariantAttributeDefinition:
         """
         创建变体属性定义
@@ -148,9 +148,9 @@ class MaterialVariantAttributeService:
     @staticmethod
     async def list_attribute_definitions(
         tenant_id: int,
-        is_active: Optional[bool] = None,
-        attribute_type: Optional[str] = None,
-    ) -> List[MaterialVariantAttributeDefinition]:
+        is_active: bool | None = None,
+        attribute_type: str | None = None,
+    ) -> list[MaterialVariantAttributeDefinition]:
         """
         列出变体属性定义
         
@@ -180,18 +180,18 @@ class MaterialVariantAttributeService:
     async def update_attribute_definition(
         tenant_id: int,
         uuid: str,
-        attribute_name: Optional[str] = None,
-        attribute_type: Optional[str] = None,
-        display_name: Optional[str] = None,
-        description: Optional[str] = None,
-        is_required: Optional[bool] = None,
-        display_order: Optional[int] = None,
-        enum_values: Optional[List[str]] = None,
-        validation_rules: Optional[Dict[str, Any]] = None,
-        default_value: Optional[str] = None,
-        dependencies: Optional[Dict[str, Any]] = None,
-        is_active: Optional[bool] = None,
-        updated_by: Optional[int] = None,
+        attribute_name: str | None = None,
+        attribute_type: str | None = None,
+        display_name: str | None = None,
+        description: str | None = None,
+        is_required: bool | None = None,
+        display_order: int | None = None,
+        enum_values: list[str] | None = None,
+        validation_rules: dict[str, Any] | None = None,
+        default_value: str | None = None,
+        dependencies: dict[str, Any] | None = None,
+        is_active: bool | None = None,
+        updated_by: int | None = None,
     ) -> MaterialVariantAttributeDefinition:
         """
         更新变体属性定义
@@ -295,7 +295,7 @@ class MaterialVariantAttributeService:
     async def delete_attribute_definition(
         tenant_id: int,
         uuid: str,
-        deleted_by: Optional[int] = None,
+        deleted_by: int | None = None,
     ) -> bool:
         """
         删除变体属性定义（软删除）
@@ -329,7 +329,7 @@ class MaterialVariantAttributeService:
     async def get_attribute_history(
         tenant_id: int,
         attribute_definition_uuid: str,
-    ) -> List[MaterialVariantAttributeHistory]:
+    ) -> list[MaterialVariantAttributeHistory]:
         """
         获取变体属性定义的版本历史
         
@@ -358,7 +358,7 @@ class MaterialVariantAttributeService:
         tenant_id: int,
         attribute_name: str,
         attribute_value: Any,
-    ) -> tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """
         验证变体属性值是否符合定义
         
@@ -426,9 +426,9 @@ class MaterialVariantAttributeService:
         tenant_id: int,
         attribute_definition_id: int,
         version: int,
-        attribute_config: Dict[str, Any],
-        change_description: Optional[str] = None,
-        changed_by: Optional[int] = None,
+        attribute_config: dict[str, Any],
+        change_description: str | None = None,
+        changed_by: int | None = None,
     ) -> MaterialVariantAttributeHistory:
         """
         保存变体属性定义版本历史（内部方法）

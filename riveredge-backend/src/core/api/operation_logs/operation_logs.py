@@ -25,12 +25,12 @@ router = APIRouter(prefix="/operation-logs", tags=["OperationLogs"])
 async def get_operation_logs(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    user_id: Optional[int] = Query(None, description="用户ID过滤"),
-    operation_type: Optional[str] = Query(None, description="操作类型过滤"),
-    operation_module: Optional[str] = Query(None, description="操作模块过滤"),
-    operation_object_type: Optional[str] = Query(None, description="操作对象类型过滤"),
-    start_time: Optional[datetime] = Query(None, description="开始时间过滤"),
-    end_time: Optional[datetime] = Query(None, description="结束时间过滤"),
+    user_id: int | None = Query(None, description="用户ID过滤"),
+    operation_type: str | None = Query(None, description="操作类型过滤"),
+    operation_module: str | None = Query(None, description="操作模块过滤"),
+    operation_object_type: str | None = Query(None, description="操作对象类型过滤"),
+    start_time: datetime | None = Query(None, description="开始时间过滤"),
+    end_time: datetime | None = Query(None, description="结束时间过滤"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -64,8 +64,8 @@ async def get_operation_logs(
 
 @router.get("/statistics", response_model=OperationLogStatsResponse)
 async def get_operation_log_stats(
-    start_time: Optional[datetime] = Query(None, description="开始时间过滤"),
-    end_time: Optional[datetime] = Query(None, description="结束时间过滤"),
+    start_time: datetime | None = Query(None, description="开始时间过滤"),
+    end_time: datetime | None = Query(None, description="结束时间过滤"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

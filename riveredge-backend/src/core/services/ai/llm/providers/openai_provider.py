@@ -28,7 +28,7 @@ class OpenAIProvider(LLMProvider):
     通过 base_url 参数可以切换到不同的服务提供商。
     """
     
-    def __init__(self, api_key: str, model: str, base_url: Optional[str] = None, **kwargs):
+    def __init__(self, api_key: str, model: str, base_url: str | None = None, **kwargs):
         """
         初始化 OpenAI 提供商
         
@@ -56,9 +56,9 @@ class OpenAIProvider(LLMProvider):
     
     async def chat_completion(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs
     ) -> LLMResponse:
         """
@@ -115,9 +115,9 @@ class OpenAIProvider(LLMProvider):
     async def generate_text(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs
     ) -> str:
         """

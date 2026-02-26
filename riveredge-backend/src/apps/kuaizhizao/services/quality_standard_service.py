@@ -130,7 +130,7 @@ class QualityStandardService(AppBaseService[QualityStandard]):
         skip: int = 0,
         limit: int = 20,
         **filters
-    ) -> List[QualityStandardListResponse]:
+    ) -> list[QualityStandardListResponse]:
         """
         获取质检标准列表
 
@@ -235,8 +235,8 @@ class QualityStandardService(AppBaseService[QualityStandard]):
         self,
         tenant_id: int,
         material_id: int,
-        standard_type: Optional[str] = None
-    ) -> List[QualityStandardListResponse]:
+        standard_type: str | None = None
+    ) -> list[QualityStandardListResponse]:
         """
         根据物料ID获取适用的质检标准
 

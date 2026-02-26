@@ -65,7 +65,7 @@ async def complete_step(
     request: StepCompleteRequest = None,
     current_user: User = Depends(get_current_user),
     init_wizard_service: InitWizardService = Depends(get_init_wizard_service)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     完成初始化步骤
     

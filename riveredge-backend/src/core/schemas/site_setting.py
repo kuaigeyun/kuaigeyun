@@ -15,7 +15,7 @@ class SiteSettingUpdate(BaseModel):
     
     用于更新站点设置的请求数据。
     """
-    settings: Dict[str, Any] = Field(..., description="设置项（JSON 字典）")
+    settings: dict[str, Any] = Field(..., description="设置项（JSON 字典）")
 
 
 class SiteSettingResponse(BaseModel):
@@ -26,7 +26,7 @@ class SiteSettingResponse(BaseModel):
     """
     uuid: str = Field(..., description="设置UUID（对外暴露，业务标识）")
     tenant_id: int = Field(..., description="组织ID")
-    settings: Dict[str, Any] = Field(..., description="设置项（JSON 字典）")
+    settings: dict[str, Any] = Field(..., description="设置项（JSON 字典）")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     

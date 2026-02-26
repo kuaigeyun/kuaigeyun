@@ -30,7 +30,7 @@ class UserService:
     async def create_user(
         self,
         data: UserCreate,
-        tenant_id: Optional[int] = None
+        tenant_id: int | None = None
     ) -> User:
         """
         创建用户
@@ -93,8 +93,8 @@ class UserService:
     async def get_user_by_id(
         self,
         user_id: int,
-        tenant_id: Optional[int] = None
-    ) -> Optional[User]:
+        tenant_id: int | None = None
+    ) -> User | None:
         """
         根据 ID 获取用户
         
@@ -129,10 +129,10 @@ class UserService:
         self,
         page: int = 1,
         page_size: int = 10,
-        keyword: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        tenant_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        keyword: str | None = None,
+        is_active: bool | None = None,
+        tenant_id: int | None = None
+    ) -> dict[str, Any]:
         """
         获取用户列表
         
@@ -184,8 +184,8 @@ class UserService:
         self,
         user_id: int,
         data: UserUpdate,
-        tenant_id: Optional[int] = None
-    ) -> Optional[User]:
+        tenant_id: int | None = None
+    ) -> User | None:
         """
         更新用户
         
@@ -248,7 +248,7 @@ class UserService:
     async def delete_user(
         self,
         user_id: int,
-        tenant_id: Optional[int] = None
+        tenant_id: int | None = None
     ) -> bool:
         """
         删除用户（软删除）
@@ -286,8 +286,8 @@ class UserService:
     async def toggle_user_status(
         self,
         user_id: int,
-        tenant_id: Optional[int] = None
-    ) -> Optional[User]:
+        tenant_id: int | None = None
+    ) -> User | None:
         """
         切换用户状态
         
@@ -321,7 +321,7 @@ class UserService:
         
         return user
     
-    async def get_user_with_tenant_info(self, user_id: int, tenant_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    async def get_user_with_tenant_info(self, user_id: int, tenant_id: int | None = None) -> dict[str, Any] | None:
         """
         获取用户及其组织信息
         
@@ -354,7 +354,7 @@ class UserService:
             if tenant:
                 tenant_name = tenant.name
         await user.fetch_related("department", "position", "roles")
-        permissions: List[str] = []
+        permissions: list[str] = []
         permission_version = 1
         if user.tenant_id:
             permission_set = await UserPermissionService.get_user_permissions(

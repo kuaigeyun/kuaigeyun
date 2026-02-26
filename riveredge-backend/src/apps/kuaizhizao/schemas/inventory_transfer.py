@@ -26,8 +26,8 @@ class InventoryTransferBase(BaseModel):
     to_warehouse_id: int = Field(..., description="调入仓库ID")
     to_warehouse_name: str = Field(..., description="调入仓库名称")
     transfer_date: datetime = Field(..., description="调拨日期")
-    transfer_reason: Optional[str] = Field(None, description="调拨原因")
-    remarks: Optional[str] = Field(None, description="备注")
+    transfer_reason: str | None = Field(None, description="调拨原因")
+    remarks: str | None = Field(None, description="备注")
 
 
 class InventoryTransferCreate(InventoryTransferBase):
@@ -47,13 +47,13 @@ class InventoryTransferUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    from_warehouse_id: Optional[int] = Field(None, description="调出仓库ID")
-    from_warehouse_name: Optional[str] = Field(None, description="调出仓库名称")
-    to_warehouse_id: Optional[int] = Field(None, description="调入仓库ID")
-    to_warehouse_name: Optional[str] = Field(None, description="调入仓库名称")
-    transfer_date: Optional[datetime] = Field(None, description="调拨日期")
-    transfer_reason: Optional[str] = Field(None, description="调拨原因")
-    remarks: Optional[str] = Field(None, description="备注")
+    from_warehouse_id: int | None = Field(None, description="调出仓库ID")
+    from_warehouse_name: str | None = Field(None, description="调出仓库名称")
+    to_warehouse_id: int | None = Field(None, description="调入仓库ID")
+    to_warehouse_name: str | None = Field(None, description="调入仓库名称")
+    transfer_date: datetime | None = Field(None, description="调拨日期")
+    transfer_reason: str | None = Field(None, description="调拨原因")
+    remarks: str | None = Field(None, description="备注")
 
 
 class InventoryTransferResponse(InventoryTransferBase):
@@ -69,13 +69,13 @@ class InventoryTransferResponse(InventoryTransferBase):
     total_items: int = Field(..., description="调拨物料总数")
     total_quantity: Decimal = Field(..., description="调拨总数量")
     total_amount: Decimal = Field(..., description="调拨总金额")
-    executed_by: Optional[int] = Field(None, description="执行人ID")
-    executed_by_name: Optional[str] = Field(None, description="执行人姓名")
-    executed_at: Optional[datetime] = Field(None, description="执行时间")
+    executed_by: int | None = Field(None, description="执行人ID")
+    executed_by_name: str | None = Field(None, description="执行人姓名")
+    executed_at: datetime | None = Field(None, description="执行时间")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
+    created_by: int | None = Field(None, description="创建人ID")
+    created_by_name: str | None = Field(None, description="创建人姓名")
 
 
 class InventoryTransferListResponse(BaseModel):
@@ -84,7 +84,7 @@ class InventoryTransferListResponse(BaseModel):
 
     用于库存调拨单列表API的响应数据格式。
     """
-    items: List[InventoryTransferResponse] = Field(default_factory=list, description="调拨单列表")
+    items: list[InventoryTransferResponse] = Field(default_factory=list, description="调拨单列表")
     total: int = Field(..., description="总数")
 
 
@@ -101,15 +101,15 @@ class InventoryTransferItemBase(BaseModel):
     material_code: str = Field(..., description="物料编码")
     material_name: str = Field(..., description="物料名称")
     from_warehouse_id: int = Field(..., description="调出仓库ID")
-    from_location_id: Optional[int] = Field(None, description="调出库位ID（可选）")
-    from_location_code: Optional[str] = Field(None, description="调出库位编码（可选）")
+    from_location_id: int | None = Field(None, description="调出库位ID（可选）")
+    from_location_code: str | None = Field(None, description="调出库位编码（可选）")
     to_warehouse_id: int = Field(..., description="调入仓库ID")
-    to_location_id: Optional[int] = Field(None, description="调入库位ID（可选）")
-    to_location_code: Optional[str] = Field(None, description="调入库位编码（可选）")
-    batch_no: Optional[str] = Field(None, description="批次号（可选）")
+    to_location_id: int | None = Field(None, description="调入库位ID（可选）")
+    to_location_code: str | None = Field(None, description="调入库位编码（可选）")
+    batch_no: str | None = Field(None, description="批次号（可选）")
     quantity: Decimal = Field(..., description="调拨数量")
     unit_price: Decimal = Field(default=0, description="单价")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class InventoryTransferItemCreate(InventoryTransferItemBase):
@@ -129,9 +129,9 @@ class InventoryTransferItemUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    quantity: Optional[Decimal] = Field(None, description="调拨数量")
-    unit_price: Optional[Decimal] = Field(None, description="单价")
-    remarks: Optional[str] = Field(None, description="备注")
+    quantity: Decimal | None = Field(None, description="调拨数量")
+    unit_price: Decimal | None = Field(None, description="单价")
+    remarks: str | None = Field(None, description="备注")
 
 
 class InventoryTransferItemResponse(InventoryTransferItemBase):
@@ -163,4 +163,4 @@ class InventoryTransferWithItemsResponse(InventoryTransferResponse):
 
     用于返回调拨单及其明细的完整信息。
     """
-    items: List[InventoryTransferItemResponse] = Field(default_factory=list, description="调拨明细列表")
+    items: list[InventoryTransferItemResponse] = Field(default_factory=list, description="调拨明细列表")

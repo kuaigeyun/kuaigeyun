@@ -58,13 +58,13 @@ async def create_approval_instance(
         )
 
 
-@router.get("", response_model=List[ApprovalInstanceResponse])
+@router.get("", response_model=list[ApprovalInstanceResponse])
 async def list_approval_instances(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    status: Optional[str] = Query(None, description="审批状态（可选）"),
-    submitter_id: Optional[int] = Query(None, description="提交人ID（可选）"),
-    current_approver_id: Optional[int] = Query(None, description="当前审批人ID（可选）"),
+    status: str | None = Query(None, description="审批状态（可选）"),
+    submitter_id: int | None = Query(None, description="提交人ID（可选）"),
+    current_approver_id: int | None = Query(None, description="当前审批人ID（可选）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

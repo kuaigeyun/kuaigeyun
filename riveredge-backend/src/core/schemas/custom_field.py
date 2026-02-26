@@ -21,9 +21,9 @@ class CustomFieldBase(BaseModel):
     code: str = Field(..., min_length=1, max_length=50, description="字段代码（唯一，用于程序识别）")
     table_name: str = Field(..., min_length=1, max_length=50, description="关联表名")
     field_type: str = Field(..., description="字段类型：text、number、date、select、textarea、json")
-    config: Optional[Dict[str, Any]] = Field(None, description="字段配置（JSON，存储默认值、验证规则、选项等）")
-    label: Optional[str] = Field(None, max_length=100, description="字段标签（显示名称）")
-    placeholder: Optional[str] = Field(None, max_length=200, description="占位符")
+    config: dict[str, Any] | None = Field(None, description="字段配置（JSON，存储默认值、验证规则、选项等）")
+    label: str | None = Field(None, max_length=100, description="字段标签（显示名称）")
+    placeholder: str | None = Field(None, max_length=200, description="占位符")
     is_required: bool = Field(default=False, description="是否必填")
     is_searchable: bool = Field(default=True, description="是否可搜索")
     is_sortable: bool = Field(default=True, description="是否可排序")
@@ -66,20 +66,20 @@ class CustomFieldUpdate(BaseModel):
     
     用于更新自定义字段的请求数据，所有字段可选。
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="字段名称")
-    field_type: Optional[str] = Field(None, description="字段类型")
-    config: Optional[Dict[str, Any]] = Field(None, description="字段配置")
-    label: Optional[str] = Field(None, max_length=100, description="字段标签")
-    placeholder: Optional[str] = Field(None, max_length=200, description="占位符")
-    is_required: Optional[bool] = Field(None, description="是否必填")
-    is_searchable: Optional[bool] = Field(None, description="是否可搜索")
-    is_sortable: Optional[bool] = Field(None, description="是否可排序")
-    sort_order: Optional[int] = Field(None, description="排序顺序")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    name: str | None = Field(None, min_length=1, max_length=100, description="字段名称")
+    field_type: str | None = Field(None, description="字段类型")
+    config: dict[str, Any] | None = Field(None, description="字段配置")
+    label: str | None = Field(None, max_length=100, description="字段标签")
+    placeholder: str | None = Field(None, max_length=200, description="占位符")
+    is_required: bool | None = Field(None, description="是否必填")
+    is_searchable: bool | None = Field(None, description="是否可搜索")
+    is_sortable: bool | None = Field(None, description="是否可排序")
+    sort_order: int | None = Field(None, description="排序顺序")
+    is_active: bool | None = Field(None, description="是否启用")
     
     @field_validator("field_type")
     @classmethod
-    def validate_field_type(cls, v: Optional[str]) -> Optional[str]:
+    def validate_field_type(cls, v: str | None) -> str | None:
         """
         验证字段类型
         
@@ -143,7 +143,7 @@ class CustomFieldListResponse(BaseModel):
     
     用于返回自定义字段列表，包含分页信息。
     """
-    items: List[CustomFieldResponse] = Field(..., description="自定义字段列表")
+    items: list[CustomFieldResponse] = Field(..., description="自定义字段列表")
     total: int = Field(..., description="总记录数")
     page: int = Field(..., description="当前页码")
     page_size: int = Field(..., description="每页数量")
@@ -157,7 +157,7 @@ class BatchSetFieldValuesRequest(BaseModel):
     """
     record_id: int = Field(..., description="关联记录ID")
     record_table: str = Field(..., min_length=1, max_length=50, description="关联表名")
-    values: List[CustomFieldValueRequest] = Field(..., description="字段值列表")
+    values: list[CustomFieldValueRequest] = Field(..., description="字段值列表")
 
 
 class CustomFieldPageConfigResponse(BaseModel):
@@ -172,7 +172,7 @@ class CustomFieldPageConfigResponse(BaseModel):
     table_name: str = Field(..., description="关联的表名（数据库表名）")
     table_name_label: str = Field(..., description="表名显示标签")
     module: str = Field(..., description="模块名称")
-    module_icon: Optional[str] = Field(None, description="模块图标")
+    module_icon: str | None = Field(None, description="模块图标")
     
     model_config = ConfigDict(from_attributes=True)
 

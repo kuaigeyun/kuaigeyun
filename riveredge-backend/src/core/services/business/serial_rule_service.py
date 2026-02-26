@@ -22,7 +22,7 @@ class SerialRuleService:
     """序列号规则服务"""
 
     @staticmethod
-    async def get_rule_by_id(tenant_id: int, rule_id: int) -> Optional[SerialRule]:
+    async def get_rule_by_id(tenant_id: int, rule_id: int) -> SerialRule | None:
         """根据ID获取序列号规则"""
         return await SerialRule.filter(
             tenant_id=tenant_id,
@@ -32,7 +32,7 @@ class SerialRuleService:
         ).first()
 
     @staticmethod
-    async def get_rule_by_uuid(tenant_id: int, rule_uuid: str) -> Optional[SerialRule]:
+    async def get_rule_by_uuid(tenant_id: int, rule_uuid: str) -> SerialRule | None:
         """根据UUID获取序列号规则"""
         return await SerialRule.filter(
             tenant_id=tenant_id,
@@ -42,7 +42,7 @@ class SerialRuleService:
         ).first()
 
     @staticmethod
-    async def get_rule_by_code(tenant_id: int, code: str) -> Optional[SerialRule]:
+    async def get_rule_by_code(tenant_id: int, code: str) -> SerialRule | None:
         """根据规则代码获取序列号规则"""
         return await SerialRule.filter(
             tenant_id=tenant_id,
@@ -56,8 +56,8 @@ class SerialRuleService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        is_active: Optional[bool] = None,
-    ) -> tuple[List[SerialRule], int]:
+        is_active: bool | None = None,
+    ) -> tuple[list[SerialRule], int]:
         """获取序列号规则列表"""
         qs = SerialRule.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if is_active is not None:
@@ -116,10 +116,10 @@ class SerialRuleService:
     async def generate_by_rule(
         tenant_id: int,
         rule: SerialRule,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         scope_key: str = "",
         count: int = 1,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         根据序列号规则生成序列号（批量）
 

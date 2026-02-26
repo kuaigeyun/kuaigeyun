@@ -164,10 +164,10 @@ class OutsourceService(AppBaseService[OutsourceOrder]):
         supplier_id: int,
         outsource_quantity: Decimal,
         created_by: int,
-        unit_price: Optional[Decimal] = None,
-        planned_start_date: Optional[datetime] = None,
-        planned_end_date: Optional[datetime] = None,
-        remarks: Optional[str] = None
+        unit_price: Decimal | None = None,
+        planned_start_date: datetime | None = None,
+        planned_end_date: datetime | None = None,
+        remarks: str | None = None
     ) -> OutsourceOrderResponse:
         """
         从工单工序创建委外单
@@ -279,11 +279,11 @@ class OutsourceService(AppBaseService[OutsourceOrder]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        work_order_id: Optional[int] = None,
-        supplier_id: Optional[int] = None,
-        status: Optional[str] = None,
-        code: Optional[str] = None
-    ) -> List[OutsourceOrderListResponse]:
+        work_order_id: int | None = None,
+        supplier_id: int | None = None,
+        status: str | None = None,
+        code: str | None = None
+    ) -> list[OutsourceOrderListResponse]:
         """
         查询委外单列表
 

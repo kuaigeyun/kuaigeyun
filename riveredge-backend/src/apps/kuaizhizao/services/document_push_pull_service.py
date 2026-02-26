@@ -42,9 +42,9 @@ class DocumentPushPullService:
         source_type: str,
         source_id: int,
         target_type: str,
-        push_params: Optional[Dict[str, Any]] = None,
+        push_params: dict[str, Any] | None = None,
         created_by: int = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         单据下推功能
         
@@ -116,7 +116,7 @@ class DocumentPushPullService:
         source_type: str,
         source_id: int,
         created_by: int = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         单据上拉功能
         
@@ -186,9 +186,9 @@ class DocumentPushPullService:
         self,
         tenant_id: int,
         demand_id: int,
-        push_params: Optional[Dict[str, Any]],
+        push_params: dict[str, Any] | None,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """从需求下推到需求计算"""
         # 获取需求信息
         demand = await Demand.get_or_none(tenant_id=tenant_id, id=demand_id)
@@ -271,9 +271,9 @@ class DocumentPushPullService:
         self,
         tenant_id: int,
         computation_id: int,
-        push_params: Optional[Dict[str, Any]],
+        push_params: dict[str, Any] | None,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """从需求计算下推到工单"""
         # 获取需求计算信息
         computation = await DemandComputation.get_or_none(tenant_id=tenant_id, id=computation_id)
@@ -304,7 +304,7 @@ class DocumentPushPullService:
             if (i.planned_production or i.suggested_work_order_quantity or 0) > 0
             and i.material_id not in already_pushed_wo_material_ids
         ]
-        agg_by_material: Dict[int, List] = {}
+        agg_by_material: dict[int, list] = {}
         for i in prod_items:
             mid = i.material_id
             if mid not in agg_by_material:
@@ -392,9 +392,9 @@ class DocumentPushPullService:
         self,
         tenant_id: int,
         computation_id: int,
-        push_params: Optional[Dict[str, Any]],
+        push_params: dict[str, Any] | None,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """从需求计算下推到生产计划（逻辑对齐转工单）"""
         from datetime import date, datetime
         from decimal import Decimal
@@ -473,7 +473,7 @@ class DocumentPushPullService:
             return int(v) if v is not None else 0
         
         # 按物料聚合明细，避免同一物料重复生成计划行（进而导致转工单时重复）
-        agg: Dict[str, Dict] = {}  # (material_id, source_type) -> aggregated
+        agg: dict[str, dict] = {}  # (material_id, source_type) -> aggregated
         for item in items:
             if item.material_source_type in ("Phantom",):
                 continue
@@ -570,9 +570,9 @@ class DocumentPushPullService:
         self,
         tenant_id: int,
         computation_id: int,
-        push_params: Optional[Dict[str, Any]],
+        push_params: dict[str, Any] | None,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """从需求计算下推到采购申请（仅采购件）"""
         from apps.kuaizhizao.models.demand_computation_item import DemandComputationItem
         from apps.kuaizhizao.models.purchase_requisition import PurchaseRequisition, PurchaseRequisitionItem
@@ -670,9 +670,9 @@ class DocumentPushPullService:
         self,
         tenant_id: int,
         plan_id: int,
-        push_params: Optional[Dict[str, Any]],
+        push_params: dict[str, Any] | None,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """从生产计划下推到工单（仅生产类明细）"""
         from apps.kuaizhizao.models.production_plan import ProductionPlan
         from apps.kuaizhizao.models.production_plan_item import ProductionPlanItem
@@ -773,9 +773,9 @@ class DocumentPushPullService:
         self,
         tenant_id: int,
         computation_id: int,
-        push_params: Optional[Dict[str, Any]],
+        push_params: dict[str, Any] | None,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """从需求计算下推到采购单"""
         # 获取需求计算信息
         computation = await DemandComputation.get_or_none(tenant_id=tenant_id, id=computation_id)
@@ -943,7 +943,7 @@ class DocumentPushPullService:
         else:
             return True
     
-    def _get_document_code(self, doc: Any, doc_type: str) -> Optional[str]:
+    def _get_document_code(self, doc: Any, doc_type: str) -> str | None:
         """获取单据编码"""
         if doc_type == "demand":
             return doc.demand_code
@@ -958,7 +958,7 @@ class DocumentPushPullService:
         else:
             return None
     
-    def _get_document_name(self, doc: Any, doc_type: str) -> Optional[str]:
+    def _get_document_name(self, doc: Any, doc_type: str) -> str | None:
         """获取单据名称"""
         if doc_type == "demand":
             return doc.demand_name
@@ -973,7 +973,7 @@ class DocumentPushPullService:
         else:
             return None
     
-    def _get_demand_id(self, doc: Any, doc_type: str) -> Optional[int]:
+    def _get_demand_id(self, doc: Any, doc_type: str) -> int | None:
         """获取需求ID"""
         if doc_type == "demand":
             return doc.id

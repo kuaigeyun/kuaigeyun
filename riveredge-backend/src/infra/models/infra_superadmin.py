@@ -6,7 +6,7 @@
 """
 
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from tortoise import fields
 from passlib.context import CryptContext
@@ -172,5 +172,5 @@ class InfraSuperAdmin(BaseModel):
         将最后登录时间更新为当前时间（带时区）。
         注意：此方法只更新字段值，需要调用 save() 保存到数据库。
         """
-        self.last_login = datetime.now(timezone.utc)
+        self.last_login = datetime.now(UTC)
 

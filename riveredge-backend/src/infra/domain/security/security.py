@@ -22,8 +22,8 @@ pwd_context = CryptContext(
 
 
 def create_access_token(
-    data: Dict[str, Any],
-    expires_delta: Optional[timedelta] = None
+    data: dict[str, Any],
+    expires_delta: timedelta | None = None
 ) -> str:
     """
     创建 JWT 访问令牌
@@ -62,7 +62,7 @@ def create_access_token(
     return encoded_jwt
 
 
-def verify_token(token: str) -> Optional[Dict[str, Any]]:
+def verify_token(token: str) -> dict[str, Any] | None:
     """
     验证 JWT Token
     
@@ -150,10 +150,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_token_for_user(
     user_id: int,
     username: str,
-    tenant_id: Optional[int],
+    tenant_id: int | None,
     is_infra_admin: bool = False,
     is_tenant_admin: bool = False,
-    expires_delta: Optional[timedelta] = None
+    expires_delta: timedelta | None = None
 ) -> str:
     """
     为用户创建 JWT Token
@@ -194,7 +194,7 @@ def create_token_for_user(
     return create_access_token(data, expires_delta)
 
 
-def get_token_payload(token: str) -> Optional[Dict[str, Any]]:
+def get_token_payload(token: str) -> dict[str, Any] | None:
     """
     获取 Token 载荷数据
     

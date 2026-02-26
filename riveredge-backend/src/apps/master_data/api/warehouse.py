@@ -44,13 +44,13 @@ async def create_warehouse(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/warehouses", response_model=List[WarehouseResponse], summary="获取仓库列表")
+@router.get("/warehouses", response_model=list[WarehouseResponse], summary="获取仓库列表")
 async def list_warehouses(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取仓库列表
@@ -185,14 +185,14 @@ async def create_storage_area(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/storage-areas", response_model=List[StorageAreaResponse], summary="获取库区列表")
+@router.get("/storage-areas", response_model=list[StorageAreaResponse], summary="获取库区列表")
 async def list_storage_areas(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    warehouse_id: Optional[int] = Query(None, description="仓库ID（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    warehouse_id: int | None = Query(None, description="仓库ID（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取库区列表
@@ -321,14 +321,14 @@ async def create_storage_location(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/storage-locations", response_model=List[StorageLocationResponse], summary="获取库位列表")
+@router.get("/storage-locations", response_model=list[StorageLocationResponse], summary="获取库位列表")
 async def list_storage_locations(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    storage_area_id: Optional[int] = Query(None, description="库区ID（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    storage_area_id: int | None = Query(None, description="库区ID（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取库位列表
@@ -430,11 +430,11 @@ async def delete_storage_location(
 
 # ==================== 级联查询接口 ====================
 
-@router.get("/tree", response_model=List[WarehouseTreeResponse], response_model_by_alias=True, summary="获取仓库数据树形结构")
+@router.get("/tree", response_model=list[WarehouseTreeResponse], response_model_by_alias=True, summary="获取仓库数据树形结构")
 async def get_warehouse_tree(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    is_active: Optional[bool] = Query(None, description="是否只查询启用的数据（可选）")
+    is_active: bool | None = Query(None, description="是否只查询启用的数据（可选）")
 ):
     """
     获取仓库数据树形结构（仓库→库区→库位）

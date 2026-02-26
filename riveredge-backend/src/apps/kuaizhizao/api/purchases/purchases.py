@@ -61,14 +61,14 @@ async def create_purchase_order(
 async def list_purchase_orders(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(20, ge=1, le=100, description="返回数量"),
-    supplier_id: Optional[int] = Query(None, description="供应商ID"),
-    status: Optional[str] = Query(None, description="订单状态"),
-    review_status: Optional[str] = Query(None, description="审核状态"),
-    order_date_from: Optional[date] = Query(None, description="订单日期从"),
-    order_date_to: Optional[date] = Query(None, description="订单日期到"),
-    delivery_date_from: Optional[date] = Query(None, description="到货日期从"),
-    delivery_date_to: Optional[date] = Query(None, description="到货日期到"),
-    keyword: Optional[str] = Query(None, description="关键词搜索"),
+    supplier_id: int | None = Query(None, description="供应商ID"),
+    status: str | None = Query(None, description="订单状态"),
+    review_status: str | None = Query(None, description="审核状态"),
+    order_date_from: date | None = Query(None, description="订单日期从"),
+    order_date_to: date | None = Query(None, description="订单日期到"),
+    delivery_date_from: date | None = Query(None, description="到货日期从"),
+    delivery_date_to: date | None = Query(None, description="到货日期到"),
+    keyword: str | None = Query(None, description="关键词搜索"),
     tenant_id: int = Depends(get_current_tenant)
 ):
     """
@@ -232,7 +232,7 @@ async def confirm_purchase_order(
 @router.post("/purchase-orders/{order_id}/push-to-receipt", summary="下推到采购入库")
 async def push_purchase_order_to_receipt(
     order_id: int = Path(..., description="采购订单ID"),
-    receipt_quantities: Optional[dict] = None,
+    receipt_quantities: dict | None = None,
     current_user: CurrentUser = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -260,14 +260,12 @@ async def push_purchase_order_to_receipt(
 @router.get("/purchase-orders/{order_id}/print", summary="打印采购订单")
 async def print_purchase_order(
     order_id: int = Path(..., description="采购订单ID"),
-    template_code: Optional[str] = Query(None, description="打印模板代码"),
+    template_code: str | None = Query(None, description="打印模板代码"),
     output_format: str = Query("html", description="输出格式"),
     current_user: CurrentUser = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """打印采购订单"""
-    from apps.kuaizhizao.services.print_service import DocumentPrintService
-    from fastapi.responses import HTMLResponse
     
     result = await DocumentPrintService().print_document(
         tenant_id=tenant_id,

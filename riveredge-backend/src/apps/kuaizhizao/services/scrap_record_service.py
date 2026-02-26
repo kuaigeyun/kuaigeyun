@@ -43,7 +43,7 @@ class ScrapRecordService(AppBaseService[ScrapRecord]):
         scrap_id: int,
         approved: bool,
         approved_by: int,
-        rejection_reason: Optional[str] = None
+        rejection_reason: str | None = None
     ) -> ScrapRecordResponse:
         """
         审批报废记录
@@ -162,13 +162,13 @@ class ScrapRecordService(AppBaseService[ScrapRecord]):
     async def get_scrap_statistics(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        work_order_id: Optional[int] = None,
-        operation_id: Optional[int] = None,
-        product_id: Optional[int] = None,
-        scrap_type: Optional[str] = None
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        work_order_id: int | None = None,
+        operation_id: int | None = None,
+        product_id: int | None = None,
+        scrap_type: str | None = None
+    ) -> dict[str, Any]:
         """
         获取报废统计分析
 
@@ -209,7 +209,7 @@ class ScrapRecordService(AppBaseService[ScrapRecord]):
         total_cost = sum(r.total_cost or Decimal('0') for r in scrap_records)
 
         # 按工单统计
-        work_order_stats: Dict[int, Dict[str, Any]] = {}
+        work_order_stats: dict[int, dict[str, Any]] = {}
         for record in scrap_records:
             if record.work_order_id not in work_order_stats:
                 work_order_stats[record.work_order_id] = {
@@ -224,7 +224,7 @@ class ScrapRecordService(AppBaseService[ScrapRecord]):
             work_order_stats[record.work_order_id]['total_cost'] += (record.total_cost or Decimal('0'))
 
         # 按工序统计
-        operation_stats: Dict[int, Dict[str, Any]] = {}
+        operation_stats: dict[int, dict[str, Any]] = {}
         for record in scrap_records:
             if record.operation_id not in operation_stats:
                 operation_stats[record.operation_id] = {
@@ -239,7 +239,7 @@ class ScrapRecordService(AppBaseService[ScrapRecord]):
             operation_stats[record.operation_id]['total_cost'] += (record.total_cost or Decimal('0'))
 
         # 按物料统计
-        product_stats: Dict[int, Dict[str, Any]] = {}
+        product_stats: dict[int, dict[str, Any]] = {}
         for record in scrap_records:
             if record.product_id not in product_stats:
                 product_stats[record.product_id] = {
@@ -255,7 +255,7 @@ class ScrapRecordService(AppBaseService[ScrapRecord]):
             product_stats[record.product_id]['total_cost'] += (record.total_cost or Decimal('0'))
 
         # 按报废类型统计
-        type_stats: Dict[str, Dict[str, Any]] = {}
+        type_stats: dict[str, dict[str, Any]] = {}
         for record in scrap_records:
             if record.scrap_type not in type_stats:
                 type_stats[record.scrap_type] = {
@@ -286,13 +286,13 @@ class ScrapRecordService(AppBaseService[ScrapRecord]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        work_order_id: Optional[int] = None,
-        operation_id: Optional[int] = None,
-        status: Optional[str] = None,
-        scrap_type: Optional[str] = None,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None
-    ) -> List[ScrapRecordListResponse]:
+        work_order_id: int | None = None,
+        operation_id: int | None = None,
+        status: str | None = None,
+        scrap_type: str | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None
+    ) -> list[ScrapRecordListResponse]:
         """
         查询报废记录列表
 

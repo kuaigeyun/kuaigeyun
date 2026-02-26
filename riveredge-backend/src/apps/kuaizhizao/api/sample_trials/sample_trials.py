@@ -57,12 +57,12 @@ async def create_sample_trial(
         )
 
 
-@router.get("", response_model=List[SampleTrialListResponse], summary="获取样品试用单列表")
+@router.get("", response_model=list[SampleTrialListResponse], summary="获取样品试用单列表")
 async def list_sample_trials(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    status: Optional[str] = Query(None),
-    customer_id: Optional[int] = Query(None),
+    status: str | None = Query(None),
+    customer_id: int | None = Query(None),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -178,8 +178,8 @@ async def create_sample_outbound(
 @router.get("/{trial_id}/print", summary="打印样品试用单")
 async def print_sample_trial(
     trial_id: int = Path(..., description="试用单ID"),
-    template_code: Optional[str] = Query(None),
-    template_uuid: Optional[str] = Query(None),
+    template_code: str | None = Query(None),
+    template_uuid: str | None = Query(None),
     output_format: str = Query("html"),
     response_format: str = Query("json"),
     current_user: User = Depends(get_current_user),

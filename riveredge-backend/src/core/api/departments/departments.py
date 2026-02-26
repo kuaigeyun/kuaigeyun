@@ -96,8 +96,8 @@ async def create_department(
 
 @router.get("/tree", response_model=DepartmentTreeResponse)
 async def get_department_tree(
-    keyword: Optional[str] = Query(None, description="关键词搜索"),
-    is_active: Optional[bool] = Query(None, description="是否启用筛选"),
+    keyword: str | None = Query(None, description="关键词搜索"),
+    is_active: bool | None = Query(None, description="是否启用筛选"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -327,7 +327,7 @@ async def delete_department(
 
 @router.put("/sort", status_code=status.HTTP_200_OK)
 async def update_department_order(
-    department_orders: List[Dict[str, Any]] = Body(..., description="部门排序列表"),
+    department_orders: list[dict[str, Any]] = Body(..., description="部门排序列表"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -362,7 +362,7 @@ async def update_department_order(
 
 class DepartmentImportRequestSchema(BaseModel):
     """部门导入请求 Schema（API层）"""
-    data: List[List[Any]] = Field(..., description="二维数组数据（第一行为表头，第二行为示例数据，从第三行开始为实际数据）")
+    data: list[list[Any]] = Field(..., description="二维数组数据（第一行为表头，第二行为示例数据，从第三行开始为实际数据）")
 
 
 @router.post("/batch-import")

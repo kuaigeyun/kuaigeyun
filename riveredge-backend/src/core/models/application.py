@@ -84,7 +84,7 @@ class Application(BaseModel):
             ("created_at",),
         ]
     
-    def get_menu_config(self) -> Dict[str, Any]:
+    def get_menu_config(self) -> dict[str, Any]:
         """
         获取菜单配置
         
@@ -93,7 +93,7 @@ class Application(BaseModel):
         """
         return self.menu_config or {}
     
-    def set_menu_config(self, config: Dict[str, Any]) -> None:
+    def set_menu_config(self, config: dict[str, Any]) -> None:
         """
         设置菜单配置
         

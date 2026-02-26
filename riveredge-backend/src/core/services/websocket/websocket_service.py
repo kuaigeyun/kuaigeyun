@@ -24,15 +24,15 @@ class WebSocketManager:
     
     def __init__(self):
         # 存储所有活跃连接：{connection_id: WebSocket}
-        self.active_connections: Dict[str, WebSocket] = {}
+        self.active_connections: dict[str, WebSocket] = {}
         # 存储连接信息：{connection_id: {tenant_id, user_id, channels}}
-        self.connection_info: Dict[str, Dict[str, Any]] = {}
+        self.connection_info: dict[str, dict[str, Any]] = {}
         # 按租户分组：{tenant_id: Set[connection_id]}
-        self.tenant_connections: Dict[int, Set[str]] = {}
+        self.tenant_connections: dict[int, set[str]] = {}
         # 按用户分组：{user_id: Set[connection_id]}
-        self.user_connections: Dict[int, Set[str]] = {}
+        self.user_connections: dict[int, set[str]] = {}
         # 按频道分组：{channel: Set[connection_id]}
-        self.channel_connections: Dict[str, Set[str]] = {}
+        self.channel_connections: dict[str, set[str]] = {}
     
     def generate_connection_id(self, tenant_id: int, user_id: int) -> str:
         """
@@ -47,7 +47,7 @@ class WebSocketManager:
         """
         return f"{tenant_id}_{user_id}_{datetime.now().timestamp()}"
     
-    async def connect(self, websocket: WebSocket, tenant_id: int, user_id: int, channels: Optional[list] = None) -> str:
+    async def connect(self, websocket: WebSocket, tenant_id: int, user_id: int, channels: list | None = None) -> str:
         """
         建立WebSocket连接
         
@@ -142,7 +142,7 @@ class WebSocketManager:
         
         logger.info(f"WebSocket连接断开: {connection_id}")
     
-    async def send_personal_message(self, connection_id: str, message: Dict[str, Any]):
+    async def send_personal_message(self, connection_id: str, message: dict[str, Any]):
         """
         发送个人消息
         
@@ -161,7 +161,7 @@ class WebSocketManager:
             logger.error(f"发送消息失败: {connection_id}, 错误: {e}")
             self.disconnect(connection_id)
     
-    async def broadcast_to_tenant(self, tenant_id: int, message: Dict[str, Any]):
+    async def broadcast_to_tenant(self, tenant_id: int, message: dict[str, Any]):
         """
         向租户内所有连接广播消息
         
@@ -176,7 +176,7 @@ class WebSocketManager:
         for connection_id in connection_ids:
             await self.send_personal_message(connection_id, message)
     
-    async def broadcast_to_user(self, user_id: int, message: Dict[str, Any]):
+    async def broadcast_to_user(self, user_id: int, message: dict[str, Any]):
         """
         向用户的所有连接广播消息
         
@@ -191,7 +191,7 @@ class WebSocketManager:
         for connection_id in connection_ids:
             await self.send_personal_message(connection_id, message)
     
-    async def broadcast_to_channel(self, channel: str, message: Dict[str, Any]):
+    async def broadcast_to_channel(self, channel: str, message: dict[str, Any]):
         """
         向频道内所有连接广播消息
         
@@ -249,7 +249,7 @@ class WebSocketManager:
         
         logger.info(f"连接 {connection_id} 取消订阅频道: {channel}")
     
-    def get_connection_count(self) -> Dict[str, int]:
+    def get_connection_count(self) -> dict[str, int]:
         """
         获取连接统计信息
         
@@ -280,7 +280,7 @@ class WebSocketService:
         websocket: WebSocket,
         tenant_id: int,
         user_id: int,
-        channels: Optional[list] = None
+        channels: list | None = None
     ):
         """
         处理WebSocket连接
@@ -347,7 +347,7 @@ class WebSocketService:
             websocket_manager.disconnect(connection_id)
     
     @staticmethod
-    async def push_to_tenant(tenant_id: int, channel: str, data: Dict[str, Any]):
+    async def push_to_tenant(tenant_id: int, channel: str, data: dict[str, Any]):
         """
         向租户推送数据
         
@@ -365,7 +365,7 @@ class WebSocketService:
         await websocket_manager.broadcast_to_tenant(tenant_id, message)
     
     @staticmethod
-    async def push_to_user(user_id: int, channel: str, data: Dict[str, Any]):
+    async def push_to_user(user_id: int, channel: str, data: dict[str, Any]):
         """
         向用户推送数据
         
@@ -383,7 +383,7 @@ class WebSocketService:
         await websocket_manager.broadcast_to_user(user_id, message)
     
     @staticmethod
-    async def push_to_channel(channel: str, data: Dict[str, Any]):
+    async def push_to_channel(channel: str, data: dict[str, Any]):
         """
         向频道推送数据
         

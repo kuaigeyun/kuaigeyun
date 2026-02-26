@@ -18,9 +18,9 @@ class SystemParameterBase(BaseModel):
     包含系统参数的基本字段，用于创建和更新操作。
     """
     key: str = Field(..., min_length=1, max_length=100, description="参数键（唯一，用于程序识别）")
-    value: Union[str, int, float, bool, dict, list] = Field(..., description="参数值")
+    value: str | int | float | bool | dict | list = Field(..., description="参数值")
     type: str = Field(..., description="参数类型：string、number、boolean、json")
-    description: Optional[str] = Field(None, description="参数描述")
+    description: str | None = Field(None, description="参数描述")
     is_system: bool = Field(default=False, description="是否系统参数（系统参数不可删除）")
     is_active: bool = Field(default=True, description="是否启用")
     
@@ -59,9 +59,9 @@ class SystemParameterUpdate(BaseModel):
     
     用于更新系统参数的请求数据，所有字段可选。
     """
-    value: Optional[Union[str, int, float, bool, dict, list]] = Field(None, description="参数值")
-    description: Optional[str] = Field(None, description="参数描述")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    value: str | int | float | bool | dict | list | None = Field(None, description="参数值")
+    description: str | None = Field(None, description="参数描述")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class SystemParameterResponse(BaseModel):
@@ -73,9 +73,9 @@ class SystemParameterResponse(BaseModel):
     uuid: str = Field(..., description="参数UUID（对外暴露，业务标识）")
     tenant_id: int = Field(..., description="组织ID")
     key: str = Field(..., description="参数键")
-    value: Union[str, int, float, bool, dict, list] = Field(..., description="参数值")
+    value: str | int | float | bool | dict | list = Field(..., description="参数值")
     type: str = Field(..., description="参数类型")
-    description: Optional[str] = Field(None, description="参数描述")
+    description: str | None = Field(None, description="参数描述")
     is_system: bool = Field(..., description="是否系统参数")
     is_active: bool = Field(..., description="是否启用")
     created_at: datetime = Field(..., description="创建时间")

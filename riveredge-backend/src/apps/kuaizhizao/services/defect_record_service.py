@@ -45,7 +45,7 @@ class DefectRecordService(AppBaseService[DefectRecord]):
         defect_id: int,
         approved: bool,
         approved_by: int,
-        rejection_reason: Optional[str] = None
+        rejection_reason: str | None = None
     ) -> DefectRecordResponse:
         """
         审批不良品让步接收
@@ -128,14 +128,14 @@ class DefectRecordService(AppBaseService[DefectRecord]):
     async def get_defect_statistics(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        work_order_id: Optional[int] = None,
-        operation_id: Optional[int] = None,
-        product_id: Optional[int] = None,
-        defect_type: Optional[str] = None,
-        disposition: Optional[str] = None
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        work_order_id: int | None = None,
+        operation_id: int | None = None,
+        product_id: int | None = None,
+        defect_type: str | None = None,
+        disposition: str | None = None
+    ) -> dict[str, Any]:
         """
         获取不良品统计分析
 
@@ -196,7 +196,7 @@ class DefectRecordService(AppBaseService[DefectRecord]):
         defect_rate = (float(total_defect_quantity) / float(total_reported_quantity) * 100) if total_reported_quantity > 0 else 0
 
         # 按工单统计
-        work_order_stats: Dict[int, Dict[str, Any]] = {}
+        work_order_stats: dict[int, dict[str, Any]] = {}
         for record in defect_records:
             if record.work_order_id not in work_order_stats:
                 work_order_stats[record.work_order_id] = {
@@ -209,7 +209,7 @@ class DefectRecordService(AppBaseService[DefectRecord]):
             work_order_stats[record.work_order_id]['defect_quantity'] += record.defect_quantity
 
         # 按工序统计
-        operation_stats: Dict[int, Dict[str, Any]] = {}
+        operation_stats: dict[int, dict[str, Any]] = {}
         for record in defect_records:
             if record.operation_id not in operation_stats:
                 operation_stats[record.operation_id] = {
@@ -222,7 +222,7 @@ class DefectRecordService(AppBaseService[DefectRecord]):
             operation_stats[record.operation_id]['defect_quantity'] += record.defect_quantity
 
         # 按物料统计
-        product_stats: Dict[int, Dict[str, Any]] = {}
+        product_stats: dict[int, dict[str, Any]] = {}
         for record in defect_records:
             if record.product_id not in product_stats:
                 product_stats[record.product_id] = {
@@ -236,7 +236,7 @@ class DefectRecordService(AppBaseService[DefectRecord]):
             product_stats[record.product_id]['defect_quantity'] += record.defect_quantity
 
         # 按不良品类型统计
-        type_stats: Dict[str, Dict[str, Any]] = {}
+        type_stats: dict[str, dict[str, Any]] = {}
         for record in defect_records:
             if record.defect_type not in type_stats:
                 type_stats[record.defect_type] = {
@@ -248,7 +248,7 @@ class DefectRecordService(AppBaseService[DefectRecord]):
             type_stats[record.defect_type]['defect_quantity'] += record.defect_quantity
 
         # 按处理方式统计
-        disposition_stats: Dict[str, Dict[str, Any]] = {}
+        disposition_stats: dict[str, dict[str, Any]] = {}
         for record in defect_records:
             if record.disposition not in disposition_stats:
                 disposition_stats[record.disposition] = {
@@ -278,14 +278,14 @@ class DefectRecordService(AppBaseService[DefectRecord]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        work_order_id: Optional[int] = None,
-        operation_id: Optional[int] = None,
-        status: Optional[str] = None,
-        defect_type: Optional[str] = None,
-        disposition: Optional[str] = None,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None
-    ) -> List[DefectRecordListResponse]:
+        work_order_id: int | None = None,
+        operation_id: int | None = None,
+        status: str | None = None,
+        defect_type: str | None = None,
+        disposition: str | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None
+    ) -> list[DefectRecordListResponse]:
         """
         查询不良品记录列表
 

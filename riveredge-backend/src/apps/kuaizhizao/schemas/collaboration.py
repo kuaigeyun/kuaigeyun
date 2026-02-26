@@ -17,17 +17,17 @@ from decimal import Decimal
 
 class PurchaseOrderProgressUpdateRequest(BaseModel):
     """更新采购订单进度请求"""
-    progress_percentage: Optional[float] = Field(None, ge=0, le=100, description="完成百分比")
-    estimated_delivery_date: Optional[date] = Field(None, description="预计交货日期")
-    remarks: Optional[str] = Field(None, description="备注")
+    progress_percentage: float | None = Field(None, ge=0, le=100, description="完成百分比")
+    estimated_delivery_date: date | None = Field(None, description="预计交货日期")
+    remarks: str | None = Field(None, description="备注")
 
 
 class DeliveryNoticeRequest(BaseModel):
     """提交发货通知请求"""
     delivery_quantity: Decimal = Field(..., description="发货数量")
     delivery_date: date = Field(..., description="发货日期")
-    tracking_number: Optional[str] = Field(None, description="物流单号")
-    remarks: Optional[str] = Field(None, description="备注")
+    tracking_number: str | None = Field(None, description="物流单号")
+    remarks: str | None = Field(None, description="备注")
 
 
 # ==================== 客户协同 Schema ====================
@@ -40,7 +40,7 @@ class SalesOrderProductionProgressResponse(BaseModel):
     completed_work_orders: int = Field(..., description="已完成工单数")
     in_progress_work_orders: int = Field(..., description="进行中工单数")
     progress_percentage: float = Field(..., ge=0, le=100, description="生产进度百分比")
-    work_orders: List[Dict[str, Any]] = Field(..., description="工单详情列表")
+    work_orders: list[dict[str, Any]] = Field(..., description="工单详情列表")
     updated_at: str = Field(..., description="更新时间")
 
 

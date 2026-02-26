@@ -109,7 +109,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
             raise NotFoundError(f"生产领料单不存在: {picking_id}")
         return ProductionPickingResponse.model_validate(picking)
 
-    async def list_production_pickings(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[ProductionPickingListResponse]:
+    async def list_production_pickings(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[ProductionPickingListResponse]:
         """获取生产领料单列表"""
         query = ProductionPicking.filter(tenant_id=tenant_id)
 
@@ -177,8 +177,8 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         tenant_id: int,
         work_order_id: int,
         created_by: int,
-        warehouse_id: Optional[int] = None,
-        warehouse_name: Optional[str] = None
+        warehouse_id: int | None = None,
+        warehouse_name: str | None = None
     ) -> ProductionPickingResponse:
         """
         一键领料：从工单下推，根据BOM自动生成领料需求
@@ -277,11 +277,11 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
     async def batch_pick_from_work_orders(
         self,
         tenant_id: int,
-        work_order_ids: List[int],
+        work_order_ids: list[int],
         created_by: int,
-        warehouse_id: Optional[int] = None,
-        warehouse_name: Optional[str] = None
-    ) -> List[ProductionPickingResponse]:
+        warehouse_id: int | None = None,
+        warehouse_name: str | None = None
+    ) -> list[ProductionPickingResponse]:
         """
         批量领料：从多个工单下推，批量创建领料单
         
@@ -374,7 +374,7 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
         skip: int = 0,
         limit: int = 20,
         **filters
-    ) -> List[ProductionReturnListResponse]:
+    ) -> list[ProductionReturnListResponse]:
         """获取生产退料单列表"""
         query = ProductionReturn.filter(tenant_id=tenant_id)
         if filters.get("status"):
@@ -456,7 +456,7 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
     def __init__(self):
         super().__init__(FinishedGoodsReceipt)
 
-    async def create_finished_goods_receipt(self, tenant_id: int, receipt_data: FinishedGoodsReceiptCreate, created_by: int, items: Optional[List[FinishedGoodsReceiptItemCreate]] = None) -> FinishedGoodsReceiptResponse:
+    async def create_finished_goods_receipt(self, tenant_id: int, receipt_data: FinishedGoodsReceiptCreate, created_by: int, items: list[FinishedGoodsReceiptItemCreate] | None = None) -> FinishedGoodsReceiptResponse:
         """创建成品入库单"""
         async with in_transaction():
             user_info = await self.get_user_info(created_by)
@@ -549,7 +549,7 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
             raise NotFoundError(f"成品入库单不存在: {receipt_id}")
         return FinishedGoodsReceiptResponse.model_validate(receipt)
 
-    async def list_finished_goods_receipts(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[FinishedGoodsReceiptResponse]:
+    async def list_finished_goods_receipts(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[FinishedGoodsReceiptResponse]:
         """获取成品入库单列表"""
         query = FinishedGoodsReceipt.filter(tenant_id=tenant_id)
 
@@ -591,9 +591,9 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
         tenant_id: int,
         work_order_id: int,
         created_by: int,
-        warehouse_id: Optional[int] = None,
-        warehouse_name: Optional[str] = None,
-        receipt_quantity: Optional[float] = None
+        warehouse_id: int | None = None,
+        warehouse_name: str | None = None,
+        receipt_quantity: float | None = None
     ) -> FinishedGoodsReceiptResponse:
         """
         一键入库：从工单下推，根据报工记录自动生成入库单
@@ -615,7 +615,6 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
         """
         from apps.kuaizhizao.models.work_order import WorkOrder
         from apps.kuaizhizao.models.reporting_record import ReportingRecord
-        from apps.kuaizhizao.models.finished_goods_receipt_item import FinishedGoodsReceiptItem
         from decimal import Decimal
         
         async with in_transaction():
@@ -699,11 +698,11 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
     async def batch_receipt_from_work_orders(
         self,
         tenant_id: int,
-        work_order_ids: List[int],
+        work_order_ids: list[int],
         created_by: int,
-        warehouse_id: Optional[int] = None,
-        warehouse_name: Optional[str] = None
-    ) -> List[FinishedGoodsReceiptResponse]:
+        warehouse_id: int | None = None,
+        warehouse_name: str | None = None
+    ) -> list[FinishedGoodsReceiptResponse]:
         """
         批量入库：从多个工单下推，批量创建入库单
         
@@ -900,7 +899,7 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
             raise NotFoundError(f"销售出库单不存在: {delivery_id}")
         return SalesDeliveryResponse.model_validate(delivery)
 
-    async def list_sales_deliveries(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[SalesDeliveryResponse]:
+    async def list_sales_deliveries(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[SalesDeliveryResponse]:
         """获取销售出库单列表"""
         query = SalesDelivery.filter(tenant_id=tenant_id)
 
@@ -976,9 +975,9 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
     async def import_from_data(
         self,
         tenant_id: int,
-        data: List[List[Any]],
+        data: list[list[Any]],
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从二维数组数据批量导入销售出库单
         
@@ -1317,7 +1316,7 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
             raise NotFoundError(f"采购入库单不存在: {receipt_id}")
         return PurchaseReceiptResponse.model_validate(receipt)
 
-    async def list_purchase_receipts(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[PurchaseReceiptResponse]:
+    async def list_purchase_receipts(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[PurchaseReceiptResponse]:
         """获取采购入库单列表"""
         query = PurchaseReceipt.filter(tenant_id=tenant_id)
 
@@ -1393,9 +1392,9 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
     async def import_from_data(
         self,
         tenant_id: int,
-        data: List[List[Any]],
+        data: list[list[Any]],
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从二维数组数据批量导入采购入库单
         
@@ -1663,9 +1662,9 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         tenant_id: int,
         sales_order_id: int,
         created_by: int,
-        delivery_quantities: Optional[Dict[int, float]] = None,
-        warehouse_id: Optional[int] = None,
-        warehouse_name: Optional[str] = None
+        delivery_quantities: dict[int, float] | None = None,
+        warehouse_id: int | None = None,
+        warehouse_name: str | None = None
     ) -> SalesDeliveryResponse:
         """
         从销售订单上拉生成销售出库单（销售出库单上拉功能）
@@ -1689,7 +1688,6 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         """
         from apps.kuaizhizao.models.sales_order import SalesOrder
         from apps.kuaizhizao.models.sales_order_item import SalesOrderItem
-        from apps.kuaizhizao.schemas.warehouse import SalesDeliveryItemCreate
         from decimal import Decimal
         
         # 获取销售订单
@@ -1800,9 +1798,9 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         tenant_id: int,
         sales_forecast_id: int,
         created_by: int,
-        delivery_quantities: Optional[Dict[int, float]] = None,
-        warehouse_id: Optional[int] = None,
-        warehouse_name: Optional[str] = None
+        delivery_quantities: dict[int, float] | None = None,
+        warehouse_id: int | None = None,
+        warehouse_name: str | None = None
     ) -> SalesDeliveryResponse:
         """
         从销售预测上拉生成销售出库单（销售出库单上拉功能）
@@ -1826,7 +1824,6 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         """
         from apps.kuaizhizao.models.sales_forecast import SalesForecast
         from apps.kuaizhizao.models.sales_forecast_item import SalesForecastItem
-        from apps.kuaizhizao.schemas.warehouse import SalesDeliveryItemCreate
         from decimal import Decimal
         
         # 获取销售预测
@@ -2049,7 +2046,7 @@ class SalesReturnService(AppBaseService[SalesReturn]):
             raise NotFoundError(f"销售退货单不存在: {return_id}")
         return SalesReturnResponse.model_validate(return_obj)
 
-    async def list_sales_returns(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[SalesReturnResponse]:
+    async def list_sales_returns(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[SalesReturnResponse]:
         """获取销售退货单列表"""
         query = SalesReturn.filter(tenant_id=tenant_id)
 
@@ -2208,7 +2205,7 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
             raise NotFoundError(f"采购退货单不存在: {return_id}")
         return PurchaseReturnResponse.model_validate(return_obj)
 
-    async def list_purchase_returns(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[PurchaseReturnResponse]:
+    async def list_purchase_returns(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[PurchaseReturnResponse]:
         """获取采购退货单列表"""
         query = PurchaseReturn.filter(tenant_id=tenant_id)
 
@@ -2329,7 +2326,7 @@ class OtherInboundService(AppBaseService[OtherInbound]):
         skip: int = 0,
         limit: int = 20,
         **filters
-    ) -> List[OtherInboundListResponse]:
+    ) -> list[OtherInboundListResponse]:
         """获取其他入库单列表"""
         query = OtherInbound.filter(tenant_id=tenant_id)
         if filters.get("status"):
@@ -2484,7 +2481,7 @@ class OtherOutboundService(AppBaseService[OtherOutbound]):
         skip: int = 0,
         limit: int = 20,
         **filters
-    ) -> List[OtherOutboundListResponse]:
+    ) -> list[OtherOutboundListResponse]:
         """获取其他出库单列表"""
         query = OtherOutbound.filter(tenant_id=tenant_id)
         if filters.get("status"):
@@ -2626,7 +2623,7 @@ class MaterialBorrowService(AppBaseService[MaterialBorrow]):
         skip: int = 0,
         limit: int = 20,
         **filters
-    ) -> List[MaterialBorrowListResponse]:
+    ) -> list[MaterialBorrowListResponse]:
         """获取借料单列表"""
         query = MaterialBorrow.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if filters.get("status"):
@@ -2773,7 +2770,7 @@ class MaterialReturnService(AppBaseService[MaterialReturn]):
         skip: int = 0,
         limit: int = 20,
         **filters
-    ) -> List[MaterialReturnListResponse]:
+    ) -> list[MaterialReturnListResponse]:
         """获取还料单列表"""
         query = MaterialReturn.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if filters.get("status"):

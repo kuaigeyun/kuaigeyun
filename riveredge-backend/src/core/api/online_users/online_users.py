@@ -27,7 +27,7 @@ router = APIRouter(prefix="/online-users", tags=["OnlineUsers"])
 
 @router.get("", response_model=OnlineUserListResponse)
 async def list_online_users(
-    tenant_id: Optional[int] = Query(None, description="组织ID（可选，管理员可以查看其他组织）"),
+    tenant_id: int | None = Query(None, description="组织ID（可选，管理员可以查看其他组织）"),
     current_user: User = Depends(get_current_user),
     current_tenant_id: int = Depends(get_current_tenant),
 ):
@@ -70,7 +70,7 @@ async def list_online_users(
 
 @router.get("/statistics", response_model=OnlineUserStatisticsResponse)
 async def get_online_user_statistics(
-    tenant_id: Optional[int] = Query(None, description="组织ID（可选）"),
+    tenant_id: int | None = Query(None, description="组织ID（可选）"),
     current_user: User = Depends(get_current_user),
     current_tenant_id: int = Depends(get_current_tenant),
 ):
@@ -170,7 +170,7 @@ async def force_logout(
         )
 
 
-@router.post("/debug/test-write", response_model=Dict[str, Any])
+@router.post("/debug/test-write", response_model=dict[str, Any])
 async def debug_test_write(
     current_user: User = Depends(get_current_user),
     current_tenant_id: int = Depends(get_current_tenant),
@@ -213,7 +213,7 @@ async def debug_test_write(
         }
 
 
-@router.get("/debug/redis-status", response_model=Dict[str, Any])
+@router.get("/debug/redis-status", response_model=dict[str, Any])
 async def debug_redis_status(
     current_user: User = Depends(get_current_user),
     current_tenant_id: int = Depends(get_current_tenant),

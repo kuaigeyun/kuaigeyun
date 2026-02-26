@@ -116,7 +116,7 @@ class SampleTrialService(AppBaseService[SampleTrial]):
         skip: int = 0,
         limit: int = 20,
         **filters
-    ) -> List[SampleTrialListResponse]:
+    ) -> list[SampleTrialListResponse]:
         """获取样品试用单列表"""
         query = SampleTrial.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if filters.get("status"):

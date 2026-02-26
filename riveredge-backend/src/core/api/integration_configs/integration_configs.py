@@ -78,12 +78,12 @@ async def create_integration(
         )
 
 
-@router.get("", response_model=List[IntegrationConfigResponse])
+@router.get("", response_model=list[IntegrationConfigResponse])
 async def list_integrations(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    type: Optional[str] = Query(None, description="集成类型（可选）"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    type: str | None = Query(None, description="集成类型（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

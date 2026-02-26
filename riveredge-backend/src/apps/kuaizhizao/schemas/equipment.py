@@ -20,28 +20,28 @@ class EquipmentBase(BaseModel):
     
     包含设备的基本字段，用于创建和更新操作。
     """
-    code: Optional[str] = Field(None, max_length=50, description="设备编码（可选，创建时自动生成）")
+    code: str | None = Field(None, max_length=50, description="设备编码（可选，创建时自动生成）")
     name: str = Field(..., min_length=1, max_length=200, description="设备名称")
-    type: Optional[str] = Field(None, max_length=50, description="设备类型（如：加工设备、检测设备、包装设备等）")
-    category: Optional[str] = Field(None, max_length=50, description="设备分类（如：CNC、注塑机、冲压机等）")
-    brand: Optional[str] = Field(None, max_length=100, description="品牌")
-    model: Optional[str] = Field(None, max_length=100, description="型号")
-    serial_number: Optional[str] = Field(None, max_length=100, description="序列号")
-    manufacturer: Optional[str] = Field(None, max_length=200, description="制造商")
-    supplier: Optional[str] = Field(None, max_length=200, description="供应商")
-    purchase_date: Optional[date] = Field(None, description="采购日期")
-    installation_date: Optional[date] = Field(None, description="安装日期")
-    warranty_period: Optional[int] = Field(None, ge=0, description="保修期（月）")
-    technical_parameters: Optional[Dict[str, Any]] = Field(None, description="技术参数（JSON格式）")
-    workstation_id: Optional[int] = Field(None, description="关联工位ID（可选）")
-    workstation_code: Optional[str] = Field(None, max_length=50, description="工位编码")
-    workstation_name: Optional[str] = Field(None, max_length=200, description="工位名称")
-    work_center_id: Optional[int] = Field(None, description="关联工作中心ID（可选）")
-    work_center_code: Optional[str] = Field(None, max_length=50, description="工作中心编码")
-    work_center_name: Optional[str] = Field(None, max_length=200, description="工作中心名称")
+    type: str | None = Field(None, max_length=50, description="设备类型（如：加工设备、检测设备、包装设备等）")
+    category: str | None = Field(None, max_length=50, description="设备分类（如：CNC、注塑机、冲压机等）")
+    brand: str | None = Field(None, max_length=100, description="品牌")
+    model: str | None = Field(None, max_length=100, description="型号")
+    serial_number: str | None = Field(None, max_length=100, description="序列号")
+    manufacturer: str | None = Field(None, max_length=200, description="制造商")
+    supplier: str | None = Field(None, max_length=200, description="供应商")
+    purchase_date: date | None = Field(None, description="采购日期")
+    installation_date: date | None = Field(None, description="安装日期")
+    warranty_period: int | None = Field(None, ge=0, description="保修期（月）")
+    technical_parameters: dict[str, Any] | None = Field(None, description="技术参数（JSON格式）")
+    workstation_id: int | None = Field(None, description="关联工位ID（可选）")
+    workstation_code: str | None = Field(None, max_length=50, description="工位编码")
+    workstation_name: str | None = Field(None, max_length=200, description="工位名称")
+    work_center_id: int | None = Field(None, description="关联工作中心ID（可选）")
+    work_center_code: str | None = Field(None, max_length=50, description="工作中心编码")
+    work_center_name: str | None = Field(None, max_length=200, description="工作中心名称")
     status: str = Field(default="正常", max_length=50, description="设备状态（正常、维修中、停用、报废）")
     is_active: bool = Field(default=True, description="是否启用")
-    description: Optional[str] = Field(None, description="描述")
+    description: str | None = Field(None, description="描述")
     
     @field_validator("status")
     @classmethod
@@ -79,32 +79,32 @@ class EquipmentUpdate(BaseModel):
     
     用于更新设备的请求数据，所有字段可选。
     """
-    code: Optional[str] = Field(None, max_length=50, description="设备编码")
-    name: Optional[str] = Field(None, min_length=1, max_length=200, description="设备名称")
-    type: Optional[str] = Field(None, max_length=50, description="设备类型")
-    category: Optional[str] = Field(None, max_length=50, description="设备分类")
-    brand: Optional[str] = Field(None, max_length=100, description="品牌")
-    model: Optional[str] = Field(None, max_length=100, description="型号")
-    serial_number: Optional[str] = Field(None, max_length=100, description="序列号")
-    manufacturer: Optional[str] = Field(None, max_length=200, description="制造商")
-    supplier: Optional[str] = Field(None, max_length=200, description="供应商")
-    purchase_date: Optional[date] = Field(None, description="采购日期")
-    installation_date: Optional[date] = Field(None, description="安装日期")
-    warranty_period: Optional[int] = Field(None, ge=0, description="保修期（月）")
-    technical_parameters: Optional[Dict[str, Any]] = Field(None, description="技术参数（JSON格式）")
-    workstation_id: Optional[int] = Field(None, description="关联工位ID（可选）")
-    workstation_code: Optional[str] = Field(None, max_length=50, description="工位编码")
-    workstation_name: Optional[str] = Field(None, max_length=200, description="工位名称")
-    work_center_id: Optional[int] = Field(None, description="关联工作中心ID（可选）")
-    work_center_code: Optional[str] = Field(None, max_length=50, description="工作中心编码")
-    work_center_name: Optional[str] = Field(None, max_length=200, description="工作中心名称")
-    status: Optional[str] = Field(None, max_length=50, description="设备状态（正常、维修中、停用、报废）")
-    is_active: Optional[bool] = Field(None, description="是否启用")
-    description: Optional[str] = Field(None, description="描述")
+    code: str | None = Field(None, max_length=50, description="设备编码")
+    name: str | None = Field(None, min_length=1, max_length=200, description="设备名称")
+    type: str | None = Field(None, max_length=50, description="设备类型")
+    category: str | None = Field(None, max_length=50, description="设备分类")
+    brand: str | None = Field(None, max_length=100, description="品牌")
+    model: str | None = Field(None, max_length=100, description="型号")
+    serial_number: str | None = Field(None, max_length=100, description="序列号")
+    manufacturer: str | None = Field(None, max_length=200, description="制造商")
+    supplier: str | None = Field(None, max_length=200, description="供应商")
+    purchase_date: date | None = Field(None, description="采购日期")
+    installation_date: date | None = Field(None, description="安装日期")
+    warranty_period: int | None = Field(None, ge=0, description="保修期（月）")
+    technical_parameters: dict[str, Any] | None = Field(None, description="技术参数（JSON格式）")
+    workstation_id: int | None = Field(None, description="关联工位ID（可选）")
+    workstation_code: str | None = Field(None, max_length=50, description="工位编码")
+    workstation_name: str | None = Field(None, max_length=200, description="工位名称")
+    work_center_id: int | None = Field(None, description="关联工作中心ID（可选）")
+    work_center_code: str | None = Field(None, max_length=50, description="工作中心编码")
+    work_center_name: str | None = Field(None, max_length=200, description="工作中心名称")
+    status: str | None = Field(None, max_length=50, description="设备状态（正常、维修中、停用、报废）")
+    is_active: bool | None = Field(None, description="是否启用")
+    description: str | None = Field(None, description="描述")
     
     @field_validator("status")
     @classmethod
-    def validate_status(cls, v: Optional[str]) -> Optional[str]:
+    def validate_status(cls, v: str | None) -> str | None:
         """
         验证设备状态
         
@@ -137,7 +137,7 @@ class EquipmentResponse(EquipmentBase):
     tenant_id: int = Field(..., description="组织ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, description="删除时间（软删除）")
+    deleted_at: datetime | None = Field(None, description="删除时间（软删除）")
 
 
 class EquipmentListResponse(BaseModel):
@@ -158,10 +158,10 @@ class EquipmentCalibrationCreate(BaseModel):
     """设备校验记录创建 Schema"""
     calibration_date: date = Field(..., description="校验日期")
     result: str = Field(..., max_length=50, description="校验结果（合格、不合格、限制使用）")
-    certificate_no: Optional[str] = Field(None, max_length=100, description="证书编号")
-    expiry_date: Optional[date] = Field(None, description="有效期至")
-    attachment_uuid: Optional[str] = Field(None, max_length=36, description="报告附件ID")
-    remark: Optional[str] = Field(None, description="备注")
+    certificate_no: str | None = Field(None, max_length=100, description="证书编号")
+    expiry_date: date | None = Field(None, description="有效期至")
+    attachment_uuid: str | None = Field(None, max_length=36, description="报告附件ID")
+    remark: str | None = Field(None, description="备注")
 
 
 class EquipmentCalibrationResponse(BaseModel):
@@ -173,9 +173,9 @@ class EquipmentCalibrationResponse(BaseModel):
     equipment_uuid: str
     calibration_date: date
     result: str
-    certificate_no: Optional[str] = None
-    expiry_date: Optional[date] = None
-    attachment_uuid: Optional[str] = None
-    remark: Optional[str] = None
+    certificate_no: str | None = None
+    expiry_date: date | None = None
+    attachment_uuid: str | None = None
+    remark: str | None = None
     created_at: datetime
 

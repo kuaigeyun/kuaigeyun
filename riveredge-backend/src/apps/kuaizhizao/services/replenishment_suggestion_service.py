@@ -40,8 +40,8 @@ class ReplenishmentSuggestionService(AppBaseService[ReplenishmentSuggestion]):
     async def generate_suggestions_from_alerts(
         self,
         tenant_id: int,
-        alert_ids: Optional[List[int]] = None
-    ) -> List[ReplenishmentSuggestionResponse]:
+        alert_ids: list[int] | None = None
+    ) -> list[ReplenishmentSuggestionResponse]:
         """
         基于库存预警生成补货建议
 
@@ -139,12 +139,12 @@ class ReplenishmentSuggestionService(AppBaseService[ReplenishmentSuggestion]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        status: Optional[str] = None,
-        priority: Optional[str] = None,
-        suggestion_type: Optional[str] = None,
-        material_id: Optional[int] = None,
-        warehouse_id: Optional[int] = None,
-    ) -> List[ReplenishmentSuggestionListResponse]:
+        status: str | None = None,
+        priority: str | None = None,
+        suggestion_type: str | None = None,
+        material_id: int | None = None,
+        warehouse_id: int | None = None,
+    ) -> list[ReplenishmentSuggestionListResponse]:
         """
         获取补货建议列表
 
@@ -261,7 +261,7 @@ class ReplenishmentSuggestionService(AppBaseService[ReplenishmentSuggestion]):
     async def get_suggestion_statistics(
         self,
         tenant_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取补货建议统计信息
 

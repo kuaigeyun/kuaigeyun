@@ -28,7 +28,7 @@ class SavedSearchBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="搜索条件名称")
     is_shared: bool = Field(default=False, description="是否共享给其他用户")
     is_pinned: bool = Field(default=False, description="是否置顶")
-    search_params: Dict[str, Any] = Field(default_factory=dict, description="搜索参数（JSON 存储）")
+    search_params: dict[str, Any] = Field(default_factory=dict, description="搜索参数（JSON 存储）")
 
 
 class SavedSearchCreate(SavedSearchBase):
@@ -48,10 +48,10 @@ class SavedSearchUpdate(BaseModel):
     所有字段都是可选的，只更新提供的字段。
     """
     
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="搜索条件名称")
-    is_shared: Optional[bool] = Field(None, description="是否共享给其他用户")
-    is_pinned: Optional[bool] = Field(None, description="是否置顶")
-    search_params: Optional[Dict[str, Any]] = Field(None, description="搜索参数（JSON 存储）")
+    name: str | None = Field(None, min_length=1, max_length=100, description="搜索条件名称")
+    is_shared: bool | None = Field(None, description="是否共享给其他用户")
+    is_pinned: bool | None = Field(None, description="是否置顶")
+    search_params: dict[str, Any] | None = Field(None, description="搜索参数（JSON 存储）")
 
 
 class SavedSearchResponse(SavedSearchBase):
@@ -71,7 +71,7 @@ class SavedSearchResponse(SavedSearchBase):
     
     id: int = Field(..., description="搜索条件 ID")
     uuid: str = Field(..., description="业务ID（UUID，对外暴露）")
-    tenant_id: Optional[int] = Field(None, description="组织 ID")
+    tenant_id: int | None = Field(None, description="组织 ID")
     user_id: int = Field(..., description="用户 ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
@@ -90,6 +90,6 @@ class SavedSearchListResponse(BaseModel):
         total: 总数量
     """
     
-    items: List[SavedSearchResponse] = Field(default_factory=list, description="搜索条件列表")
+    items: list[SavedSearchResponse] = Field(default_factory=list, description="搜索条件列表")
     total: int = Field(default=0, description="总数量")
 

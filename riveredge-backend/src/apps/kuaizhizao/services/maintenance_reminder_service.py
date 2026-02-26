@@ -33,7 +33,7 @@ class MaintenanceReminderService:
         self,
         tenant_id: int,
         advance_days: int = 7,  # 提前提醒天数，默认7天
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         检查维护计划，创建到期提醒
 
@@ -157,11 +157,11 @@ class MaintenanceReminderService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        reminder_type: Optional[str] = None,
-        is_read: Optional[bool] = None,
-        is_handled: Optional[bool] = None,
-        equipment_uuid: Optional[str] = None,
-    ) -> tuple[List[MaintenanceReminder], int]:
+        reminder_type: str | None = None,
+        is_read: bool | None = None,
+        is_handled: bool | None = None,
+        equipment_uuid: str | None = None,
+    ) -> tuple[list[MaintenanceReminder], int]:
         """
         获取维护提醒列表
 
@@ -218,8 +218,8 @@ class MaintenanceReminderService:
     async def mark_as_read(
         self,
         tenant_id: int,
-        reminder_uuids: List[str],
-        read_by: Optional[int] = None,
+        reminder_uuids: list[str],
+        read_by: int | None = None,
     ) -> int:
         """
         标记提醒为已读
@@ -255,8 +255,8 @@ class MaintenanceReminderService:
         self,
         tenant_id: int,
         reminder_uuid: str,
-        handled_by: Optional[int] = None,
-        remark: Optional[str] = None,
+        handled_by: int | None = None,
+        remark: str | None = None,
     ) -> MaintenanceReminder:
         """
         标记提醒为已处理

@@ -20,7 +20,7 @@ from infra.api.deps.deps import oauth2_scheme
 router = APIRouter(prefix="/ws", tags=["WebSocket"])
 
 
-async def get_user_from_token(token: str) -> Optional[User]:
+async def get_user_from_token(token: str) -> User | None:
     """
     从token获取用户信息
     
@@ -42,7 +42,7 @@ async def get_user_from_token(token: str) -> Optional[User]:
 @router.websocket("/connect")
 async def websocket_endpoint(
     websocket: WebSocket,
-    channels: Optional[str] = Query(None, description="订阅的频道列表（逗号分隔）"),
+    channels: str | None = Query(None, description="订阅的频道列表（逗号分隔）"),
 ):
     """
     WebSocket连接端点

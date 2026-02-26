@@ -114,10 +114,10 @@ async def calculate_product_cost(
 async def list_cost_calculations(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    calculation_type: Optional[str] = Query(None, description="核算类型（可选）"),
-    work_order_id: Optional[int] = Query(None, description="工单ID（可选）"),
-    product_id: Optional[int] = Query(None, description="产品ID（可选）"),
-    calculation_status: Optional[str] = Query(None, description="核算状态（可选）"),
+    calculation_type: str | None = Query(None, description="核算类型（可选）"),
+    work_order_id: int | None = Query(None, description="工单ID（可选）"),
+    product_id: int | None = Query(None, description="产品ID（可选）"),
+    calculation_status: str | None = Query(None, description="核算状态（可选）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

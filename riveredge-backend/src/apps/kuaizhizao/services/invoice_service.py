@@ -82,10 +82,10 @@ class InvoiceService(AppBaseService[Invoice]):
         tenant_id: int, 
         skip: int = 0, 
         limit: int = 20, 
-        category: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None
-    ) -> tuple[List[Invoice], int]:
+        category: str | None = None,
+        status: str | None = None,
+        search: str | None = None
+    ) -> tuple[list[Invoice], int]:
         """
         获取发票列表
         """

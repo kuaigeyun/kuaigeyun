@@ -103,7 +103,7 @@ def to_utc(dt: datetime) -> datetime:
     return dt.astimezone(UTC_TIMEZONE)
 
 
-def make_aware(dt: datetime, timezone_name: Optional[str] = None) -> datetime:
+def make_aware(dt: datetime, timezone_name: str | None = None) -> datetime:
     """
     将 naive datetime 转换为时区感知的 datetime
     

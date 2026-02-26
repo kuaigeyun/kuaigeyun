@@ -53,7 +53,7 @@ class CacheManager:
     - 缓存失效策略
     """
 
-    def __init__(self, config: Optional[CacheConfig] = None):
+    def __init__(self, config: CacheConfig | None = None):
         """
         初始化缓存管理器
 
@@ -62,7 +62,7 @@ class CacheManager:
         """
         self.config = config or CacheConfig()
         self.stats = CacheStats()
-        self._warmup_tasks: Dict[str, Dict[str, Any]] = {}
+        self._warmup_tasks: dict[str, dict[str, Any]] = {}
 
     def _make_key(self, namespace: str, key: str) -> str:
         """
@@ -119,7 +119,7 @@ class CacheManager:
         namespace: str,
         key: str,
         value: Any,
-        ttl: Optional[int] = None
+        ttl: int | None = None
     ) -> bool:
         """
         设置缓存值
@@ -272,7 +272,7 @@ class CacheManager:
         namespace: str,
         key: str,
         func: Callable[[], Awaitable[Any]],
-        ttl: Optional[int] = None
+        ttl: int | None = None
     ) -> Any:
         """
         获取缓存值，如果不存在则设置
@@ -345,7 +345,7 @@ class CacheManager:
                 except Exception as e:
                     logger.error(f"缓存预热任务失败: {name} - {e}")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         获取缓存统计信息
 
@@ -406,7 +406,7 @@ cache_manager = CacheManager()
 async def cached(
     namespace: str,
     key: str,
-    ttl: Optional[int] = None
+    ttl: int | None = None
 ) -> Callable:
     """
     缓存装饰器

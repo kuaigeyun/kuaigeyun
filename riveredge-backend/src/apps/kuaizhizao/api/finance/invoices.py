@@ -40,9 +40,9 @@ async def create_invoice(
 async def list_invoices(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=1000),
-    category: Optional[str] = None,
-    status: Optional[str] = None,
-    search: Optional[str] = None,
+    category: str | None = None,
+    status: str | None = None,
+    search: str | None = None,
     tenant_id: int = Depends(get_current_tenant)
 ):
     items, total = await invoice_service.list_invoices(

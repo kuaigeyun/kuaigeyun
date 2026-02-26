@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, validator
 class QRCodeGenerateRequest(BaseModel):
     """生成二维码请求"""
     qrcode_type: str = Field(..., description="二维码类型（MAT/WO/OP/EQ/EMP/BOX/TRACE）")
-    data: Dict[str, Any] = Field(..., description="二维码数据")
+    data: dict[str, Any] = Field(..., description="二维码数据")
     size: int = Field(10, ge=1, le=50, description="二维码大小（每个模块的像素数）")
     border: int = Field(4, ge=1, le=10, description="边框大小")
     error_correction: str = Field("M", description="错误纠正级别（L/M/Q/H）")
@@ -45,8 +45,8 @@ class QRCodeGenerateResponse(BaseModel):
 
 class QRCodeParseRequest(BaseModel):
     """解析二维码请求"""
-    qrcode_text: Optional[str] = Field(None, description="二维码文本内容")
-    qrcode_image: Optional[str] = Field(None, description="二维码图片（base64编码）")
+    qrcode_text: str | None = Field(None, description="二维码文本内容")
+    qrcode_image: str | None = Field(None, description="二维码图片（base64编码）")
     
     @validator("qrcode_text", "qrcode_image", always=True)
     def validate_at_least_one(cls, v, values):
@@ -59,7 +59,7 @@ class QRCodeParseRequest(BaseModel):
 class QRCodeParseResponse(BaseModel):
     """解析二维码响应"""
     qrcode_type: str = Field(..., description="二维码类型")
-    data: Dict[str, Any] = Field(..., description="二维码数据")
+    data: dict[str, Any] = Field(..., description="二维码数据")
     valid: bool = Field(..., description="是否有效")
 
 
@@ -117,7 +117,7 @@ class BoxQRCodeGenerateRequest(BaseModel):
     """生成装箱二维码请求"""
     box_uuid: str = Field(..., description="装箱UUID")
     box_code: str = Field(..., description="装箱编码")
-    material_codes: List[str] = Field(..., description="物料编码列表")
+    material_codes: list[str] = Field(..., description="物料编码列表")
     size: int = Field(10, ge=1, le=50, description="二维码大小")
     border: int = Field(4, ge=1, le=10, description="边框大小")
     error_correction: str = Field("M", description="错误纠正级别")
@@ -127,7 +127,7 @@ class TraceQRCodeGenerateRequest(BaseModel):
     """生成追溯二维码请求"""
     trace_uuid: str = Field(..., description="追溯UUID")
     trace_code: str = Field(..., description="追溯编码")
-    trace_data: Dict[str, Any] = Field(..., description="追溯数据")
+    trace_data: dict[str, Any] = Field(..., description="追溯数据")
     size: int = Field(10, ge=1, le=50, description="二维码大小")
     border: int = Field(4, ge=1, le=10, description="边框大小")
     error_correction: str = Field("M", description="错误纠正级别")

@@ -18,8 +18,8 @@ class IntegrationConfigBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="集成名称")
     code: str = Field(..., min_length=1, max_length=50, description="集成代码（唯一，用于程序识别）")
     type: str = Field(..., min_length=1, max_length=20, description="集成类型：OAuth、API、Webhook、Database等")
-    description: Optional[str] = Field(None, description="集成描述")
-    config: Dict[str, Any] = Field(default_factory=dict, description="配置信息（JSON）")
+    description: str | None = Field(None, description="集成描述")
+    config: dict[str, Any] = Field(default_factory=dict, description="配置信息（JSON）")
     is_active: bool = Field(default=True, description="是否启用")
     
     @field_validator('type')
@@ -68,10 +68,10 @@ class IntegrationConfigUpdate(BaseModel):
     
     用于更新集成配置的请求数据，所有字段可选。
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="集成名称")
-    description: Optional[str] = Field(None, description="集成描述")
-    config: Optional[Dict[str, Any]] = Field(None, description="配置信息（JSON）")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    name: str | None = Field(None, min_length=1, max_length=100, description="集成名称")
+    description: str | None = Field(None, description="集成描述")
+    config: dict[str, Any] | None = Field(None, description="配置信息（JSON）")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class IntegrationConfigResponse(IntegrationConfigBase):
@@ -83,8 +83,8 @@ class IntegrationConfigResponse(IntegrationConfigBase):
     uuid: str = Field(..., description="集成配置UUID（对外暴露，业务标识）")
     tenant_id: int = Field(..., description="组织ID")
     is_connected: bool = Field(..., description="是否已连接")
-    last_connected_at: Optional[datetime] = Field(None, description="最后连接时间")
-    last_error: Optional[str] = Field(None, description="最后错误信息")
+    last_connected_at: datetime | None = Field(None, description="最后连接时间")
+    last_error: str | None = Field(None, description="最后错误信息")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     
@@ -99,7 +99,7 @@ class TestConfigRequest(BaseModel):
     不落库，仅验证配置。
     """
     type: str = Field(..., description="集成类型：postgresql、mysql、mongodb、api 等")
-    config: Dict[str, Any] = Field(default_factory=dict, description="连接配置（JSON）")
+    config: dict[str, Any] = Field(default_factory=dict, description="连接配置（JSON）")
 
 
 class TestConnectionResponse(BaseModel):
@@ -110,6 +110,6 @@ class TestConnectionResponse(BaseModel):
     """
     success: bool = Field(..., description="是否成功")
     message: str = Field(..., description="消息")
-    data: Optional[Dict[str, Any]] = Field(None, description="测试结果数据")
-    error: Optional[str] = Field(None, description="错误信息")
+    data: dict[str, Any] | None = Field(None, description="测试结果数据")
+    error: str | None = Field(None, description="错误信息")
 

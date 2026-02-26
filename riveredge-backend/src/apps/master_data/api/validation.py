@@ -18,8 +18,8 @@ class ValidationResponse(BaseModel):
     """验证响应 Schema"""
 
     is_valid: bool = True
-    errors: List[str] = []
-    warnings: List[str] = []
+    errors: list[str] = []
+    warnings: list[str] = []
 
     class Config:
         from_attributes = True
@@ -117,7 +117,7 @@ async def validate_work_order_data_integrity(
     product_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    process_route_id: Optional[int] = Query(None, description="工艺路线ID（可选）")
+    process_route_id: int | None = Query(None, description="工艺路线ID（可选）")
 ):
     """
     验证工单数据的完整性

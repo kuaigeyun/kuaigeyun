@@ -73,7 +73,7 @@ async def main():
                 print(f"  - {error}")
         
         if result['migrated_computations']:
-            print(f"\n已迁移的计算:")
+            print("\n已迁移的计算:")
             for comp in result['migrated_computations']:
                 print(f"  - {comp['computation_code']} (类型: {comp['type']})")
         

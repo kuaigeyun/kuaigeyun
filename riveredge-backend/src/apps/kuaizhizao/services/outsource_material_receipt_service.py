@@ -165,10 +165,10 @@ class OutsourceMaterialReceiptService(AppBaseService[OutsourceMaterialReceipt]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        outsource_work_order_id: Optional[int] = None,
-        status: Optional[str] = None,
-        keyword: Optional[str] = None,
-    ) -> List[OutsourceMaterialReceiptResponse]:
+        outsource_work_order_id: int | None = None,
+        status: str | None = None,
+        keyword: str | None = None,
+    ) -> list[OutsourceMaterialReceiptResponse]:
         """
         获取委外收货单列表
 

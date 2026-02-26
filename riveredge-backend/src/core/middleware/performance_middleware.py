@@ -36,7 +36,7 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
     ]
     
     # 性能统计（内存中，重启后丢失）
-    _stats: Dict[str, Dict[str, any]] = defaultdict(lambda: {
+    _stats: dict[str, dict[str, any]] = defaultdict(lambda: {
         "count": 0,
         "total_time": 0.0,
         "min_time": float('inf'),
@@ -65,7 +65,7 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         # 执行请求
         try:
             response = await call_next(request)
-        except Exception as e:
+        except Exception:
             # 即使出错也记录性能
             elapsed_time = (time.time() - start_time) * 1000
             self._record_performance(request, elapsed_time, success=False)
@@ -143,7 +143,7 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         stats["avg_time"] = stats["total_time"] / stats["count"]
     
     @classmethod
-    def get_stats(cls) -> Dict[str, Dict[str, any]]:
+    def get_stats(cls) -> dict[str, dict[str, any]]:
         """
         获取性能统计信息
         
@@ -153,7 +153,7 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         return dict(cls._stats)
     
     @classmethod
-    def get_slow_apis(cls, limit: int = 10) -> List[Dict[str, any]]:
+    def get_slow_apis(cls, limit: int = 10) -> list[dict[str, any]]:
         """
         获取慢API列表
         

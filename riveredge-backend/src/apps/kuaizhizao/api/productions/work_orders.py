@@ -82,14 +82,14 @@ async def create_work_order(
 async def list_work_orders(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    code: Optional[str] = Query(None, description="工单编码（模糊搜索）"),
-    name: Optional[str] = Query(None, description="工单名称（模糊搜索）"),
-    product_name: Optional[str] = Query(None, description="产品名称（模糊搜索）"),
-    production_mode: Optional[str] = Query(None, description="生产模式（MTS/MTO）"),
-    status: Optional[str] = Query(None, description="工单状态"),
-    workshop_id: Optional[int] = Query(None, description="车间ID"),
-    work_center_id: Optional[int] = Query(None, description="工作中心ID"),
-    assigned_worker_id: Optional[int] = Query(None, description="分配员工ID（只看当前用户时传入）"),
+    code: str | None = Query(None, description="工单编码（模糊搜索）"),
+    name: str | None = Query(None, description="工单名称（模糊搜索）"),
+    product_name: str | None = Query(None, description="产品名称（模糊搜索）"),
+    production_mode: str | None = Query(None, description="生产模式（MTS/MTO）"),
+    status: str | None = Query(None, description="工单状态"),
+    workshop_id: int | None = Query(None, description="车间ID"),
+    work_center_id: int | None = Query(None, description="工作中心ID"),
+    assigned_worker_id: int | None = Query(None, description="分配员工ID（只看当前用户时传入）"),
     include_operations: bool = Query(False, description="是否包含工序（用于甘特图展示设备/模具/工装）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -181,12 +181,12 @@ async def get_work_order_demand_chain(
         )
 
 
-@router.get("/work-orders/{work_order_id}/operations", response_model=List[WorkOrderOperationResponse], summary="获取工单工序列表")
+@router.get("/work-orders/{work_order_id}/operations", response_model=list[WorkOrderOperationResponse], summary="获取工单工序列表")
 async def get_work_order_operations(
     work_order_id: int,
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[WorkOrderOperationResponse]:
+) -> list[WorkOrderOperationResponse]:
     """
     获取工单工序列表
 
@@ -198,13 +198,13 @@ async def get_work_order_operations(
     )
 
 
-@router.put("/work-orders/{work_order_id}/operations", response_model=List[WorkOrderOperationResponse], summary="更新工单工序")
+@router.put("/work-orders/{work_order_id}/operations", response_model=list[WorkOrderOperationResponse], summary="更新工单工序")
 async def update_work_order_operations(
     work_order_id: int,
     operations_data: WorkOrderOperationsUpdateRequest,
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[WorkOrderOperationResponse]:
+) -> list[WorkOrderOperationResponse]:
     """
     更新工单工序
 
@@ -438,12 +438,12 @@ async def set_work_order_priority(
     )
 
 
-@router.put("/work-orders/batch-priority", response_model=List[WorkOrderResponse], summary="批量设置工单优先级")
+@router.put("/work-orders/batch-priority", response_model=list[WorkOrderResponse], summary="批量设置工单优先级")
 async def batch_set_work_order_priority(
     batch_data: WorkOrderBatchPriorityRequest,
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[WorkOrderResponse]:
+) -> list[WorkOrderResponse]:
     """
     批量设置工单优先级
 
@@ -517,18 +517,18 @@ async def create_rework_order(
     )
 
 
-@router.get("/rework-orders", response_model=List[ReworkOrderListResponse], summary="获取返工单列表")
+@router.get("/rework-orders", response_model=list[ReworkOrderListResponse], summary="获取返工单列表")
 async def list_rework_orders(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    code: Optional[str] = Query(None, description="返工单编码（模糊搜索）"),
-    status: Optional[str] = Query(None, description="返工单状态"),
-    original_work_order_id: Optional[int] = Query(None, description="原工单ID"),
-    product_name: Optional[str] = Query(None, description="产品名称（模糊搜索）"),
-    rework_type: Optional[str] = Query(None, description="返工类型"),
+    code: str | None = Query(None, description="返工单编码（模糊搜索）"),
+    status: str | None = Query(None, description="返工单状态"),
+    original_work_order_id: int | None = Query(None, description="原工单ID"),
+    product_name: str | None = Query(None, description="产品名称（模糊搜索）"),
+    rework_type: str | None = Query(None, description="返工类型"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[ReworkOrderListResponse]:
+) -> list[ReworkOrderListResponse]:
     """
     获取返工单列表
 
@@ -655,17 +655,17 @@ async def create_outsource_order(
     )
 
 
-@router.get("/outsource-orders", response_model=List[OutsourceOrderListResponse], summary="获取工序委外列表")
+@router.get("/outsource-orders", response_model=list[OutsourceOrderListResponse], summary="获取工序委外列表")
 async def list_outsource_orders(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    work_order_id: Optional[int] = Query(None, description="工单ID"),
-    supplier_id: Optional[int] = Query(None, description="供应商ID"),
-    status: Optional[str] = Query(None, description="工序委外状态"),
-    code: Optional[str] = Query(None, description="工序委外单编码（模糊搜索）"),
+    work_order_id: int | None = Query(None, description="工单ID"),
+    supplier_id: int | None = Query(None, description="供应商ID"),
+    status: str | None = Query(None, description="工序委外状态"),
+    code: str | None = Query(None, description="工序委外单编码（模糊搜索）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[OutsourceOrderListResponse]:
+) -> list[OutsourceOrderListResponse]:
     """
     获取工序委外列表
 
@@ -767,7 +767,7 @@ async def link_purchase_receipt_to_outsource_order(
 @router.get("/work-orders/{work_order_id}/check-shortage", response_model=MaterialShortageResponse, summary="检查工单缺料")
 async def check_work_order_shortage(
     work_order_id: int,
-    warehouse_id: Optional[int] = Query(None, description="仓库ID（可选）"),
+    warehouse_id: int | None = Query(None, description="仓库ID（可选）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> MaterialShortageResponse:
@@ -859,7 +859,7 @@ async def manually_complete_work_order(
 @router.get("/work-orders/delayed", summary="查询延期工单")
 async def get_delayed_work_orders(
     days_threshold: int = Query(0, ge=0, description="延期天数阈值（默认0，即只要超过计划结束日期就算延期）"),
-    status: Optional[str] = Query(None, description="工单状态过滤（可选）"),
+    status: str | None = Query(None, description="工单状态过滤（可选）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> JSONResponse:
@@ -887,7 +887,7 @@ async def get_delayed_work_orders(
 
 @router.get("/work-orders/delay-analysis", summary="延期原因分析")
 async def analyze_delay_reasons(
-    work_order_id: Optional[int] = Query(None, description="工单ID（可选，如果为None则分析所有延期工单）"),
+    work_order_id: int | None = Query(None, description="工单ID（可选，如果为None则分析所有延期工单）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> JSONResponse:

@@ -21,20 +21,20 @@ class DefectRecordBase(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    code: Optional[str] = Field(None, description="不良品记录编码（可选，创建时自动生成）")
-    reporting_record_id: Optional[int] = Field(None, description="报工记录ID（关联ReportingRecord）")
+    code: str | None = Field(None, description="不良品记录编码（可选，创建时自动生成）")
+    reporting_record_id: int | None = Field(None, description="报工记录ID（关联ReportingRecord）")
     # 关联检验单（支持从不合格检验单创建不合格品记录）
-    incoming_inspection_id: Optional[int] = Field(None, description="来料检验单ID（关联IncomingInspection）")
-    incoming_inspection_code: Optional[str] = Field(None, description="来料检验单编码")
-    process_inspection_id: Optional[int] = Field(None, description="过程检验单ID（关联ProcessInspection）")
-    process_inspection_code: Optional[str] = Field(None, description="过程检验单编码")
-    finished_goods_inspection_id: Optional[int] = Field(None, description="成品检验单ID（关联FinishedGoodsInspection）")
-    finished_goods_inspection_code: Optional[str] = Field(None, description="成品检验单编码")
-    work_order_id: Optional[int] = Field(None, description="工单ID（可选，从检验单获取）")
-    work_order_code: Optional[str] = Field(None, description="工单编码")
-    operation_id: Optional[int] = Field(None, description="工序ID（可选，从过程检验单获取）")
-    operation_code: Optional[str] = Field(None, description="工序编码")
-    operation_name: Optional[str] = Field(None, description="工序名称")
+    incoming_inspection_id: int | None = Field(None, description="来料检验单ID（关联IncomingInspection）")
+    incoming_inspection_code: str | None = Field(None, description="来料检验单编码")
+    process_inspection_id: int | None = Field(None, description="过程检验单ID（关联ProcessInspection）")
+    process_inspection_code: str | None = Field(None, description="过程检验单编码")
+    finished_goods_inspection_id: int | None = Field(None, description="成品检验单ID（关联FinishedGoodsInspection）")
+    finished_goods_inspection_code: str | None = Field(None, description="成品检验单编码")
+    work_order_id: int | None = Field(None, description="工单ID（可选，从检验单获取）")
+    work_order_code: str | None = Field(None, description="工单编码")
+    operation_id: int | None = Field(None, description="工序ID（可选，从过程检验单获取）")
+    operation_code: str | None = Field(None, description="工序编码")
+    operation_name: str | None = Field(None, description="工序名称")
     product_id: int = Field(..., description="产品ID")
     product_code: str = Field(..., description="产品编码")
     product_name: str = Field(..., description="产品名称")
@@ -42,11 +42,11 @@ class DefectRecordBase(BaseModel):
     defect_type: str = Field("other", description="不良品类型（dimension/appearance/function/material/other）")
     defect_reason: str = Field(..., description="不良品原因")
     disposition: str = Field("quarantine", description="处理方式（quarantine/rework/scrap/accept/other）")
-    quarantine_location: Optional[str] = Field(None, description="隔离位置（当处理方式为隔离时使用）")
-    rework_order_id: Optional[int] = Field(None, description="返工单ID（当处理方式为返工时关联）")
-    scrap_record_id: Optional[int] = Field(None, description="报废记录ID（当处理方式为报废时关联）")
+    quarantine_location: str | None = Field(None, description="隔离位置（当处理方式为隔离时使用）")
+    rework_order_id: int | None = Field(None, description="返工单ID（当处理方式为返工时关联）")
+    scrap_record_id: int | None = Field(None, description="报废记录ID（当处理方式为报废时关联）")
     status: str = Field("draft", description="状态（draft/processed/cancelled）")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class DefectRecordCreate(DefectRecordBase):
@@ -55,7 +55,7 @@ class DefectRecordCreate(DefectRecordBase):
 
     用于创建新不良品记录的数据验证。
     """
-    code: Optional[str] = Field(None, description="不良品记录编码（可选，如果不提供则自动生成）")
+    code: str | None = Field(None, description="不良品记录编码（可选，如果不提供则自动生成）")
 
 
 class DefectRecordCreateFromReporting(BaseModel):
@@ -68,8 +68,8 @@ class DefectRecordCreateFromReporting(BaseModel):
     defect_type: str = Field("other", description="不良品类型（dimension/appearance/function/material/other）")
     defect_reason: str = Field(..., description="不良品原因")
     disposition: str = Field("quarantine", description="处理方式（quarantine/rework/scrap/accept/other）")
-    quarantine_location: Optional[str] = Field(None, description="隔离位置（当处理方式为隔离时使用）")
-    remarks: Optional[str] = Field(None, description="备注")
+    quarantine_location: str | None = Field(None, description="隔离位置（当处理方式为隔离时使用）")
+    remarks: str | None = Field(None, description="备注")
 
 
 class DefectRecordCreateFromInspection(BaseModel):
@@ -82,7 +82,7 @@ class DefectRecordCreateFromInspection(BaseModel):
     defect_type: str = Field("other", description="不合格品类型（dimension/appearance/function/material/other）")
     defect_reason: str = Field(..., description="不合格原因")
     disposition: str = Field("quarantine", description="处理方式（return/rework/scrap/accept/other）")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class DefectRecordUpdate(BaseModel):
@@ -93,15 +93,15 @@ class DefectRecordUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    defect_quantity: Optional[Decimal] = Field(None, description="不良品数量")
-    defect_type: Optional[str] = Field(None, description="不良品类型")
-    defect_reason: Optional[str] = Field(None, description="不良品原因")
-    disposition: Optional[str] = Field(None, description="处理方式")
-    quarantine_location: Optional[str] = Field(None, description="隔离位置")
-    rework_order_id: Optional[int] = Field(None, description="返工单ID")
-    scrap_record_id: Optional[int] = Field(None, description="报废记录ID")
-    status: Optional[str] = Field(None, description="状态")
-    remarks: Optional[str] = Field(None, description="备注")
+    defect_quantity: Decimal | None = Field(None, description="不良品数量")
+    defect_type: str | None = Field(None, description="不良品类型")
+    defect_reason: str | None = Field(None, description="不良品原因")
+    disposition: str | None = Field(None, description="处理方式")
+    quarantine_location: str | None = Field(None, description="隔离位置")
+    rework_order_id: int | None = Field(None, description="返工单ID")
+    scrap_record_id: int | None = Field(None, description="报废记录ID")
+    status: str | None = Field(None, description="状态")
+    remarks: str | None = Field(None, description="备注")
 
 
 class DefectRecordResponse(DefectRecordBase):
@@ -113,13 +113,13 @@ class DefectRecordResponse(DefectRecordBase):
     id: int = Field(..., description="不良品记录ID")
     uuid: str = Field(..., description="业务ID")
     tenant_id: int = Field(..., description="组织ID")
-    processed_at: Optional[datetime] = Field(None, description="处理时间")
-    processed_by: Optional[int] = Field(None, description="处理人ID")
-    processed_by_name: Optional[str] = Field(None, description="处理人姓名")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
-    updated_by_name: Optional[str] = Field(None, description="更新人姓名")
+    processed_at: datetime | None = Field(None, description="处理时间")
+    processed_by: int | None = Field(None, description="处理人ID")
+    processed_by_name: str | None = Field(None, description="处理人姓名")
+    created_by: int | None = Field(None, description="创建人ID")
+    created_by_name: str | None = Field(None, description="创建人姓名")
+    updated_by: int | None = Field(None, description="更新人ID")
+    updated_by_name: str | None = Field(None, description="更新人姓名")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 

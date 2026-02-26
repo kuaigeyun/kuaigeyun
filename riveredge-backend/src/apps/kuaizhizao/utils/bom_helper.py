@@ -20,9 +20,9 @@ async def get_bom_by_material_id(
     tenant_id: int,
     material_id: int,
     only_approved: bool = True,
-    version: Optional[str] = None,
+    version: str | None = None,
     use_default: bool = False
-) -> Optional[BOM]:
+) -> BOM | None:
     """
     根据物料ID获取BOM（从master_data）
 
@@ -84,9 +84,9 @@ async def get_bom_items_by_material_id(
     tenant_id: int,
     material_id: int,
     only_approved: bool = True,
-    version: Optional[str] = None,
+    version: str | None = None,
     use_default: bool = False
-) -> List[BOM]:
+) -> list[BOM]:
     """
     根据物料ID获取BOM明细列表（从master_data）
 
@@ -136,7 +136,7 @@ async def calculate_material_requirements_from_bom(
     material_id: int,
     required_quantity: float,
     only_approved: bool = True
-) -> List[Any]:
+) -> list[Any]:
     """
     根据BOM计算物料需求（从master_data）
 

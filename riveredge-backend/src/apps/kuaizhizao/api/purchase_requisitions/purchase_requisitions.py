@@ -40,8 +40,8 @@ async def create_requisition(
 async def list_requisitions(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    status: Optional[str] = Query(None),
-    source_type: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    source_type: str | None = Query(None),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """获取采购申请列表"""

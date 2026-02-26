@@ -14,7 +14,7 @@ class WarehouseBase(BaseModel):
 
     code: str = Field(..., max_length=50, description="仓库编码")
     name: str = Field(..., max_length=200, description="仓库名称")
-    description: Optional[str] = Field(None, description="描述")
+    description: str | None = Field(None, description="描述")
     is_active: bool = Field(True, description="是否启用", alias="isActive")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -42,10 +42,10 @@ class WarehouseCreate(WarehouseBase):
 class WarehouseUpdate(BaseModel):
     """更新仓库 Schema"""
 
-    code: Optional[str] = Field(None, max_length=50, description="仓库编码")
-    name: Optional[str] = Field(None, max_length=200, description="仓库名称")
-    description: Optional[str] = Field(None, description="描述")
-    is_active: Optional[bool] = Field(None, description="是否启用", alias="isActive")
+    code: str | None = Field(None, max_length=50, description="仓库编码")
+    name: str | None = Field(None, max_length=200, description="仓库名称")
+    description: str | None = Field(None, description="描述")
+    is_active: bool | None = Field(None, description="是否启用", alias="isActive")
 
     model_config = ConfigDict(populate_by_name=True)
     
@@ -69,10 +69,10 @@ class WarehouseResponse(WarehouseBase):
     
     id: int = Field(..., description="主键ID")
     uuid: str = Field(..., description="UUID")
-    tenant_id: Optional[int] = Field(None, alias="tenantId", description="租户ID")
+    tenant_id: int | None = Field(None, alias="tenantId", description="租户ID")
     created_at: datetime = Field(..., alias="createdAt", description="创建时间")
     updated_at: datetime = Field(..., alias="updatedAt", description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, alias="deletedAt", description="删除时间")
+    deleted_at: datetime | None = Field(None, alias="deletedAt", description="删除时间")
     is_active: bool = Field(True, alias="isActive", description="是否启用")
     
     model_config = ConfigDict(
@@ -88,7 +88,7 @@ class StorageAreaBase(BaseModel):
     code: str = Field(..., max_length=50, description="库区编码")
     name: str = Field(..., max_length=200, description="库区名称")
     warehouse_id: int = Field(..., description="所属仓库ID", alias="warehouseId")
-    description: Optional[str] = Field(None, description="描述")
+    description: str | None = Field(None, description="描述")
     is_active: bool = Field(True, description="是否启用", alias="isActive")
     
     model_config = ConfigDict(populate_by_name=True)
@@ -116,11 +116,11 @@ class StorageAreaCreate(StorageAreaBase):
 class StorageAreaUpdate(BaseModel):
     """更新库区 Schema"""
 
-    code: Optional[str] = Field(None, max_length=50, description="库区编码")
-    name: Optional[str] = Field(None, max_length=200, description="库区名称")
-    warehouse_id: Optional[int] = Field(None, description="所属仓库ID", alias="warehouseId")
-    description: Optional[str] = Field(None, description="描述")
-    is_active: Optional[bool] = Field(None, description="是否启用", alias="isActive")
+    code: str | None = Field(None, max_length=50, description="库区编码")
+    name: str | None = Field(None, max_length=200, description="库区名称")
+    warehouse_id: int | None = Field(None, description="所属仓库ID", alias="warehouseId")
+    description: str | None = Field(None, description="描述")
+    is_active: bool | None = Field(None, description="是否启用", alias="isActive")
     
     model_config = ConfigDict(populate_by_name=True)
     
@@ -148,7 +148,7 @@ class StorageAreaResponse(StorageAreaBase):
     warehouse_id: int = Field(..., alias="warehouseId", description="所属仓库ID")
     created_at: datetime = Field(..., alias="createdAt", description="创建时间")
     updated_at: datetime = Field(..., alias="updatedAt", description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, alias="deletedAt", description="删除时间")
+    deleted_at: datetime | None = Field(None, alias="deletedAt", description="删除时间")
     is_active: bool = Field(True, alias="isActive", description="是否启用")
     
     model_config = ConfigDict(
@@ -164,7 +164,7 @@ class StorageLocationBase(BaseModel):
     code: str = Field(..., max_length=50, description="库位编码")
     name: str = Field(..., max_length=200, description="库位名称")
     storage_area_id: int = Field(..., description="所属库区ID", alias="storageAreaId")
-    description: Optional[str] = Field(None, description="描述")
+    description: str | None = Field(None, description="描述")
     is_active: bool = Field(True, description="是否启用", alias="isActive")
     
     model_config = ConfigDict(populate_by_name=True)
@@ -192,11 +192,11 @@ class StorageLocationCreate(StorageLocationBase):
 class StorageLocationUpdate(BaseModel):
     """更新库位 Schema"""
 
-    code: Optional[str] = Field(None, max_length=50, description="库位编码")
-    name: Optional[str] = Field(None, max_length=200, description="库位名称")
-    storage_area_id: Optional[int] = Field(None, description="所属库区ID", alias="storageAreaId")
-    description: Optional[str] = Field(None, description="描述")
-    is_active: Optional[bool] = Field(None, description="是否启用", alias="isActive")
+    code: str | None = Field(None, max_length=50, description="库位编码")
+    name: str | None = Field(None, max_length=200, description="库位名称")
+    storage_area_id: int | None = Field(None, description="所属库区ID", alias="storageAreaId")
+    description: str | None = Field(None, description="描述")
+    is_active: bool | None = Field(None, description="是否启用", alias="isActive")
     
     model_config = ConfigDict(populate_by_name=True)
     
@@ -224,7 +224,7 @@ class StorageLocationResponse(StorageLocationBase):
     storage_area_id: int = Field(..., alias="storageAreaId", description="所属库区ID")
     created_at: datetime = Field(..., alias="createdAt", description="创建时间")
     updated_at: datetime = Field(..., alias="updatedAt", description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, alias="deletedAt", description="删除时间")
+    deleted_at: datetime | None = Field(None, alias="deletedAt", description="删除时间")
     is_active: bool = Field(True, alias="isActive", description="是否启用")
     
     model_config = ConfigDict(
@@ -244,7 +244,7 @@ class StorageLocationTreeResponse(StorageLocationResponse):
 class StorageAreaTreeResponse(StorageAreaResponse):
     """库区树形响应 Schema（用于级联查询）"""
     
-    storage_locations: List[StorageLocationTreeResponse] = Field(default_factory=list, alias="storageLocations", description="库位列表")
+    storage_locations: list[StorageLocationTreeResponse] = Field(default_factory=list, alias="storageLocations", description="库位列表")
     
     model_config = ConfigDict(
         from_attributes=True,
@@ -256,7 +256,7 @@ class StorageAreaTreeResponse(StorageAreaResponse):
 class WarehouseTreeResponse(WarehouseResponse):
     """仓库树形响应 Schema（用于级联查询）"""
     
-    storage_areas: List[StorageAreaTreeResponse] = Field(default_factory=list, alias="storageAreas", description="库区列表")
+    storage_areas: list[StorageAreaTreeResponse] = Field(default_factory=list, alias="storageAreas", description="库区列表")
     
     model_config = ConfigDict(
         from_attributes=True,
@@ -269,15 +269,15 @@ class WarehouseTreeResponse(WarehouseResponse):
 
 class BatchDeleteWarehousesRequest(BaseModel):
     """批量删除仓库请求"""
-    uuids: List[str] = Field(..., description="要删除的仓库UUID列表", min_items=1, max_items=100)
+    uuids: list[str] = Field(..., description="要删除的仓库UUID列表", min_items=1, max_items=100)
 
 
 class BatchDeleteStorageAreasRequest(BaseModel):
     """批量删除库区请求"""
-    uuids: List[str] = Field(..., description="要删除的库区UUID列表", min_items=1, max_items=100)
+    uuids: list[str] = Field(..., description="要删除的库区UUID列表", min_items=1, max_items=100)
 
 
 class BatchDeleteStorageLocationsRequest(BaseModel):
     """批量删除库位请求"""
-    uuids: List[str] = Field(..., description="要删除的库位UUID列表", min_items=1, max_items=100)
+    uuids: list[str] = Field(..., description="要删除的库位UUID列表", min_items=1, max_items=100)
 

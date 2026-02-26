@@ -67,7 +67,7 @@ class BatchRule(BaseModel):
             ("created_at",),
         ]
 
-    def get_rule_components(self) -> Optional[List[Dict[str, Any]]]:
+    def get_rule_components(self) -> list[dict[str, Any]] | None:
         """获取规则组件列表"""
         if self.rule_components:
             if isinstance(self.rule_components, str):

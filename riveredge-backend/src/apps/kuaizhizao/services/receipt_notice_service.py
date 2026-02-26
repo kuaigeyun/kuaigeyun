@@ -105,7 +105,7 @@ class ReceiptNoticeService(AppBaseService[ReceiptNotice]):
         skip: int = 0,
         limit: int = 20,
         **filters
-    ) -> List[ReceiptNoticeListResponse]:
+    ) -> list[ReceiptNoticeListResponse]:
         """获取收货通知单列表"""
         query = ReceiptNotice.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if filters.get("status"):

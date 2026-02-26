@@ -221,10 +221,10 @@ class InventoryTransferService(AppBaseService[InventoryTransfer]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        code: Optional[str] = None,
-        from_warehouse_id: Optional[int] = None,
-        to_warehouse_id: Optional[int] = None,
-        status: Optional[str] = None,
+        code: str | None = None,
+        from_warehouse_id: int | None = None,
+        to_warehouse_id: int | None = None,
+        status: str | None = None,
     ) -> InventoryTransferListResponse:
         """
         获取库存调拨单列表

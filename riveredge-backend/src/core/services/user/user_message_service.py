@@ -36,8 +36,8 @@ class UserMessageService:
         user_id: int,
         page: int = 1,
         page_size: int = 20,
-        status: Optional[str] = None,
-        channel: Optional[str] = None,
+        status: str | None = None,
+        channel: str | None = None,
         unread_only: bool = False,
     ) -> UserMessageListResponse:
         """
@@ -155,7 +155,7 @@ class UserMessageService:
     async def mark_messages_read(
         tenant_id: int,
         user_id: int,
-        message_uuids: List[UUID]
+        message_uuids: list[UUID]
     ) -> int:
         """
         标记消息为已读

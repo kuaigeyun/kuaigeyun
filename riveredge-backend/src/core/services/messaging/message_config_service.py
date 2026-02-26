@@ -93,9 +93,9 @@ class MessageConfigService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        type: Optional[str] = None,
-        is_active: Optional[bool] = None
-    ) -> List[MessageConfig]:
+        type: str | None = None,
+        is_active: bool | None = None
+    ) -> list[MessageConfig]:
         """
         获取消息配置列表
         
@@ -174,7 +174,7 @@ class MessageConfigService:
     async def get_default_config(
         tenant_id: int,
         type: str
-    ) -> Optional[MessageConfig]:
+    ) -> MessageConfig | None:
         """
         获取默认消息配置
         
@@ -230,7 +230,7 @@ class MessageConfigService:
             )
 
     @staticmethod
-    async def _send_test_email(config: dict, target: str) -> tuple[bool, str, Optional[str]]:
+    async def _send_test_email(config: dict, target: str) -> tuple[bool, str, str | None]:
         """
         发送测试邮件内部方法
         """

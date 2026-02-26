@@ -61,8 +61,8 @@ async def create_field(
 async def list_fields(
     page: int = Query(1, ge=1, description="页码（从1开始）"),
     page_size: int = Query(20, ge=1, le=1000, description="每页数量（最大1000）"),
-    table_name: Optional[str] = Query(None, description="表名（可选，用于筛选）"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    table_name: str | None = Query(None, description="表名（可选，用于筛选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -96,7 +96,7 @@ async def list_fields(
     )
 
 
-@router.get("/pages", response_model=List[CustomFieldPageConfigResponse])
+@router.get("/pages", response_model=list[CustomFieldPageConfigResponse])
 async def list_custom_field_pages():
     """
     获取自定义字段功能页面配置列表
@@ -112,10 +112,10 @@ async def list_custom_field_pages():
     return [CustomFieldPageConfigResponse(**p) for p in CUSTOM_FIELD_PAGES]
 
 
-@router.get("/by-table/{table_name}", response_model=List[CustomFieldResponse])
+@router.get("/by-table/{table_name}", response_model=list[CustomFieldResponse])
 async def get_fields_by_table(
     table_name: str,
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -237,7 +237,7 @@ async def delete_field(
         )
 
 
-@router.post("/values", response_model=Dict[str, Any])
+@router.post("/values", response_model=dict[str, Any])
 async def batch_set_field_values(
     data: BatchSetFieldValuesRequest,
     tenant_id: int = Depends(get_current_tenant),
@@ -264,7 +264,7 @@ async def batch_set_field_values(
     return result
 
 
-@router.get("/values/{record_table}/{record_id}", response_model=Dict[str, Any])
+@router.get("/values/{record_table}/{record_id}", response_model=dict[str, Any])
 async def get_field_values(
     record_table: str,
     record_id: int,

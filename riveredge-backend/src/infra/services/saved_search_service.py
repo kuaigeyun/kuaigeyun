@@ -21,7 +21,7 @@ class SavedSearchService:
     注意：保存搜索条件需要用户上下文，支持多组织隔离。
     """
     
-    async def create_saved_search(self, data: SavedSearchCreate, user_id: int, tenant_id: Optional[int] = None) -> SavedSearch:
+    async def create_saved_search(self, data: SavedSearchCreate, user_id: int, tenant_id: int | None = None) -> SavedSearch:
         """
         创建保存搜索条件
         
@@ -62,7 +62,7 @@ class SavedSearchService:
         )
         return saved_search
     
-    async def get_saved_search_by_uuid(self, uuid: str, user_id: int) -> Optional[SavedSearch]:
+    async def get_saved_search_by_uuid(self, uuid: str, user_id: int) -> SavedSearch | None:
         """
         根据 UUID 获取保存搜索条件
         
@@ -90,8 +90,8 @@ class SavedSearchService:
         page_path: str,
         user_id: int,
         include_shared: bool = True,
-        tenant_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        tenant_id: int | None = None
+    ) -> dict[str, Any]:
         """
         获取保存搜索条件列表
         
@@ -151,7 +151,7 @@ class SavedSearchService:
         uuid: str,
         data: SavedSearchUpdate,
         user_id: int
-    ) -> Optional[SavedSearch]:
+    ) -> SavedSearch | None:
         """
         更新保存搜索条件
         

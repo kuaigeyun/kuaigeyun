@@ -32,17 +32,17 @@ class TodoItem(BaseModel):
     id: str = Field(..., description="待办事项ID")
     type: str = Field(..., description="待办事项类型（work_order/approval/exception）")
     title: str = Field(..., description="待办事项标题")
-    description: Optional[str] = Field(None, description="待办事项描述")
+    description: str | None = Field(None, description="待办事项描述")
     priority: str = Field(..., description="优先级（high/medium/low）")
-    due_date: Optional[datetime] = Field(None, description="截止日期")
+    due_date: datetime | None = Field(None, description="截止日期")
     status: str = Field(..., description="状态（pending/in_progress/completed）")
-    link: Optional[str] = Field(None, description="跳转链接")
+    link: str | None = Field(None, description="跳转链接")
     created_at: datetime = Field(..., description="创建时间")
 
 
 class TodoListResponse(BaseModel):
     """待办事项列表响应"""
-    items: List[TodoItem] = Field(default_factory=list, description="待办事项列表")
+    items: list[TodoItem] = Field(default_factory=list, description="待办事项列表")
     total: int = Field(0, description="总数")
 
 
@@ -239,8 +239,8 @@ async def handle_todo(
 
 @router.get("/statistics", response_model=StatisticsResponse, summary="获取统计数据")
 async def get_statistics(
-    date_start: Optional[str] = Query(None, description="开始日期（YYYY-MM-DD）"),
-    date_end: Optional[str] = Query(None, description="结束日期（YYYY-MM-DD）"),
+    date_start: str | None = Query(None, description="开始日期（YYYY-MM-DD）"),
+    date_end: str | None = Query(None, description="结束日期（YYYY-MM-DD）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> StatisticsResponse:
@@ -445,7 +445,7 @@ class ProcessProgressItem(BaseModel):
 
 class ProcessProgressResponse(BaseModel):
     """工序执行进展响应"""
-    items: List[ProcessProgressItem] = Field(default_factory=list, description="工序执行进展列表")
+    items: list[ProcessProgressItem] = Field(default_factory=list, description="工序执行进展列表")
 
 
 @router.get("/process-progress", response_model=ProcessProgressResponse, summary="获取工序执行进展")
@@ -576,8 +576,8 @@ class ManagementMetricsResponse(BaseModel):
 
 @router.get("/management-metrics", response_model=ManagementMetricsResponse, summary="获取管理指标")
 async def get_management_metrics(
-    date_start: Optional[str] = Query(None, description="开始日期（YYYY-MM-DD）"),
-    date_end: Optional[str] = Query(None, description="结束日期（YYYY-MM-DD）"),
+    date_start: str | None = Query(None, description="开始日期（YYYY-MM-DD）"),
+    date_end: str | None = Query(None, description="结束日期（YYYY-MM-DD）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> ManagementMetricsResponse:
@@ -707,7 +707,7 @@ class ProductionBroadcastItem(BaseModel):
 
 class ProductionBroadcastResponse(BaseModel):
     """生产实时播报响应"""
-    items: List[ProductionBroadcastItem] = Field(default_factory=list, description="播报列表")
+    items: list[ProductionBroadcastItem] = Field(default_factory=list, description="播报列表")
 
 
 @router.get("/production-broadcast", response_model=ProductionBroadcastResponse, summary="获取生产实时播报")

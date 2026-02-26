@@ -39,7 +39,7 @@ class EquipmentStatusMonitorService:
         self,
         tenant_id: int,
         data: EquipmentStatusMonitorCreate,
-        created_by: Optional[int] = None
+        created_by: int | None = None
     ) -> EquipmentStatusMonitor:
         """
         创建设备状态监控记录
@@ -91,7 +91,7 @@ class EquipmentStatusMonitorService:
         self,
         tenant_id: int,
         equipment_uuid: str
-    ) -> Optional[EquipmentStatusMonitor]:
+    ) -> EquipmentStatusMonitor | None:
         """
         获取设备最新状态
 
@@ -113,12 +113,12 @@ class EquipmentStatusMonitorService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        equipment_uuid: Optional[str] = None,
-        status: Optional[str] = None,
-        is_online: Optional[bool] = None,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-    ) -> tuple[List[EquipmentStatusMonitor], int]:
+        equipment_uuid: str | None = None,
+        status: str | None = None,
+        is_online: bool | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+    ) -> tuple[list[EquipmentStatusMonitor], int]:
         """
         获取设备状态监控列表
 
@@ -159,8 +159,8 @@ class EquipmentStatusMonitorService:
     async def get_realtime_status_list(
         self,
         tenant_id: int,
-        equipment_ids: Optional[List[int]] = None,
-    ) -> List[Dict[str, Any]]:
+        equipment_ids: list[int] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         获取设备实时状态列表
 
@@ -220,7 +220,7 @@ class EquipmentStatusMonitorService:
         self,
         tenant_id: int,
         data: EquipmentStatusUpdateRequest,
-        updated_by: Optional[int] = None
+        updated_by: int | None = None
     ) -> EquipmentStatusMonitor:
         """
         更新设备状态
@@ -290,7 +290,7 @@ class EquipmentStatusMonitorService:
         equipment_uuid: str,
         skip: int = 0,
         limit: int = 100,
-    ) -> tuple[List[EquipmentStatusHistory], int]:
+    ) -> tuple[list[EquipmentStatusHistory], int]:
         """
         获取设备状态历史
 
@@ -319,12 +319,12 @@ class EquipmentStatusMonitorService:
         tenant_id: int,
         equipment_id: int,
         equipment_uuid: str,
-        from_status: Optional[str],
+        from_status: str | None,
         to_status: str,
-        changed_by: Optional[int] = None,
-        changed_by_name: Optional[str] = None,
-        reason: Optional[str] = None,
-        remark: Optional[str] = None,
+        changed_by: int | None = None,
+        changed_by_name: str | None = None,
+        reason: str | None = None,
+        remark: str | None = None,
     ) -> EquipmentStatusHistory:
         """
         创建状态历史记录（内部方法）

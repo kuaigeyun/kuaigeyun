@@ -20,8 +20,8 @@ from infra.infrastructure.cache.cache_manager import cache_manager
 def cache_response(
     namespace: str = "api",
     ttl: int = 300,
-    key_func: Optional[Callable[[Request], str]] = None,
-    vary_on_headers: Optional[list] = None,
+    key_func: Callable[[Request], str] | None = None,
+    vary_on_headers: list | None = None,
     vary_on_query: bool = True,
     vary_on_user: bool = True,
     vary_on_tenant: bool = True,
@@ -60,7 +60,7 @@ def cache_response(
         @wraps(func)
         async def wrapper(*args, **kwargs) -> Any:
             # 从kwargs中提取Request对象
-            request: Optional[Request] = None
+            request: Request | None = None
             for arg in args:
                 if isinstance(arg, Request):
                     request = arg
@@ -117,11 +117,11 @@ def cache_response(
 def _generate_cache_key(
     func_name: str,
     request: Request,
-    vary_on_headers: Optional[list] = None,
+    vary_on_headers: list | None = None,
     vary_on_query: bool = True,
     vary_on_user: bool = True,
     vary_on_tenant: bool = True,
-    kwargs: Optional[Dict] = None
+    kwargs: dict | None = None
 ) -> str:
     """
     生成缓存键
@@ -191,8 +191,8 @@ def _is_serializable(obj: Any) -> bool:
 
 def invalidate_api_cache(
     namespace: str = "api",
-    pattern: Optional[str] = None,
-    func_name: Optional[str] = None
+    pattern: str | None = None,
+    func_name: str | None = None
 ) -> bool:
     """
     使API缓存失效

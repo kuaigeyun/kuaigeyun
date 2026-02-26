@@ -82,7 +82,7 @@ class SalesForecastService(AppBaseService[SalesForecast]):
             raise NotFoundError(f"销售预测不存在: {forecast_id}")
         return SalesForecastResponse.model_validate(forecast)
 
-    async def list_sales_forecasts(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> Dict[str, Any]:
+    async def list_sales_forecasts(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> dict[str, Any]:
         """获取销售预测列表"""
         query = SalesForecast.filter(tenant_id=tenant_id)
 
@@ -134,7 +134,7 @@ class SalesForecastService(AppBaseService[SalesForecast]):
 
     async def _get_linked_demand_for_forecast(
         self, tenant_id: int, forecast_id: int
-    ) -> Optional[Demand]:
+    ) -> Demand | None:
         """获取与销售预测关联的 Demand"""
         return await Demand.get_or_none(
             tenant_id=tenant_id,
@@ -224,7 +224,7 @@ class SalesForecastService(AppBaseService[SalesForecast]):
         logger.info("从销售预测 %s 自动产生需求 %s", forecast.forecast_code, demand.demand_code)
         return demand
 
-    async def approve_forecast(self, tenant_id: int, forecast_id: int, approved_by: int, rejection_reason: Optional[str] = None) -> SalesForecastResponse:
+    async def approve_forecast(self, tenant_id: int, forecast_id: int, approved_by: int, rejection_reason: str | None = None) -> SalesForecastResponse:
         """审核销售预测"""
         from apps.kuaizhizao.constants import DocumentStatus, ReviewStatus, REVIEW_STATUS_ALIASES
 
@@ -282,7 +282,7 @@ class SalesForecastService(AppBaseService[SalesForecast]):
             )
             return SalesForecastItemResponse.model_validate(item)
 
-    async def get_forecast_items(self, tenant_id: int, forecast_id: int) -> List[SalesForecastItemResponse]:
+    async def get_forecast_items(self, tenant_id: int, forecast_id: int) -> list[SalesForecastItemResponse]:
         """获取销售预测明细"""
         items = await SalesForecastItem.filter(tenant_id=tenant_id, forecast_id=forecast_id).order_by('forecast_date')
         return [SalesForecastItemResponse.model_validate(item) for item in items]
@@ -344,9 +344,9 @@ class SalesForecastService(AppBaseService[SalesForecast]):
     async def import_from_data(
         self,
         tenant_id: int,
-        data: List[List[Any]],
+        data: list[list[Any]],
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从二维数组数据批量导入销售预测
         
@@ -566,7 +566,7 @@ class SalesForecastService(AppBaseService[SalesForecast]):
         planning_horizon: int = 12,
         time_bucket: str = "week",
         user_id: int = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         下推到需求计算（统一使用 demand_computation，替代原 MRP 运算）
         
@@ -703,7 +703,7 @@ class SalesOrderService(AppBaseService[SalesOrder]):
             resp = resp.model_copy(update={"items": [SalesOrderItemResponse.model_validate(it) for it in items]})
         return resp
 
-    async def list_sales_orders(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[SalesOrderListResponse]:
+    async def list_sales_orders(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[SalesOrderListResponse]:
         """
         获取销售订单列表
         
@@ -741,7 +741,7 @@ class SalesOrderService(AppBaseService[SalesOrder]):
             updated_order = await self.get_sales_order_by_id(tenant_id, order_id)
             return updated_order
 
-    async def approve_order(self, tenant_id: int, order_id: int, approved_by: int, rejection_reason: Optional[str] = None) -> SalesOrderResponse:
+    async def approve_order(self, tenant_id: int, order_id: int, approved_by: int, rejection_reason: str | None = None) -> SalesOrderResponse:
         """审核销售订单"""
         from apps.kuaizhizao.constants import DocumentStatus, ReviewStatus, REVIEW_STATUS_ALIASES
 
@@ -813,7 +813,7 @@ class SalesOrderService(AppBaseService[SalesOrder]):
 
             return SalesOrderItemResponse.model_validate(item)
 
-    async def get_order_items(self, tenant_id: int, order_id: int) -> List[SalesOrderItemResponse]:
+    async def get_order_items(self, tenant_id: int, order_id: int) -> list[SalesOrderItemResponse]:
         """获取销售订单明细"""
         items = await SalesOrderItem.filter(tenant_id=tenant_id, sales_order_id=order_id).order_by('delivery_date')
         return [SalesOrderItemResponse.model_validate(item) for item in items]
@@ -825,7 +825,7 @@ class SalesOrderService(AppBaseService[SalesOrder]):
         planning_horizon: int = 3,
         consider_capacity: bool = False,
         user_id: int = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         下推到需求计算（统一使用 demand_computation，替代原 LRP 运算）
         
@@ -863,8 +863,8 @@ class SalesOrderService(AppBaseService[SalesOrder]):
         tenant_id: int,
         order_id: int,
         created_by: int,
-        delivery_quantities: Optional[Dict[int, float]] = None
-    ) -> Dict[str, Any]:
+        delivery_quantities: dict[int, float] | None = None
+    ) -> dict[str, Any]:
         """
         下推到销售出库
         
@@ -1063,9 +1063,9 @@ class SalesOrderService(AppBaseService[SalesOrder]):
     async def import_from_data(
         self,
         tenant_id: int,
-        data: List[List[Any]],
+        data: list[list[Any]],
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从二维数组数据批量导入销售订单
         

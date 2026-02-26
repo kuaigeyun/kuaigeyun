@@ -96,7 +96,7 @@ class TenantService:
         self,
         tenant_id: int,
         skip_tenant_filter: bool = True  # 组织查询需要跨组织访问
-    ) -> Optional[Tenant]:
+    ) -> Tenant | None:
         """
         根据 ID 获取组织
         
@@ -117,7 +117,7 @@ class TenantService:
         self,
         domain: str,
         skip_tenant_filter: bool = True
-    ) -> Optional[Tenant]:
+    ) -> Tenant | None:
         """
         根据域名获取组织
         
@@ -138,14 +138,14 @@ class TenantService:
         self,
         page: int = 1,
         page_size: int = 10,
-        status: Optional[TenantStatus] = None,
-        plan: Optional[TenantPlan] = None,
-        name: Optional[str] = None,
-        domain: Optional[str] = None,
-        sort: Optional[str] = None,
-        order: Optional[str] = None,
+        status: TenantStatus | None = None,
+        plan: TenantPlan | None = None,
+        name: str | None = None,
+        domain: str | None = None,
+        sort: str | None = None,
+        order: str | None = None,
         skip_tenant_filter: bool = True  # 组织列表需要跨组织访问
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取组织列表
         
@@ -222,7 +222,7 @@ class TenantService:
         tenant_id: int,
         data: TenantUpdate,
         skip_tenant_filter: bool = True
-    ) -> Optional[Tenant]:
+    ) -> Tenant | None:
         """
         更新组织信息
         
@@ -322,7 +322,7 @@ class TenantService:
         self,
         tenant_id: int,
         skip_tenant_filter: bool = True
-    ) -> Optional[Tenant]:
+    ) -> Tenant | None:
         """
         激活组织
         
@@ -355,7 +355,7 @@ class TenantService:
         self,
         tenant_id: int,
         skip_tenant_filter: bool = True
-    ) -> Optional[Tenant]:
+    ) -> Tenant | None:
         """
         停用组织
         
@@ -388,7 +388,7 @@ class TenantService:
         self,
         tenant_id: int,
         config_key: str
-    ) -> Optional[TenantConfig]:
+    ) -> TenantConfig | None:
         """
         获取组织配置
         
@@ -409,8 +409,8 @@ class TenantService:
         self,
         tenant_id: int,
         config_key: str,
-        config_value: Dict[str, Any],
-        description: Optional[str] = None
+        config_value: dict[str, Any],
+        description: str | None = None
     ) -> TenantConfig:
         """
         设置组织配置
@@ -450,8 +450,8 @@ class TenantService:
         tenant_id: int,
         action: str,
         description: str,
-        operator_id: Optional[int] = None,
-        operator_name: Optional[str] = None
+        operator_id: int | None = None,
+        operator_name: str | None = None
     ) -> None:
         """
         记录组织活动日志（内部方法）
@@ -483,8 +483,8 @@ class TenantService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 10,
-        action: Optional[str] = None
-    ) -> Dict[str, Any]:
+        action: str | None = None
+    ) -> dict[str, Any]:
         """
         获取组织活动日志列表
         

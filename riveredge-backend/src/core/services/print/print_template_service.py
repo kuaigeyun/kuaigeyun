@@ -108,10 +108,10 @@ class PrintTemplateService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        type: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        document_type: Optional[str] = None
-    ) -> List[PrintTemplate]:
+        type: str | None = None,
+        is_active: bool | None = None,
+        document_type: str | None = None
+    ) -> list[PrintTemplate]:
         """
         获取打印模板列表
         

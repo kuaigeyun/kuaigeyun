@@ -25,7 +25,7 @@ from infra.domain.tenant_context import get_current_tenant_id
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def approval_workflow_function(event: Event) -> Dict[str, Any]:
+async def approval_workflow_function(event: Event) -> dict[str, Any]:
     """
     审批流程工作流函数
     
@@ -124,7 +124,7 @@ async def approval_workflow_function(event: Event) -> Dict[str, Any]:
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def approval_action_workflow_function(event: Event) -> Dict[str, Any]:
+async def approval_action_workflow_function(event: Event) -> dict[str, Any]:
     """
     审批操作工作流函数
     
@@ -238,7 +238,7 @@ async def approval_action_workflow_function(event: Event) -> Dict[str, Any]:
         }
 
 
-def _get_start_node(nodes: Dict[str, Any]) -> Dict[str, Any]:
+def _get_start_node(nodes: dict[str, Any]) -> dict[str, Any]:
     """
     获取起始节点
     
@@ -264,7 +264,7 @@ def _get_start_node(nodes: Dict[str, Any]) -> Dict[str, Any]:
     return None
 
 
-def _get_next_node(nodes: Dict[str, Any], current_node_id: str) -> Dict[str, Any]:
+def _get_next_node(nodes: dict[str, Any], current_node_id: str) -> dict[str, Any]:
     """
     获取下一个节点
     
@@ -297,7 +297,7 @@ def _get_next_node(nodes: Dict[str, Any], current_node_id: str) -> Dict[str, Any
     return None
 
 
-def _get_node_approver(node: Dict[str, Any], approval_instance: ApprovalInstance) -> int:
+def _get_node_approver(node: dict[str, Any], approval_instance: ApprovalInstance) -> int:
     """
     获取节点的审批人
     

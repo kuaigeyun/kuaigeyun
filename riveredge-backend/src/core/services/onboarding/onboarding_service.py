@@ -15,7 +15,7 @@ from loguru import logger
 
 
 # 角色上线准备清单（预定义）
-ROLE_ONBOARDING_GUIDES: Dict[str, Dict[str, Any]] = {
+ROLE_ONBOARDING_GUIDES: dict[str, dict[str, Any]] = {
     "sales": {
         "name": "销售",
         "checklist": [
@@ -423,9 +423,9 @@ class OnboardingService:
     @staticmethod
     async def get_role_onboarding_guide(
         tenant_id: int,
-        role_id: Optional[int] = None,
-        role_code: Optional[str] = None
-    ) -> Dict[str, Any]:
+        role_id: int | None = None,
+        role_code: str | None = None
+    ) -> dict[str, Any]:
         """
         获取角色上线准备向导
         
@@ -479,9 +479,9 @@ class OnboardingService:
     @staticmethod
     async def get_role_scenario_guide(
         tenant_id: int,
-        role_id: Optional[int] = None,
-        role_code: Optional[str] = None
-    ) -> Dict[str, Any]:
+        role_id: int | None = None,
+        role_code: str | None = None
+    ) -> dict[str, Any]:
         """
         获取角色使用场景向导
         
@@ -517,12 +517,12 @@ class OnboardingService:
                         {"step": 3, "name": "保存数据", "description": "保存操作结果"},
                     ],
                     "common_issues": [
-                        {"question": f"如何创建{scenario['name']}？", "answer": f"点击创建按钮，填写必要信息后保存即可。"},
-                        {"question": f"如何查询{scenario['name']}？", "answer": f"使用搜索功能，输入关键词进行查询。"},
+                        {"question": f"如何创建{scenario['name']}？", "answer": "点击创建按钮，填写必要信息后保存即可。"},
+                        {"question": f"如何查询{scenario['name']}？", "answer": "使用搜索功能，输入关键词进行查询。"},
                     ],
                     "best_practices": [
                         f"建议定期查看{scenario['name']}数据，及时处理异常情况",
-                        f"操作前请确认数据准确性，避免错误操作",
+                        "操作前请确认数据准确性，避免错误操作",
                     ],
                 }
                 enhanced_scenarios.append(enhanced_scenario)
@@ -548,7 +548,7 @@ class OnboardingService:
     @staticmethod
     async def get_quick_start_tutorial(
         tenant_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取快速入门教程
         

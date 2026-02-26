@@ -21,9 +21,9 @@ class ReworkOrderBase(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    code: Optional[str] = Field(None, description="返工单编码（可选，创建时自动生成）")
-    original_work_order_id: Optional[int] = Field(None, description="原工单ID（关联WorkOrder）")
-    original_work_order_uuid: Optional[str] = Field(None, max_length=36, description="原工单UUID")
+    code: str | None = Field(None, description="返工单编码（可选，创建时自动生成）")
+    original_work_order_id: int | None = Field(None, description="原工单ID（关联WorkOrder）")
+    original_work_order_uuid: str | None = Field(None, max_length=36, description="原工单UUID")
     
     # 产品信息
     product_id: int = Field(..., description="产品ID（关联物料）")
@@ -38,23 +38,23 @@ class ReworkOrderBase(BaseModel):
     rework_type: str = Field(..., max_length=50, description="返工类型（返工、返修、报废）")
     
     # 返工工艺
-    route_id: Optional[int] = Field(None, description="返工工艺路线ID（关联物料）")
-    route_name: Optional[str] = Field(None, max_length=200, description="返工工艺路线名称")
+    route_id: int | None = Field(None, description="返工工艺路线ID（关联物料）")
+    route_name: str | None = Field(None, max_length=200, description="返工工艺路线名称")
     
     # 计划时间
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始日期")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束日期")
+    planned_start_date: datetime | None = Field(None, description="计划开始日期")
+    planned_end_date: datetime | None = Field(None, description="计划结束日期")
     
     # 工作中心
-    work_center_id: Optional[int] = Field(None, description="工作中心ID（关联物料）")
-    work_center_name: Optional[str] = Field(None, max_length=200, description="工作中心名称")
+    work_center_id: int | None = Field(None, description="工作中心ID（关联物料）")
+    work_center_name: str | None = Field(None, max_length=200, description="工作中心名称")
     
     # 操作员
-    operator_id: Optional[int] = Field(None, description="操作员ID（用户ID）")
-    operator_name: Optional[str] = Field(None, max_length=100, description="操作员姓名")
+    operator_id: int | None = Field(None, description="操作员ID（用户ID）")
+    operator_name: str | None = Field(None, max_length=100, description="操作员姓名")
     
     # 备注
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class ReworkOrderCreate(ReworkOrderBase):
@@ -63,7 +63,7 @@ class ReworkOrderCreate(ReworkOrderBase):
 
     用于创建新返工单的数据验证。
     """
-    code: Optional[str] = Field(None, description="返工单编码（可选，如果不提供则自动生成）")
+    code: str | None = Field(None, description="返工单编码（可选，如果不提供则自动生成）")
 
 
 class ReworkOrderUpdate(BaseModel):
@@ -74,25 +74,25 @@ class ReworkOrderUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    product_id: Optional[int] = Field(None, description="产品ID")
-    product_code: Optional[str] = Field(None, max_length=50, description="产品编码")
-    product_name: Optional[str] = Field(None, max_length=200, description="产品名称")
-    quantity: Optional[Decimal] = Field(None, description="返工数量")
-    rework_reason: Optional[str] = Field(None, description="返工原因")
-    rework_type: Optional[str] = Field(None, max_length=50, description="返工类型")
-    status: Optional[str] = Field(None, max_length=20, description="返工状态")
-    route_id: Optional[int] = Field(None, description="返工工艺路线ID")
-    route_name: Optional[str] = Field(None, max_length=200, description="返工工艺路线名称")
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始日期")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束日期")
-    actual_start_date: Optional[datetime] = Field(None, description="实际开始日期")
-    actual_end_date: Optional[datetime] = Field(None, description="实际结束日期")
-    work_center_id: Optional[int] = Field(None, description="工作中心ID")
-    work_center_name: Optional[str] = Field(None, max_length=200, description="工作中心名称")
-    operator_id: Optional[int] = Field(None, description="操作员ID")
-    operator_name: Optional[str] = Field(None, max_length=100, description="操作员姓名")
-    cost: Optional[Decimal] = Field(None, description="返工成本")
-    remarks: Optional[str] = Field(None, description="备注")
+    product_id: int | None = Field(None, description="产品ID")
+    product_code: str | None = Field(None, max_length=50, description="产品编码")
+    product_name: str | None = Field(None, max_length=200, description="产品名称")
+    quantity: Decimal | None = Field(None, description="返工数量")
+    rework_reason: str | None = Field(None, description="返工原因")
+    rework_type: str | None = Field(None, max_length=50, description="返工类型")
+    status: str | None = Field(None, max_length=20, description="返工状态")
+    route_id: int | None = Field(None, description="返工工艺路线ID")
+    route_name: str | None = Field(None, max_length=200, description="返工工艺路线名称")
+    planned_start_date: datetime | None = Field(None, description="计划开始日期")
+    planned_end_date: datetime | None = Field(None, description="计划结束日期")
+    actual_start_date: datetime | None = Field(None, description="实际开始日期")
+    actual_end_date: datetime | None = Field(None, description="实际结束日期")
+    work_center_id: int | None = Field(None, description="工作中心ID")
+    work_center_name: str | None = Field(None, max_length=200, description="工作中心名称")
+    operator_id: int | None = Field(None, description="操作员ID")
+    operator_name: str | None = Field(None, max_length=100, description="操作员姓名")
+    cost: Decimal | None = Field(None, description="返工成本")
+    remarks: str | None = Field(None, description="备注")
 
 
 class ReworkOrderResponse(ReworkOrderBase):
@@ -105,13 +105,13 @@ class ReworkOrderResponse(ReworkOrderBase):
     uuid: str = Field(..., description="业务ID（UUID）")
     tenant_id: int = Field(..., description="组织ID")
     status: str = Field(..., description="返工状态（draft/released/in_progress/completed/cancelled）")
-    actual_start_date: Optional[datetime] = Field(None, description="实际开始日期")
-    actual_end_date: Optional[datetime] = Field(None, description="实际结束日期")
+    actual_start_date: datetime | None = Field(None, description="实际开始日期")
+    actual_end_date: datetime | None = Field(None, description="实际结束日期")
     cost: Decimal = Field(Decimal("0"), description="返工成本")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
-    updated_by_name: Optional[str] = Field(None, description="更新人姓名")
+    created_by: int | None = Field(None, description="创建人ID")
+    created_by_name: str | None = Field(None, description="创建人姓名")
+    updated_by: int | None = Field(None, description="更新人ID")
+    updated_by_name: str | None = Field(None, description="更新人姓名")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
@@ -127,8 +127,8 @@ class ReworkOrderListResponse(BaseModel):
     id: int
     uuid: str
     code: str
-    original_work_order_id: Optional[int]
-    original_work_order_uuid: Optional[str]
+    original_work_order_id: int | None
+    original_work_order_uuid: str | None
     product_id: int
     product_code: str
     product_name: str
@@ -136,10 +136,10 @@ class ReworkOrderListResponse(BaseModel):
     rework_reason: str
     rework_type: str
     status: str
-    planned_start_date: Optional[datetime]
-    planned_end_date: Optional[datetime]
-    work_center_name: Optional[str]
-    operator_name: Optional[str]
+    planned_start_date: datetime | None
+    planned_end_date: datetime | None
+    work_center_name: str | None
+    operator_name: str | None
     cost: Decimal
     created_at: datetime
     updated_at: datetime
@@ -151,7 +151,7 @@ class ReworkOrderFromWorkOrderRequest(BaseModel):
     """
     rework_reason: str = Field(..., description="返工原因")
     rework_type: str = Field(..., max_length=50, description="返工类型（返工、返修、报废）")
-    quantity: Optional[Decimal] = Field(None, description="返工数量（如果不提供则使用原工单数量）")
-    route_id: Optional[int] = Field(None, description="返工工艺路线ID（如果不提供则使用原工单工艺路线）")
-    work_center_id: Optional[int] = Field(None, description="工作中心ID（如果不提供则使用原工单工作中心）")
-    remarks: Optional[str] = Field(None, description="备注")
+    quantity: Decimal | None = Field(None, description="返工数量（如果不提供则使用原工单数量）")
+    route_id: int | None = Field(None, description="返工工艺路线ID（如果不提供则使用原工单工艺路线）")
+    work_center_id: int | None = Field(None, description="工作中心ID（如果不提供则使用原工单工作中心）")
+    remarks: str | None = Field(None, description="备注")

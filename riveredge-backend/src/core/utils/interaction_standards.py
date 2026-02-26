@@ -25,7 +25,7 @@ class InteractionStandards:
     STANDARD_PAGINATED_FIELDS = ["items", "total", "page", "page_size"]
     
     @staticmethod
-    def validate_response_format(response: Dict[str, Any], response_type: str = "standard") -> bool:
+    def validate_response_format(response: dict[str, Any], response_type: str = "standard") -> bool:
         """
         验证响应格式是否符合规范
         
@@ -89,7 +89,7 @@ class InteractionStandards:
         return True
     
     @staticmethod
-    def get_standard_error_codes() -> List[str]:
+    def get_standard_error_codes() -> list[str]:
         """
         获取标准错误码列表
         

@@ -13,7 +13,7 @@ from loguru import logger
 
 
 # 预定义的操作引导配置（按页面/功能分组）
-OPERATION_GUIDES: Dict[str, Dict[str, Any]] = {
+OPERATION_GUIDES: dict[str, dict[str, Any]] = {
     "user_management": {
         "page_key": "user_management",
         "page_name": "用户管理",
@@ -109,7 +109,7 @@ class OperationGuideService:
     async def get_operation_guide(
         tenant_id: int,
         page_key: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取指定页面的操作引导配置
         
@@ -134,7 +134,7 @@ class OperationGuideService:
     @staticmethod
     async def list_operation_guides(
         tenant_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         列出所有操作引导配置
         
@@ -151,8 +151,8 @@ class OperationGuideService:
         tenant_id: int,
         page_key: str,
         page_name: str,
-        steps: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        steps: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         创建或更新操作引导配置
         

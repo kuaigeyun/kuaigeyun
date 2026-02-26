@@ -66,16 +66,16 @@ async def create_holiday(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/holidays", response_model=List[HolidayResponse], summary="获取假期列表")
+@router.get("/holidays", response_model=list[HolidayResponse], summary="获取假期列表")
 async def list_holidays(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    holiday_type: Optional[str] = Query(None, description="假期类型（过滤）"),
-    start_date: Optional[date] = Query(None, description="开始日期（过滤）"),
-    end_date: Optional[date] = Query(None, description="结束日期（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    holiday_type: str | None = Query(None, description="假期类型（过滤）"),
+    start_date: date | None = Query(None, description="开始日期（过滤）"),
+    end_date: date | None = Query(None, description="结束日期（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取假期列表
@@ -173,14 +173,14 @@ async def create_skill(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/skills", response_model=List[SkillResponse], summary="获取技能列表")
+@router.get("/skills", response_model=list[SkillResponse], summary="获取技能列表")
 async def list_skills(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    category: Optional[str] = Query(None, description="技能分类（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    category: str | None = Query(None, description="技能分类（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取技能列表
@@ -324,13 +324,13 @@ async def create_employee_config(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/employee-configs", response_model=List[EmployeePerformanceConfigResponse], summary="获取员工绩效配置列表")
+@router.get("/employee-configs", response_model=list[EmployeePerformanceConfigResponse], summary="获取员工绩效配置列表")
 async def list_employee_configs(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    employee_id: Optional[int] = Query(None),
+    employee_id: int | None = Query(None),
 ):
     """获取员工绩效配置列表"""
     return await EmployeePerformanceConfigService.list_configs(tenant_id, skip, limit, employee_id)
@@ -390,13 +390,13 @@ async def create_piece_rate(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/piece-rates", response_model=List[PieceRateResponse], summary="获取计件单价列表")
+@router.get("/piece-rates", response_model=list[PieceRateResponse], summary="获取计件单价列表")
 async def list_piece_rates(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    operation_id: Optional[int] = Query(None),
+    operation_id: int | None = Query(None),
 ):
     return await PieceRateService.list_rates(tenant_id, skip, limit, operation_id)
 
@@ -453,7 +453,7 @@ async def create_hourly_rate(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/hourly-rates", response_model=List[HourlyRateResponse], summary="获取工时单价列表")
+@router.get("/hourly-rates", response_model=list[HourlyRateResponse], summary="获取工时单价列表")
 async def list_hourly_rates(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -515,7 +515,7 @@ async def create_kpi_definition(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/kpi-definitions", response_model=List[KPIDefinitionResponse], summary="获取KPI指标定义列表")
+@router.get("/kpi-definitions", response_model=list[KPIDefinitionResponse], summary="获取KPI指标定义列表")
 async def list_kpi_definitions(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -565,12 +565,12 @@ async def delete_kpi_definition(
 
 # ==================== 绩效统计与计算 ====================
 
-@router.get("/summaries", response_model=List[PerformanceSummaryResponse], summary="获取绩效汇总列表")
+@router.get("/summaries", response_model=list[PerformanceSummaryResponse], summary="获取绩效汇总列表")
 async def get_performance_summaries(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-    period: Optional[str] = Query(None, description="周期（YYYY-MM）"),
-    employee_id: Optional[int] = Query(None, description="员工ID"),
+    period: str | None = Query(None, description="周期（YYYY-MM）"),
+    employee_id: int | None = Query(None, description="员工ID"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
 ):
@@ -589,7 +589,7 @@ async def get_performance_details(
     return await PerformanceCalcService.get_detail(tenant_id, employee_id, period)
 
 
-@router.post("/calculate", response_model=List[PerformanceSummaryResponse], summary="触发绩效计算")
+@router.post("/calculate", response_model=list[PerformanceSummaryResponse], summary="触发绩效计算")
 async def calculate_performance(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),

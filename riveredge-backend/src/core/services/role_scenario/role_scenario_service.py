@@ -16,7 +16,7 @@ from loguru import logger
 
 
 # 角色场景定义（预定义的角色使用场景）
-ROLE_SCENARIOS: Dict[str, Dict[str, Any]] = {
+ROLE_SCENARIOS: dict[str, dict[str, Any]] = {
     "sales": {
         "name": "销售",
         "description": "负责销售订单管理、客户管理、销售预测等",
@@ -480,9 +480,9 @@ class RoleScenarioService:
     @staticmethod
     async def get_role_scenarios(
         tenant_id: int,
-        role_id: Optional[int] = None,
-        role_code: Optional[str] = None
-    ) -> Dict[str, Any]:
+        role_id: int | None = None,
+        role_code: str | None = None
+    ) -> dict[str, Any]:
         """
         获取角色使用场景
         
@@ -550,9 +550,9 @@ class RoleScenarioService:
     @staticmethod
     async def get_role_dashboard(
         tenant_id: int,
-        role_id: Optional[int] = None,
-        role_code: Optional[str] = None
-    ) -> Dict[str, Any]:
+        role_id: int | None = None,
+        role_code: str | None = None
+    ) -> dict[str, Any]:
         """
         获取角色工作台配置
         
@@ -590,9 +590,9 @@ class RoleScenarioService:
     @staticmethod
     async def get_role_permissions(
         tenant_id: int,
-        role_id: Optional[int] = None,
-        role_code: Optional[str] = None
-    ) -> Dict[str, Any]:
+        role_id: int | None = None,
+        role_code: str | None = None
+    ) -> dict[str, Any]:
         """
         获取角色权限
         

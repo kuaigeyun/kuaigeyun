@@ -33,8 +33,8 @@ def get_industry_template_service() -> IndustryTemplateService:
 
 @router.get("", response_model=IndustryTemplateListResponse)
 async def get_template_list(
-    industry: Optional[str] = Query(None, description="行业类型筛选"),
-    is_active: Optional[bool] = Query(True, description="是否只返回启用的模板"),
+    industry: str | None = Query(None, description="行业类型筛选"),
+    is_active: bool | None = Query(True, description="是否只返回启用的模板"),
     current_user: User = Depends(get_current_user),
     template_service: IndustryTemplateService = Depends(get_industry_template_service)
 ) -> IndustryTemplateListResponse:

@@ -102,9 +102,9 @@ class InventoryAlertRuleService(AppBaseService[InventoryAlertRule]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        alert_type: Optional[str] = None,
-        is_enabled: Optional[bool] = None,
-    ) -> List[InventoryAlertRuleListResponse]:
+        alert_type: str | None = None,
+        is_enabled: bool | None = None,
+    ) -> list[InventoryAlertRuleListResponse]:
         """
         获取库存预警规则列表
 
@@ -265,12 +265,12 @@ class InventoryAlertService(AppBaseService[InventoryAlert]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        alert_type: Optional[str] = None,
-        status: Optional[str] = None,
-        alert_level: Optional[str] = None,
-        material_id: Optional[int] = None,
-        warehouse_id: Optional[int] = None,
-    ) -> List[InventoryAlertListResponse]:
+        alert_type: str | None = None,
+        status: str | None = None,
+        alert_level: str | None = None,
+        material_id: int | None = None,
+        warehouse_id: int | None = None,
+    ) -> list[InventoryAlertListResponse]:
         """
         获取库存预警记录列表
 
@@ -339,7 +339,7 @@ class InventoryAlertService(AppBaseService[InventoryAlert]):
     async def get_alert_statistics(
         self,
         tenant_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取库存预警统计信息
 
@@ -474,7 +474,7 @@ class InventoryAlertService(AppBaseService[InventoryAlert]):
         material_id: int,
         warehouse_id: int,
         current_quantity: Decimal
-    ) -> List[InventoryAlertResponse]:
+    ) -> list[InventoryAlertResponse]:
         """
         检查并触发库存预警
 

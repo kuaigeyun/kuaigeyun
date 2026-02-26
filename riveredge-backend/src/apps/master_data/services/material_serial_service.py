@@ -123,9 +123,9 @@ class MaterialSerialService:
     @staticmethod
     async def list_serials(
         tenant_id: int,
-        material_uuid: Optional[str] = None,
-        serial_no: Optional[str] = None,
-        status: Optional[str] = None,
+        material_uuid: str | None = None,
+        serial_no: str | None = None,
+        status: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> MaterialSerialListResponse:
@@ -257,10 +257,10 @@ class MaterialSerialService:
         tenant_id: int,
         material_uuid: str,
         count: int = 1,
-        rule: Optional[str] = None,
-        rule_id: Optional[int] = None,
-        rule_uuid: Optional[str] = None,
-    ) -> List[str]:
+        rule: str | None = None,
+        rule_id: int | None = None,
+        rule_uuid: str | None = None,
+    ) -> list[str]:
         """
         生成序列号（批量生成）
 
@@ -339,7 +339,7 @@ class MaterialSerialService:
     async def trace_serial(
         tenant_id: int,
         serial_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         序列号追溯
         

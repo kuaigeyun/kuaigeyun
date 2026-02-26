@@ -70,7 +70,7 @@ class SchedulingConfigService(AppBaseService[SchedulingConfig]):
     async def get_default_config(
         self,
         tenant_id: int
-    ) -> Optional[SchedulingConfigResponse]:
+    ) -> SchedulingConfigResponse | None:
         """获取默认排程配置"""
         config = await SchedulingConfig.get_or_none(
             tenant_id=tenant_id,
@@ -93,7 +93,7 @@ class SchedulingConfigService(AppBaseService[SchedulingConfig]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 20,
-        is_active: Optional[bool] = None,
+        is_active: bool | None = None,
     ) -> SchedulingConfigListResponse:
         """查询排程配置列表"""
         query = SchedulingConfig.filter(tenant_id=tenant_id)

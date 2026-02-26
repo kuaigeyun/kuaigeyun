@@ -19,7 +19,7 @@ class PluginLoader:
     """
     
     @staticmethod
-    def load_plugin_routes(plugin_path: str) -> Optional[APIRouter]:
+    def load_plugin_routes(plugin_path: str) -> APIRouter | None:
         """
         加载插件路由
         

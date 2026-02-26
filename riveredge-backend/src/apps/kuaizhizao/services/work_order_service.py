@@ -75,7 +75,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         self,
         tenant_id: int,
         material_id: int
-    ) -> Optional[ProcessRoute]:
+    ) -> ProcessRoute | None:
         """
         为物料自动匹配工艺路线
         
@@ -154,7 +154,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         work_order: WorkOrder,
         process_route: ProcessRoute,
         created_by: int
-    ) -> List[WorkOrderOperation]:
+    ) -> list[WorkOrderOperation]:
         """
         根据工艺路线自动生成工单工序单
         
@@ -376,8 +376,8 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         self,
         tenant_id: int,
         work_order: WorkOrder,
-        operations: List[WorkOrderOperation],
-        updated_by: Optional[int] = None,
+        operations: list[WorkOrderOperation],
+        updated_by: int | None = None,
     ) -> None:
         """
         根据工单计划开始时间和工序工时，推算并更新各工序的计划时间（供排程服务复用）
@@ -540,13 +540,13 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                     if source_type == SOURCE_TYPE_MAKE:
                         # 自制件：必须有BOM和工艺路线
                         if not validation_passed:
-                            error_msg = f"自制件物料来源验证失败，无法创建工单：\n" + "\n".join(validation_errors)
+                            error_msg = "自制件物料来源验证失败，无法创建工单：\n" + "\n".join(validation_errors)
                             logger.warning(f"工单创建失败 - {error_msg}")
                             raise ValidationError(error_msg)
                     elif source_type == SOURCE_TYPE_OUTSOURCE:
                         # 委外件：必须有委外供应商和委外工序（验证失败时不允许创建工单）
                         if not validation_passed:
-                            error_msg = f"委外件物料来源验证失败，无法创建工单：\n" + "\n".join(validation_errors)
+                            error_msg = "委外件物料来源验证失败，无法创建工单：\n" + "\n".join(validation_errors)
                             logger.warning(f"工单创建失败 - {error_msg}")
                             raise ValidationError(error_msg)
                 elif source_type == SOURCE_TYPE_BUY:
@@ -753,16 +753,16 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        code: Optional[str] = None,
-        name: Optional[str] = None,
-        product_name: Optional[str] = None,
-        production_mode: Optional[str] = None,
-        status: Optional[str] = None,
-        workshop_id: Optional[int] = None,
-        work_center_id: Optional[int] = None,
-        assigned_worker_id: Optional[int] = None,
+        code: str | None = None,
+        name: str | None = None,
+        product_name: str | None = None,
+        production_mode: str | None = None,
+        status: str | None = None,
+        workshop_id: int | None = None,
+        work_center_id: int | None = None,
+        assigned_worker_id: int | None = None,
         include_operations: bool = False,
-    ) -> List[WorkOrderListResponse]:
+    ) -> list[WorkOrderListResponse]:
         """
         获取工单列表
 
@@ -867,14 +867,14 @@ class WorkOrderService(AppBaseService[WorkOrder]):
     async def get_work_order_count(
         self,
         tenant_id: int,
-        code: Optional[str] = None,
-        name: Optional[str] = None,
-        product_name: Optional[str] = None,
-        production_mode: Optional[str] = None,
-        status: Optional[str] = None,
-        workshop_id: Optional[int] = None,
-        work_center_id: Optional[int] = None,
-        assigned_worker_id: Optional[int] = None,
+        code: str | None = None,
+        name: str | None = None,
+        product_name: str | None = None,
+        production_mode: str | None = None,
+        status: str | None = None,
+        workshop_id: int | None = None,
+        work_center_id: int | None = None,
+        assigned_worker_id: int | None = None,
     ) -> int:
         """
         获取工单总数（用于分页）
@@ -1105,7 +1105,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         self,
         tenant_id: int,
         work_order_id: int,
-        warehouse_id: Optional[int] = None
+        warehouse_id: int | None = None
     ) -> dict:
         """
         检查工单缺料情况
@@ -1289,8 +1289,8 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         self,
         tenant_id: int,
         days_threshold: int = 0,
-        status: Optional[str] = None
-    ) -> List[dict]:
+        status: str | None = None
+    ) -> list[dict]:
         """
         检查延期工单
 
@@ -1361,7 +1361,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
     async def analyze_delay_reasons(
         self,
         tenant_id: int,
-        work_order_id: Optional[int] = None
+        work_order_id: int | None = None
     ) -> dict:
         """
         分析延期原因
@@ -2050,7 +2050,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         tenant_id: int,
         batch_data: WorkOrderBatchPriorityRequest,
         updated_by: int
-    ) -> List[WorkOrderResponse]:
+    ) -> list[WorkOrderResponse]:
         """
         批量设置工单优先级
 

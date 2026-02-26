@@ -37,8 +37,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
 
 
 async def get_current_tenant(
-    x_tenant_id: Optional[str] = Header(None, alias="X-Tenant-ID"),
-    token: Optional[str] = Depends(oauth2_scheme)
+    x_tenant_id: str | None = Header(None, alias="X-Tenant-ID"),
+    token: str | None = Depends(oauth2_scheme)
 ) -> int:
     """
     获取当前组织ID
@@ -99,7 +99,7 @@ async def get_current_tenant(
     return tenant_id
 
 
-async def get_current_user_id(user: User = Depends(get_current_user)) -> Optional[int]:
+async def get_current_user_id(user: User = Depends(get_current_user)) -> int | None:
     """
     获取当前用户ID
     

@@ -31,11 +31,11 @@ class MaterialShortageExceptionBase(BaseModel):
     required_quantity: Decimal = Field(..., description="需求数量")
     alert_level: str = Field("medium", description="预警级别")
     status: str = Field("pending", description="处理状态")
-    alternative_material_id: Optional[int] = Field(None, description="替代物料ID")
-    alternative_material_code: Optional[str] = Field(None, description="替代物料编码")
-    alternative_material_name: Optional[str] = Field(None, description="替代物料名称")
-    suggested_action: Optional[str] = Field(None, description="建议操作")
-    remarks: Optional[str] = Field(None, description="备注")
+    alternative_material_id: int | None = Field(None, description="替代物料ID")
+    alternative_material_code: str | None = Field(None, description="替代物料编码")
+    alternative_material_name: str | None = Field(None, description="替代物料名称")
+    suggested_action: str | None = Field(None, description="建议操作")
+    remarks: str | None = Field(None, description="备注")
 
 
 class MaterialShortageExceptionCreate(MaterialShortageExceptionBase):
@@ -55,12 +55,12 @@ class MaterialShortageExceptionUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    status: Optional[str] = Field(None, description="处理状态")
-    alternative_material_id: Optional[int] = Field(None, description="替代物料ID")
-    alternative_material_code: Optional[str] = Field(None, description="替代物料编码")
-    alternative_material_name: Optional[str] = Field(None, description="替代物料名称")
-    suggested_action: Optional[str] = Field(None, description="建议操作")
-    remarks: Optional[str] = Field(None, description="备注")
+    status: str | None = Field(None, description="处理状态")
+    alternative_material_id: int | None = Field(None, description="替代物料ID")
+    alternative_material_code: str | None = Field(None, description="替代物料编码")
+    alternative_material_name: str | None = Field(None, description="替代物料名称")
+    suggested_action: str | None = Field(None, description="建议操作")
+    remarks: str | None = Field(None, description="备注")
 
 
 class MaterialShortageExceptionResponse(MaterialShortageExceptionBase):
@@ -71,9 +71,9 @@ class MaterialShortageExceptionResponse(MaterialShortageExceptionBase):
     """
     id: int = Field(..., description="记录ID")
     uuid: str = Field(..., description="业务ID")
-    handled_by: Optional[int] = Field(None, description="处理人ID")
-    handled_by_name: Optional[str] = Field(None, description="处理人姓名")
-    handled_at: Optional[datetime] = Field(None, description="处理时间")
+    handled_by: int | None = Field(None, description="处理人ID")
+    handled_by_name: str | None = Field(None, description="处理人姓名")
+    handled_at: datetime | None = Field(None, description="处理时间")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 

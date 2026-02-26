@@ -85,10 +85,10 @@ class WorkingHoursConfigService(BaseService[WorkingHoursConfig]):
     async def list_configs(
         self,
         tenant_id: int,
-        scope_type: Optional[str] = None,
-        scope_id: Optional[int] = None,
-        is_enabled: Optional[bool] = None,
-    ) -> List[WorkingHoursConfigListResponse]:
+        scope_type: str | None = None,
+        scope_id: int | None = None,
+        is_enabled: bool | None = None,
+    ) -> list[WorkingHoursConfigListResponse]:
         """
         获取工作时间段配置列表
 
@@ -118,8 +118,8 @@ class WorkingHoursConfigService(BaseService[WorkingHoursConfig]):
         tenant_id: int,
         start_time: datetime,
         end_time: datetime,
-        scope_type: Optional[str] = None,
-        scope_id: Optional[int] = None,
+        scope_type: str | None = None,
+        scope_id: int | None = None,
     ) -> Decimal:
         """
         计算两个时间点之间的工作时间（小时）

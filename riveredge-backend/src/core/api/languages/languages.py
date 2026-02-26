@@ -79,9 +79,9 @@ async def initialize_system_languages(
 async def list_languages(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=1000, description="每页数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
-    code: Optional[str] = Query(None, description="语言代码（模糊搜索）"),
-    name: Optional[str] = Query(None, description="语言名称（模糊搜索）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
+    code: str | None = Query(None, description="语言代码（模糊搜索）"),
+    name: str | None = Query(None, description="语言名称（模糊搜索）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

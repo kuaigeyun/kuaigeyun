@@ -30,15 +30,15 @@ class OperationLogService:
         tenant_id: int,
         user_id: int,
         operation_type: str,
-        operation_module: Optional[str] = None,
-        operation_object_type: Optional[str] = None,
-        operation_object_id: Optional[int] = None,
-        operation_object_uuid: Optional[str] = None,
-        operation_content: Optional[str] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        request_method: Optional[str] = None,
-        request_path: Optional[str] = None,
+        operation_module: str | None = None,
+        operation_object_type: str | None = None,
+        operation_object_id: int | None = None,
+        operation_object_uuid: str | None = None,
+        operation_content: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        request_method: str | None = None,
+        request_path: str | None = None,
     ) -> OperationLog:
         """
         创建操作日志
@@ -82,12 +82,12 @@ class OperationLogService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        user_id: Optional[int] = None,
-        operation_type: Optional[str] = None,
-        operation_module: Optional[str] = None,
-        operation_object_type: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        user_id: int | None = None,
+        operation_type: str | None = None,
+        operation_module: str | None = None,
+        operation_object_type: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> OperationLogListResponse:
         """
         获取操作日志列表
@@ -201,8 +201,8 @@ class OperationLogService:
     @staticmethod
     async def get_operation_log_stats(
         tenant_id: int,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> OperationLogStatsResponse:
         """
         获取操作日志统计
@@ -231,7 +231,7 @@ class OperationLogService:
         
         # 按操作类型统计（使用聚合查询优化性能）
         # 注意：Tortoise ORM 的聚合查询语法是 annotate().group_by().values()
-        by_type: Dict[str, int] = {}
+        by_type: dict[str, int] = {}
         logs_by_type = await OperationLog.filter(query).annotate(
             count=Count('id')
         ).group_by('operation_type').values('operation_type', 'count')
@@ -240,7 +240,7 @@ class OperationLogService:
             by_type[item['operation_type']] = item['count']
         
         # 按操作模块统计（使用聚合查询优化性能）
-        by_module: Dict[str, int] = {}
+        by_module: dict[str, int] = {}
         logs_by_module = await OperationLog.filter(query & Q(operation_module__not_isnull=True)).annotate(
             count=Count('id')
         ).group_by('operation_module').values('operation_module', 'count')

@@ -26,9 +26,9 @@ class QueryOptimizer:
         page: int = 1,
         page_size: int = 20,
         max_page_size: int = 100,
-        order_by: Optional[str] = None,
+        order_by: str | None = None,
         use_indexed_order: bool = True
-    ) -> Tuple[List[Any], int]:
+    ) -> tuple[list[Any], int]:
         """
         优化的分页查询
         
@@ -89,9 +89,9 @@ class QueryOptimizer:
     def optimize_query_with_filters(
         queryset: QuerySet,
         tenant_id: int,
-        filters: Optional[dict] = None,
-        search_fields: Optional[List[str]] = None,
-        search_keyword: Optional[str] = None
+        filters: dict | None = None,
+        search_fields: list[str] | None = None,
+        search_keyword: str | None = None
     ) -> QuerySet:
         """
         优化查询条件
@@ -135,7 +135,7 @@ class QueryOptimizer:
     @staticmethod
     def add_prefetch_related(
         queryset: QuerySet,
-        relations: List[str]
+        relations: list[str]
     ) -> QuerySet:
         """
         添加预加载关联
@@ -160,7 +160,7 @@ class QueryOptimizer:
     @staticmethod
     def add_select_related(
         queryset: QuerySet,
-        relations: List[str]
+        relations: list[str]
     ) -> QuerySet:
         """
         添加选择关联（用于外键关联）
@@ -185,7 +185,7 @@ class QueryOptimizer:
     async def measure_query_performance(
         queryset: QuerySet,
         operation_name: str = "query"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         测量查询性能
         
@@ -287,11 +287,11 @@ class QueryOptimizer:
     @staticmethod
     async def cursor_based_pagination(
         queryset: QuerySet,
-        cursor: Optional[str] = None,
+        cursor: str | None = None,
         page_size: int = 20,
         order_by: str = "-id",
         cursor_field: str = "id"
-    ) -> Tuple[List[Any], Optional[str], bool]:
+    ) -> tuple[list[Any], str | None, bool]:
         """
         游标分页查询（适用于大数据量）
         
@@ -375,7 +375,7 @@ class QueryOptimizer:
     async def batch_query(
         queryset: QuerySet,
         batch_size: int = 1000,
-        callback: Optional[Callable[[List[Any]], Awaitable[None]]] = None
+        callback: Callable[[list[Any]], Awaitable[None]] | None = None
     ) -> int:
         """
         批量查询处理（流式处理）

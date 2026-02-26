@@ -93,7 +93,7 @@ def is_pending_review_status(status: str) -> bool:
 
 
 # 支持状态流转的单据类型（用于扩展 StateTransitionRule）
-DOCUMENT_ENTITY_TYPES: Tuple[str, ...] = (
+DOCUMENT_ENTITY_TYPES: tuple[str, ...] = (
     "demand",
     "sales_order",
     "sales_forecast",

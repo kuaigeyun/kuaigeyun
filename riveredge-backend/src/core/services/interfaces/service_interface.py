@@ -33,7 +33,7 @@ class ServiceInterface(ABC):
         pass
 
     @abstractmethod
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         服务健康检查
 
@@ -57,8 +57,8 @@ class UserActivityServiceInterface(ServiceInterface):
         self,
         tenant_id: int,
         user_id: int,
-        login_ip: Optional[str] = None,
-        login_time: Optional[datetime] = None,
+        login_ip: str | None = None,
+        login_time: datetime | None = None,
     ) -> None:
         """
         更新用户活动时间
@@ -76,7 +76,7 @@ class UserActivityServiceInterface(ServiceInterface):
         self,
         tenant_id: int,
         user_id: int,
-    ) -> Optional[datetime]:
+    ) -> datetime | None:
         """
         获取用户最后活动时间
 
@@ -125,13 +125,13 @@ class AuditLogServiceInterface(ServiceInterface):
         tenant_id: int,
         user_id: int,
         username: str,
-        login_ip: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        login_location: Optional[str] = None,
-        login_device: Optional[str] = None,
-        login_browser: Optional[str] = None,
+        login_ip: str | None = None,
+        user_agent: str | None = None,
+        login_location: str | None = None,
+        login_device: str | None = None,
+        login_browser: str | None = None,
         success: bool = True,
-        failure_reason: Optional[str] = None,
+        failure_reason: str | None = None,
     ) -> None:
         """
         记录登录事件
@@ -157,9 +157,9 @@ class AuditLogServiceInterface(ServiceInterface):
         user_id: int,
         operation: str,
         resource: str,
-        resource_id: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
-        ip_address: Optional[str] = None,
+        resource_id: str | None = None,
+        details: dict[str, Any] | None = None,
+        ip_address: str | None = None,
     ) -> None:
         """
         记录操作事件
@@ -189,7 +189,7 @@ class ApplicationServiceInterface(ServiceInterface):
     async def get_installed_applications(
         self,
         tenant_id: int,
-        is_active: Optional[bool] = None,
+        is_active: bool | None = None,
     ) -> list:
         """
         获取已安装的应用列表
@@ -239,7 +239,7 @@ class NotificationServiceInterface(ServiceInterface):
         title: str,
         content: str,
         notification_type: str = "info",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """
         发送通知
@@ -261,8 +261,8 @@ class NotificationServiceInterface(ServiceInterface):
         title: str,
         content: str,
         notification_type: str = "info",
-        target_user_ids: Optional[list] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        target_user_ids: list | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """
         广播通知
@@ -332,17 +332,17 @@ class UserServiceInterface(ServiceInterface):
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        keyword: Optional[str] = None,
-        username: Optional[str] = None,
-        email: Optional[str] = None,
-        full_name: Optional[str] = None,
-        phone: Optional[str] = None,
-        department_uuid: Optional[str] = None,
-        position_uuid: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        is_tenant_admin: Optional[bool] = None,
-        current_user_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        keyword: str | None = None,
+        username: str | None = None,
+        email: str | None = None,
+        full_name: str | None = None,
+        phone: str | None = None,
+        department_uuid: str | None = None,
+        position_uuid: str | None = None,
+        is_active: bool | None = None,
+        is_tenant_admin: bool | None = None,
+        current_user_id: int | None = None
+    ) -> dict[str, Any]:
         """
         获取用户列表
         
@@ -417,11 +417,11 @@ class RoleServiceInterface(ServiceInterface):
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        keyword: Optional[str] = None,
-        name: Optional[str] = None,
-        code: Optional[str] = None,
-        current_user_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        keyword: str | None = None,
+        name: str | None = None,
+        code: str | None = None,
+        current_user_id: int | None = None
+    ) -> dict[str, Any]:
         """
         获取角色列表
         

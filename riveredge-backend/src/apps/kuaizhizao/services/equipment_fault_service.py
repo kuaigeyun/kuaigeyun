@@ -35,7 +35,7 @@ class EquipmentFaultService:
     async def create_equipment_fault(
         tenant_id: int,
         data: EquipmentFaultCreate,
-        created_by: Optional[int] = None
+        created_by: int | None = None
     ) -> EquipmentFault:
         """
         创建设备故障记录
@@ -121,11 +121,11 @@ class EquipmentFaultService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        equipment_uuid: Optional[str] = None,
-        status: Optional[str] = None,
-        fault_type: Optional[str] = None,
-        search: Optional[str] = None
-    ) -> tuple[List[EquipmentFault], int]:
+        equipment_uuid: str | None = None,
+        status: str | None = None,
+        fault_type: str | None = None,
+        search: str | None = None
+    ) -> tuple[list[EquipmentFault], int]:
         """
         获取设备故障记录列表
         
@@ -230,7 +230,7 @@ class EquipmentRepairService:
     async def create_equipment_repair(
         tenant_id: int,
         data: EquipmentRepairCreate,
-        created_by: Optional[int] = None
+        created_by: int | None = None
     ) -> EquipmentRepair:
         """
         创建设备维修记录
@@ -330,11 +330,11 @@ class EquipmentRepairService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        equipment_uuid: Optional[str] = None,
-        equipment_fault_uuid: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None
-    ) -> tuple[List[EquipmentRepair], int]:
+        equipment_uuid: str | None = None,
+        equipment_fault_uuid: str | None = None,
+        status: str | None = None,
+        search: str | None = None
+    ) -> tuple[list[EquipmentRepair], int]:
         """
         获取设备维修记录列表
         

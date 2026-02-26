@@ -21,8 +21,8 @@ class WorkOrderBase(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    code: Optional[str] = Field(None, description="工单编码（必填，可通过编码规则自动生成）")
-    name: Optional[str] = Field(None, description="工单名称（可选）")
+    code: str | None = Field(None, description="工单编码（必填，可通过编码规则自动生成）")
+    name: str | None = Field(None, description="工单名称（可选）")
     product_id: int = Field(..., description="产品ID")
     product_code: str = Field(..., description="产品编码")
     product_name: str = Field(..., description="产品名称")
@@ -30,15 +30,15 @@ class WorkOrderBase(BaseModel):
     production_mode: str = Field("MTS", description="生产模式（MTS/MTO）")
 
     # MTO模式可选字段
-    sales_order_id: Optional[int] = Field(None, description="销售订单ID（MTO模式）")
-    sales_order_code: Optional[str] = Field(None, description="销售订单编码")
-    sales_order_name: Optional[str] = Field(None, description="销售订单名称")
+    sales_order_id: int | None = Field(None, description="销售订单ID（MTO模式）")
+    sales_order_code: str | None = Field(None, description="销售订单编码")
+    sales_order_name: str | None = Field(None, description="销售订单名称")
 
     # 车间工作中心信息
-    workshop_id: Optional[int] = Field(None, description="车间ID")
-    workshop_name: Optional[str] = Field(None, description="车间名称")
-    work_center_id: Optional[int] = Field(None, description="工作中心ID")
-    work_center_name: Optional[str] = Field(None, description="工作中心名称")
+    workshop_id: int | None = Field(None, description="车间ID")
+    workshop_name: str | None = Field(None, description="车间名称")
+    work_center_id: int | None = Field(None, description="工作中心ID")
+    work_center_name: str | None = Field(None, description="工作中心名称")
 
     # 状态和优先级
     status: str = Field("draft", description="工单状态")
@@ -52,16 +52,16 @@ class WorkOrderBase(BaseModel):
     
     # 冻结信息
     is_frozen: bool = Field(False, description="是否冻结")
-    freeze_reason: Optional[str] = Field(None, description="冻结原因")
-    frozen_at: Optional[datetime] = Field(None, description="冻结时间")
-    frozen_by: Optional[int] = Field(None, description="冻结人ID")
-    frozen_by_name: Optional[str] = Field(None, description="冻结人姓名")
+    freeze_reason: str | None = Field(None, description="冻结原因")
+    frozen_at: datetime | None = Field(None, description="冻结时间")
+    frozen_by: int | None = Field(None, description="冻结人ID")
+    frozen_by_name: str | None = Field(None, description="冻结人姓名")
 
     # 时间信息
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始时间")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束时间")
-    actual_start_date: Optional[datetime] = Field(None, description="实际开始时间")
-    actual_end_date: Optional[datetime] = Field(None, description="实际结束时间")
+    planned_start_date: datetime | None = Field(None, description="计划开始时间")
+    planned_end_date: datetime | None = Field(None, description="计划结束时间")
+    actual_start_date: datetime | None = Field(None, description="实际开始时间")
+    actual_end_date: datetime | None = Field(None, description="实际结束时间")
 
     # 完成信息
     completed_quantity: Decimal = Field(Decimal("0"), description="已完成数量")
@@ -69,8 +69,8 @@ class WorkOrderBase(BaseModel):
     unqualified_quantity: Decimal = Field(Decimal("0"), description="不合格数量")
 
     # 备注和附件
-    remarks: Optional[str] = Field(None, description="备注")
-    attachments: Optional[List[dict]] = Field(None, description="附件列表")
+    remarks: str | None = Field(None, description="备注")
+    attachments: list[dict] | None = Field(None, description="附件列表")
 
 
 class WorkOrderCreate(WorkOrderBase):
@@ -86,12 +86,12 @@ class WorkOrderCreate(WorkOrderBase):
     - code 和 code_rule 至少提供一个：如果提供 code 则手工填写，如果提供 code_rule 则使用编码规则生成
     - operations: 可选，如果提供则使用提供的工序，否则自动匹配工艺路线生成工序
     """
-    code: Optional[str] = Field(None, description="工单编码（可选，如果未提供 code_rule 则为必填）")
-    code_rule: Optional[str] = Field(None, description="编码规则代码（可选，如果未提供 code 则为必填）")
-    product_id: Optional[int] = Field(None, description="产品ID（可选，如果未提供则根据 product_code 自动查找）")
-    product_code: Optional[str] = Field(None, description="产品编码（可选，如果未提供 product_id 则为必填）")
-    product_name: Optional[str] = Field(None, description="产品名称（可选，如果未提供则从物料中获取）")
-    operations: Optional[List["WorkOrderOperationCreate"]] = Field(None, description="工单工序列表（可选，如果提供则使用提供的工序，否则自动匹配工艺路线生成）")
+    code: str | None = Field(None, description="工单编码（可选，如果未提供 code_rule 则为必填）")
+    code_rule: str | None = Field(None, description="编码规则代码（可选，如果未提供 code 则为必填）")
+    product_id: int | None = Field(None, description="产品ID（可选，如果未提供则根据 product_code 自动查找）")
+    product_code: str | None = Field(None, description="产品编码（可选，如果未提供 product_id 则为必填）")
+    product_name: str | None = Field(None, description="产品名称（可选，如果未提供则从物料中获取）")
+    operations: list["WorkOrderOperationCreate"] | None = Field(None, description="工单工序列表（可选，如果提供则使用提供的工序，否则自动匹配工艺路线生成）")
 
 
 class WorkOrderBatchUpdateDatesItem(BaseModel):
@@ -126,19 +126,19 @@ class WorkOrderUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    name: Optional[str] = Field(None, description="工单名称")
-    quantity: Optional[Decimal] = Field(None, description="计划生产数量")
-    status: Optional[str] = Field(None, description="工单状态")
-    priority: Optional[str] = Field(None, description="优先级")
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始时间")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束时间")
-    actual_start_date: Optional[datetime] = Field(None, description="实际开始时间")
-    actual_end_date: Optional[datetime] = Field(None, description="实际结束时间")
-    completed_quantity: Optional[Decimal] = Field(None, description="已完成数量")
-    qualified_quantity: Optional[Decimal] = Field(None, description="合格数量")
-    unqualified_quantity: Optional[Decimal] = Field(None, description="不合格数量")
-    remarks: Optional[str] = Field(None, description="备注")
-    attachments: Optional[List[dict]] = Field(None, description="附件列表")
+    name: str | None = Field(None, description="工单名称")
+    quantity: Decimal | None = Field(None, description="计划生产数量")
+    status: str | None = Field(None, description="工单状态")
+    priority: str | None = Field(None, description="优先级")
+    planned_start_date: datetime | None = Field(None, description="计划开始时间")
+    planned_end_date: datetime | None = Field(None, description="计划结束时间")
+    actual_start_date: datetime | None = Field(None, description="实际开始时间")
+    actual_end_date: datetime | None = Field(None, description="实际结束时间")
+    completed_quantity: Decimal | None = Field(None, description="已完成数量")
+    qualified_quantity: Decimal | None = Field(None, description="合格数量")
+    unqualified_quantity: Decimal | None = Field(None, description="不合格数量")
+    remarks: str | None = Field(None, description="备注")
+    attachments: list[dict] | None = Field(None, description="附件列表")
 
 
 class WorkOrderResponse(WorkOrderBase):
@@ -152,23 +152,23 @@ class WorkOrderResponse(WorkOrderBase):
     tenant_id: int = Field(..., description="组织ID")
     created_by: int = Field(..., description="创建人ID")
     created_by_name: str = Field(..., description="创建人姓名")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
-    updated_by_name: Optional[str] = Field(None, description="更新人姓名")
+    updated_by: int | None = Field(None, description="更新人ID")
+    updated_by_name: str | None = Field(None, description="更新人姓名")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    lifecycle: Optional[dict] = Field(None, description="生命周期（后端计算，供 UniLifecycleStepper 展示）")
+    lifecycle: dict | None = Field(None, description="生命周期（后端计算，供 UniLifecycleStepper 展示）")
 
 
 class WorkOrderOperationMinimalForGantt(BaseModel):
     """工序简要（用于甘特图展示设备/模具/工装，支持工序级派工）"""
-    id: Optional[int] = None
-    operation_name: Optional[str] = None
-    sequence: Optional[int] = None
-    planned_start_date: Optional[datetime] = None
-    planned_end_date: Optional[datetime] = None
-    assigned_equipment_name: Optional[str] = None
-    assigned_mold_name: Optional[str] = None
-    assigned_tool_name: Optional[str] = None
+    id: int | None = None
+    operation_name: str | None = None
+    sequence: int | None = None
+    planned_start_date: datetime | None = None
+    planned_end_date: datetime | None = None
+    assigned_equipment_name: str | None = None
+    assigned_mold_name: str | None = None
+    assigned_tool_name: str | None = None
 
 
 class WorkOrderListResponse(BaseModel):
@@ -182,20 +182,20 @@ class WorkOrderListResponse(BaseModel):
     id: int = Field(..., description="工单ID")
     uuid: str = Field(..., description="业务ID")
     code: str = Field(..., description="工单编码")
-    name: Optional[str] = Field(None, description="工单名称（可选）")
+    name: str | None = Field(None, description="工单名称（可选）")
     product_name: str = Field(..., description="产品名称")
     quantity: Decimal = Field(..., description="计划生产数量")
     production_mode: str = Field(..., description="生产模式")
-    sales_order_code: Optional[str] = Field(None, description="销售订单编码")
+    sales_order_code: str | None = Field(None, description="销售订单编码")
     status: str = Field(..., description="工单状态")
-    priority: Optional[str] = Field(None, description="优先级")
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始时间")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束时间")
+    priority: str | None = Field(None, description="优先级")
+    planned_start_date: datetime | None = Field(None, description="计划开始时间")
+    planned_end_date: datetime | None = Field(None, description="计划结束时间")
     completed_quantity: Decimal = Field(default=Decimal("0"), description="已完成数量")
-    work_center_name: Optional[str] = Field(None, description="工作中心名称")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
+    work_center_name: str | None = Field(None, description="工作中心名称")
+    created_by_name: str | None = Field(None, description="创建人姓名")
     created_at: datetime = Field(..., description="创建时间")
-    operations: Optional[List[WorkOrderOperationMinimalForGantt]] = Field(None, description="工序列表（include_operations=true 时返回）")
+    operations: list[WorkOrderOperationMinimalForGantt] | None = Field(None, description="工序列表（include_operations=true 时返回）")
 
 
 class MaterialShortageItem(BaseModel):
@@ -222,10 +222,10 @@ class MaterialShortageResponse(BaseModel):
 class WorkOrderSplitRequest(BaseModel):
     """工单拆分请求Schema"""
     split_type: str = Field(..., description="拆分类型：quantity（按数量拆分）或operation（按工序拆分）")
-    split_quantities: Optional[list[Decimal]] = Field(None, description="按数量拆分：每个拆分工单的数量列表")
-    split_count: Optional[int] = Field(None, description="按数量拆分：拆分成几个工单（等量拆分）")
-    operation_ids: Optional[list[int]] = Field(None, description="按工序拆分：要拆分到新工单的工序ID列表")
-    remarks: Optional[str] = Field(None, description="拆分备注")
+    split_quantities: list[Decimal] | None = Field(None, description="按数量拆分：每个拆分工单的数量列表")
+    split_count: int | None = Field(None, description="按数量拆分：拆分成几个工单（等量拆分）")
+    operation_ids: list[int] | None = Field(None, description="按工序拆分：要拆分到新工单的工序ID列表")
+    remarks: str | None = Field(None, description="拆分备注")
 
 
 class WorkOrderSplitResponse(BaseModel):
@@ -240,45 +240,45 @@ class WorkOrderOperationBase(BaseModel):
     """工单工序基础Schema"""
     model_config = ConfigDict(from_attributes=True)
 
-    work_order_id: Optional[int] = Field(None, description="工单ID（创建工单时不需要，创建工序单时需要）")
+    work_order_id: int | None = Field(None, description="工单ID（创建工单时不需要，创建工序单时需要）")
     operation_id: int = Field(..., description="工序ID")
     operation_code: str = Field(..., max_length=50, description="工序编码")
     operation_name: str = Field(..., max_length=200, description="工序名称")
     sequence: int = Field(..., description="工序顺序（从1开始）")
-    workshop_id: Optional[int] = Field(None, description="车间ID")
-    workshop_name: Optional[str] = Field(None, max_length=200, description="车间名称")
-    work_center_id: Optional[int] = Field(None, description="工作中心ID")
-    work_center_name: Optional[str] = Field(None, max_length=200, description="工作中心名称")
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始时间")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束时间")
-    standard_time: Optional[Decimal] = Field(None, description="标准工时（小时/件）")
-    setup_time: Optional[Decimal] = Field(None, description="准备时间（小时）")
+    workshop_id: int | None = Field(None, description="车间ID")
+    workshop_name: str | None = Field(None, max_length=200, description="车间名称")
+    work_center_id: int | None = Field(None, description="工作中心ID")
+    work_center_name: str | None = Field(None, max_length=200, description="工作中心名称")
+    planned_start_date: datetime | None = Field(None, description="计划开始时间")
+    planned_end_date: datetime | None = Field(None, description="计划结束时间")
+    standard_time: Decimal | None = Field(None, description="标准工时（小时/件）")
+    setup_time: Decimal | None = Field(None, description="准备时间（小时）")
     
     # 派工信息
-    assigned_worker_id: Optional[int] = Field(None, description="分配的员工ID")
-    assigned_worker_name: Optional[str] = Field(None, description="分配的员工姓名")
-    assigned_equipment_id: Optional[int] = Field(None, description="分配的设备ID")
-    assigned_equipment_name: Optional[str] = Field(None, description="分配的设备姓名")
-    assigned_mold_id: Optional[int] = Field(None, description="分配的模具ID")
-    assigned_mold_name: Optional[str] = Field(None, description="分配的模具名称")
-    assigned_tool_id: Optional[int] = Field(None, description="分配的工装ID")
-    assigned_tool_name: Optional[str] = Field(None, description="分配的工装名称")
-    assigned_at: Optional[datetime] = Field(None, description="分配时间")
+    assigned_worker_id: int | None = Field(None, description="分配的员工ID")
+    assigned_worker_name: str | None = Field(None, description="分配的员工姓名")
+    assigned_equipment_id: int | None = Field(None, description="分配的设备ID")
+    assigned_equipment_name: str | None = Field(None, description="分配的设备姓名")
+    assigned_mold_id: int | None = Field(None, description="分配的模具ID")
+    assigned_mold_name: str | None = Field(None, description="分配的模具名称")
+    assigned_tool_id: int | None = Field(None, description="分配的工装ID")
+    assigned_tool_name: str | None = Field(None, description="分配的工装名称")
+    assigned_at: datetime | None = Field(None, description="分配时间")
     
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class WorkOrderOperationDispatch(BaseModel):
     """工单工序派工请求Schema"""
-    assigned_worker_id: Optional[int] = Field(None, description="分配的员工ID")
-    assigned_worker_name: Optional[str] = Field(None, description="分配的员工姓名")
-    assigned_equipment_id: Optional[int] = Field(None, description="分配的设备ID")
-    assigned_equipment_name: Optional[str] = Field(None, description="分配的设备姓名")
-    assigned_mold_id: Optional[int] = Field(None, description="分配的模具ID")
-    assigned_mold_name: Optional[str] = Field(None, description="分配的模具名称")
-    assigned_tool_id: Optional[int] = Field(None, description="分配的工装ID")
-    assigned_tool_name: Optional[str] = Field(None, description="分配的工装名称")
-    remarks: Optional[str] = Field(None, description="派工备注")
+    assigned_worker_id: int | None = Field(None, description="分配的员工ID")
+    assigned_worker_name: str | None = Field(None, description="分配的员工姓名")
+    assigned_equipment_id: int | None = Field(None, description="分配的设备ID")
+    assigned_equipment_name: str | None = Field(None, description="分配的设备姓名")
+    assigned_mold_id: int | None = Field(None, description="分配的模具ID")
+    assigned_mold_name: str | None = Field(None, description="分配的模具名称")
+    assigned_tool_id: int | None = Field(None, description="分配的工装ID")
+    assigned_tool_name: str | None = Field(None, description="分配的工装名称")
+    remarks: str | None = Field(None, description="派工备注")
 
 
 class WorkOrderOperationCreate(WorkOrderOperationBase):
@@ -290,17 +290,17 @@ class WorkOrderOperationUpdate(BaseModel):
     """更新工单工序Schema"""
     model_config = ConfigDict(from_attributes=True)
 
-    operation_id: Optional[int] = Field(None, description="工序ID")
-    sequence: Optional[int] = Field(None, description="工序顺序")
-    workshop_id: Optional[int] = Field(None, description="车间ID")
-    workshop_name: Optional[str] = Field(None, max_length=200, description="车间名称")
-    work_center_id: Optional[int] = Field(None, description="工作中心ID")
-    work_center_name: Optional[str] = Field(None, max_length=200, description="工作中心名称")
-    planned_start_date: Optional[datetime] = Field(None, description="计划开始时间")
-    planned_end_date: Optional[datetime] = Field(None, description="计划结束时间")
-    standard_time: Optional[Decimal] = Field(None, description="标准工时（小时/件）")
-    setup_time: Optional[Decimal] = Field(None, description="准备时间（小时）")
-    remarks: Optional[str] = Field(None, description="备注")
+    operation_id: int | None = Field(None, description="工序ID")
+    sequence: int | None = Field(None, description="工序顺序")
+    workshop_id: int | None = Field(None, description="车间ID")
+    workshop_name: str | None = Field(None, max_length=200, description="车间名称")
+    work_center_id: int | None = Field(None, description="工作中心ID")
+    work_center_name: str | None = Field(None, max_length=200, description="工作中心名称")
+    planned_start_date: datetime | None = Field(None, description="计划开始时间")
+    planned_end_date: datetime | None = Field(None, description="计划结束时间")
+    standard_time: Decimal | None = Field(None, description="标准工时（小时/件）")
+    setup_time: Decimal | None = Field(None, description="准备时间（小时）")
+    remarks: str | None = Field(None, description="备注")
 
 
 class DefectTypeMinimal(BaseModel):
@@ -316,19 +316,19 @@ class WorkOrderOperationResponse(WorkOrderOperationBase):
     uuid: str = Field(..., description="业务UUID")
     tenant_id: int = Field(..., description="租户ID")
     work_order_code: str = Field(..., max_length=50, description="工单编码")
-    actual_start_date: Optional[datetime] = Field(None, description="实际开始时间")
-    actual_end_date: Optional[datetime] = Field(None, description="实际结束时间")
+    actual_start_date: datetime | None = Field(None, description="实际开始时间")
+    actual_end_date: datetime | None = Field(None, description="实际结束时间")
     completed_quantity: Decimal = Field(Decimal("0"), description="已完成数量")
     qualified_quantity: Decimal = Field(Decimal("0"), description="合格数量")
     unqualified_quantity: Decimal = Field(Decimal("0"), description="不合格数量")
     status: str = Field(..., max_length=20, description="工序状态")
     
     # 派工审计信息
-    assigned_by: Optional[int] = Field(None, description="分配人ID")
-    assigned_by_name: Optional[str] = Field(None, description="分配人姓名")
+    assigned_by: int | None = Field(None, description="分配人ID")
+    assigned_by_name: str | None = Field(None, description="分配人姓名")
     
     # 工序关联的不良品项（从 master_data 获取）
-    defect_types: List[DefectTypeMinimal] = Field(default_factory=list, description="工序关联的不良品类型")
+    defect_types: list[DefectTypeMinimal] = Field(default_factory=list, description="工序关联的不良品类型")
     
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
@@ -346,7 +346,7 @@ class WorkOrderFreezeRequest(BaseModel):
 
 class WorkOrderUnfreezeRequest(BaseModel):
     """工单解冻请求Schema"""
-    unfreeze_reason: Optional[str] = Field(None, description="解冻原因（可选）")
+    unfreeze_reason: str | None = Field(None, description="解冻原因（可选）")
 
 
 class WorkOrderPriorityRequest(BaseModel):
@@ -363,7 +363,7 @@ class WorkOrderBatchPriorityRequest(BaseModel):
 class WorkOrderMergeRequest(BaseModel):
     """工单合并请求Schema"""
     work_order_ids: list[int] = Field(..., min_length=2, description="要合并的工单ID列表（至少2个）")
-    remarks: Optional[str] = Field(None, description="合并备注")
+    remarks: str | None = Field(None, description="合并备注")
 
 
 class WorkOrderMergeResponse(BaseModel):

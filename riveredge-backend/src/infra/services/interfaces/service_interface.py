@@ -31,7 +31,7 @@ class InfraServiceInterface(ABC):
         pass
     
     @abstractmethod
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         服务健康检查
         
@@ -52,7 +52,7 @@ class AuthServiceInterface(InfraServiceInterface):
     service_version = "1.0.0"
     
     @abstractmethod
-    async def login(self, data: Any, request: Any) -> Dict[str, Any]:
+    async def login(self, data: Any, request: Any) -> dict[str, Any]:
         """
         用户登录
         
@@ -79,7 +79,7 @@ class AuthServiceInterface(InfraServiceInterface):
         pass
     
     @abstractmethod
-    async def guest_login(self) -> Dict[str, Any]:
+    async def guest_login(self) -> dict[str, Any]:
         """
         体验登录
         
@@ -89,7 +89,7 @@ class AuthServiceInterface(InfraServiceInterface):
         pass
     
     @abstractmethod
-    async def register_personal(self, data: Any) -> Dict[str, Any]:
+    async def register_personal(self, data: Any) -> dict[str, Any]:
         """
         个人注册
         
@@ -102,7 +102,7 @@ class AuthServiceInterface(InfraServiceInterface):
         pass
     
     @abstractmethod
-    async def register_organization(self, data: Any) -> Dict[str, Any]:
+    async def register_organization(self, data: Any) -> dict[str, Any]:
         """
         组织注册
         
@@ -130,14 +130,14 @@ class TenantServiceInterface(InfraServiceInterface):
         self,
         page: int = 1,
         page_size: int = 10,
-        status: Optional[Any] = None,
-        plan: Optional[Any] = None,
-        name: Optional[str] = None,
-        domain: Optional[str] = None,
-        sort: Optional[str] = None,
-        order: Optional[str] = None,
+        status: Any | None = None,
+        plan: Any | None = None,
+        name: str | None = None,
+        domain: str | None = None,
+        sort: str | None = None,
+        order: str | None = None,
         skip_tenant_filter: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取组织列表
         
@@ -162,7 +162,7 @@ class TenantServiceInterface(InfraServiceInterface):
         self,
         tenant_id: int,
         skip_tenant_filter: bool = True
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         根据ID获取组织
         
@@ -194,7 +194,7 @@ class TenantServiceInterface(InfraServiceInterface):
         tenant_id: int,
         data: Any,
         skip_tenant_filter: bool = True
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         更新组织
         
@@ -243,7 +243,7 @@ class PackageServiceInterface(InfraServiceInterface):
         page: int = 1,
         page_size: int = 10,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取套餐列表
         
@@ -258,7 +258,7 @@ class PackageServiceInterface(InfraServiceInterface):
         pass
     
     @abstractmethod
-    async def get_package_by_id(self, package_id: int) -> Optional[Any]:
+    async def get_package_by_id(self, package_id: int) -> Any | None:
         """
         根据ID获取套餐
         
@@ -282,7 +282,7 @@ class InfraSuperAdminServiceInterface(InfraServiceInterface):
     service_version = "1.0.0"
     
     @abstractmethod
-    async def get_current_admin(self) -> Optional[Any]:
+    async def get_current_admin(self) -> Any | None:
         """
         获取当前平台超级管理员
         
@@ -334,7 +334,7 @@ class SavedSearchServiceInterface(InfraServiceInterface):
         page: int = 1,
         page_size: int = 10,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取保存的搜索条件列表
         
@@ -362,7 +362,7 @@ class SavedSearchServiceInterface(InfraServiceInterface):
         pass
     
     @abstractmethod
-    async def get_saved_search_by_uuid(self, uuid: str) -> Optional[Any]:
+    async def get_saved_search_by_uuid(self, uuid: str) -> Any | None:
         """
         根据UUID获取保存的搜索条件
         
@@ -379,7 +379,7 @@ class SavedSearchServiceInterface(InfraServiceInterface):
         self,
         uuid: str,
         data: Any
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         更新保存的搜索条件
         

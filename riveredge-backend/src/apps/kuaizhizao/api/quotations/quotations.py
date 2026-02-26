@@ -54,9 +54,9 @@ async def create_quotation(
 async def list_quotations(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    status: Optional[str] = Query(None),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
+    status: str | None = Query(None),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -132,8 +132,8 @@ async def update_quotation(
 @router.get("/{quotation_id}/print", summary="打印报价单")
 async def print_quotation(
     quotation_id: int = Path(..., description="报价单ID"),
-    template_code: Optional[str] = Query(None, description="打印模板代码"),
-    template_uuid: Optional[str] = Query(None, description="打印模板UUID"),
+    template_code: str | None = Query(None, description="打印模板代码"),
+    template_uuid: str | None = Query(None, description="打印模板UUID"),
     output_format: str = Query("html", description="输出格式"),
     response_format: str = Query("json", description="响应格式"),
     current_user: User = Depends(get_current_user),
@@ -181,7 +181,7 @@ async def delete_quotation(
 
 class ConvertToOrderResponse(QuotationResponse):
     """转订单响应：包含新创建的销售订单"""
-    sales_order: Optional[SalesOrderResponse] = None
+    sales_order: SalesOrderResponse | None = None
 
 
 @router.post(

@@ -19,9 +19,9 @@ class PluginManifest(BaseModel):
     entry_point: str = Field(default="", description="前端入口点")
     route_path: str = Field(default="", description="路由路径")
     sort_order: int = Field(default=0, description="排序顺序")
-    menu_config: Dict[str, Any] = Field(default_factory=dict, description="菜单配置")
-    permissions: List[str] = Field(default_factory=list, description="权限列表")
-    dependencies: Dict[str, str] = Field(default_factory=dict, description="依赖关系")
+    menu_config: dict[str, Any] = Field(default_factory=dict, description="菜单配置")
+    permissions: list[str] = Field(default_factory=list, description="权限列表")
+    dependencies: dict[str, str] = Field(default_factory=dict, description="依赖关系")
 
 
 class PluginInfo(BaseModel):
@@ -33,7 +33,7 @@ class PluginInfo(BaseModel):
     icon: str = Field(default="appstore", description="插件图标")
     author: str = Field(default="", description="插件作者")
     is_valid: bool = Field(default=True, description="是否有效")
-    error_message: Optional[str] = Field(default=None, description="错误信息")
+    error_message: str | None = Field(default=None, description="错误信息")
     is_registered: bool = Field(default=False, description="是否已注册")
     is_active: bool = Field(default=False, description="是否启用")
     is_installed: bool = Field(default=False, description="是否已安装")
@@ -46,7 +46,7 @@ class PluginDiscoveryResult(BaseModel):
     registered: int = Field(default=0, description="新注册的插件数量")
     updated: int = Field(default=0, description="更新的插件数量")
     total_discovered: int = Field(default=0, description="发现的插件总数")
-    errors: List[str] = Field(default_factory=list, description="错误信息列表")
+    errors: list[str] = Field(default_factory=list, description="错误信息列表")
 
 
 class PluginOperationResult(BaseModel):

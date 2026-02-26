@@ -46,7 +46,7 @@ async def _ensure_db_connection():
     try:
         # 检查是否已初始化
         Tortoise.get_connection("default")
-    except Exception as e:
+    except Exception:
         # 未初始化，尝试初始化
         try:
             # 确保配置中的 routers 字段存在且是列表
@@ -397,7 +397,6 @@ class AuthService:
         """
         from infra.services.tenant_service import TenantService
         from infra.services.user_service import UserService
-        from infra.schemas.tenant import TenantCreate
         from infra.schemas.user import UserCreate
         import random
         import string
@@ -840,7 +839,6 @@ class AuthService:
         # 确保数据库连接已初始化
         await _ensure_db_connection()
 
-        from infra.schemas.tenant import TenantCreate
         from infra.schemas.user import UserCreate
 
         tenant_service = TenantService()
@@ -1064,11 +1062,11 @@ class AuthService:
     
     async def _log_login_attempt(
         self,
-        tenant_id: Optional[int],
-        user_id: Optional[int],
+        tenant_id: int | None,
+        user_id: int | None,
         username: str,
         login_status: str,
-        failure_reason: Optional[str],
+        failure_reason: str | None,
         request: Request
     ) -> None:
         """

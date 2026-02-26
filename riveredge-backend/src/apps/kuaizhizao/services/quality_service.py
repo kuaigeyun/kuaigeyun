@@ -70,7 +70,7 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
             raise NotFoundError(f"来料检验单不存在: {inspection_id}")
         return IncomingInspectionResponse.model_validate(inspection)
 
-    async def list_incoming_inspections(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> Dict[str, Any]:
+    async def list_incoming_inspections(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> dict[str, Any]:
         """获取来料检验单列表"""
         query = IncomingInspection.filter(tenant_id=tenant_id)
 
@@ -143,7 +143,7 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
             updated_inspection = await self.get_incoming_inspection_by_id(tenant_id, inspection_id)
             return updated_inspection
 
-    async def approve_inspection(self, tenant_id: int, inspection_id: int, approved_by: int, rejection_reason: Optional[str] = None) -> IncomingInspectionResponse:
+    async def approve_inspection(self, tenant_id: int, inspection_id: int, approved_by: int, rejection_reason: str | None = None) -> IncomingInspectionResponse:
         """审核检验单"""
         async with in_transaction():
             inspection = await self.get_incoming_inspection_by_id(tenant_id, inspection_id)
@@ -174,7 +174,7 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
         tenant_id: int,
         purchase_receipt_id: int,
         created_by: int
-    ) -> List[IncomingInspectionResponse]:
+    ) -> list[IncomingInspectionResponse]:
         """
         从采购入库单创建来料检验单
         
@@ -246,9 +246,9 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
     async def import_from_data(
         self,
         tenant_id: int,
-        data: List[List[Any]],
+        data: list[list[Any]],
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从二维数组数据导入来料检验单
         
@@ -480,7 +480,7 @@ class ProcessInspectionService(AppBaseService[ProcessInspection]):
             raise NotFoundError(f"过程检验单不存在: {inspection_id}")
         return ProcessInspectionResponse.model_validate(inspection)
 
-    async def list_process_inspections(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[ProcessInspectionListResponse]:
+    async def list_process_inspections(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[ProcessInspectionListResponse]:
         """获取过程检验单列表"""
         query = ProcessInspection.filter(tenant_id=tenant_id)
 
@@ -657,9 +657,9 @@ class ProcessInspectionService(AppBaseService[ProcessInspection]):
     async def import_from_data(
         self,
         tenant_id: int,
-        data: List[List[Any]],
+        data: list[list[Any]],
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """从二维数组数据导入过程检验单"""
         if not data or len(data) < 2:
             raise ValidationError("导入数据格式错误：至少需要表头和示例数据行")
@@ -844,7 +844,7 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
             raise NotFoundError(f"成品检验单不存在: {inspection_id}")
         return FinishedGoodsInspectionResponse.model_validate(inspection)
 
-    async def list_finished_goods_inspections(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[FinishedGoodsInspectionListResponse]:
+    async def list_finished_goods_inspections(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[FinishedGoodsInspectionListResponse]:
         """获取成品检验单列表"""
         query = FinishedGoodsInspection.filter(tenant_id=tenant_id)
 
@@ -991,9 +991,9 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
     async def import_from_data(
         self,
         tenant_id: int,
-        data: List[List[Any]],
+        data: list[list[Any]],
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """从二维数组数据导入成品检验单"""
         if not data or len(data) < 2:
             raise ValidationError("导入数据格式错误：至少需要表头和示例数据行")
@@ -1138,12 +1138,12 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
     async def get_quality_anomalies(
         self,
         tenant_id: int,
-        inspection_type: Optional[str] = None,  # "incoming", "process", "finished"
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        material_id: Optional[int] = None,
-        supplier_id: Optional[int] = None
-    ) -> List[dict]:
+        inspection_type: str | None = None,  # "incoming", "process", "finished"
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        material_id: int | None = None,
+        supplier_id: int | None = None
+    ) -> list[dict]:
         """
         查询质量异常记录（不合格的检验单）
 
@@ -1270,11 +1270,11 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
     async def get_quality_statistics(
         self,
         tenant_id: int,
-        inspection_type: Optional[str] = None,  # "incoming", "process", "finished"
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        material_id: Optional[int] = None,
-        supplier_id: Optional[int] = None
+        inspection_type: str | None = None,  # "incoming", "process", "finished"
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        material_id: int | None = None,
+        supplier_id: int | None = None
     ) -> dict:
         """
         获取质量统计分析

@@ -142,11 +142,11 @@ class FactoryService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None,
-        keyword: Optional[str] = None,
-        code: Optional[str] = None,
-        name: Optional[str] = None
-    ) -> List[PlantResponse]:
+        is_active: bool | None = None,
+        keyword: str | None = None,
+        code: str | None = None,
+        name: str | None = None
+    ) -> list[PlantResponse]:
         """
         获取厂区列表
 
@@ -305,7 +305,7 @@ class FactoryService:
     @staticmethod
     async def batch_delete_plants(
         tenant_id: int,
-        plant_uuids: List[str]
+        plant_uuids: list[str]
     ) -> dict:
         """
         批量删除厂区（软删除）
@@ -549,11 +549,11 @@ class FactoryService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None,
-        keyword: Optional[str] = None,
-        code: Optional[str] = None,
-        name: Optional[str] = None
-    ) -> List[WorkshopResponse]:
+        is_active: bool | None = None,
+        keyword: str | None = None,
+        code: str | None = None,
+        name: str | None = None
+    ) -> list[WorkshopResponse]:
         """
         获取车间列表
 
@@ -712,7 +712,7 @@ class FactoryService:
     @staticmethod
     async def batch_delete_workshops(
         tenant_id: int,
-        workshop_uuids: List[str]
+        workshop_uuids: list[str]
     ) -> dict:
         """
         批量删除车间（软删除）
@@ -991,9 +991,9 @@ class FactoryService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        workshop_id: Optional[int] = None,
-        is_active: Optional[bool] = None
-    ) -> List[ProductionLineResponse]:
+        workshop_id: int | None = None,
+        is_active: bool | None = None
+    ) -> list[ProductionLineResponse]:
         """
         获取产线列表
         
@@ -1132,7 +1132,7 @@ class FactoryService:
     @staticmethod
     async def batch_delete_production_lines(
         tenant_id: int,
-        production_line_uuids: List[str]
+        production_line_uuids: list[str]
     ) -> dict:
         """
         批量删除产线（软删除）
@@ -1411,9 +1411,9 @@ class FactoryService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        production_line_id: Optional[int] = None,
-        is_active: Optional[bool] = None
-    ) -> List[WorkstationResponse]:
+        production_line_id: int | None = None,
+        is_active: bool | None = None
+    ) -> list[WorkstationResponse]:
         """
         获取工位列表
         
@@ -1541,7 +1541,7 @@ class FactoryService:
     @staticmethod
     async def batch_delete_workstations(
         tenant_id: int,
-        workstation_uuids: List[str]
+        workstation_uuids: list[str]
     ) -> dict:
         """
         批量删除工位（软删除）
@@ -1716,11 +1716,11 @@ class FactoryService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None,
-        keyword: Optional[str] = None,
-        code: Optional[str] = None,
-        name: Optional[str] = None
-    ) -> List[WorkCenterResponse]:
+        is_active: bool | None = None,
+        keyword: str | None = None,
+        code: str | None = None,
+        name: str | None = None
+    ) -> list[WorkCenterResponse]:
         """获取工作中心列表"""
         query = WorkCenter.filter(
             tenant_id=tenant_id,
@@ -1822,7 +1822,7 @@ class FactoryService:
     @staticmethod
     async def batch_delete_work_centers(
         tenant_id: int,
-        work_center_uuids: List[str]
+        work_center_uuids: list[str]
     ) -> dict:
         """批量删除工作中心（软删除）"""
         from tortoise import timezone
@@ -1876,8 +1876,8 @@ class FactoryService:
     @staticmethod
     async def get_factory_tree(
         tenant_id: int,
-        is_active: Optional[bool] = None
-    ) -> List["WorkshopTreeResponse"]:
+        is_active: bool | None = None
+    ) -> list["WorkshopTreeResponse"]:
         """
         获取工厂数据树形结构（车间→产线→工位）
         
@@ -1928,7 +1928,7 @@ class FactoryService:
         workstations = await workstation_query.prefetch_related("production_line").order_by("code").all()
         
         # 构建工位映射（按产线ID分组）
-        workstation_map: dict[int, List[WorkstationTreeResponse]] = {}
+        workstation_map: dict[int, list[WorkstationTreeResponse]] = {}
         for workstation in workstations:
             line_id = workstation.production_line_id
             if line_id not in workstation_map:
@@ -1936,7 +1936,7 @@ class FactoryService:
             workstation_map[line_id].append(WorkstationTreeResponse.model_validate(workstation))
         
         # 构建产线映射（按车间ID分组）
-        production_line_map: dict[int, List[ProductionLineTreeResponse]] = {}
+        production_line_map: dict[int, list[ProductionLineTreeResponse]] = {}
         for production_line in production_lines:
             workshop_id = production_line.workshop_id
             if workshop_id not in production_line_map:
@@ -1951,7 +1951,7 @@ class FactoryService:
             production_line_map[workshop_id].append(line_response)
         
         # 构建车间树形结构
-        result: List[WorkshopTreeResponse] = []
+        result: list[WorkshopTreeResponse] = []
         for workshop in workshops:
             # 获取该车间的产线列表
             workshop_production_lines = production_line_map.get(workshop.id, [])

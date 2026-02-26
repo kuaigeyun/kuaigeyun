@@ -94,10 +94,10 @@ class APIService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        search: Optional[str] = None,
-        method: Optional[str] = None,
-        is_active: Optional[bool] = None,
-    ) -> tuple[List[API], int]:
+        search: str | None = None,
+        method: str | None = None,
+        is_active: bool | None = None,
+    ) -> tuple[list[API], int]:
         """
         获取接口列表
         
@@ -260,7 +260,7 @@ class APIService:
     async def _notify_datasets(
         tenant_id: int,
         api_code: str,
-        new_api_code: Optional[str] = None,
+        new_api_code: str | None = None,
         is_active: bool = True,
         path_changed: bool = False,
         method_changed: bool = False,
@@ -298,7 +298,7 @@ class APIService:
         api_uuid: UUID,
         test_request: APITestRequest,
         timeout: float = 30.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         测试接口调用
         

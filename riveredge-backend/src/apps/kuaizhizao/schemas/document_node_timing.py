@@ -26,11 +26,11 @@ class DocumentNodeTimingBase(BaseModel):
     document_code: str = Field(..., description="单据编码")
     node_name: str = Field(..., description="节点名称")
     node_code: str = Field(..., description="节点编码")
-    start_time: Optional[datetime] = Field(None, description="节点开始时间")
-    end_time: Optional[datetime] = Field(None, description="节点结束时间")
-    operator_id: Optional[int] = Field(None, description="操作人ID")
-    operator_name: Optional[str] = Field(None, description="操作人姓名")
-    remarks: Optional[str] = Field(None, description="备注")
+    start_time: datetime | None = Field(None, description="节点开始时间")
+    end_time: datetime | None = Field(None, description="节点结束时间")
+    operator_id: int | None = Field(None, description="操作人ID")
+    operator_name: str | None = Field(None, description="操作人姓名")
+    remarks: str | None = Field(None, description="备注")
 
 
 class DocumentNodeTimingCreate(DocumentNodeTimingBase):
@@ -50,8 +50,8 @@ class DocumentNodeTimingResponse(DocumentNodeTimingBase):
     """
     id: int = Field(..., description="记录ID")
     uuid: str = Field(..., description="业务ID")
-    duration_seconds: Optional[int] = Field(None, description="节点耗时（秒）")
-    duration_hours: Optional[Decimal] = Field(None, description="节点耗时（小时）")
+    duration_seconds: int | None = Field(None, description="节点耗时（秒）")
+    duration_hours: Decimal | None = Field(None, description="节点耗时（小时）")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
@@ -76,7 +76,7 @@ class DocumentTimingSummaryResponse(BaseModel):
     document_type: str = Field(..., description="单据类型")
     document_id: int = Field(..., description="单据ID")
     document_code: str = Field(..., description="单据编码")
-    total_duration_seconds: Optional[int] = Field(None, description="总耗时（秒）")
-    total_duration_hours: Optional[Decimal] = Field(None, description="总耗时（小时）")
+    total_duration_seconds: int | None = Field(None, description="总耗时（秒）")
+    total_duration_hours: Decimal | None = Field(None, description="总耗时（小时）")
     nodes: list[DocumentNodeTimingResponse] = Field(default_factory=list, description="节点列表")
 

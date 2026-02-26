@@ -16,7 +16,7 @@ from infra.models.infra_superadmin import InfraSuperAdmin
 
 def create_infra_superadmin_token(
     admin: InfraSuperAdmin,
-    expires_delta: Optional[timedelta] = None
+    expires_delta: timedelta | None = None
 ) -> str:
     """
     创建平台超级管理员 JWT 访问令牌
@@ -37,7 +37,7 @@ def create_infra_superadmin_token(
         >>> len(token) > 0
         True
     """
-    to_encode: Dict[str, Any] = {
+    to_encode: dict[str, Any] = {
         "sub": str(admin.id),  # 平台超级管理员 ID
         "username": admin.username,
         "is_infra_superadmin": True,  # ⭐ 关键：标记为平台超级管理员
@@ -60,7 +60,7 @@ def create_infra_superadmin_token(
     return encoded_jwt
 
 
-def get_infra_superadmin_token_payload(token: str) -> Optional[Dict[str, Any]]:
+def get_infra_superadmin_token_payload(token: str) -> dict[str, Any] | None:
     """
     获取平台超级管理员 Token 载荷
     
@@ -112,7 +112,7 @@ def get_infra_superadmin_token_payload(token: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def create_token_for_infra_superadmin(admin: InfraSuperAdmin) -> Dict[str, Any]:
+def create_token_for_infra_superadmin(admin: InfraSuperAdmin) -> dict[str, Any]:
     """
     为平台超级管理员创建 Token 信息
     

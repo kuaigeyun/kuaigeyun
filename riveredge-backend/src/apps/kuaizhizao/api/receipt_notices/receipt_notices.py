@@ -51,13 +51,13 @@ async def create_receipt_notice(
         )
 
 
-@router.get("", response_model=List[ReceiptNoticeListResponse], summary="获取收货通知单列表")
+@router.get("", response_model=list[ReceiptNoticeListResponse], summary="获取收货通知单列表")
 async def list_receipt_notices(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    status: Optional[str] = Query(None),
-    purchase_order_id: Optional[int] = Query(None),
-    supplier_id: Optional[int] = Query(None),
+    status: str | None = Query(None),
+    purchase_order_id: int | None = Query(None),
+    supplier_id: int | None = Query(None),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

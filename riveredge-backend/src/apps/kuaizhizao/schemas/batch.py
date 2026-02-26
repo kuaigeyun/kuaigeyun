@@ -15,25 +15,25 @@ from core.schemas.base import BaseSchema
 
 class BatchCreateRequest(BaseSchema):
     """批量创建请求"""
-    items: List[Dict[str, Any]] = Field(..., description="创建数据列表", min_items=1, max_items=100)
+    items: list[dict[str, Any]] = Field(..., description="创建数据列表", min_items=1, max_items=100)
 
 
 class BatchUpdateRequest(BaseSchema):
     """批量更新请求"""
-    items: List[Dict[str, Any]] = Field(..., description="更新数据列表（必须包含id字段）", min_items=1, max_items=100)
+    items: list[dict[str, Any]] = Field(..., description="更新数据列表（必须包含id字段）", min_items=1, max_items=100)
 
 
 class BatchDeleteRequest(BaseSchema):
     """批量删除请求"""
-    ids: List[int] = Field(..., description="要删除的记录ID列表", min_items=1, max_items=100)
+    ids: list[int] = Field(..., description="要删除的记录ID列表", min_items=1, max_items=100)
 
 
 class BatchOperationResult(BaseSchema):
     """批量操作结果"""
     success_count: int = Field(..., description="成功数量")
     failed_count: int = Field(..., description="失败数量")
-    success_records: List[Dict[str, Any]] = Field(default_factory=list, description="成功记录列表")
-    failed_records: List[Dict[str, Any]] = Field(default_factory=list, description="失败记录列表")
+    success_records: list[dict[str, Any]] = Field(default_factory=list, description="成功记录列表")
+    failed_records: list[dict[str, Any]] = Field(default_factory=list, description="失败记录列表")
 
 
 class BatchResponse(BaseSchema):

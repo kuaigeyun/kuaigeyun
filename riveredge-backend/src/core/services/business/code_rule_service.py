@@ -115,7 +115,7 @@ class CodeRuleService:
     async def get_rule_by_code(
         tenant_id: int,
         code: str
-    ) -> Optional[CodeRule]:
+    ) -> CodeRule | None:
         """
         根据代码获取规则
         
@@ -138,8 +138,8 @@ class CodeRuleService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None
-    ) -> List[CodeRule]:
+        is_active: bool | None = None
+    ) -> list[CodeRule]:
         """
         获取规则列表
         
@@ -312,7 +312,7 @@ class CodeRuleService:
     async def _notify_business_modules(
         tenant_id: int,
         rule_code: str,
-        new_rule_code: Optional[str] = None,
+        new_rule_code: str | None = None,
         is_active: bool = True,
         expression_changed: bool = False,
         is_deleted: bool = False

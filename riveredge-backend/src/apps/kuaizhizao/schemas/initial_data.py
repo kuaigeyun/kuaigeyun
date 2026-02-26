@@ -18,10 +18,10 @@ from core.schemas.base import BaseSchema
 class LaunchCountdownBase(BaseSchema):
     """上线倒计时基础schema"""
     launch_date: datetime = Field(..., description="上线日期")
-    snapshot_time: Optional[datetime] = Field(None, description="快照时间点（期初数据的基准时间点）")
+    snapshot_time: datetime | None = Field(None, description="快照时间点（期初数据的基准时间点）")
     status: str = Field("pending", max_length=20, description="状态（pending/in_progress/completed/cancelled）")
-    progress: Optional[Dict[str, Any]] = Field(None, description="导入进度（JSON格式，存储各阶段导入状态）")
-    notes: Optional[str] = Field(None, description="备注")
+    progress: dict[str, Any] | None = Field(None, description="导入进度（JSON格式，存储各阶段导入状态）")
+    notes: str | None = Field(None, description="备注")
 
 
 class LaunchCountdownCreate(LaunchCountdownBase):
@@ -31,11 +31,11 @@ class LaunchCountdownCreate(LaunchCountdownBase):
 
 class LaunchCountdownUpdate(BaseSchema):
     """上线倒计时更新schema"""
-    launch_date: Optional[datetime] = Field(None, description="上线日期")
-    snapshot_time: Optional[datetime] = Field(None, description="快照时间点")
-    status: Optional[str] = Field(None, max_length=20, description="状态")
-    progress: Optional[Dict[str, Any]] = Field(None, description="导入进度")
-    notes: Optional[str] = Field(None, description="备注")
+    launch_date: datetime | None = Field(None, description="上线日期")
+    snapshot_time: datetime | None = Field(None, description="快照时间点")
+    status: str | None = Field(None, max_length=20, description="状态")
+    progress: dict[str, Any] | None = Field(None, description="导入进度")
+    notes: str | None = Field(None, description="备注")
 
 
 class LaunchCountdownResponse(LaunchCountdownBase):
@@ -59,8 +59,8 @@ class DataCompensationRequest(BaseSchema):
 
 class DataCompensationResponse(BaseSchema):
     """动态数据补偿响应schema"""
-    inventory_compensation: Dict[str, Any] = Field(..., description="库存补偿结果")
-    wip_compensation: Dict[str, Any] = Field(..., description="在制品补偿结果")
-    receivables_payables_compensation: Dict[str, Any] = Field(..., description="应收应付补偿结果")
+    inventory_compensation: dict[str, Any] = Field(..., description="库存补偿结果")
+    wip_compensation: dict[str, Any] = Field(..., description="在制品补偿结果")
+    receivables_payables_compensation: dict[str, Any] = Field(..., description="应收应付补偿结果")
     total_compensation_count: int = Field(..., description="总补偿数量")
 

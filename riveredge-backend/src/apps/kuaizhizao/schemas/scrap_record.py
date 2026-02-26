@@ -21,8 +21,8 @@ class ScrapRecordBase(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    code: Optional[str] = Field(None, description="报废单编码（可选，创建时自动生成）")
-    reporting_record_id: Optional[int] = Field(None, description="报工记录ID（关联ReportingRecord）")
+    code: str | None = Field(None, description="报废单编码（可选，创建时自动生成）")
+    reporting_record_id: int | None = Field(None, description="报工记录ID（关联ReportingRecord）")
     work_order_id: int = Field(..., description="工单ID")
     work_order_code: str = Field(..., description="工单编码")
     operation_id: int = Field(..., description="工序ID")
@@ -32,14 +32,14 @@ class ScrapRecordBase(BaseModel):
     product_code: str = Field(..., description="产品编码")
     product_name: str = Field(..., description="产品名称")
     scrap_quantity: Decimal = Field(..., description="报废数量")
-    unit_cost: Optional[Decimal] = Field(None, description="单位成本")
+    unit_cost: Decimal | None = Field(None, description="单位成本")
     total_cost: Decimal = Field(Decimal("0"), description="总成本")
     scrap_reason: str = Field(..., description="报废原因")
     scrap_type: str = Field("other", description="报废类型（process/material/quality/equipment/other）")
-    warehouse_id: Optional[int] = Field(None, description="仓库ID（用于库存扣减）")
-    warehouse_name: Optional[str] = Field(None, description="仓库名称")
+    warehouse_id: int | None = Field(None, description="仓库ID（用于库存扣减）")
+    warehouse_name: str | None = Field(None, description="仓库名称")
     status: str = Field("draft", description="状态（draft/confirmed/cancelled）")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class ScrapRecordCreate(ScrapRecordBase):
@@ -48,7 +48,7 @@ class ScrapRecordCreate(ScrapRecordBase):
 
     用于创建新报废记录的数据验证。
     """
-    code: Optional[str] = Field(None, description="报废单编码（可选，如果不提供则自动生成）")
+    code: str | None = Field(None, description="报废单编码（可选，如果不提供则自动生成）")
 
 
 class ScrapRecordCreateFromReporting(BaseModel):
@@ -60,10 +60,10 @@ class ScrapRecordCreateFromReporting(BaseModel):
     scrap_quantity: Decimal = Field(..., description="报废数量")
     scrap_reason: str = Field(..., description="报废原因")
     scrap_type: str = Field("other", description="报废类型（process/material/quality/equipment/other）")
-    unit_cost: Optional[Decimal] = Field(None, description="单位成本")
-    warehouse_id: Optional[int] = Field(None, description="仓库ID（用于库存扣减）")
-    warehouse_name: Optional[str] = Field(None, description="仓库名称")
-    remarks: Optional[str] = Field(None, description="备注")
+    unit_cost: Decimal | None = Field(None, description="单位成本")
+    warehouse_id: int | None = Field(None, description="仓库ID（用于库存扣减）")
+    warehouse_name: str | None = Field(None, description="仓库名称")
+    remarks: str | None = Field(None, description="备注")
 
 
 class ScrapRecordUpdate(BaseModel):
@@ -74,15 +74,15 @@ class ScrapRecordUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    scrap_quantity: Optional[Decimal] = Field(None, description="报废数量")
-    scrap_reason: Optional[str] = Field(None, description="报废原因")
-    scrap_type: Optional[str] = Field(None, description="报废类型")
-    unit_cost: Optional[Decimal] = Field(None, description="单位成本")
-    total_cost: Optional[Decimal] = Field(None, description="总成本")
-    warehouse_id: Optional[int] = Field(None, description="仓库ID")
-    warehouse_name: Optional[str] = Field(None, description="仓库名称")
-    status: Optional[str] = Field(None, description="状态")
-    remarks: Optional[str] = Field(None, description="备注")
+    scrap_quantity: Decimal | None = Field(None, description="报废数量")
+    scrap_reason: str | None = Field(None, description="报废原因")
+    scrap_type: str | None = Field(None, description="报废类型")
+    unit_cost: Decimal | None = Field(None, description="单位成本")
+    total_cost: Decimal | None = Field(None, description="总成本")
+    warehouse_id: int | None = Field(None, description="仓库ID")
+    warehouse_name: str | None = Field(None, description="仓库名称")
+    status: str | None = Field(None, description="状态")
+    remarks: str | None = Field(None, description="备注")
 
 
 class ScrapRecordResponse(ScrapRecordBase):
@@ -94,13 +94,13 @@ class ScrapRecordResponse(ScrapRecordBase):
     id: int = Field(..., description="报废记录ID")
     uuid: str = Field(..., description="业务ID")
     tenant_id: int = Field(..., description="组织ID")
-    confirmed_at: Optional[datetime] = Field(None, description="确认时间")
-    confirmed_by: Optional[int] = Field(None, description="确认人ID")
-    confirmed_by_name: Optional[str] = Field(None, description="确认人姓名")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
-    updated_by_name: Optional[str] = Field(None, description="更新人姓名")
+    confirmed_at: datetime | None = Field(None, description="确认时间")
+    confirmed_by: int | None = Field(None, description="确认人ID")
+    confirmed_by_name: str | None = Field(None, description="确认人姓名")
+    created_by: int | None = Field(None, description="创建人ID")
+    created_by_name: str | None = Field(None, description="创建人姓名")
+    updated_by: int | None = Field(None, description="更新人ID")
+    updated_by_name: str | None = Field(None, description="更新人姓名")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
@@ -120,7 +120,7 @@ class ScrapRecordListResponse(BaseModel):
     operation_name: str = Field(..., description="工序名称")
     product_name: str = Field(..., description="产品名称")
     scrap_quantity: Decimal = Field(..., description="报废数量")
-    unit_cost: Optional[Decimal] = Field(None, description="单位成本")
+    unit_cost: Decimal | None = Field(None, description="单位成本")
     total_cost: Decimal = Field(..., description="总成本")
     scrap_reason: str = Field(..., description="报废原因")
     scrap_type: str = Field(..., description="报废类型")

@@ -61,10 +61,10 @@ async def create_equipment_fault(
 async def list_equipment_faults(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    equipment_uuid: Optional[str] = Query(None, description="设备UUID（可选）"),
-    status: Optional[str] = Query(None, description="故障状态（可选）"),
-    fault_type: Optional[str] = Query(None, description="故障类型（可选）"),
-    search: Optional[str] = Query(None, description="搜索关键词（可选）"),
+    equipment_uuid: str | None = Query(None, description="设备UUID（可选）"),
+    status: str | None = Query(None, description="故障状态（可选）"),
+    fault_type: str | None = Query(None, description="故障类型（可选）"),
+    search: str | None = Query(None, description="搜索关键词（可选）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -191,10 +191,10 @@ async def create_equipment_repair(
 async def list_equipment_repairs(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    equipment_uuid: Optional[str] = Query(None, description="设备UUID（可选）"),
-    equipment_fault_uuid: Optional[str] = Query(None, description="设备故障UUID（可选）"),
-    status: Optional[str] = Query(None, description="维修状态（可选）"),
-    search: Optional[str] = Query(None, description="搜索关键词（可选）"),
+    equipment_uuid: str | None = Query(None, description="设备UUID（可选）"),
+    equipment_fault_uuid: str | None = Query(None, description="设备故障UUID（可选）"),
+    status: str | None = Query(None, description="维修状态（可选）"),
+    search: str | None = Query(None, description="搜索关键词（可选）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

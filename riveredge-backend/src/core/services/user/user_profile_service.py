@@ -12,7 +12,7 @@ from infra.models.user import User
 from infra.models.infra_superadmin import InfraSuperAdmin
 from core.schemas.user_profile import UserProfileUpdate, UserProfileResponse
 from core.services.file.file_service import FileService
-from infra.exceptions.exceptions import NotFoundError, ValidationError, ValidationError
+from infra.exceptions.exceptions import NotFoundError, ValidationError
 
 
 class UserProfileService:
@@ -89,7 +89,7 @@ class UserProfileService:
     async def update_infra_superadmin_profile(
         admin_id: int,
         data: UserProfileUpdate,
-        tenant_id: Optional[int] = None
+        tenant_id: int | None = None
     ) -> UserProfileResponse:
         """
         更新平台超级管理员个人资料
@@ -177,7 +177,7 @@ class UserProfileService:
     async def update_user_profile(
         user_uuid: str,
         data: UserProfileUpdate,
-        tenant_id: Optional[int] = None
+        tenant_id: int | None = None
     ) -> UserProfileResponse:
         """
         更新个人资料

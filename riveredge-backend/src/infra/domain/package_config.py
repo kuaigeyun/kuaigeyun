@@ -9,7 +9,7 @@ from infra.models.tenant import TenantPlan
 
 
 # 套餐配置字典
-PACKAGE_CONFIG: Dict[str, Dict[str, Any]] = {
+PACKAGE_CONFIG: dict[str, dict[str, Any]] = {
     "trial": {
         "name": "体验套餐",
         "max_users": 10,
@@ -41,7 +41,7 @@ PACKAGE_CONFIG: Dict[str, Dict[str, Any]] = {
 }
 
 
-def get_package_config(plan: TenantPlan) -> Dict[str, Any]:
+def get_package_config(plan: TenantPlan) -> dict[str, Any]:
     """
     获取套餐配置
     
@@ -66,7 +66,7 @@ def get_package_config(plan: TenantPlan) -> Dict[str, Any]:
     return PACKAGE_CONFIG[plan_key].copy()
 
 
-def get_all_package_configs() -> Dict[str, Dict[str, Any]]:
+def get_all_package_configs() -> dict[str, dict[str, Any]]:
     """
     获取所有套餐配置
     
@@ -80,7 +80,7 @@ def check_package_limit(
     plan: TenantPlan,
     current_users: int,
     current_storage_mb: int
-) -> Tuple[bool, List[str]]:
+) -> tuple[bool, list[str]]:
     """
     检查套餐限制
     

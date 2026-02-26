@@ -33,11 +33,11 @@ class AdvancedSchedulingService(BaseService):
     async def intelligent_scheduling(
         self,
         tenant_id: int,
-        work_order_ids: Optional[List[int]] = None,
-        constraints: Optional[Dict[str, Any]] = None,
+        work_order_ids: list[int] | None = None,
+        constraints: dict[str, Any] | None = None,
         apply_results: bool = True,
-        updated_by: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        updated_by: int | None = None,
+    ) -> dict[str, Any]:
         """
         智能排产算法
         
@@ -124,9 +124,9 @@ class AdvancedSchedulingService(BaseService):
     async def _execute_scheduling_algorithm(
         self,
         tenant_id: int,
-        work_orders: List[WorkOrder],
-        constraints: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        work_orders: list[WorkOrder],
+        constraints: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         执行排产算法
         
@@ -207,7 +207,7 @@ class AdvancedSchedulingService(BaseService):
             }
         }
     
-    async def _check_mold_tool_conflicts(self, tenant_id: int) -> List[Dict[str, Any]]:
+    async def _check_mold_tool_conflicts(self, tenant_id: int) -> list[dict[str, Any]]:
         """
         检测模具/工装占用冲突
         
@@ -223,8 +223,8 @@ class AdvancedSchedulingService(BaseService):
         ).all()
         
         # 按模具分组
-        mold_slots: Dict[int, List[Tuple[datetime, datetime, int, str, str]]] = {}
-        tool_slots: Dict[int, List[Tuple[datetime, datetime, int, str, str]]] = {}
+        mold_slots: dict[int, list[tuple[datetime, datetime, int, str, str]]] = {}
+        tool_slots: dict[int, list[tuple[datetime, datetime, int, str, str]]] = {}
         
         for op in ops:
             wo_code = op.work_order_code or str(op.work_order_id)
@@ -244,7 +244,7 @@ class AdvancedSchedulingService(BaseService):
                 )
         
         def _find_overlaps(
-            slots_dict: Dict[int, List[Tuple[datetime, datetime, int, str, str]]],
+            slots_dict: dict[int, list[tuple[datetime, datetime, int, str, str]]],
             resource_type: str
         ) -> None:
             for resource_id, slots in slots_dict.items():
@@ -269,7 +269,7 @@ class AdvancedSchedulingService(BaseService):
         _find_overlaps(tool_slots, "tool")
         return conflicts
 
-    def _get_priority_score(self, work_order: WorkOrder, constraints: Dict[str, Any]) -> float:
+    def _get_priority_score(self, work_order: WorkOrder, constraints: dict[str, Any]) -> float:
         """计算工单优先级得分"""
         score = 0.0
         
@@ -305,7 +305,7 @@ class AdvancedSchedulingService(BaseService):
     async def apply_scheduling_results(
         self,
         tenant_id: int,
-        results: List[Dict[str, Any]],
+        results: list[dict[str, Any]],
         updated_by: int
     ) -> bool:
         """
@@ -352,9 +352,9 @@ class AdvancedSchedulingService(BaseService):
     async def optimize_schedule(
         self,
         tenant_id: int,
-        schedule_id: Optional[int] = None,
-        optimization_params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        schedule_id: int | None = None,
+        optimization_params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         优化排产计划
         """

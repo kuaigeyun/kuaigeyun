@@ -107,17 +107,17 @@ def match_pinyin_initials(text: str, keyword: str) -> bool:
 
 
 async def list_with_search(
-    model: Type[Model],
+    model: type[Model],
     page: int = 1,
     page_size: int = 10,
-    keyword: Optional[str] = None,
-    search_fields: Optional[List[str]] = None,
-    exact_filters: Optional[Dict[str, Any]] = None,
-    allowed_sort_fields: Optional[List[str]] = None,
-    default_sort: Optional[str] = None,
-    tenant_id: Optional[int] = None,
+    keyword: str | None = None,
+    search_fields: list[str] | None = None,
+    exact_filters: dict[str, Any] | None = None,
+    allowed_sort_fields: list[str] | None = None,
+    default_sort: str | None = None,
+    tenant_id: int | None = None,
     skip_tenant_filter: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     通用列表查询函数，支持分页、关键词搜索（支持拼音首字母搜索）和筛选
     

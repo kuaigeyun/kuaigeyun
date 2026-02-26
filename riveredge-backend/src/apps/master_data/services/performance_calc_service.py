@@ -37,8 +37,8 @@ class PerformanceCalcService:
     async def aggregate_reporting_by_employee(
         tenant_id: int,
         period: str,
-        status_filter: Optional[str] = "approved",
-    ) -> Dict[int, Dict[str, Any]]:
+        status_filter: str | None = "approved",
+    ) -> dict[int, dict[str, Any]]:
         """
         按员工汇总报工记录（仅 approved 或全部）
         Returns: { worker_id: { total_hours, total_pieces, total_unqualified, records, worker_name } }
@@ -60,7 +60,7 @@ class PerformanceCalcService:
             query = query.filter(status=status_filter)
 
         records = await query.all()
-        result: Dict[int, Dict[str, Any]] = {}
+        result: dict[int, dict[str, Any]] = {}
         for r in records:
             wid = r.worker_id
             if wid not in result:
@@ -87,7 +87,7 @@ class PerformanceCalcService:
         total_hours: Decimal,
         total_pieces: Decimal,
         total_unqualified: Decimal,
-        records: List[ReportingRecord],
+        records: list[ReportingRecord],
     ) -> PerformanceSummary:
         """
         计算单个员工的绩效金额（计时+计件），考虑月保障工资。
@@ -144,7 +144,7 @@ class PerformanceCalcService:
         return summary
 
     @staticmethod
-    async def calculate_period(tenant_id: int, period: str) -> List[PerformanceSummaryResponse]:
+    async def calculate_period(tenant_id: int, period: str) -> list[PerformanceSummaryResponse]:
         """
         计算指定周期的所有员工绩效。
         """
@@ -169,11 +169,11 @@ class PerformanceCalcService:
     @staticmethod
     async def get_summaries(
         tenant_id: int,
-        period: Optional[str] = None,
-        employee_id: Optional[int] = None,
+        period: str | None = None,
+        employee_id: int | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[PerformanceSummaryResponse]:
+    ) -> list[PerformanceSummaryResponse]:
         """查询绩效汇总列表"""
         query = PerformanceSummary.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if period:

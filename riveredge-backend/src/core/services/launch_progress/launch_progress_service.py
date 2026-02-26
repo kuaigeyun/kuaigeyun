@@ -28,7 +28,7 @@ class LaunchProgressService:
     async def get_progress_tracking(
         self,
         tenant_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取上线进度跟踪信息
         
@@ -77,7 +77,7 @@ class LaunchProgressService:
             "tasks": tasks,
         }
     
-    def _generate_stages(self, progress: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _generate_stages(self, progress: dict[str, Any]) -> list[dict[str, Any]]:
         """生成阶段列表"""
         stage_configs = [
             {"key": "countdown", "name": "启动上线倒计时", "required": True},
@@ -103,7 +103,7 @@ class LaunchProgressService:
         
         return stages
     
-    def _generate_tasks(self, progress: Dict[str, Any], countdown: LaunchCountdown) -> List[Dict[str, Any]]:
+    def _generate_tasks(self, progress: dict[str, Any], countdown: LaunchCountdown) -> list[dict[str, Any]]:
         """生成任务清单"""
         tasks = []
         
@@ -141,7 +141,7 @@ class LaunchProgressService:
     async def generate_progress_report(
         self,
         tenant_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成进度报告
         
@@ -181,7 +181,7 @@ class LaunchProgressService:
                 "completed_tasks": completed_tasks,
                 "pending_tasks": pending_tasks,
                 "in_progress_tasks": in_progress_tasks,
-                "completion_rate": int((completed_tasks / total_tasks * 100)) if total_tasks > 0 else 0,
+                "completion_rate": int(completed_tasks / total_tasks * 100) if total_tasks > 0 else 0,
                 "days_remaining": progress_tracking["days_remaining"],
             },
             "stages": progress_tracking["stages"],

@@ -69,13 +69,13 @@ async def create_incoming_inspection(
 async def list_incoming_inspections(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    status: Optional[str] = Query(None, description="检验状态"),
-    quality_status: Optional[str] = Query(None, description="质量状态"),
-    supplier_id: Optional[int] = Query(None, description="供应商ID"),
-    material_id: Optional[int] = Query(None, description="物料ID"),
+    status: str | None = Query(None, description="检验状态"),
+    quality_status: str | None = Query(None, description="质量状态"),
+    supplier_id: int | None = Query(None, description="供应商ID"),
+    material_id: int | None = Query(None, description="物料ID"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     获取来料检验单列表
 
@@ -114,7 +114,7 @@ async def get_incoming_inspection(
 @router.post("/incoming-inspections/{inspection_id}/conduct", response_model=IncomingInspectionResponse, summary="执行来料检验")
 async def conduct_incoming_inspection(
     inspection_id: int,
-    inspection_data: Dict[str, Any],
+    inspection_data: dict[str, Any],
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> IncomingInspectionResponse:
@@ -136,7 +136,7 @@ async def conduct_incoming_inspection(
 @router.post("/incoming-inspections/{inspection_id}/approve", response_model=IncomingInspectionResponse, summary="审核来料检验单")
 async def approve_incoming_inspection(
     inspection_id: int,
-    rejection_reason: Optional[str] = Query(None, description="驳回原因"),
+    rejection_reason: str | None = Query(None, description="驳回原因"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> IncomingInspectionResponse:
@@ -155,12 +155,12 @@ async def approve_incoming_inspection(
     )
 
 
-@router.post("/incoming-inspections/from-purchase-receipt/{purchase_receipt_id}", response_model=List[IncomingInspectionResponse], summary="从采购入库单创建来料检验单")
+@router.post("/incoming-inspections/from-purchase-receipt/{purchase_receipt_id}", response_model=list[IncomingInspectionResponse], summary="从采购入库单创建来料检验单")
 async def create_inspection_from_purchase_receipt(
     purchase_receipt_id: int = Path(..., description="采购入库单ID"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[IncomingInspectionResponse]:
+) -> list[IncomingInspectionResponse]:
     """
     从采购入库单创建来料检验单
 
@@ -177,7 +177,7 @@ async def create_inspection_from_purchase_receipt(
 
 @router.post("/incoming-inspections/import", summary="批量导入来料检验单")
 async def import_incoming_inspections(
-    request: Dict[str, Any],
+    request: dict[str, Any],
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -197,10 +197,10 @@ async def import_incoming_inspections(
 
 @router.get("/incoming-inspections/export", response_class=FileResponse, summary="导出来料检验单")
 async def export_incoming_inspections(
-    status: Optional[str] = Query(None, description="检验状态"),
-    quality_status: Optional[str] = Query(None, description="质量状态"),
-    supplier_id: Optional[int] = Query(None, description="供应商ID"),
-    material_id: Optional[int] = Query(None, description="物料ID"),
+    status: str | None = Query(None, description="检验状态"),
+    quality_status: str | None = Query(None, description="质量状态"),
+    supplier_id: int | None = Query(None, description="供应商ID"),
+    material_id: int | None = Query(None, description="物料ID"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -284,17 +284,17 @@ async def create_process_inspection(
     )
 
 
-@router.get("/process-inspections", response_model=List[ProcessInspectionListResponse], summary="获取过程检验单列表")
+@router.get("/process-inspections", response_model=list[ProcessInspectionListResponse], summary="获取过程检验单列表")
 async def list_process_inspections(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    status: Optional[str] = Query(None, description="检验状态"),
-    quality_status: Optional[str] = Query(None, description="质量状态"),
-    work_order_id: Optional[int] = Query(None, description="工单ID"),
-    operation_id: Optional[int] = Query(None, description="工序ID"),
+    status: str | None = Query(None, description="检验状态"),
+    quality_status: str | None = Query(None, description="质量状态"),
+    work_order_id: int | None = Query(None, description="工单ID"),
+    operation_id: int | None = Query(None, description="工序ID"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[ProcessInspectionListResponse]:
+) -> list[ProcessInspectionListResponse]:
     """
     获取过程检验单列表
 
@@ -331,7 +331,7 @@ async def get_process_inspection(
 @router.post("/process-inspections/{inspection_id}/conduct", response_model=ProcessInspectionResponse, summary="执行过程检验")
 async def conduct_process_inspection(
     inspection_id: int,
-    inspection_data: Dict[str, Any],
+    inspection_data: dict[str, Any],
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> ProcessInspectionResponse:
@@ -372,7 +372,7 @@ async def create_process_inspection_from_work_order(
 
 @router.post("/process-inspections/import", summary="批量导入过程检验单")
 async def import_process_inspections(
-    request: Dict[str, Any],
+    request: dict[str, Any],
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -388,10 +388,10 @@ async def import_process_inspections(
 
 @router.get("/process-inspections/export", response_class=FileResponse, summary="导出过程检验单")
 async def export_process_inspections(
-    status: Optional[str] = Query(None, description="检验状态"),
-    quality_status: Optional[str] = Query(None, description="质量状态"),
-    work_order_id: Optional[int] = Query(None, description="工单ID"),
-    operation_id: Optional[int] = Query(None, description="工序ID"),
+    status: str | None = Query(None, description="检验状态"),
+    quality_status: str | None = Query(None, description="质量状态"),
+    work_order_id: int | None = Query(None, description="工单ID"),
+    operation_id: int | None = Query(None, description="工序ID"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -472,17 +472,17 @@ async def create_finished_goods_inspection(
     )
 
 
-@router.get("/finished-goods-inspections", response_model=List[FinishedGoodsInspectionListResponse], summary="获取成品检验单列表")
+@router.get("/finished-goods-inspections", response_model=list[FinishedGoodsInspectionListResponse], summary="获取成品检验单列表")
 async def list_finished_goods_inspections(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    status: Optional[str] = Query(None, description="检验状态"),
-    quality_status: Optional[str] = Query(None, description="质量状态"),
-    work_order_id: Optional[int] = Query(None, description="工单ID"),
-    source_type: Optional[str] = Query(None, description="来源单据类型"),
+    status: str | None = Query(None, description="检验状态"),
+    quality_status: str | None = Query(None, description="质量状态"),
+    work_order_id: int | None = Query(None, description="工单ID"),
+    source_type: str | None = Query(None, description="来源单据类型"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[FinishedGoodsInspectionListResponse]:
+) -> list[FinishedGoodsInspectionListResponse]:
     """
     获取成品检验单列表
 
@@ -521,7 +521,7 @@ async def get_finished_goods_inspection(
 @router.post("/finished-goods-inspections/{inspection_id}/conduct", response_model=FinishedGoodsInspectionResponse, summary="执行成品检验")
 async def conduct_finished_goods_inspection(
     inspection_id: int,
-    inspection_data: Dict[str, Any],
+    inspection_data: dict[str, Any],
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> FinishedGoodsInspectionResponse:
@@ -581,7 +581,7 @@ async def create_finished_goods_inspection_from_work_order(
 
 @router.post("/finished-goods-inspections/import", summary="批量导入成品检验单")
 async def import_finished_goods_inspections(
-    request: Dict[str, Any],
+    request: dict[str, Any],
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -597,9 +597,9 @@ async def import_finished_goods_inspections(
 
 @router.get("/finished-goods-inspections/export", response_class=FileResponse, summary="导出成品检验单")
 async def export_finished_goods_inspections(
-    status: Optional[str] = Query(None, description="检验状态"),
-    quality_status: Optional[str] = Query(None, description="质量状态"),
-    work_order_id: Optional[int] = Query(None, description="工单ID"),
+    status: str | None = Query(None, description="检验状态"),
+    quality_status: str | None = Query(None, description="质量状态"),
+    work_order_id: int | None = Query(None, description="工单ID"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

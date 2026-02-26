@@ -30,7 +30,7 @@ class InfraSuperAdminServiceImpl(InfraSuperAdminServiceInterface):
     def service_version(self) -> str:
         return "1.0.0"
     
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """服务健康检查"""
         return {
             "status": "healthy",
@@ -38,7 +38,7 @@ class InfraSuperAdminServiceImpl(InfraSuperAdminServiceInterface):
             "version": self.service_version
         }
     
-    async def get_current_admin(self) -> Optional[Any]:
+    async def get_current_admin(self) -> Any | None:
         """获取当前平台超级管理员"""
         return await self._admin_service.get_infra_superadmin()
     

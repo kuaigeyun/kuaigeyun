@@ -69,7 +69,7 @@ class IntegrationConfig(BaseModel):
             ("created_at",),
         ]
     
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         """
         获取配置信息
         
@@ -78,7 +78,7 @@ class IntegrationConfig(BaseModel):
         """
         return self.config or {}
     
-    def set_config(self, config: Dict[str, Any]) -> None:
+    def set_config(self, config: dict[str, Any]) -> None:
         """
         设置配置信息
         
@@ -87,7 +87,7 @@ class IntegrationConfig(BaseModel):
         """
         self.config = config
     
-    def update_connection_status(self, is_connected: bool, error: Optional[str] = None) -> None:
+    def update_connection_status(self, is_connected: bool, error: str | None = None) -> None:
         """
         更新连接状态
         

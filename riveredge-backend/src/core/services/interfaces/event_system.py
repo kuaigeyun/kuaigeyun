@@ -26,10 +26,10 @@ class EventPriority(Enum):
 class Event:
     """事件数据结构"""
     name: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     source: str  # 事件源（层名或服务名）
     priority: EventPriority = EventPriority.NORMAL
-    timestamp: Optional[float] = None
+    timestamp: float | None = None
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -44,7 +44,7 @@ class EventBus:
     """
 
     _instance: Optional['EventBus'] = None
-    _handlers: Dict[str, List[Callable]] = {}
+    _handlers: dict[str, list[Callable]] = {}
     _running: bool = True
 
     def __new__(cls) -> 'EventBus':
@@ -126,7 +126,7 @@ class EventBus:
         else:
             logger.debug(f"ℹ️ 无处理器订阅事件: {event.name}")
 
-    async def _process_tasks(self, tasks: List[asyncio.Task]) -> None:
+    async def _process_tasks(self, tasks: list[asyncio.Task]) -> None:
         """处理异步任务，记录异常但不抛出"""
         if not tasks:
             return
@@ -156,7 +156,7 @@ class EventBus:
         self._handlers.clear()
         logger.info("🔄 事件总线已关闭")
 
-    def get_subscribed_events(self) -> List[str]:
+    def get_subscribed_events(self) -> list[str]:
         """
         获取所有已订阅的事件名称
 
@@ -165,7 +165,7 @@ class EventBus:
         """
         return list(self._handlers.keys())
 
-    def get_event_handlers(self, event_name: str) -> List[str]:
+    def get_event_handlers(self, event_name: str) -> list[str]:
         """
         获取指定事件的处理器名称列表
 
@@ -200,7 +200,7 @@ def subscribe_event(event_name: str):
 
 def publish_event(
     event_name: str,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     source: str,
     priority: EventPriority = EventPriority.NORMAL,
 ) -> None:

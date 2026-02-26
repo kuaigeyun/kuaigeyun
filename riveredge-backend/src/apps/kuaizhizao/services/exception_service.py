@@ -51,7 +51,7 @@ class ExceptionService:
         self,
         tenant_id: int,
         work_order_id: int,
-    ) -> List[MaterialShortageExceptionResponse]:
+    ) -> list[MaterialShortageExceptionResponse]:
         """
         检测工单缺料并创建缺料异常记录
 
@@ -136,12 +136,12 @@ class ExceptionService:
     async def list_material_shortage_exceptions(
         self,
         tenant_id: int,
-        work_order_id: Optional[int] = None,
-        status: Optional[str] = None,
-        alert_level: Optional[str] = None,
+        work_order_id: int | None = None,
+        status: str | None = None,
+        alert_level: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[MaterialShortageExceptionListResponse]:
+    ) -> list[MaterialShortageExceptionListResponse]:
         """
         获取缺料异常列表
 
@@ -174,8 +174,8 @@ class ExceptionService:
         exception_id: int,
         handled_by: int,
         action: str,
-        alternative_material_id: Optional[int] = None,
-        remarks: Optional[str] = None,
+        alternative_material_id: int | None = None,
+        remarks: str | None = None,
     ) -> MaterialShortageExceptionResponse:
         """
         处理缺料异常
@@ -226,9 +226,9 @@ class ExceptionService:
     async def detect_delivery_delay(
         self,
         tenant_id: int,
-        work_order_id: Optional[int] = None,
+        work_order_id: int | None = None,
         days_threshold: int = 0,
-    ) -> List[DeliveryDelayExceptionResponse]:
+    ) -> list[DeliveryDelayExceptionResponse]:
         """
         检测工单交期延期并创建延期异常记录
 
@@ -308,12 +308,12 @@ class ExceptionService:
     async def list_delivery_delay_exceptions(
         self,
         tenant_id: int,
-        work_order_id: Optional[int] = None,
-        status: Optional[str] = None,
-        alert_level: Optional[str] = None,
+        work_order_id: int | None = None,
+        status: str | None = None,
+        alert_level: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[DeliveryDelayExceptionListResponse]:
+    ) -> list[DeliveryDelayExceptionListResponse]:
         """
         获取延期异常列表
 
@@ -346,7 +346,7 @@ class ExceptionService:
         exception_id: int,
         handled_by: int,
         action: str,
-        remarks: Optional[str] = None,
+        remarks: str | None = None,
     ) -> DeliveryDelayExceptionResponse:
         """
         处理延期异常
@@ -399,13 +399,13 @@ class ExceptionService:
     async def list_quality_exceptions(
         self,
         tenant_id: int,
-        exception_type: Optional[str] = None,
-        work_order_id: Optional[int] = None,
-        status: Optional[str] = None,
-        severity: Optional[str] = None,
+        exception_type: str | None = None,
+        work_order_id: int | None = None,
+        status: str | None = None,
+        severity: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[QualityExceptionListResponse]:
+    ) -> list[QualityExceptionListResponse]:
         """
         获取质量异常列表
 
@@ -441,14 +441,14 @@ class ExceptionService:
         exception_id: int,
         handled_by: int,
         action: str,
-        root_cause: Optional[str] = None,
-        corrective_action: Optional[str] = None,
-        preventive_action: Optional[str] = None,
-        responsible_person_id: Optional[int] = None,
-        responsible_person_name: Optional[str] = None,
-        planned_completion_date: Optional[datetime] = None,
-        verification_result: Optional[str] = None,
-        remarks: Optional[str] = None,
+        root_cause: str | None = None,
+        corrective_action: str | None = None,
+        preventive_action: str | None = None,
+        responsible_person_id: int | None = None,
+        responsible_person_name: str | None = None,
+        planned_completion_date: datetime | None = None,
+        verification_result: str | None = None,
+        remarks: str | None = None,
     ) -> QualityExceptionResponse:
         """
         处理质量异常
@@ -518,8 +518,8 @@ class ExceptionService:
     async def get_exception_statistics(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
     ) -> dict:
         """
         获取异常统计分析

@@ -128,7 +128,7 @@ class DataDictionaryService:
         return f"{tenant_id}:{key_type}:{key_value}"
     
     @staticmethod
-    async def _clear_dictionary_cache(tenant_id: int, dictionary_code: Optional[str] = None, dictionary_uuid: Optional[str] = None) -> None:
+    async def _clear_dictionary_cache(tenant_id: int, dictionary_code: str | None = None, dictionary_uuid: str | None = None) -> None:
         """
         清除字典缓存
         
@@ -155,7 +155,7 @@ class DataDictionaryService:
         tenant_id: int,
         code: str,
         use_cache: bool = True
-    ) -> Optional[DataDictionary]:
+    ) -> DataDictionary | None:
         """
         根据代码获取字典
         
@@ -209,10 +209,10 @@ class DataDictionaryService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        is_active: Optional[bool] = None,
-        name: Optional[str] = None,
-        code: Optional[str] = None,
-    ) -> tuple[List[DataDictionary], int]:
+        is_active: bool | None = None,
+        name: str | None = None,
+        code: str | None = None,
+    ) -> tuple[list[DataDictionary], int]:
         """
         获取字典列表
         
@@ -343,7 +343,6 @@ class DataDictionaryService:
         
         # 自动更新关联的自定义字段（禁用或清空 dictionary_code）
         from core.models.custom_field import CustomField
-        import json
         
         # 查找所有使用该字典的自定义字段
         custom_fields = await CustomField.filter(
@@ -441,8 +440,8 @@ class DataDictionaryService:
     async def get_items_by_dictionary(
         tenant_id: int,
         dictionary_uuid: str,
-        is_active: Optional[bool] = None
-    ) -> List[DictionaryItem]:
+        is_active: bool | None = None
+    ) -> list[DictionaryItem]:
         """
         获取字典的所有字典项
         
@@ -534,7 +533,7 @@ class DataDictionaryService:
         await item.save()
     
     @staticmethod
-    async def initialize_system_dictionaries(tenant_id: int) -> Dict[str, Any]:
+    async def initialize_system_dictionaries(tenant_id: int) -> dict[str, Any]:
         """
         初始化系统字典
         

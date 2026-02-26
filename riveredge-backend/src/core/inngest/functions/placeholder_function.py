@@ -18,7 +18,7 @@ from core.inngest.client import inngest_client
     name="占位函数",
     trigger=TriggerEvent(event="placeholder/ping"),
 )
-async def placeholder_function(event: Event) -> Dict[str, Any]:
+async def placeholder_function(event: Event) -> dict[str, Any]:
     """
     占位函数
     

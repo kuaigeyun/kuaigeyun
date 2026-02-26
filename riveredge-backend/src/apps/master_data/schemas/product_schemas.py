@@ -14,11 +14,11 @@ class ProductBase(BaseModel):
 
     code: str = Field(..., max_length=50, description="产品编码")
     name: str = Field(..., max_length=200, description="产品名称")
-    specification: Optional[str] = Field(None, max_length=500, description="规格")
+    specification: str | None = Field(None, max_length=500, description="规格")
     unit: str = Field(..., max_length=20, description="单位")
-    bom_data: Optional[Dict[str, Any]] = Field(None, description="BOM 数据（JSON格式）")
-    process_route_ids: Optional[List[int]] = Field(None, description="适用的工艺路线ID列表")
-    version: Optional[str] = Field(None, max_length=20, description="版本号")
+    bom_data: dict[str, Any] | None = Field(None, description="BOM 数据（JSON格式）")
+    process_route_ids: list[int] | None = Field(None, description="适用的工艺路线ID列表")
+    version: str | None = Field(None, max_length=20, description="版本号")
     is_active: bool = Field(True, description="是否启用")
 
     @validator("code")
@@ -51,13 +51,13 @@ class ProductCreate(ProductBase):
 class ProductUpdate(BaseModel):
     """更新产品 Schema"""
 
-    code: Optional[str] = Field(None, max_length=50, description="产品编码")
-    name: Optional[str] = Field(None, max_length=200, description="产品名称")
-    specification: Optional[str] = Field(None, max_length=500, description="规格")
-    unit: Optional[str] = Field(None, max_length=20, description="单位")
-    bom_data: Optional[Dict[str, Any]] = Field(None, description="BOM 数据（JSON格式）")
-    version: Optional[str] = Field(None, max_length=20, description="版本号")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    code: str | None = Field(None, max_length=50, description="产品编码")
+    name: str | None = Field(None, max_length=200, description="产品名称")
+    specification: str | None = Field(None, max_length=500, description="规格")
+    unit: str | None = Field(None, max_length=20, description="单位")
+    bom_data: dict[str, Any] | None = Field(None, description="BOM 数据（JSON格式）")
+    version: str | None = Field(None, max_length=20, description="版本号")
+    is_active: bool | None = Field(None, description="是否启用")
 
     @validator("code")
     def validate_code(cls, v):
@@ -89,7 +89,7 @@ class ProductResponse(ProductBase):
     tenant_id: int = Field(..., description="租户ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    deleted_at: Optional[datetime] = Field(None, description="删除时间")
+    deleted_at: datetime | None = Field(None, description="删除时间")
 
     class Config:
         from_attributes = True
@@ -103,7 +103,7 @@ class BOMItemResponse(BaseModel):
     material_name: str = Field(..., description="物料名称")
     quantity: float = Field(..., description="数量")
     unit: str = Field(..., description="单位")
-    version: Optional[str] = Field(None, description="版本")
+    version: str | None = Field(None, description="版本")
 
     class Config:
         from_attributes = True
@@ -115,8 +115,8 @@ class ProductBOMResponse(BaseModel):
     product_id: int = Field(..., description="产品ID")
     product_code: str = Field(..., description="产品编码")
     product_name: str = Field(..., description="产品名称")
-    product_version: Optional[str] = Field(None, description="产品版本")
-    bom_items: List[BOMItemResponse] = Field(default_factory=list, description="BOM明细列表")
+    product_version: str | None = Field(None, description="产品版本")
+    bom_items: list[BOMItemResponse] = Field(default_factory=list, description="BOM明细列表")
 
     class Config:
         from_attributes = True
@@ -127,7 +127,7 @@ class ProductGroupResponse(BaseModel):
 
     group_key: str = Field(..., description="分组键（如首字母）")
     group_name: str = Field(..., description="分组名称")
-    products: List[ProductResponse] = Field(default_factory=list, description="分组内的产品列表")
+    products: list[ProductResponse] = Field(default_factory=list, description="分组内的产品列表")
 
     class Config:
         from_attributes = True

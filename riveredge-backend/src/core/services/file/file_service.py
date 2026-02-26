@@ -99,10 +99,10 @@ class FileService:
         original_name: str,
         file_path: str,
         file_size: int,
-        file_type: Optional[str] = None,
-        category: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        description: Optional[str] = None,
+        file_type: str | None = None,
+        category: str | None = None,
+        tags: list[str] | None = None,
+        description: str | None = None,
     ) -> File:
         """
         创建文件记录
@@ -178,10 +178,10 @@ class FileService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        search: Optional[str] = None,
-        category: Optional[str] = None,
-        file_type: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        search: str | None = None,
+        category: str | None = None,
+        file_type: str | None = None,
+    ) -> dict[str, Any]:
         """
         获取文件列表（分页、搜索、筛选）
         
@@ -286,7 +286,7 @@ class FileService:
     @staticmethod
     async def batch_delete_files(
         tenant_id: int,
-        uuids: List[str]
+        uuids: list[str]
     ) -> int:
         """
         批量删除文件（软删除）
@@ -311,9 +311,9 @@ class FileService:
         tenant_id: int,
         file_content: bytes,
         original_name: str,
-        category: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        description: Optional[str] = None,
+        category: str | None = None,
+        tags: list[str] | None = None,
+        description: str | None = None,
     ) -> File:
         """
         保存上传的文件

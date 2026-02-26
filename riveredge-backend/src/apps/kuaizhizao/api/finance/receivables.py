@@ -40,8 +40,8 @@ async def create_receivable(
 async def list_receivables(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1),
-    status: Optional[str] = None,
-    customer_id: Optional[int] = None,
+    status: str | None = None,
+    customer_id: int | None = None,
     tenant_id: int = Depends(get_current_tenant)
 ):
     receivables = await receivable_service.list_receivables(
@@ -81,7 +81,7 @@ async def record_receipt(
 @router.post("/{id}/approve", response_model=ReceivableResponse)
 async def approve_receivable(
     id: int,
-    rejection_reason: Optional[str] = Query(None),
+    rejection_reason: str | None = Query(None),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):

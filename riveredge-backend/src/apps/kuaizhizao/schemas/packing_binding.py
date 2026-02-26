@@ -25,16 +25,16 @@ class PackingBindingBase(BaseModel):
     product_id: int = Field(..., description="产品ID")
     product_code: str = Field(..., description="产品编码")
     product_name: str = Field(..., description="产品名称")
-    product_serial_no: Optional[str] = Field(None, description="产品序列号（可选）")
-    packing_material_id: Optional[int] = Field(None, description="包装物料ID（可选）")
-    packing_material_code: Optional[str] = Field(None, description="包装物料编码（可选）")
-    packing_material_name: Optional[str] = Field(None, description="包装物料名称（可选）")
+    product_serial_no: str | None = Field(None, description="产品序列号（可选）")
+    packing_material_id: int | None = Field(None, description="包装物料ID（可选）")
+    packing_material_code: str | None = Field(None, description="包装物料编码（可选）")
+    packing_material_name: str | None = Field(None, description="包装物料名称（可选）")
     packing_quantity: Decimal = Field(..., gt=0, description="装箱数量")
-    box_no: Optional[str] = Field(None, description="箱号（可选）")
+    box_no: str | None = Field(None, description="箱号（可选）")
     binding_method: str = Field("manual", description="绑定方式（scan/manual）")
-    barcode: Optional[str] = Field(None, description="条码（可选，用于扫码绑定）")
+    barcode: str | None = Field(None, description="条码（可选，用于扫码绑定）")
     bound_at: datetime = Field(default_factory=datetime.now, description="绑定时间")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class PackingBindingCreate(PackingBindingBase):
@@ -53,17 +53,17 @@ class PackingBindingCreateFromReceipt(BaseModel):
     用于从成品入库单创建装箱绑定记录的简化请求。
     """
     product_id: int = Field(..., description="产品ID")
-    product_code: Optional[str] = Field(None, description="产品编码（可选）")
-    product_name: Optional[str] = Field(None, description="产品名称（可选）")
-    product_serial_no: Optional[str] = Field(None, description="产品序列号（可选）")
-    packing_material_id: Optional[int] = Field(None, description="包装物料ID（可选）")
-    packing_material_code: Optional[str] = Field(None, description="包装物料编码（可选）")
-    packing_material_name: Optional[str] = Field(None, description="包装物料名称（可选）")
+    product_code: str | None = Field(None, description="产品编码（可选）")
+    product_name: str | None = Field(None, description="产品名称（可选）")
+    product_serial_no: str | None = Field(None, description="产品序列号（可选）")
+    packing_material_id: int | None = Field(None, description="包装物料ID（可选）")
+    packing_material_code: str | None = Field(None, description="包装物料编码（可选）")
+    packing_material_name: str | None = Field(None, description="包装物料名称（可选）")
     packing_quantity: Decimal = Field(..., gt=0, description="装箱数量")
-    box_no: Optional[str] = Field(None, description="箱号（可选）")
+    box_no: str | None = Field(None, description="箱号（可选）")
     binding_method: str = Field("manual", description="绑定方式（scan/manual）")
-    barcode: Optional[str] = Field(None, description="条码（可选，用于扫码绑定）")
-    remarks: Optional[str] = Field(None, description="备注")
+    barcode: str | None = Field(None, description="条码（可选，用于扫码绑定）")
+    remarks: str | None = Field(None, description="备注")
 
 
 class PackingBindingUpdate(BaseModel):
@@ -74,9 +74,9 @@ class PackingBindingUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    packing_quantity: Optional[Decimal] = Field(None, gt=0, description="装箱数量")
-    box_no: Optional[str] = Field(None, description="箱号")
-    remarks: Optional[str] = Field(None, description="备注")
+    packing_quantity: Decimal | None = Field(None, gt=0, description="装箱数量")
+    box_no: str | None = Field(None, description="箱号")
+    remarks: str | None = Field(None, description="备注")
 
 
 class PackingBindingResponse(PackingBindingBase):
@@ -107,11 +107,11 @@ class PackingBindingListResponse(BaseModel):
     finished_goods_receipt_id: int = Field(..., description="成品入库单ID")
     product_code: str = Field(..., description="产品编码")
     product_name: str = Field(..., description="产品名称")
-    product_serial_no: Optional[str] = Field(None, description="产品序列号")
-    packing_material_code: Optional[str] = Field(None, description="包装物料编码")
-    packing_material_name: Optional[str] = Field(None, description="包装物料名称")
+    product_serial_no: str | None = Field(None, description="产品序列号")
+    packing_material_code: str | None = Field(None, description="包装物料编码")
+    packing_material_name: str | None = Field(None, description="包装物料名称")
     packing_quantity: Decimal = Field(..., description="装箱数量")
-    box_no: Optional[str] = Field(None, description="箱号")
+    box_no: str | None = Field(None, description="箱号")
     binding_method: str = Field(..., description="绑定方式")
     bound_by_name: str = Field(..., description="绑定人姓名")
     bound_at: datetime = Field(..., description="绑定时间")

@@ -113,9 +113,9 @@ class MessageTemplateService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        type: Optional[str] = None,
-        is_active: Optional[bool] = None
-    ) -> List[MessageTemplate]:
+        type: str | None = None,
+        is_active: bool | None = None
+    ) -> list[MessageTemplate]:
         """
         获取消息模板列表
         

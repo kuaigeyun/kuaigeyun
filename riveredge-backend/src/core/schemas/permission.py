@@ -38,10 +38,10 @@ class PermissionResponse(BaseModel):
     code: str = Field(..., description="权限代码（格式：资源:操作）")
     resource: str = Field(..., description="资源（模块，如 user、role）")
     action: str = Field(..., description="操作（如 create、read、update、delete）")
-    description: Optional[str] = Field(None, description="权限描述")
+    description: str | None = Field(None, description="权限描述")
     permission_type: str = Field(..., description="权限类型：function（功能权限）、data（数据权限）、field（字段权限）")
-    role_count: Optional[int] = Field(None, description="关联的角色数量")
-    roles: Optional[List[dict]] = Field(None, description="关联的角色列表")
+    role_count: int | None = Field(None, description="关联的角色数量")
+    roles: list[dict] | None = Field(None, description="关联的角色列表")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     
@@ -74,7 +74,7 @@ class PermissionListResponse(BaseModel):
     
     用于返回权限列表，包含分页信息。
     """
-    items: List[PermissionListItem] = Field(..., description="权限列表")
+    items: list[PermissionListItem] = Field(..., description="权限列表")
     total: int = Field(..., description="总记录数")
     page: int = Field(..., description="当前页码")
     page_size: int = Field(..., description="每页数量")

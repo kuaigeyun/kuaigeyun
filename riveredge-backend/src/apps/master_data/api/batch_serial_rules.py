@@ -44,7 +44,7 @@ async def create_batch_rule(
 async def list_batch_rules(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    is_active: Optional[bool] = Query(None),
+    is_active: bool | None = Query(None),
     current_user: Annotated[User, Depends(get_current_user)] = None,
     tenant_id: Annotated[int, Depends(get_current_tenant)] = None,
 ):
@@ -120,7 +120,7 @@ async def create_serial_rule(
 async def list_serial_rules(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    is_active: Optional[bool] = Query(None),
+    is_active: bool | None = Query(None),
     current_user: Annotated[User, Depends(get_current_user)] = None,
     tenant_id: Annotated[int, Depends(get_current_tenant)] = None,
 ):

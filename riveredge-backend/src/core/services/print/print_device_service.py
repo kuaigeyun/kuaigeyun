@@ -95,9 +95,9 @@ class PrintDeviceService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        type: Optional[str] = None,
-        is_active: Optional[bool] = None
-    ) -> List[PrintDevice]:
+        type: str | None = None,
+        is_active: bool | None = None
+    ) -> list[PrintDevice]:
         """
         获取打印设备列表
         

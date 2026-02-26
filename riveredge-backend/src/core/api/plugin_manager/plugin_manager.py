@@ -54,7 +54,7 @@ async def discover_and_register_plugins(
         )
 
 
-@router.get("/plugins", response_model=List[Dict[str, Any]])
+@router.get("/plugins", response_model=list[dict[str, Any]])
 async def get_available_plugins(
     tenant_id: int = Depends(get_current_tenant),
     plugin_manager: PluginManagerService = Depends(get_plugin_manager_service)
@@ -157,7 +157,7 @@ async def disable_plugin(
         )
 
 
-@router.get("/enabled-plugins", response_model=List[str])
+@router.get("/enabled-plugins", response_model=list[str])
 async def get_enabled_plugins(
     tenant_id: int = Depends(get_current_tenant),
     plugin_manager: PluginManagerService = Depends(get_plugin_manager_service)

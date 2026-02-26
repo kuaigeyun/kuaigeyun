@@ -23,9 +23,9 @@ class StandardResponse(BaseModel, Generic[T]):
         code: 响应代码（可选）
     """
     success: bool = Field(default=True, description="是否成功")
-    data: Optional[T] = Field(default=None, description="响应数据")
-    message: Optional[str] = Field(default=None, description="响应消息")
-    code: Optional[str] = Field(default=None, description="响应代码")
+    data: T | None = Field(default=None, description="响应数据")
+    message: str | None = Field(default=None, description="响应消息")
+    code: str | None = Field(default=None, description="响应代码")
 
 
 class PaginatedResponse(BaseModel, Generic[T]):

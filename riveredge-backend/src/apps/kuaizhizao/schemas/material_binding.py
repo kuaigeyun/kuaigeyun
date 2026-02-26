@@ -32,15 +32,15 @@ class MaterialBindingBase(BaseModel):
     material_code: str = Field(..., description="物料编码")
     material_name: str = Field(..., description="物料名称")
     quantity: Decimal = Field(..., gt=0, description="绑定数量")
-    warehouse_id: Optional[int] = Field(None, description="仓库ID")
-    warehouse_name: Optional[str] = Field(None, description="仓库名称")
-    location_id: Optional[int] = Field(None, description="库位ID（可选）")
-    location_code: Optional[str] = Field(None, description="库位编码（可选）")
-    batch_no: Optional[str] = Field(None, description="批次号（可选）")
-    barcode: Optional[str] = Field(None, description="条码（可选，用于扫码绑定）")
+    warehouse_id: int | None = Field(None, description="仓库ID")
+    warehouse_name: str | None = Field(None, description="仓库名称")
+    location_id: int | None = Field(None, description="库位ID（可选）")
+    location_code: str | None = Field(None, description="库位编码（可选）")
+    batch_no: str | None = Field(None, description="批次号（可选）")
+    barcode: str | None = Field(None, description="条码（可选，用于扫码绑定）")
     binding_method: str = Field("manual", description="绑定方式（scan/manual）")
     bound_at: datetime = Field(default_factory=datetime.now, description="绑定时间")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class MaterialBindingCreate(MaterialBindingBase):
@@ -60,17 +60,17 @@ class MaterialBindingCreateFromReporting(BaseModel):
     """
     binding_type: str = Field(..., description="绑定类型（feeding/discharging）")
     material_id: int = Field(..., description="物料ID")
-    material_code: Optional[str] = Field(None, description="物料编码（可选，如果提供则使用，否则自动获取）")
-    material_name: Optional[str] = Field(None, description="物料名称（可选，如果提供则使用，否则自动获取）")
+    material_code: str | None = Field(None, description="物料编码（可选，如果提供则使用，否则自动获取）")
+    material_name: str | None = Field(None, description="物料名称（可选，如果提供则使用，否则自动获取）")
     quantity: Decimal = Field(..., gt=0, description="绑定数量")
-    warehouse_id: Optional[int] = Field(None, description="仓库ID")
-    warehouse_name: Optional[str] = Field(None, description="仓库名称（可选）")
-    location_id: Optional[int] = Field(None, description="库位ID（可选）")
-    location_code: Optional[str] = Field(None, description="库位编码（可选）")
-    batch_no: Optional[str] = Field(None, description="批次号（可选）")
-    barcode: Optional[str] = Field(None, description="条码（可选，用于扫码绑定）")
+    warehouse_id: int | None = Field(None, description="仓库ID")
+    warehouse_name: str | None = Field(None, description="仓库名称（可选）")
+    location_id: int | None = Field(None, description="库位ID（可选）")
+    location_code: str | None = Field(None, description="库位编码（可选）")
+    batch_no: str | None = Field(None, description="批次号（可选）")
+    barcode: str | None = Field(None, description="条码（可选，用于扫码绑定）")
     binding_method: str = Field("manual", description="绑定方式（scan/manual）")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class MaterialBindingUpdate(BaseModel):
@@ -81,11 +81,11 @@ class MaterialBindingUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    quantity: Optional[Decimal] = Field(None, gt=0, description="绑定数量")
-    warehouse_id: Optional[int] = Field(None, description="仓库ID")
-    location_id: Optional[int] = Field(None, description="库位ID")
-    batch_no: Optional[str] = Field(None, description="批次号")
-    remarks: Optional[str] = Field(None, description="备注")
+    quantity: Decimal | None = Field(None, gt=0, description="绑定数量")
+    warehouse_id: int | None = Field(None, description="仓库ID")
+    location_id: int | None = Field(None, description="库位ID")
+    batch_no: str | None = Field(None, description="批次号")
+    remarks: str | None = Field(None, description="备注")
 
 
 class MaterialBindingResponse(MaterialBindingBase):
@@ -120,7 +120,7 @@ class MaterialBindingListResponse(BaseModel):
     material_code: str = Field(..., description="物料编码")
     material_name: str = Field(..., description="物料名称")
     quantity: Decimal = Field(..., description="绑定数量")
-    warehouse_name: Optional[str] = Field(None, description="仓库名称")
+    warehouse_name: str | None = Field(None, description="仓库名称")
     binding_method: str = Field(..., description="绑定方式")
     bound_by_name: str = Field(..., description="绑定人姓名")
     bound_at: datetime = Field(..., description="绑定时间")

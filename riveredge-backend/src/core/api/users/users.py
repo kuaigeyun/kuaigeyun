@@ -106,7 +106,7 @@ class UserImportRequest(BaseModel):
     
     接收前端 uni_import 组件传递的二维数组数据。
     """
-    data: List[List[Any]] = Field(..., description="二维数组数据（第一行为表头，第二行为示例数据，从第三行开始为实际数据）")
+    data: list[list[Any]] = Field(..., description="二维数组数据（第一行为表头，第二行为示例数据，从第三行开始为实际数据）")
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -211,15 +211,15 @@ async def create_user(
 async def get_user_list(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    keyword: Optional[str] = Query(None, description="关键词搜索"),
-    username: Optional[str] = Query(None, description="用户名筛选"),
-    email: Optional[str] = Query(None, description="邮箱筛选"),
-    full_name: Optional[str] = Query(None, description="姓名筛选"),
-    phone: Optional[str] = Query(None, description="手机号筛选"),
-    department_uuid: Optional[str] = Query(None, description="部门UUID筛选"),
-    position_uuid: Optional[str] = Query(None, description="职位UUID筛选"),
-    is_active: Optional[bool] = Query(None, description="是否启用筛选"),
-    is_tenant_admin: Optional[bool] = Query(None, description="是否组织管理员筛选"),
+    keyword: str | None = Query(None, description="关键词搜索"),
+    username: str | None = Query(None, description="用户名筛选"),
+    email: str | None = Query(None, description="邮箱筛选"),
+    full_name: str | None = Query(None, description="姓名筛选"),
+    phone: str | None = Query(None, description="手机号筛选"),
+    department_uuid: str | None = Query(None, description="部门UUID筛选"),
+    position_uuid: str | None = Query(None, description="职位UUID筛选"),
+    is_active: bool | None = Query(None, description="是否启用筛选"),
+    is_tenant_admin: bool | None = Query(None, description="是否组织管理员筛选"),
     _auth: object = Depends(require_access("system.user", "read")),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -472,11 +472,11 @@ async def import_users(
 
 @router.get("/export", response_class=FileResponse)
 async def export_users(
-    keyword: Optional[str] = Query(None, description="关键词搜索"),
-    department_uuid: Optional[str] = Query(None, description="部门UUID筛选"),
-    position_uuid: Optional[str] = Query(None, description="职位UUID筛选"),
-    is_active: Optional[bool] = Query(None, description="是否激活筛选"),
-    is_tenant_admin: Optional[bool] = Query(None, description="是否组织管理员筛选"),
+    keyword: str | None = Query(None, description="关键词搜索"),
+    department_uuid: str | None = Query(None, description="部门UUID筛选"),
+    position_uuid: str | None = Query(None, description="职位UUID筛选"),
+    is_active: bool | None = Query(None, description="是否激活筛选"),
+    is_tenant_admin: bool | None = Query(None, description="是否组织管理员筛选"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

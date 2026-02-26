@@ -92,11 +92,11 @@ class PerformanceService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        holiday_type: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        is_active: Optional[bool] = None
-    ) -> List[HolidayResponse]:
+        holiday_type: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        is_active: bool | None = None
+    ) -> list[HolidayResponse]:
         """
         获取假期列表
         
@@ -291,9 +291,9 @@ class PerformanceService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        category: Optional[str] = None,
-        is_active: Optional[bool] = None
-    ) -> List[SkillResponse]:
+        category: str | None = None,
+        is_active: bool | None = None
+    ) -> list[SkillResponse]:
         """
         获取技能列表
         

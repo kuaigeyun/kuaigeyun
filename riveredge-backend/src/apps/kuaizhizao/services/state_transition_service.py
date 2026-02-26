@@ -81,7 +81,7 @@ class StateTransitionService:
     ]
 
     # 按单据类型映射默认流转规则（无 DB 规则时使用）
-    DEFAULT_TRANSITIONS_BY_ENTITY: Dict[str, List[Dict[str, str]]] = {
+    DEFAULT_TRANSITIONS_BY_ENTITY: dict[str, list[dict[str, str]]] = {
         "demand": DEFAULT_DEMAND_TRANSITIONS,
         "work_order": DEFAULT_WORK_ORDER_TRANSITIONS,
         "sales_order": DEFAULT_AUDIT_DOCUMENT_TRANSITIONS,
@@ -96,7 +96,7 @@ class StateTransitionService:
         entity_type: str,
         from_state: str,
         to_state: str,
-        operator_id: Optional[int] = None
+        operator_id: int | None = None
     ) -> bool:
         """
         检查是否可以执行状态流转
@@ -144,10 +144,10 @@ class StateTransitionService:
         to_state: str,
         operator_id: int,
         operator_name: str,
-        transition_reason: Optional[str] = None,
-        transition_comment: Optional[str] = None,
-        related_entity_type: Optional[str] = None,
-        related_entity_id: Optional[int] = None
+        transition_reason: str | None = None,
+        transition_comment: str | None = None,
+        related_entity_type: str | None = None,
+        related_entity_id: int | None = None
     ) -> StateTransitionLog:
         """
         执行状态流转
@@ -201,7 +201,7 @@ class StateTransitionService:
         tenant_id: int,
         entity_type: str,
         entity_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取状态流转历史
         
@@ -242,7 +242,7 @@ class StateTransitionService:
         tenant_id: int,
         entity_type: str,
         current_state: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取可用的状态流转选项
         

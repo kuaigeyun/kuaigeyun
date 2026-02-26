@@ -19,7 +19,7 @@ from infra.models.user import User
 @dataclass
 class AuthContext:
     user_id: int
-    tenant_id: Optional[int]
+    tenant_id: int | None
     is_infra_admin: bool
     is_tenant_admin: bool
     request_id: str
@@ -85,7 +85,7 @@ def require_access(
     async def dependency(
         request: Request,
         auth: AuthContext = Depends(get_auth_context),
-        tenant_id: Optional[int] = Depends(get_current_tenant),
+        tenant_id: int | None = Depends(get_current_tenant),
     ) -> AuthContext:
         if require_tenant and tenant_id is None:
             _make_error(

@@ -21,7 +21,7 @@ class AssemblyOrderBase(BaseModel):
     product_material_code: str = Field(..., description="成品物料编码")
     product_material_name: str = Field(..., description="成品物料名称")
     total_quantity: Decimal = Field(0, description="组装数量（成品数量）")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class AssemblyOrderCreate(AssemblyOrderBase):
@@ -31,14 +31,14 @@ class AssemblyOrderCreate(AssemblyOrderBase):
 class AssemblyOrderUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    warehouse_id: Optional[int] = None
-    warehouse_name: Optional[str] = None
-    assembly_date: Optional[datetime] = None
-    product_material_id: Optional[int] = None
-    product_material_code: Optional[str] = None
-    product_material_name: Optional[str] = None
-    total_quantity: Optional[Decimal] = None
-    remarks: Optional[str] = None
+    warehouse_id: int | None = None
+    warehouse_name: str | None = None
+    assembly_date: datetime | None = None
+    product_material_id: int | None = None
+    product_material_code: str | None = None
+    product_material_name: str | None = None
+    total_quantity: Decimal | None = None
+    remarks: str | None = None
 
 
 class AssemblyOrderResponse(AssemblyOrderBase):
@@ -47,17 +47,17 @@ class AssemblyOrderResponse(AssemblyOrderBase):
     code: str = Field(..., description="组装单号")
     status: str = Field(..., description="状态")
     total_items: int = Field(..., description="组件明细数")
-    executed_by: Optional[int] = Field(None, description="执行人ID")
-    executed_by_name: Optional[str] = Field(None, description="执行人姓名")
-    executed_at: Optional[datetime] = Field(None, description="执行时间")
+    executed_by: int | None = Field(None, description="执行人ID")
+    executed_by_name: str | None = Field(None, description="执行人姓名")
+    executed_at: datetime | None = Field(None, description="执行时间")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
+    created_by: int | None = Field(None, description="创建人ID")
+    created_by_name: str | None = Field(None, description="创建人姓名")
 
 
 class AssemblyOrderListResponse(BaseModel):
-    items: List[AssemblyOrderResponse] = Field(default_factory=list)
+    items: list[AssemblyOrderResponse] = Field(default_factory=list)
     total: int = Field(..., description="总数")
 
 
@@ -70,7 +70,7 @@ class AssemblyOrderItemBase(BaseModel):
     material_name: str = Field(..., description="组件物料名称")
     quantity: Decimal = Field(..., description="消耗数量")
     unit_price: Decimal = Field(default=0, description="单价")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class AssemblyOrderItemCreate(AssemblyOrderItemBase):
@@ -86,15 +86,15 @@ class AssemblyOrderItemCreateInput(BaseModel):
     material_name: str = Field(..., description="组件物料名称")
     quantity: Decimal = Field(..., description="消耗数量")
     unit_price: Decimal = Field(default=0, description="单价")
-    remarks: Optional[str] = Field(None, description="备注")
+    remarks: str | None = Field(None, description="备注")
 
 
 class AssemblyOrderItemUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    quantity: Optional[Decimal] = None
-    unit_price: Optional[Decimal] = None
-    remarks: Optional[str] = None
+    quantity: Decimal | None = None
+    unit_price: Decimal | None = None
+    remarks: str | None = None
 
 
 class AssemblyOrderItemResponse(AssemblyOrderItemBase):
@@ -107,4 +107,4 @@ class AssemblyOrderItemResponse(AssemblyOrderItemBase):
 
 
 class AssemblyOrderWithItemsResponse(AssemblyOrderResponse):
-    items: List[AssemblyOrderItemResponse] = Field(default_factory=list, description="组装明细列表")
+    items: list[AssemblyOrderItemResponse] = Field(default_factory=list, description="组装明细列表")

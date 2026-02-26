@@ -151,7 +151,7 @@ class OutsourceWorkOrderService(AppBaseService[OutsourceWorkOrder]):
                     source_type=SOURCE_TYPE_OUTSOURCE
                 )
                 if not validation_passed:
-                    error_msg = f"委外件物料来源验证失败，无法创建委外工单：\n" + "\n".join(validation_errors)
+                    error_msg = "委外件物料来源验证失败，无法创建委外工单：\n" + "\n".join(validation_errors)
                     logger.warning(f"委外工单创建失败 - {error_msg}")
                     raise ValidationError(error_msg)
                 if not source_config:
@@ -310,10 +310,10 @@ class OutsourceWorkOrderService(AppBaseService[OutsourceWorkOrder]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        status: Optional[str] = None,
-        supplier_id: Optional[int] = None,
-        product_id: Optional[int] = None,
-        keyword: Optional[str] = None,
+        status: str | None = None,
+        supplier_id: int | None = None,
+        product_id: int | None = None,
+        keyword: str | None = None,
     ) -> OutsourceWorkOrderListResponse:
         """
         获取委外工单列表

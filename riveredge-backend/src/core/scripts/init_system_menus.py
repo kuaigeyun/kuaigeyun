@@ -184,7 +184,7 @@ SYSTEM_MENU_CONFIG = [
 async def _create_menu_recursive(
     tenant_id: int,
     item: dict,
-    parent_id: Optional[int] = None,
+    parent_id: int | None = None,
 ) -> int:
     """递归创建菜单，返回创建数量"""
     created = 0

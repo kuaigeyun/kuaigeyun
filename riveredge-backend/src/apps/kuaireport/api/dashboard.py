@@ -73,7 +73,7 @@ async def delete_dashboard(
 @router.post("/{id}/share", summary="生成分享链接")
 async def share_dashboard(
     id: int,
-    expires_days: Optional[int] = Body(30, embed=True),
+    expires_days: int | None = Body(30, embed=True),
     current_user: dict = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):
@@ -95,8 +95,8 @@ async def unshare_dashboard(
 @router.post("/{id}/mount-to-menu", summary="挂载到菜单")
 async def mount_dashboard_to_menu(
     id: int,
-    menu_name: Optional[str] = Body(None, embed=True),
-    parent_uuid: Optional[str] = Body(None, embed=True),
+    menu_name: str | None = Body(None, embed=True),
+    parent_uuid: str | None = Body(None, embed=True),
     current_user: dict = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):

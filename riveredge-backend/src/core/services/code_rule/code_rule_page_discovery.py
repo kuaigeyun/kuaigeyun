@@ -15,7 +15,7 @@ from core.services.application.application_service import ApplicationService
 logger = logging.getLogger(__name__)
 
 # 页面发现结果缓存：manifest 在运行期极少变更，缓存 5 分钟以减少文件扫描
-_PAGES_CACHE: Optional[Tuple[List[Dict[str, Any]], float]] = None
+_PAGES_CACHE: tuple[list[dict[str, Any]], float] | None = None
 _PAGES_CACHE_TTL = 300  # 秒
 
 
@@ -38,7 +38,7 @@ class CodeRulePageDiscoveryService:
         return plugins_dir
     
     @staticmethod
-    def _scan_app_manifests() -> List[Dict[str, Any]]:
+    def _scan_app_manifests() -> list[dict[str, Any]]:
         """
         扫描应用目录，读取所有应用的 manifest.json 文件
         
@@ -64,13 +64,13 @@ class CodeRulePageDiscoveryService:
             
             try:
                 # 读取 manifest.json
-                with open(manifest_file, 'r', encoding='utf-8') as f:
+                with open(manifest_file, encoding='utf-8') as f:
                     manifest_data = json.load(f)
                 
                 # 添加应用目录路径信息
                 manifest_data['_app_dir'] = str(app_dir)
                 manifests.append(manifest_data)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 # 忽略无法读取的 manifest.json
                 logger.warning(f"警告: 无法读取应用 {app_dir.name} 的 manifest.json: {e}")
                 continue
@@ -78,7 +78,7 @@ class CodeRulePageDiscoveryService:
         return manifests
     
     @staticmethod
-    def discover_pages() -> List[Dict[str, Any]]:
+    def discover_pages() -> list[dict[str, Any]]:
         """
         发现所有应用的编码规则页面配置
         
@@ -135,7 +135,7 @@ class CodeRulePageDiscoveryService:
         return pages
     
     @staticmethod
-    def get_all_pages() -> List[Dict[str, Any]]:
+    def get_all_pages() -> list[dict[str, Any]]:
         """
         获取所有编码规则页面配置（服务发现 + 弹性回退）
         

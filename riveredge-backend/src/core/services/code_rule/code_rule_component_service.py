@@ -22,7 +22,7 @@ class CodeRuleComponentService:
     """
     
     @staticmethod
-    def components_to_expression(components: List[Dict[str, Any]]) -> str:
+    def components_to_expression(components: list[dict[str, Any]]) -> str:
         """
         将规则组件列表转换为表达式（向后兼容）
         
@@ -83,7 +83,7 @@ class CodeRuleComponentService:
         return "".join(parts)
     
     @staticmethod
-    def expression_to_components(expression: str) -> List[Dict[str, Any]]:
+    def expression_to_components(expression: str) -> list[dict[str, Any]]:
         """
         将表达式解析为规则组件列表（向后兼容）
         
@@ -189,9 +189,9 @@ class CodeRuleComponentService:
     
     @staticmethod
     def render_components(
-        components: List[Dict[str, Any]],
+        components: list[dict[str, Any]],
         current_seq: int,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> str:
         """
         根据规则组件生成编码
@@ -265,7 +265,7 @@ class CodeRuleComponentService:
         return "".join(parts)
     
     @staticmethod
-    def get_counter_component_config(components: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def get_counter_component_config(components: list[dict[str, Any]]) -> dict[str, Any] | None:
         """
         从组件列表中获取自动计数组件的配置
         

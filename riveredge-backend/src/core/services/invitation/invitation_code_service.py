@@ -112,8 +112,8 @@ class InvitationCodeService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None
-    ) -> List[InvitationCode]:
+        is_active: bool | None = None
+    ) -> list[InvitationCode]:
         """
         获取邀请码列表
         

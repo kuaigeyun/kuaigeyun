@@ -110,8 +110,8 @@ async def trace_document_chain(
 async def print_document(
     document_type: str = Path(..., description="单据类型（如：work_order, production_picking等）"),
     document_id: int = Path(..., description="单据ID"),
-    template_code: Optional[str] = Query(None, description="打印模板代码（可选）"),
-    template_uuid: Optional[str] = Query(None, description="打印模板UUID（可选，优先于 template_code）"),
+    template_code: str | None = Query(None, description="打印模板代码（可选）"),
+    template_uuid: str | None = Query(None, description="打印模板UUID（可选，优先于 template_code）"),
     output_format: str = Query("html", description="输出格式（html/pdf）"),
     response_format: str = Query("json", description="响应格式：json（API调用）或 html（window.open 直接打开）"),
     current_user: User = Depends(get_current_user),
@@ -145,14 +145,14 @@ async def print_document(
 # ============ 单据节点耗时统计 API ============
 
 
-@router.get("/documents/timing", response_model=List[DocumentTimingSummaryResponse], summary="获取单据耗时统计列表")
+@router.get("/documents/timing", response_model=list[DocumentTimingSummaryResponse], summary="获取单据耗时统计列表")
 async def list_documents_timing(
-    document_type: Optional[str] = Query(None, description="单据类型（如：work_order/purchase_order/sales_order）"),
+    document_type: str | None = Query(None, description="单据类型（如：work_order/purchase_order/sales_order）"),
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[DocumentTimingSummaryResponse]:
+) -> list[DocumentTimingSummaryResponse]:
     """
     获取单据耗时统计列表
 
@@ -194,9 +194,9 @@ async def get_document_timing(
 
 @router.get("/documents/efficiency", summary="获取单据执行效率分析")
 async def get_document_efficiency(
-    document_type: Optional[str] = Query(None, description="单据类型（如：work_order/purchase_order/sales_order）"),
-    date_start: Optional[str] = Query(None, description="开始日期（ISO格式）"),
-    date_end: Optional[str] = Query(None, description="结束日期（ISO格式）"),
+    document_type: str | None = Query(None, description="单据类型（如：work_order/purchase_order/sales_order）"),
+    date_start: str | None = Query(None, description="开始日期（ISO格式）"),
+    date_end: str | None = Query(None, description="结束日期（ISO格式）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> dict:

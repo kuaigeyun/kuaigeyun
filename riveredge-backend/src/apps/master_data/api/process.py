@@ -59,8 +59,8 @@ async def list_defect_types(
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    category: Optional[str] = Query(None, description="分类（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    category: str | None = Query(None, description="分类（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取不良品列表（分页，返回 data 与 total）
@@ -156,13 +156,13 @@ async def create_operation(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/operations", response_model=List[OperationResponse], summary="获取工序列表")
+@router.get("/operations", response_model=list[OperationResponse], summary="获取工序列表")
 async def list_operations(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取工序列表
@@ -268,13 +268,13 @@ async def create_process_route(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/routes", response_model=List[ProcessRouteResponse], summary="获取工艺路线列表")
+@router.get("/routes", response_model=list[ProcessRouteResponse], summary="获取工艺路线列表")
 async def list_process_routes(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用")
+    is_active: bool | None = Query(None, description="是否启用")
 ):
     """
     获取工艺路线列表
@@ -376,7 +376,7 @@ async def create_process_route_version(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/routes/{process_route_code}/versions", response_model=List[ProcessRouteResponse], summary="获取工艺路线所有版本")
+@router.get("/routes/{process_route_code}/versions", response_model=list[ProcessRouteResponse], summary="获取工艺路线所有版本")
 async def get_process_route_versions(
     process_route_code: str,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -431,7 +431,7 @@ async def rollback_process_route_version(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     target_version: str = Query(..., description="目标版本（要回退到的版本）"),
-    new_version: Optional[str] = Query(None, description="新版本号（可选，如果不提供则自动生成）")
+    new_version: str | None = Query(None, description="新版本号（可选，如果不提供则自动生成）")
 ):
     """
     回退工艺路线到指定版本
@@ -640,12 +640,12 @@ async def create_sub_route(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/routes/{parent_route_uuid}/sub-routes", response_model=List[ProcessRouteResponse], summary="获取子工艺路线列表")
+@router.get("/routes/{parent_route_uuid}/sub-routes", response_model=list[ProcessRouteResponse], summary="获取子工艺路线列表")
 async def get_sub_routes(
     parent_route_uuid: str,
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    parent_operation_uuid: Optional[str] = Query(None, description="父工序UUID（可选，如果提供则只返回该工序的子工艺路线）")
+    parent_operation_uuid: str | None = Query(None, description="父工序UUID（可选，如果提供则只返回该工序的子工艺路线）")
 ):
     """
     获取子工艺路线列表
@@ -706,14 +706,14 @@ async def create_process_route_template(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/route-templates", response_model=List[ProcessRouteTemplateResponse], summary="获取工艺路线模板列表")
+@router.get("/route-templates", response_model=list[ProcessRouteTemplateResponse], summary="获取工艺路线模板列表")
 async def list_process_route_templates(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    category: Optional[str] = Query(None, description="模板分类筛选"),
-    is_active: Optional[bool] = Query(None, description="是否启用筛选")
+    category: str | None = Query(None, description="模板分类筛选"),
+    is_active: bool | None = Query(None, description="是否启用筛选")
 ):
     """
     获取工艺路线模板列表
@@ -769,11 +769,11 @@ async def create_process_route_from_template(
 
 # ==================== 级联查询接口 ====================
 
-@router.get("/routes/tree", response_model=List[ProcessRouteTreeResponse], response_model_by_alias=True, summary="获取工艺路线树形结构")
+@router.get("/routes/tree", response_model=list[ProcessRouteTreeResponse], response_model_by_alias=True, summary="获取工艺路线树形结构")
 async def get_process_route_tree(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    is_active: Optional[bool] = Query(None, description="是否只查询启用的数据（可选）")
+    is_active: bool | None = Query(None, description="是否只查询启用的数据（可选）")
 ):
     """
     获取工艺路线树形结构（工艺路线→工序）
@@ -816,7 +816,7 @@ async def get_process_route_tree(
 # 注意：/sop/batch-create-from-route、/sop/for-material 等具体路径必须定义在 /sop/{sop_uuid} 之前，
 # 否则会被路径参数匹配导致 405 Method Not Allowed
 
-@router.post("/sop/batch-create-from-route", response_model=List[SOPResponse], summary="按工艺路线批量创建 SOP")
+@router.post("/sop/batch-create-from-route", response_model=list[SOPResponse], summary="按工艺路线批量创建 SOP")
 async def batch_create_sops_from_route(
     data: SOPBatchCreateFromRouteRequest,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -858,17 +858,17 @@ async def create_sop(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/sop", response_model=List[SOPResponse], summary="获取作业程序（SOP）列表")
+@router.get("/sop", response_model=list[SOPResponse], summary="获取作业程序（SOP）列表")
 async def list_sops(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    operation_id: Optional[int] = Query(None, description="工序ID（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用"),
-    material_uuid: Optional[str] = Query(None, description="物料UUID（筛选绑定该物料的SOP）"),
-    material_group_uuid: Optional[str] = Query(None, description="物料组UUID（筛选绑定该物料组的SOP）"),
-    route_uuid: Optional[str] = Query(None, description="工艺路线UUID（筛选载入该工艺路线的SOP）"),
+    operation_id: int | None = Query(None, description="工序ID（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用"),
+    material_uuid: str | None = Query(None, description="物料UUID（筛选绑定该物料的SOP）"),
+    material_group_uuid: str | None = Query(None, description="物料组UUID（筛选绑定该物料组的SOP）"),
+    route_uuid: str | None = Query(None, description="工艺路线UUID（筛选载入该工艺路线的SOP）"),
 ):
     """
     获取作业程序（SOP）列表
@@ -895,7 +895,7 @@ async def get_sop_for_material(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     material_uuid: str = Query(..., description="物料UUID"),
-    operation_uuid: Optional[str] = Query(None, description="工序UUID（可选，进一步限定）"),
+    operation_uuid: str | None = Query(None, description="工序UUID（可选，进一步限定）"),
 ):
     """
     按物料匹配 SOP，供开工单时「以 SOP 为依据产生流程单据」使用。
@@ -1017,9 +1017,9 @@ async def create_process_route_change(
 
 @router.get("/routes/changes", response_model=ProcessRouteChangeListResponse, summary="获取工艺路线变更记录列表")
 async def list_process_route_changes(
-    process_route_uuid: Optional[str] = Query(None, description="工艺路线UUID（筛选条件）"),
-    change_type: Optional[str] = Query(None, description="变更类型（筛选条件）"),
-    status: Optional[str] = Query(None, description="变更状态（筛选条件）"),
+    process_route_uuid: str | None = Query(None, description="工艺路线UUID（筛选条件）"),
+    change_type: str | None = Query(None, description="变更类型（筛选条件）"),
+    status: str | None = Query(None, description="变更状态（筛选条件）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     current_user: Annotated[User, Depends(get_current_user)] = None,
@@ -1083,7 +1083,7 @@ async def update_process_route_change(
 async def approve_process_route_change(
     change_uuid: str,
     approved: bool = Query(..., description="是否同意（true:同意, false:拒绝）"),
-    approval_comment: Optional[str] = Query(None, description="审批意见（可选）"),
+    approval_comment: str | None = Query(None, description="审批意见（可选）"),
     current_user: Annotated[User, Depends(get_current_user)] = None,
     tenant_id: Annotated[int, Depends(get_current_tenant)] = None
 ):

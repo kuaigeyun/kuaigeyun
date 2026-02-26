@@ -14,8 +14,8 @@ class ApprovalInstanceBase(BaseModel):
     """审批实例基础 Schema"""
     process_uuid: UUID = Field(..., description="关联流程UUID")
     title: str = Field(..., max_length=200, description="审批标题")
-    content: Optional[str] = Field(None, description="审批内容")
-    data: Optional[Dict[str, Any]] = Field(None, description="审批数据")
+    content: str | None = Field(None, description="审批内容")
+    data: dict[str, Any] | None = Field(None, description="审批数据")
 
 
 class ApprovalInstanceCreate(ApprovalInstanceBase):
@@ -25,12 +25,12 @@ class ApprovalInstanceCreate(ApprovalInstanceBase):
 
 class ApprovalInstanceUpdate(BaseModel):
     """更新审批实例 Schema"""
-    title: Optional[str] = Field(None, max_length=200, description="审批标题")
-    content: Optional[str] = Field(None, description="审批内容")
-    data: Optional[Dict[str, Any]] = Field(None, description="审批数据")
-    status: Optional[str] = Field(None, max_length=20, description="审批状态")
-    current_node: Optional[str] = Field(None, max_length=100, description="当前节点")
-    current_approver_id: Optional[int] = Field(None, description="当前审批人ID")
+    title: str | None = Field(None, max_length=200, description="审批标题")
+    content: str | None = Field(None, description="审批内容")
+    data: dict[str, Any] | None = Field(None, description="审批数据")
+    status: str | None = Field(None, max_length=20, description="审批状态")
+    current_node: str | None = Field(None, max_length=100, description="当前节点")
+    current_approver_id: int | None = Field(None, description="当前审批人ID")
     
     @field_validator('status')
     @classmethod
@@ -47,8 +47,8 @@ class ApprovalInstanceUpdate(BaseModel):
 class ApprovalInstanceAction(BaseModel):
     """审批操作 Schema"""
     action: str = Field(..., description="操作类型（approve、reject、cancel、transfer）")
-    comment: Optional[str] = Field(None, description="审批意见")
-    transfer_to_user_id: Optional[int] = Field(None, description="转交目标用户ID（仅转交时使用）")
+    comment: str | None = Field(None, description="审批意见")
+    transfer_to_user_id: int | None = Field(None, description="转交目标用户ID（仅转交时使用）")
     
     @field_validator('action')
     @classmethod
@@ -66,12 +66,12 @@ class ApprovalInstanceResponse(ApprovalInstanceBase):
     tenant_id: int = Field(..., description="组织ID")
     process_uuid: UUID = Field(..., description="关联流程UUID")
     status: str = Field(..., description="审批状态")
-    current_node: Optional[str] = Field(None, description="当前节点")
-    current_approver_id: Optional[int] = Field(None, description="当前审批人ID")
-    inngest_run_id: Optional[str] = Field(None, description="Inngest 运行ID")
+    current_node: str | None = Field(None, description="当前节点")
+    current_approver_id: int | None = Field(None, description="当前审批人ID")
+    inngest_run_id: str | None = Field(None, description="Inngest 运行ID")
     submitter_id: int = Field(..., description="提交人ID")
     submitted_at: datetime = Field(..., description="提交时间")
-    completed_at: Optional[datetime] = Field(None, description="完成时间")
+    completed_at: datetime | None = Field(None, description="完成时间")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     

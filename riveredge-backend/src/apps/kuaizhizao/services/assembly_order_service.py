@@ -133,9 +133,9 @@ class AssemblyOrderService(AppBaseService[AssemblyOrder]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        code: Optional[str] = None,
-        warehouse_id: Optional[int] = None,
-        status: Optional[str] = None,
+        code: str | None = None,
+        warehouse_id: int | None = None,
+        status: str | None = None,
     ) -> AssemblyOrderListResponse:
         query = AssemblyOrder.filter(
             tenant_id=tenant_id,

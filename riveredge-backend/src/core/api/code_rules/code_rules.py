@@ -57,11 +57,11 @@ async def create_rule(
         )
 
 
-@router.get("", response_model=List[CodeRuleResponse])
+@router.get("", response_model=list[CodeRuleResponse])
 async def list_rules(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -87,7 +87,7 @@ async def list_rules(
     return [CodeRuleResponse.model_validate(r) for r in rules]
 
 
-@router.get("/pages", response_model=List[CodeRulePageConfigResponse])
+@router.get("/pages", response_model=list[CodeRulePageConfigResponse])
 async def list_code_rule_pages():
     """
     获取编码规则功能页面配置列表

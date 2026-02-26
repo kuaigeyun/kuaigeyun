@@ -19,7 +19,7 @@ from inngest import Event as InngestEvent
     name="定时任务调度器",
     trigger=TriggerCron(cron="* * * * *"),  # 每分钟执行一次
 )
-async def scheduled_task_scheduler_function(*args, **kwargs) -> Dict[str, Any]:
+async def scheduled_task_scheduler_function(*args, **kwargs) -> dict[str, Any]:
     """
     定时任务调度器工作流函数
     

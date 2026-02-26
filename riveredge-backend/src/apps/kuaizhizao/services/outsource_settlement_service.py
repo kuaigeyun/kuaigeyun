@@ -33,7 +33,7 @@ class OutsourceSettlementService(BaseService):
         self,
         tenant_id: int,
         outsource_work_order_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         计算委外费用
         
@@ -81,11 +81,11 @@ class OutsourceSettlementService(BaseService):
         self,
         tenant_id: int,
         supplier_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        outsource_work_order_ids: Optional[List[int]] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        outsource_work_order_ids: list[int] | None = None,
         created_by: int = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         创建委外结算单
         
@@ -182,8 +182,8 @@ class OutsourceSettlementService(BaseService):
         self,
         tenant_id: int,
         supplier_id: int,
-        reconciliation_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        reconciliation_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         委外对账
         

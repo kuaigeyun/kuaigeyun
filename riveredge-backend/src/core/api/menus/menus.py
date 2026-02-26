@@ -49,13 +49,13 @@ async def create_menu(
     return await MenuService.create_menu(tenant_id=tenant_id, data=data)
 
 
-@router.get("", response_model=List[MenuResponse])
+@router.get("", response_model=list[MenuResponse])
 async def get_menus(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(100, ge=1, le=1000, description="每页数量"),
-    parent_uuid: Optional[str] = Query(None, description="父菜单UUID过滤"),
-    application_uuid: Optional[str] = Query(None, description="应用UUID过滤"),
-    is_active: Optional[bool] = Query(None, description="是否启用过滤"),
+    parent_uuid: str | None = Query(None, description="父菜单UUID过滤"),
+    application_uuid: str | None = Query(None, description="应用UUID过滤"),
+    is_active: bool | None = Query(None, description="是否启用过滤"),
     _auth: object = Depends(require_access("system.menu", "read")),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -85,11 +85,11 @@ async def get_menus(
     )
 
 
-@router.get("/tree", response_model=List[MenuTreeResponse])
+@router.get("/tree", response_model=list[MenuTreeResponse])
 async def get_menu_tree(
-    parent_uuid: Optional[str] = Query(None, description="父菜单UUID（可选，如果提供则从该菜单开始构建树）"),
-    application_uuid: Optional[str] = Query(None, description="应用UUID过滤"),
-    is_active: Optional[bool] = Query(None, description="是否启用过滤"),
+    parent_uuid: str | None = Query(None, description="父菜单UUID（可选，如果提供则从该菜单开始构建树）"),
+    application_uuid: str | None = Query(None, description="应用UUID过滤"),
+    is_active: bool | None = Query(None, description="是否启用过滤"),
     _auth: object = Depends(require_access("system.menu", "read")),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -217,7 +217,7 @@ async def delete_menu(
 
 @router.post("/update-order", status_code=status.HTTP_200_OK)
 async def update_menu_order(
-    menu_orders: List[Dict[str, Any]] = Body(..., description="菜单排序列表"),
+    menu_orders: list[dict[str, Any]] = Body(..., description="菜单排序列表"),
     _auth: object = Depends(require_access("system.menu", "update")),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),

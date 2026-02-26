@@ -10,7 +10,7 @@ class AccessPolicyBase(BaseModel):
     priority: int = Field(default=100)
     target_resource: str
     target_action: str
-    condition_expr: Optional[dict[str, Any]] = None
+    condition_expr: dict[str, Any] | None = None
     enabled: bool = True
     bindings: list[dict[str, Any]] = Field(default_factory=list, description="绑定主体，格式: {subject_type, subject_id}")
 
@@ -20,14 +20,14 @@ class AccessPolicyCreate(AccessPolicyBase):
 
 
 class AccessPolicyUpdate(BaseModel):
-    name: Optional[str] = None
-    effect: Optional[str] = None
-    priority: Optional[int] = None
-    target_resource: Optional[str] = None
-    target_action: Optional[str] = None
-    condition_expr: Optional[dict[str, Any]] = None
-    enabled: Optional[bool] = None
-    bindings: Optional[list[dict[str, Any]]] = None
+    name: str | None = None
+    effect: str | None = None
+    priority: int | None = None
+    target_resource: str | None = None
+    target_action: str | None = None
+    condition_expr: dict[str, Any] | None = None
+    enabled: bool | None = None
+    bindings: list[dict[str, Any]] | None = None
 
 
 class AccessPolicyResponse(AccessPolicyBase):

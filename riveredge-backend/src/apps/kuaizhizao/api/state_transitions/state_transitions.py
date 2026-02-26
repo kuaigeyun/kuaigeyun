@@ -27,8 +27,8 @@ async def transition_state(
     entity_type: str = Path(..., description="实体类型"),
     entity_id: int = Path(..., description="实体ID"),
     to_state: str = Body(..., description="目标状态"),
-    transition_reason: Optional[str] = Body(None, description="流转原因"),
-    transition_comment: Optional[str] = Body(None, description="流转备注"),
+    transition_reason: str | None = Body(None, description="流转原因"),
+    transition_comment: str | None = Body(None, description="流转备注"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

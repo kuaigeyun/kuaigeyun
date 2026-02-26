@@ -319,9 +319,9 @@ if INNGEST_AVAILABLE:
         # 注册 Inngest 服务端点（serve 会直接向 app 添加 /api/inngest 路由）
         if inngest_functions:
             inngest_serve(app, inngest_client, inngest_functions)
-            logger.info(f"✅ Inngest 服务端点注册成功")
+            logger.info("✅ Inngest 服务端点注册成功")
             logger.info(f"✅ 已注册 {len(inngest_functions)} 个 Inngest 函数")
-            logger.info(f"✅ Inngest 端点路径: /api/inngest")
+            logger.info("✅ Inngest 端点路径: /api/inngest")
         else:
             logger.warning("⚠️ 没有可用的 Inngest 函数，跳过服务端点注册")
             

@@ -91,7 +91,7 @@ class LanguageService:
     async def get_language_by_code(
         tenant_id: int,
         code: str
-    ) -> Optional[Language]:
+    ) -> Language | None:
         """
         根据代码获取语言
         
@@ -110,7 +110,7 @@ class LanguageService:
         ).first()
     
     @staticmethod
-    async def get_default_language(tenant_id: int) -> Optional[Language]:
+    async def get_default_language(tenant_id: int) -> Language | None:
         """
         获取默认语言
         
@@ -134,10 +134,10 @@ class LanguageService:
         page_size: int = 20,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None,
-        code: Optional[str] = None,
-        name: Optional[str] = None
-    ) -> tuple[List[Language], int]:
+        is_active: bool | None = None,
+        code: str | None = None,
+        name: str | None = None
+    ) -> tuple[list[Language], int]:
         """
         获取语言列表（支持分页和筛选）
 
@@ -271,7 +271,7 @@ class LanguageService:
     async def get_translations(
         tenant_id: int,
         code: str
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         获取翻译内容
         
@@ -296,7 +296,7 @@ class LanguageService:
     async def update_translations(
         tenant_id: int,
         uuid: str,
-        translations: Dict[str, str]
+        translations: dict[str, str]
     ) -> Language:
         """
         更新翻译内容
@@ -329,7 +329,7 @@ class LanguageService:
         return language
     
     @staticmethod
-    async def initialize_system_languages(tenant_id: int) -> Dict[str, Any]:
+    async def initialize_system_languages(tenant_id: int) -> dict[str, Any]:
         """
         初始化系统语言
 
@@ -416,7 +416,7 @@ class LanguageService:
     async def _notify_frontend(
         tenant_id: int,
         language_code: str,
-        new_language_code: Optional[str] = None,
+        new_language_code: str | None = None,
         is_active: bool = True,
         is_default: bool = False,
         translations_updated: bool = False

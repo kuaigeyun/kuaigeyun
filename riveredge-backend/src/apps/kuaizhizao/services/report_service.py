@@ -28,10 +28,10 @@ class ReportService:
         self,
         tenant_id: int,
         report_type: str = "summary",
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        warehouse_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        warehouse_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取库存报表数据
 
@@ -75,8 +75,8 @@ class ReportService:
     async def _get_inventory_summary(
         self,
         tenant_id: int,
-        warehouse_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        warehouse_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取库存状况分析
 
@@ -107,10 +107,10 @@ class ReportService:
     async def _get_inventory_turnover(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        warehouse_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        warehouse_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取库存周转率报表
 
@@ -149,8 +149,8 @@ class ReportService:
     async def _get_abc_analysis(
         self,
         tenant_id: int,
-        warehouse_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        warehouse_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取ABC分析报表
 
@@ -186,10 +186,10 @@ class ReportService:
     async def _get_slow_moving_analysis(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        warehouse_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        warehouse_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取呆滞料分析报表
 
@@ -228,10 +228,10 @@ class ReportService:
         self,
         tenant_id: int,
         report_type: str = "efficiency",
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        work_center_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        work_center_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取生产报表数据
 
@@ -279,10 +279,10 @@ class ReportService:
     async def _get_production_efficiency(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        work_center_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        work_center_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取生产效率分析
 
@@ -324,10 +324,10 @@ class ReportService:
     async def _get_work_order_completion(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        work_center_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        work_center_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取工单完成情况报表
 
@@ -370,10 +370,10 @@ class ReportService:
     async def _get_reporting_statistics(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        work_center_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        work_center_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取报工统计分析报表
 
@@ -413,10 +413,10 @@ class ReportService:
     async def _get_equipment_utilization(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        work_center_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        work_center_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取设备利用率报表
 
@@ -455,10 +455,10 @@ class ReportService:
         self,
         tenant_id: int,
         report_type: str = "analysis",
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        material_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        material_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取质量报表数据
 
@@ -506,10 +506,10 @@ class ReportService:
     async def _get_quality_analysis(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        material_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        material_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取质量分析报告
 
@@ -550,10 +550,10 @@ class ReportService:
     async def _get_defect_statistics(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        material_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        material_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取不良品统计报表
 
@@ -592,10 +592,10 @@ class ReportService:
     async def _get_inspection_pass_rate(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        material_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        material_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取检验合格率报表
 
@@ -635,10 +635,10 @@ class ReportService:
     async def _get_quality_trend(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        material_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        material_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取质量趋势分析报表
 
@@ -676,13 +676,13 @@ class ReportService:
     async def query_batch_inventory(
         self,
         tenant_id: int,
-        material_id: Optional[int] = None,
-        material_ids: Optional[List[int]] = None,
-        warehouse_id: Optional[int] = None,
-        batch_number: Optional[str] = None,
+        material_id: int | None = None,
+        material_ids: list[int] | None = None,
+        warehouse_id: int | None = None,
+        batch_number: str | None = None,
         include_expired: bool = False,
         summary_only: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         批次库存查询
         
@@ -730,7 +730,7 @@ class ReportService:
         
         # summary_only：仅返回物料汇总，用于批量检查（销售订单明细视图等）
         if summary_only and (material_ids or material_id):
-            material_totals: Dict[str, float] = {}
+            material_totals: dict[str, float] = {}
             ids_to_check = material_ids if material_ids else [material_id]
             for mid in ids_to_check:
                 material_totals[str(mid)] = 0.0

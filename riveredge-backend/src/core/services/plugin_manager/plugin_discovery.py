@@ -22,9 +22,9 @@ class PluginManifest:
     entry_point: str
     route_path: str
     sort_order: int
-    menu_config: Dict[str, Any]
-    permissions: List[str]
-    dependencies: Dict[str, str]
+    menu_config: dict[str, Any]
+    permissions: list[str]
+    dependencies: dict[str, str]
 
 
 @dataclass
@@ -34,7 +34,7 @@ class DiscoveredPlugin:
     path: Path
     manifest: PluginManifest
     is_valid: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class PluginDiscoveryService:
@@ -53,7 +53,7 @@ class PluginDiscoveryService:
         """
         self.apps_dir = apps_dir
 
-    def discover_plugins(self) -> List[DiscoveredPlugin]:
+    def discover_plugins(self) -> list[DiscoveredPlugin]:
         """
         发现所有插件应用
 
@@ -106,12 +106,12 @@ class PluginDiscoveryService:
 
         return plugins
 
-    def _load_manifest(self, manifest_path: Path) -> Dict[str, Any]:
+    def _load_manifest(self, manifest_path: Path) -> dict[str, Any]:
         """加载插件清单文件"""
-        with open(manifest_path, 'r', encoding='utf-8') as f:
+        with open(manifest_path, encoding='utf-8') as f:
             return json.load(f)
 
-    def _parse_manifest(self, data: Dict[str, Any]) -> PluginManifest:
+    def _parse_manifest(self, data: dict[str, Any]) -> PluginManifest:
         """解析插件清单数据"""
         return PluginManifest(
             name=data.get('name', ''),

@@ -79,7 +79,7 @@ async def data_backup_workflow(ctx: inngest.Context, step: Step):
                     "-U", db_user,
                     "-d", db_name,
                     "-t",
-                    "-c", f"SELECT table_name FROM information_schema.columns WHERE column_name = 'tenant_id' AND table_schema = 'public'"
+                    "-c", "SELECT table_name FROM information_schema.columns WHERE column_name = 'tenant_id' AND table_schema = 'public'"
                 ]
                 result = subprocess.run(get_tables_cmd, env=env, capture_output=True, text=True)
                 if result.returncode != 0:

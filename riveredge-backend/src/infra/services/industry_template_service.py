@@ -32,8 +32,8 @@ class IndustryTemplateService:
     
     async def get_template_list(
         self,
-        industry: Optional[str] = None,
-        is_active: Optional[bool] = True,
+        industry: str | None = None,
+        is_active: bool | None = True,
     ) -> IndustryTemplateListResponse:
         """
         获取行业模板列表
@@ -224,7 +224,7 @@ class IndustryTemplateService:
         self,
         template_id: int,
         tenant_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         应用行业模板到指定组织
         
@@ -382,7 +382,7 @@ class IndustryTemplateService:
     async def delete_template(
         self,
         template_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         删除行业模板
         

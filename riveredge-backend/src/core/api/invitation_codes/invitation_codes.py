@@ -54,11 +54,11 @@ async def create_invitation_code(
         )
 
 
-@router.get("", response_model=List[InvitationCodeResponse])
+@router.get("", response_model=list[InvitationCodeResponse])
 async def list_invitation_codes(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

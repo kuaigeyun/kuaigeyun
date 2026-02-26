@@ -44,9 +44,9 @@ async def create_tool(
 async def list_tools(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    type: Optional[str] = None,
-    status: Optional[str] = None,
-    search: Optional[str] = None,
+    type: str | None = None,
+    status: str | None = None,
+    search: str | None = None,
     tenant_id: int = Depends(get_current_tenant)
 ):
     items, total = await ToolService.list_tools(tenant_id, skip, limit, type, status, search)
@@ -149,7 +149,7 @@ async def checkout_tool(
 @router.post("/checkin/{uuid}", response_model=ToolUsageResponse)
 async def checkin_tool(
     uuid: str,
-    remark: Optional[str] = None,
+    remark: str | None = None,
     tenant_id: int = Depends(get_current_tenant)
 ):
     try:

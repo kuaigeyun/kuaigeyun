@@ -73,7 +73,7 @@ class ApprovalInstance(BaseModel):
         ]
     
     @property
-    def process_uuid(self) -> Optional[UUID]:
+    def process_uuid(self) -> UUID | None:
         """获取关联流程UUID"""
         if hasattr(self, "process") and hasattr(self.process, "uuid"):
              return self.process.uuid

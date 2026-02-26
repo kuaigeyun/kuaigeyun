@@ -18,7 +18,7 @@ class RoleBase(BaseModel):
     """
     name: str = Field(..., min_length=1, max_length=100, description="角色名称")
     code: str = Field(..., min_length=1, max_length=50, description="角色代码（唯一，用于程序识别）")
-    description: Optional[str] = Field(None, description="角色描述")
+    description: str | None = Field(None, description="角色描述")
     is_active: bool = Field(default=True, description="是否启用")
 
 
@@ -49,10 +49,10 @@ class RoleUpdate(BaseModel):
         description: 角色描述（可选）
         is_active: 是否启用（可选）
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="角色名称")
-    code: Optional[str] = Field(None, min_length=1, max_length=50, description="角色代码（唯一，用于程序识别）")
-    description: Optional[str] = Field(None, description="角色描述")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    name: str | None = Field(None, min_length=1, max_length=100, description="角色名称")
+    code: str | None = Field(None, min_length=1, max_length=50, description="角色代码（唯一，用于程序识别）")
+    description: str | None = Field(None, description="角色描述")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class PermissionInfo(BaseModel):
@@ -93,9 +93,9 @@ class RoleResponse(RoleBase):
     uuid: str = Field(..., description="角色UUID（对外暴露，业务标识）")
     tenant_id: int = Field(..., description="组织ID")
     is_system: bool = Field(..., description="是否系统角色（系统角色不可删除）")
-    permissions: Optional[List[PermissionInfo]] = Field(None, description="关联的权限列表")
-    permission_count: Optional[int] = Field(None, description="关联的权限数量")
-    user_count: Optional[int] = Field(None, description="关联的用户数量")
+    permissions: list[PermissionInfo] | None = Field(None, description="关联的权限列表")
+    permission_count: int | None = Field(None, description="关联的权限数量")
+    user_count: int | None = Field(None, description="关联的用户数量")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
@@ -113,7 +113,7 @@ class RoleListItem(BaseModel):
     uuid: str = Field(..., description="角色UUID（对外暴露，业务标识）")
     name: str = Field(..., description="角色名称")
     code: str = Field(..., description="角色代码")
-    description: Optional[str] = Field(None, description="角色描述")
+    description: str | None = Field(None, description="角色描述")
     is_system: bool = Field(..., description="是否系统角色")
     is_active: bool = Field(..., description="是否启用")
     permission_count: int = Field(..., description="关联的权限数量")
@@ -129,7 +129,7 @@ class RoleListResponse(BaseModel):
     
     用于返回角色列表，包含分页信息。
     """
-    items: List[RoleListItem] = Field(..., description="角色列表")
+    items: list[RoleListItem] = Field(..., description="角色列表")
     total: int = Field(..., description="总记录数")
     page: int = Field(..., description="当前页码")
     page_size: int = Field(..., description="每页数量")
@@ -144,5 +144,5 @@ class RolePermissionAssign(BaseModel):
     Attributes:
         permission_uuids: 权限UUID列表（使用UUID而不是ID）
     """
-    permission_uuids: List[str] = Field(..., description="权限UUID列表（使用UUID而不是ID）")
+    permission_uuids: list[str] = Field(..., description="权限UUID列表（使用UUID而不是ID）")
 

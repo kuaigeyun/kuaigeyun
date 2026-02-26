@@ -104,7 +104,7 @@ async def get_user_message(
         )
 
 
-@router.post("/mark-read", response_model=Dict[str, int])
+@router.post("/mark-read", response_model=dict[str, int])
 async def mark_messages_read(
     data: UserMessageMarkReadRequest,
     current_user: User = Depends(get_current_user),
@@ -128,5 +128,4 @@ async def mark_messages_read(
     return {"updated_count": updated_count}
 
 
-from typing import Dict
 

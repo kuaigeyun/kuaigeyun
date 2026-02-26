@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 
 # 页面代码 -> 固定字符预设（汉语拼音缩写）
 # 用于编码规则默认前缀和重置
-PAGE_CODE_TO_FIXED_TEXT_PRESET: Dict[str, str] = {
+PAGE_CODE_TO_FIXED_TEXT_PRESET: dict[str, str] = {
     "master-data-factory-plant": "CQ",           # 厂区
     "master-data-factory-workshop": "CJ",        # 车间
     "master-data-factory-production-line": "CX", # 产线
@@ -54,10 +54,10 @@ PAGE_CODE_TO_FIXED_TEXT_PRESET: Dict[str, str] = {
 }
 
 # 页面配置数据结构
-CodeRulePageConfig = Dict[str, Any]
+CodeRulePageConfig = dict[str, Any]
 
 # 功能页面配置列表
-CODE_RULE_PAGES: List[CodeRulePageConfig] = [
+CODE_RULE_PAGES: list[CodeRulePageConfig] = [
     # 主数据管理 - 工厂建模
     {
         "page_code": "master-data-factory-plant",
@@ -733,13 +733,13 @@ CODE_RULE_PAGES: List[CodeRulePageConfig] = [
 ]
 
 
-def get_rule_code_to_page_code() -> Dict[str, str]:
+def get_rule_code_to_page_code() -> dict[str, str]:
     """
     规则代码 -> 页面代码映射
     包含：1) 显式配置的 rule_code  2) 由 page_code 派生的规则代码（如 MASTER_DATA_FACTORY_PLANT）
     用于覆盖所有可能的规则代码格式（包括自定义/未配置 rule_code 的页面）
     """
-    mapping: Dict[str, str] = {}
+    mapping: dict[str, str] = {}
     for p in CODE_RULE_PAGES:
         page_code = p["page_code"]
         # 显式 rule_code
@@ -754,7 +754,7 @@ def get_rule_code_to_page_code() -> Dict[str, str]:
 # 规则代码 -> 实体模型（用于序列号校准：导入数据后从库中取最大序号，使新生成的序号接着往后）
 # 格式: rule_code -> (模块路径, 模型类名, 编码字段名)
 # 仅配置支持“前缀+序号”且可查库的实体，用于 generate_code 时自动校准 current_seq
-RULE_CODE_ENTITY_FOR_SEQ_SYNC: Dict[str, tuple] = {
+RULE_CODE_ENTITY_FOR_SEQ_SYNC: dict[str, tuple] = {
     "DEFECT_TYPE_CODE": ("apps.master_data.models.process", "DefectType", "code"),
     "master-data-defect-type": ("apps.master_data.models.process", "DefectType", "code"),
     "OPERATION_CODE": ("apps.master_data.models.process", "Operation", "code"),

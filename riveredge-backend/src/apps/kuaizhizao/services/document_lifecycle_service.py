@@ -61,50 +61,50 @@ DEMAND_MAIN_STAGES = [
 ]
 
 
-def _norm(s: Optional[str]) -> str:
+def _norm(s: str | None) -> str:
     return (s or "").strip()
 
 
-def _is_rejected(review_status: Optional[str]) -> bool:
+def _is_rejected(review_status: str | None) -> bool:
     r = _norm(review_status)
     return r in ("REJECTED", "已驳回", "审核驳回")
 
 
-def _is_approved(review_status: Optional[str]) -> bool:
+def _is_approved(review_status: str | None) -> bool:
     r = _norm(review_status)
     return r in ("APPROVED", "审核通过", "通过", "已通过", "已审核")
 
 
-def _is_draft(status: Optional[str]) -> bool:
+def _is_draft(status: str | None) -> bool:
     s = _norm(status)
     return s in ("DRAFT", "草稿")
 
 
-def _is_pending_review(status: Optional[str]) -> bool:
+def _is_pending_review(status: str | None) -> bool:
     s = _norm(status)
     return s in ("PENDING_REVIEW", "待审核", "已提交")
 
 
-def _is_audited(status: Optional[str]) -> bool:
+def _is_audited(status: str | None) -> bool:
     s = _norm(status)
     return s in ("AUDITED", "已审核")
 
 
-def _is_confirmed(status: Optional[str]) -> bool:
+def _is_confirmed(status: str | None) -> bool:
     s = _norm(status)
     return s in ("CONFIRMED", "已确认", "已生效")
 
 
-def _is_cancelled(status: Optional[str]) -> bool:
+def _is_cancelled(status: str | None) -> bool:
     s = _norm(status)
     return s in ("CANCELLED", "已取消")
 
 
 def _build_main_stages(
-    stage_keys: List[Dict[str, str]],
+    stage_keys: list[dict[str, str]],
     current_stage_key: str,
     is_exception: bool = False,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """根据当前阶段 key 生成 main_stages，每项带 status: done | active | pending。"""
     keys = [s["key"] for s in stage_keys]
     try:
@@ -131,11 +131,11 @@ def _build_main_stages(
 def get_sales_order_lifecycle(
     order: Any,
     *,
-    items: Optional[List[Any]] = None,
-    delivery_progress: Optional[float] = None,
-    invoice_progress: Optional[float] = None,
+    items: list[Any] | None = None,
+    delivery_progress: float | None = None,
+    invoice_progress: float | None = None,
     pushed_to_computation: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     根据销售订单数据计算生命周期，返回供前端展示的结构。
     order: ORM 或具 status, review_status 的对象。
@@ -289,8 +289,8 @@ def get_sales_order_lifecycle(
 def get_demand_lifecycle(
     demand: Any,
     *,
-    items: Optional[List[Any]] = None,
-) -> Dict[str, Any]:
+    items: list[Any] | None = None,
+) -> dict[str, Any]:
     """
     根据需求数据计算生命周期，返回供前端展示的结构。
     需求业务含义：来自上游审核通过后进入需求池，可下推需求计算（MRP）；无执行/交货/完成阶段。
@@ -352,7 +352,7 @@ def get_demand_lifecycle(
 # ---------------------------------------------------------------------------
 # 工单生命周期计算
 # ---------------------------------------------------------------------------
-def get_work_order_lifecycle(work_order: Any) -> Dict[str, Any]:
+def get_work_order_lifecycle(work_order: Any) -> dict[str, Any]:
     """
     根据工单数据计算生命周期，返回供前端 UniLifecycleStepper 展示的结构。
     work_order: ORM 或具 status 的对象。

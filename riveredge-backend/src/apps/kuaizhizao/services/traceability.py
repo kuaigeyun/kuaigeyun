@@ -15,7 +15,7 @@ class TraceabilityService:
     追溯服务类
     """
 
-    async def get_trace_graph(self, batch_no: str, direction: str = "both") -> Dict:
+    async def get_trace_graph(self, batch_no: str, direction: str = "both") -> dict:
         """
         获取追溯图谱
         
@@ -50,7 +50,7 @@ class TraceabilityService:
             "edges": edges
         }
 
-    async def _trace_forward(self, current_batch: str, nodes: Dict, edges: List, visited: Set):
+    async def _trace_forward(self, current_batch: str, nodes: dict, edges: list, visited: set):
         """
         正向追溯（原料 -> 成品）
         """
@@ -120,7 +120,7 @@ class TraceabilityService:
                 # 递归追溯
                 await self._trace_forward(output_batch, nodes, edges, visited)
 
-    async def _trace_backward(self, current_batch: str, nodes: Dict, edges: List, visited: Set):
+    async def _trace_backward(self, current_batch: str, nodes: dict, edges: list, visited: set):
         """
         反向追溯（成品 -> 原料）
         """

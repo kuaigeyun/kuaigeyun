@@ -21,7 +21,7 @@ from infra.domain.tenant_context import get_current_tenant_id
     name="异常自动检测调度器",
     trigger=TriggerCron(cron="0 */1 * * *"),  # 每小时执行一次
 )
-async def exception_detection_scheduler_function(*args, **kwargs) -> Dict[str, Any]:
+async def exception_detection_scheduler_function(*args, **kwargs) -> dict[str, Any]:
     """
     异常自动检测调度器工作流函数
     
@@ -74,7 +74,7 @@ async def exception_detection_scheduler_function(*args, **kwargs) -> Dict[str, A
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def exception_detection_worker_function(event: Event) -> Dict[str, Any]:
+async def exception_detection_worker_function(event: Event) -> dict[str, Any]:
     """
     异常自动检测工作流函数
     
@@ -165,7 +165,7 @@ async def exception_detection_worker_function(event: Event) -> Dict[str, Any]:
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def exception_detection_by_tenant_function(event: Event) -> Dict[str, Any]:
+async def exception_detection_by_tenant_function(event: Event) -> dict[str, Any]:
     """
     按租户异常检测工作流函数
     

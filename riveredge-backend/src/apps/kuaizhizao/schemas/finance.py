@@ -27,27 +27,27 @@ class PayableBase(BaseSchema):
     paid_amount: float = Field(0, ge=0, description="已付金额")
     remaining_amount: float = Field(..., ge=0, description="剩余金额")
     due_date: date = Field(..., description="到期日期")
-    payment_terms: Optional[str] = Field(None, max_length=100, description="付款条件")
+    payment_terms: str | None = Field(None, max_length=100, description="付款条件")
     status: str = Field("未付款", max_length=20, description="付款状态")
     business_date: date = Field(..., description="业务日期")
     invoice_received: bool = Field(False, description="是否收到发票")
-    invoice_number: Optional[str] = Field(None, max_length=100, description="发票号")
-    reviewer_id: Optional[int] = Field(None, description="审核人ID")
-    reviewer_name: Optional[str] = Field(None, max_length=100, description="审核人姓名")
-    review_time: Optional[datetime] = Field(None, description="审核时间")
+    invoice_number: str | None = Field(None, max_length=100, description="发票号")
+    reviewer_id: int | None = Field(None, description="审核人ID")
+    reviewer_name: str | None = Field(None, max_length=100, description="审核人姓名")
+    review_time: datetime | None = Field(None, description="审核时间")
     review_status: str = Field("待审核", max_length=20, description="审核状态")
-    review_remarks: Optional[str] = Field(None, description="审核备注")
-    notes: Optional[str] = Field(None, description="备注")
+    review_remarks: str | None = Field(None, description="审核备注")
+    notes: str | None = Field(None, description="备注")
 
 
 class PayableCreate(PayableBase):
     """应付单创建schema"""
-    payable_code: Optional[str] = Field(None, max_length=50, description="应付单编码（可选，如果不提供则自动生成）")
+    payable_code: str | None = Field(None, max_length=50, description="应付单编码（可选，如果不提供则自动生成）")
 
 
 class PayableUpdate(PayableBase):
     """应付单更新schema"""
-    payable_code: Optional[str] = Field(None, max_length=50, description="应付单编码")
+    payable_code: str | None = Field(None, max_length=50, description="应付单编码")
 
 
 class PayableResponse(PayableBase):
@@ -83,15 +83,15 @@ class PurchaseInvoiceBase(BaseSchema):
     tax_amount: float = Field(..., ge=0, description="税额")
     total_amount: float = Field(..., ge=0, description="价税合计")
     status: str = Field("未审核", max_length=20, description="发票状态")
-    reviewer_id: Optional[int] = Field(None, description="审核人ID")
-    reviewer_name: Optional[str] = Field(None, max_length=100, description="审核人姓名")
-    review_time: Optional[datetime] = Field(None, description="审核时间")
+    reviewer_id: int | None = Field(None, description="审核人ID")
+    reviewer_name: str | None = Field(None, max_length=100, description="审核人姓名")
+    review_time: datetime | None = Field(None, description="审核时间")
     review_status: str = Field("待审核", max_length=20, description="审核状态")
-    review_remarks: Optional[str] = Field(None, description="审核备注")
-    payable_id: Optional[int] = Field(None, description="应付单ID")
-    payable_code: Optional[str] = Field(None, max_length=50, description="应付单编码")
-    attachment_path: Optional[str] = Field(None, max_length=500, description="附件路径")
-    notes: Optional[str] = Field(None, description="备注")
+    review_remarks: str | None = Field(None, description="审核备注")
+    payable_id: int | None = Field(None, description="应付单ID")
+    payable_code: str | None = Field(None, max_length=50, description="应付单编码")
+    attachment_path: str | None = Field(None, max_length=500, description="附件路径")
+    notes: str | None = Field(None, description="备注")
 
 
 class PurchaseInvoiceCreate(PurchaseInvoiceBase):
@@ -101,7 +101,7 @@ class PurchaseInvoiceCreate(PurchaseInvoiceBase):
 
 class PurchaseInvoiceUpdate(PurchaseInvoiceBase):
     """采购发票更新schema"""
-    invoice_code: Optional[str] = Field(None, max_length=50, description="发票编码")
+    invoice_code: str | None = Field(None, max_length=50, description="发票编码")
 
 
 class PurchaseInvoiceResponse(PurchaseInvoiceBase):
@@ -134,27 +134,27 @@ class ReceivableBase(BaseSchema):
     received_amount: float = Field(0, ge=0, description="已收金额")
     remaining_amount: float = Field(..., ge=0, description="剩余金额")
     due_date: date = Field(..., description="到期日期")
-    payment_terms: Optional[str] = Field(None, max_length=100, description="收款条件")
+    payment_terms: str | None = Field(None, max_length=100, description="收款条件")
     status: str = Field("未收款", max_length=20, description="收款状态")
     business_date: date = Field(..., description="业务日期")
     invoice_issued: bool = Field(False, description="是否开具发票")
-    invoice_number: Optional[str] = Field(None, max_length=100, description="发票号")
-    reviewer_id: Optional[int] = Field(None, description="审核人ID")
-    reviewer_name: Optional[str] = Field(None, max_length=100, description="审核人姓名")
-    review_time: Optional[datetime] = Field(None, description="审核时间")
+    invoice_number: str | None = Field(None, max_length=100, description="发票号")
+    reviewer_id: int | None = Field(None, description="审核人ID")
+    reviewer_name: str | None = Field(None, max_length=100, description="审核人姓名")
+    review_time: datetime | None = Field(None, description="审核时间")
     review_status: str = Field("待审核", max_length=20, description="审核状态")
-    review_remarks: Optional[str] = Field(None, description="审核备注")
-    notes: Optional[str] = Field(None, description="备注")
+    review_remarks: str | None = Field(None, description="审核备注")
+    notes: str | None = Field(None, description="备注")
 
 
 class ReceivableCreate(ReceivableBase):
     """应收单创建schema"""
-    receivable_code: Optional[str] = Field(None, max_length=50, description="应收单编码（可选，如果不提供则自动生成）")
+    receivable_code: str | None = Field(None, max_length=50, description="应收单编码（可选，如果不提供则自动生成）")
 
 
 class ReceivableUpdate(ReceivableBase):
     """应收单更新schema"""
-    receivable_code: Optional[str] = Field(None, max_length=50, description="应收单编码")
+    receivable_code: str | None = Field(None, max_length=50, description="应收单编码")
 
 
 class ReceivableResponse(ReceivableBase):
@@ -181,8 +181,8 @@ class PaymentRecordBase(BaseSchema):
     payment_amount: float = Field(..., gt=0, description="付款金额")
     payment_date: date = Field(..., description="付款日期")
     payment_method: str = Field(..., max_length=50, description="付款方式")
-    reference_number: Optional[str] = Field(None, max_length=100, description="参考号")
-    notes: Optional[str] = Field(None, description="备注")
+    reference_number: str | None = Field(None, max_length=100, description="参考号")
+    notes: str | None = Field(None, description="备注")
 
 
 class PaymentRecordCreate(PaymentRecordBase):
@@ -206,8 +206,8 @@ class ReceiptRecordBase(BaseSchema):
     receipt_amount: float = Field(..., gt=0, description="收款金额")
     receipt_date: date = Field(..., description="收款日期")
     receipt_method: str = Field(..., max_length=50, description="收款方式")
-    reference_number: Optional[str] = Field(None, max_length=100, description="参考号")
-    notes: Optional[str] = Field(None, description="备注")
+    reference_number: str | None = Field(None, max_length=100, description="参考号")
+    notes: str | None = Field(None, description="备注")
 
 
 class ReceiptRecordCreate(ReceiptRecordBase):

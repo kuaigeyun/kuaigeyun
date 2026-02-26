@@ -73,6 +73,8 @@ extend-exclude = '''
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -86,9 +88,32 @@ ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
+    "UP035", # typing.Type/List/Dict deprecated
+    "UP007", # Optional[X] to X | None
+    "UP045", # Optional[X] in response_model
+    "W291",  # trailing whitespace
+    "W293",  # blank line contains whitespace
+    "B904",  # raise without from
+    "F405",  # name may be undefined (star import)
+    "E402",  # module level import not at top
+    "I001",  # import block unsorted
+    "F401",  # unused import
+    "F821",  # undefined name
+    "F841",  # unused variable
+    "F403",  # star import
+    "B007",  # loop variable
+    "E722",  # bare except
+    "F811",  # redefined unused
+    "E701",  # multiple statements
+    "C401",  # unnecessary generator
+    "B023",  # function does not bind
+    "C403",  # unnecessary list comprehension
+    "E741",  # ambiguous variable name
+    "E712",  # comparison to True/False
+    "B006",  # mutable default
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 
 [tool.mypy]

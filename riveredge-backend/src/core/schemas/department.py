@@ -17,8 +17,8 @@ class DepartmentBase(BaseModel):
     包含部门的基本字段，用于创建和更新操作。
     """
     name: str = Field(..., min_length=1, max_length=100, description="部门名称")
-    code: Optional[str] = Field(None, max_length=50, description="部门代码（可选，用于程序识别）")
-    description: Optional[str] = Field(None, description="部门描述")
+    code: str | None = Field(None, max_length=50, description="部门代码（可选，用于程序识别）")
+    description: str | None = Field(None, description="部门描述")
     sort_order: int = Field(default=0, description="排序顺序（同级部门排序）")
     is_active: bool = Field(default=True, description="是否启用")
 
@@ -38,8 +38,8 @@ class DepartmentCreate(DepartmentBase):
         sort_order: 排序顺序（默认 0）
         is_active: 是否启用（默认 True）
     """
-    parent_uuid: Optional[str] = Field(None, description="父部门UUID（可选，NULL 表示根部门）")
-    manager_uuid: Optional[str] = Field(None, description="部门负责人UUID（可选）")
+    parent_uuid: str | None = Field(None, description="父部门UUID（可选，NULL 表示根部门）")
+    manager_uuid: str | None = Field(None, description="部门负责人UUID（可选）")
 
 
 class DepartmentUpdate(BaseModel):
@@ -57,13 +57,13 @@ class DepartmentUpdate(BaseModel):
         sort_order: 排序顺序（可选）
         is_active: 是否启用（可选）
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="部门名称")
-    code: Optional[str] = Field(None, max_length=50, description="部门代码（可选，用于程序识别）")
-    description: Optional[str] = Field(None, description="部门描述")
-    parent_uuid: Optional[str] = Field(None, description="父部门UUID（可选，使用UUID而不是ID）")
-    manager_uuid: Optional[str] = Field(None, description="部门负责人UUID（可选）")
-    sort_order: Optional[int] = Field(None, description="排序顺序（同级部门排序）")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    name: str | None = Field(None, min_length=1, max_length=100, description="部门名称")
+    code: str | None = Field(None, max_length=50, description="部门代码（可选，用于程序识别）")
+    description: str | None = Field(None, description="部门描述")
+    parent_uuid: str | None = Field(None, description="父部门UUID（可选，使用UUID而不是ID）")
+    manager_uuid: str | None = Field(None, description="部门负责人UUID（可选）")
+    sort_order: int | None = Field(None, description="排序顺序（同级部门排序）")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class DepartmentInfo(BaseModel):
@@ -77,10 +77,10 @@ class DepartmentInfo(BaseModel):
     """
     uuid: str = Field(..., description="部门UUID（对外暴露，业务标识）")
     name: str = Field(..., description="部门名称")
-    code: Optional[str] = Field(None, description="部门代码")
-    description: Optional[str] = Field(None, description="部门描述")
-    parent_uuid: Optional[str] = Field(None, description="父部门UUID（用于树形结构）")
-    manager_uuid: Optional[str] = Field(None, description="部门负责人UUID（用于显示）")
+    code: str | None = Field(None, description="部门代码")
+    description: str | None = Field(None, description="部门描述")
+    parent_uuid: str | None = Field(None, description="父部门UUID（用于树形结构）")
+    manager_uuid: str | None = Field(None, description="部门负责人UUID（用于显示）")
     sort_order: int = Field(..., description="排序顺序")
     is_active: bool = Field(..., description="是否启用")
     children_count: int = Field(..., description="子部门数量")
@@ -113,7 +113,7 @@ class DepartmentTreeItem(DepartmentInfo):
     
     用于树形结构响应，包含子部门列表。
     """
-    children: List["DepartmentTreeItem"] = Field(default_factory=list, description="子部门列表")
+    children: list["DepartmentTreeItem"] = Field(default_factory=list, description="子部门列表")
 
 
 class DepartmentTreeResponse(BaseModel):
@@ -122,7 +122,7 @@ class DepartmentTreeResponse(BaseModel):
     
     用于返回部门树形结构。
     """
-    items: List[DepartmentTreeItem] = Field(..., description="部门树形列表")
+    items: list[DepartmentTreeItem] = Field(..., description="部门树形列表")
 
 
 # 解决前向引用
@@ -135,5 +135,5 @@ class DepartmentImportRequest(BaseModel):
     
     接收前端 uni_import 组件传递的二维数组数据。
     """
-    data: List[List[Any]] = Field(..., description="二维数组数据（第一行为表头，第二行为示例数据，从第三行开始为实际数据）")
+    data: list[list[Any]] = Field(..., description="二维数组数据（第一行为表头，第二行为示例数据，从第三行开始为实际数据）")
 

@@ -39,7 +39,7 @@ class InspectionPlanService(AppBaseService[InspectionPlan]):
         self,
         tenant_id: int,
         plan_data: InspectionPlanCreate,
-        created_by: Optional[int] = None,
+        created_by: int | None = None,
     ) -> InspectionPlanResponse:
         """创建质检方案（含步骤）"""
         async with in_transaction():
@@ -114,13 +114,13 @@ class InspectionPlanService(AppBaseService[InspectionPlan]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        plan_type: Optional[str] = None,
-        material_id: Optional[int] = None,
-        is_active: Optional[bool] = None,
-        plan_code: Optional[str] = None,
-        plan_name: Optional[str] = None,
+        plan_type: str | None = None,
+        material_id: int | None = None,
+        is_active: bool | None = None,
+        plan_code: str | None = None,
+        plan_name: str | None = None,
         include_steps: bool = False,
-    ) -> List[InspectionPlanListResponse]:
+    ) -> list[InspectionPlanListResponse]:
         """获取质检方案列表"""
         query = InspectionPlan.filter(
             tenant_id=tenant_id,
@@ -156,7 +156,7 @@ class InspectionPlanService(AppBaseService[InspectionPlan]):
         tenant_id: int,
         plan_id: int,
         plan_data: InspectionPlanUpdate,
-        updated_by: Optional[int] = None,
+        updated_by: int | None = None,
     ) -> InspectionPlanResponse:
         """更新质检方案（含步骤替换）"""
         async with in_transaction():
@@ -210,8 +210,8 @@ class InspectionPlanService(AppBaseService[InspectionPlan]):
         self,
         tenant_id: int,
         material_id: int,
-        plan_type: Optional[str] = None,
-    ) -> List[InspectionPlanListResponse]:
+        plan_type: str | None = None,
+    ) -> list[InspectionPlanListResponse]:
         """根据物料ID获取适用的质检方案"""
         query = InspectionPlan.filter(
             tenant_id=tenant_id,

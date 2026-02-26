@@ -24,7 +24,7 @@ from typing import Dict, Any
 router = APIRouter(prefix="/packages", tags=["Infra Packages"])
 
 
-@router.get("/config", response_model=Dict[str, Any])
+@router.get("/config", response_model=dict[str, Any])
 async def get_all_package_configs_endpoint():
     """
     获取所有套餐配置（公开接口）
@@ -47,7 +47,7 @@ async def get_all_package_configs_endpoint():
         raise
 
 
-@router.get("/{plan}/config", response_model=Dict[str, Any])
+@router.get("/{plan}/config", response_model=dict[str, Any])
 async def get_package_config_by_plan(
     plan: TenantPlan,
 ):
@@ -80,12 +80,12 @@ async def list_packages(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     pageSize: int = Query(None, ge=1, le=100, description="每页数量（兼容前端）"),
-    plan: Optional[TenantPlan] = Query(None, description="套餐类型筛选"),
-    name: Optional[str] = Query(None, description="套餐名称搜索（模糊搜索）"),
-    is_active: Optional[bool] = Query(None, description="是否激活筛选"),
-    allow_pro_apps: Optional[bool] = Query(None, description="是否允许PRO应用筛选"),
-    sort: Optional[str] = Query(None, description="排序字段（如：name、plan、created_at、max_users）"),
-    order: Optional[str] = Query(None, description="排序顺序（asc 或 desc）"),
+    plan: TenantPlan | None = Query(None, description="套餐类型筛选"),
+    name: str | None = Query(None, description="套餐名称搜索（模糊搜索）"),
+    is_active: bool | None = Query(None, description="是否激活筛选"),
+    allow_pro_apps: bool | None = Query(None, description="是否允许PRO应用筛选"),
+    sort: str | None = Query(None, description="排序字段（如：name、plan、created_at、max_users）"),
+    order: str | None = Query(None, description="排序顺序（asc 或 desc）"),
     package_service: Any = Depends(get_package_service_with_fallback)  # ⚠️ 第三阶段改进：依赖注入
 ):
     """

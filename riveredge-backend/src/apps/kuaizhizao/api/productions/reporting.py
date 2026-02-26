@@ -69,20 +69,20 @@ async def create_reporting_record(
     )
 
 
-@router.get("/reporting", response_model=List[ReportingRecordListResponse], summary="获取报工记录列表")
+@router.get("/reporting", response_model=list[ReportingRecordListResponse], summary="获取报工记录列表")
 async def list_reporting_records(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    work_order_code: Optional[str] = Query(None, description="工单编码（模糊搜索）"),
-    work_order_name: Optional[str] = Query(None, description="工单名称（模糊搜索）"),
-    operation_name: Optional[str] = Query(None, description="工序名称（模糊搜索）"),
-    worker_name: Optional[str] = Query(None, description="操作工姓名（模糊搜索）"),
-    status: Optional[str] = Query(None, description="审核状态"),
-    reported_at_start: Optional[str] = Query(None, description="报工开始时间（ISO格式）"),
-    reported_at_end: Optional[str] = Query(None, description="报工结束时间（ISO格式）"),
+    work_order_code: str | None = Query(None, description="工单编码（模糊搜索）"),
+    work_order_name: str | None = Query(None, description="工单名称（模糊搜索）"),
+    operation_name: str | None = Query(None, description="工序名称（模糊搜索）"),
+    worker_name: str | None = Query(None, description="操作工姓名（模糊搜索）"),
+    status: str | None = Query(None, description="审核状态"),
+    reported_at_start: str | None = Query(None, description="报工开始时间（ISO格式）"),
+    reported_at_end: str | None = Query(None, description="报工结束时间（ISO格式）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[ReportingRecordListResponse]:
+) -> list[ReportingRecordListResponse]:
     """
     获取报工记录列表
 
@@ -119,8 +119,8 @@ async def list_reporting_records(
 
 @router.get("/reporting/statistics", summary="获取报工统计信息")
 async def get_reporting_statistics(
-    date_start: Optional[str] = Query(None, description="开始日期（ISO格式）"),
-    date_end: Optional[str] = Query(None, description="结束日期（ISO格式）"),
+    date_start: str | None = Query(None, description="开始日期（ISO格式）"),
+    date_end: str | None = Query(None, description="结束日期（ISO格式）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> JSONResponse:
@@ -176,7 +176,7 @@ async def get_reporting_record(
 @router.post("/reporting/{record_id}/approve", response_model=ReportingRecordResponse, summary="审核报工记录")
 async def approve_reporting_record(
     record_id: int,
-    rejection_reason: Optional[str] = Query(None, description="驳回原因"),
+    rejection_reason: str | None = Query(None, description="驳回原因"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> ReportingRecordResponse:
@@ -315,12 +315,12 @@ async def create_discharging_binding_from_reporting(
     )
 
 
-@router.get("/reporting/{record_id}/material-binding", response_model=List[MaterialBindingListResponse], summary="获取报工记录的物料绑定记录")
+@router.get("/reporting/{record_id}/material-binding", response_model=list[MaterialBindingListResponse], summary="获取报工记录的物料绑定记录")
 async def get_material_bindings_by_reporting_record(
     record_id: int,
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[MaterialBindingListResponse]:
+) -> list[MaterialBindingListResponse]:
     """
     获取报工记录的物料绑定记录列表
 
@@ -360,7 +360,7 @@ async def delete_material_binding(
 async def approve_scrap_record(
     scrap_id: int = Path(..., description="报废记录ID"),
     approved: bool = Query(..., description="是否同意（true=同意，false=不同意）"),
-    rejection_reason: Optional[str] = Query(None, description="驳回原因（当approved=false时必填）"),
+    rejection_reason: str | None = Query(None, description="驳回原因（当approved=false时必填）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> ScrapRecordResponse:
@@ -385,19 +385,19 @@ async def approve_scrap_record(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/scrap", response_model=List[ScrapRecordListResponse], summary="查询报废记录列表")
+@router.get("/scrap", response_model=list[ScrapRecordListResponse], summary="查询报废记录列表")
 async def list_scrap_records(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    work_order_id: Optional[int] = Query(None, description="工单ID"),
-    operation_id: Optional[int] = Query(None, description="工序ID"),
-    status: Optional[str] = Query(None, description="状态（draft/confirmed/cancelled）"),
-    scrap_type: Optional[str] = Query(None, description="报废类型"),
-    date_start: Optional[str] = Query(None, description="开始日期（ISO格式）"),
-    date_end: Optional[str] = Query(None, description="结束日期（ISO格式）"),
+    work_order_id: int | None = Query(None, description="工单ID"),
+    operation_id: int | None = Query(None, description="工序ID"),
+    status: str | None = Query(None, description="状态（draft/confirmed/cancelled）"),
+    scrap_type: str | None = Query(None, description="报废类型"),
+    date_start: str | None = Query(None, description="开始日期（ISO格式）"),
+    date_end: str | None = Query(None, description="结束日期（ISO格式）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[ScrapRecordListResponse]:
+) -> list[ScrapRecordListResponse]:
     """
     查询报废记录列表
 
@@ -432,12 +432,12 @@ async def list_scrap_records(
 
 @router.get("/scrap/statistics", summary="获取报废统计分析")
 async def get_scrap_statistics(
-    date_start: Optional[str] = Query(None, description="开始日期（ISO格式）"),
-    date_end: Optional[str] = Query(None, description="结束日期（ISO格式）"),
-    work_order_id: Optional[int] = Query(None, description="工单ID"),
-    operation_id: Optional[int] = Query(None, description="工序ID"),
-    product_id: Optional[int] = Query(None, description="产品ID"),
-    scrap_type: Optional[str] = Query(None, description="报废类型"),
+    date_start: str | None = Query(None, description="开始日期（ISO格式）"),
+    date_end: str | None = Query(None, description="结束日期（ISO格式）"),
+    work_order_id: int | None = Query(None, description="工单ID"),
+    operation_id: int | None = Query(None, description="工序ID"),
+    product_id: int | None = Query(None, description="产品ID"),
+    scrap_type: str | None = Query(None, description="报废类型"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> JSONResponse:
@@ -501,7 +501,7 @@ async def create_defect_record_from_reporting(
 async def approve_defect_acceptance(
     defect_id: int = Path(..., description="不良品记录ID"),
     approved: bool = Query(..., description="是否同意（true=同意，false=不同意）"),
-    rejection_reason: Optional[str] = Query(None, description="驳回原因（当approved=false时必填）"),
+    rejection_reason: str | None = Query(None, description="驳回原因（当approved=false时必填）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> DefectRecordResponse:
@@ -526,20 +526,20 @@ async def approve_defect_acceptance(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/defect", response_model=List[DefectRecordListResponse], summary="查询不良品记录列表")
+@router.get("/defect", response_model=list[DefectRecordListResponse], summary="查询不良品记录列表")
 async def list_defect_records(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    work_order_id: Optional[int] = Query(None, description="工单ID"),
-    operation_id: Optional[int] = Query(None, description="工序ID"),
-    status: Optional[str] = Query(None, description="状态（draft/processed/cancelled）"),
-    defect_type: Optional[str] = Query(None, description="不良品类型"),
-    disposition: Optional[str] = Query(None, description="处理方式"),
-    date_start: Optional[str] = Query(None, description="开始日期（ISO格式）"),
-    date_end: Optional[str] = Query(None, description="结束日期（ISO格式）"),
+    work_order_id: int | None = Query(None, description="工单ID"),
+    operation_id: int | None = Query(None, description="工序ID"),
+    status: str | None = Query(None, description="状态（draft/processed/cancelled）"),
+    defect_type: str | None = Query(None, description="不良品类型"),
+    disposition: str | None = Query(None, description="处理方式"),
+    date_start: str | None = Query(None, description="开始日期（ISO格式）"),
+    date_end: str | None = Query(None, description="结束日期（ISO格式）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[DefectRecordListResponse]:
+) -> list[DefectRecordListResponse]:
     """
     查询不良品记录列表
 
@@ -576,13 +576,13 @@ async def list_defect_records(
 
 @router.get("/defect/statistics", summary="获取不良品统计分析")
 async def get_defect_statistics(
-    date_start: Optional[str] = Query(None, description="开始日期（ISO格式）"),
-    date_end: Optional[str] = Query(None, description="结束日期（ISO格式）"),
-    work_order_id: Optional[int] = Query(None, description="工单ID"),
-    operation_id: Optional[int] = Query(None, description="工序ID"),
-    product_id: Optional[int] = Query(None, description="产品ID"),
-    defect_type: Optional[str] = Query(None, description="不良品类型"),
-    disposition: Optional[str] = Query(None, description="处理方式"),
+    date_start: str | None = Query(None, description="开始日期（ISO格式）"),
+    date_end: str | None = Query(None, description="结束日期（ISO格式）"),
+    work_order_id: int | None = Query(None, description="工单ID"),
+    operation_id: int | None = Query(None, description="工序ID"),
+    product_id: int | None = Query(None, description="产品ID"),
+    defect_type: str | None = Query(None, description="不良品类型"),
+    disposition: str | None = Query(None, description="处理方式"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> JSONResponse:

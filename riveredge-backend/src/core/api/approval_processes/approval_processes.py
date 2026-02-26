@@ -55,11 +55,11 @@ async def create_approval_process(
         )
 
 
-@router.get("", response_model=List[ApprovalProcessResponse])
+@router.get("", response_model=list[ApprovalProcessResponse])
 async def list_approval_processes(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

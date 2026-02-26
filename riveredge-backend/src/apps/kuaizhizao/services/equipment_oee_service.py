@@ -43,9 +43,9 @@ class EquipmentOEEService:
         self,
         tenant_id: int,
         equipment_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+    ) -> dict[str, Any]:
         """
         计算设备OEE
 
@@ -161,12 +161,12 @@ class EquipmentOEEService:
     async def list_equipment_oee(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        equipment_ids: Optional[List[int]] = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        equipment_ids: list[int] | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取设备OEE统计列表
 
@@ -249,10 +249,10 @@ class EquipmentOEEService:
         self,
         tenant_id: int,
         equipment_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
         period: str = "day",  # day/week/month
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取设备OEE趋势数据
 

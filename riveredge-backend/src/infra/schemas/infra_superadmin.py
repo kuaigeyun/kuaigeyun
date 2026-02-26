@@ -24,8 +24,8 @@ class InfraSuperAdminBase(BaseModel):
     """
     
     username: str = Field(..., min_length=3, max_length=50, description="用户名（3-50 字符，平台唯一）")
-    email: Optional[str] = Field(None, description="用户邮箱（可选）")
-    full_name: Optional[str] = Field(None, max_length=100, description="用户全名（可选）")
+    email: str | None = Field(None, description="用户邮箱（可选）")
+    full_name: str | None = Field(None, max_length=100, description="用户全名（可选）")
     is_active: bool = Field(default=True, description="是否激活")
 
 
@@ -45,9 +45,9 @@ class InfraSuperAdminCreate(BaseModel):
     """
     
     username: str = Field(..., min_length=3, max_length=50, description="用户名（3-50 字符，平台唯一）")
-    email: Optional[str] = Field(None, description="用户邮箱（可选）")
+    email: str | None = Field(None, description="用户邮箱（可选）")
     password: str = Field(..., min_length=8, description="密码（至少8个字符）")
-    full_name: Optional[str] = Field(None, max_length=100, description="用户全名（可选）")
+    full_name: str | None = Field(None, max_length=100, description="用户全名（可选）")
     is_active: bool = Field(default=True, description="是否激活")
 
 
@@ -65,10 +65,10 @@ class InfraSuperAdminUpdate(BaseModel):
         password: 密码（可选，如果提供则更新密码）
     """
     
-    email: Optional[str] = Field(None, description="用户邮箱（可选）")
-    full_name: Optional[str] = Field(None, max_length=100, description="用户全名（可选）")
-    is_active: Optional[bool] = Field(None, description="是否激活")
-    password: Optional[str] = Field(None, min_length=8, description="密码（可选，至少8个字符）")
+    email: str | None = Field(None, description="用户邮箱（可选）")
+    full_name: str | None = Field(None, max_length=100, description="用户全名（可选）")
+    is_active: bool | None = Field(None, description="是否激活")
+    password: str | None = Field(None, min_length=8, description="密码（可选，至少8个字符）")
 
 
 class InfraSuperAdminResponse(InfraSuperAdminBase):
@@ -91,7 +91,7 @@ class InfraSuperAdminResponse(InfraSuperAdminBase):
     
     id: int = Field(..., description="平台超级管理员 ID（内部使用）")
     uuid: str = Field(..., description="平台超级管理员 UUID（对外暴露，业务标识）")
-    last_login: Optional[datetime] = Field(None, description="最后登录时间（可选）")
+    last_login: datetime | None = Field(None, description="最后登录时间（可选）")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     
@@ -131,7 +131,7 @@ class InfraSuperAdminLoginResponse(BaseModel):
     token_type: str = Field(default="bearer", description="Token 类型")
     expires_in: int = Field(..., description="Token 过期时间（秒）")
     user: InfraSuperAdminResponse = Field(..., description="平台超级管理员信息")
-    default_tenant_id: Optional[int] = Field(None, description="默认租户 ID（可选，用于设置默认组织上下文）")
+    default_tenant_id: int | None = Field(None, description="默认租户 ID（可选，用于设置默认组织上下文）")
 
 
 # 全局邮箱验证器

@@ -25,11 +25,11 @@ class PermissionService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        keyword: Optional[str] = None,
-        name: Optional[str] = None,
-        code: Optional[str] = None,
-        resource: Optional[str] = None,
-        permission_type: Optional[str] = None,
+        keyword: str | None = None,
+        name: str | None = None,
+        code: str | None = None,
+        resource: str | None = None,
+        permission_type: str | None = None,
     ) -> dict:
         """
         获取权限列表

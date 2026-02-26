@@ -27,7 +27,7 @@ class AuditLogServiceImpl(AuditLogServiceInterface):
         self._login_log_service = LoginLogService()
         self._operation_log_service = OperationLogService()
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """服务健康检查"""
         return {
             "service": self.service_name,
@@ -41,13 +41,13 @@ class AuditLogServiceImpl(AuditLogServiceInterface):
         tenant_id: int,
         user_id: int,
         username: str,
-        login_ip: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        login_location: Optional[str] = None,
-        login_device: Optional[str] = None,
-        login_browser: Optional[str] = None,
+        login_ip: str | None = None,
+        user_agent: str | None = None,
+        login_location: str | None = None,
+        login_device: str | None = None,
+        login_browser: str | None = None,
         success: bool = True,
-        failure_reason: Optional[str] = None,
+        failure_reason: str | None = None,
     ) -> None:
         """
         记录登录事件
@@ -87,9 +87,9 @@ class AuditLogServiceImpl(AuditLogServiceInterface):
         user_id: int,
         operation: str,
         resource: str,
-        resource_id: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
-        ip_address: Optional[str] = None,
+        resource_id: str | None = None,
+        details: dict[str, Any] | None = None,
+        ip_address: str | None = None,
     ) -> None:
         """
         记录操作事件

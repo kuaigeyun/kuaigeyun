@@ -32,7 +32,7 @@ class LaunchCountdownService(AppBaseService[LaunchCountdown]):
         self,
         tenant_id: int,
         launch_date: datetime,
-        snapshot_time: Optional[datetime] = None,
+        snapshot_time: datetime | None = None,
         created_by: int = 1
     ) -> LaunchCountdown:
         """
@@ -83,7 +83,7 @@ class LaunchCountdownService(AppBaseService[LaunchCountdown]):
                 )
                 return countdown
     
-    async def get_countdown(self, tenant_id: int) -> Optional[LaunchCountdown]:
+    async def get_countdown(self, tenant_id: int) -> LaunchCountdown | None:
         """
         获取当前组织的上线倒计时
         

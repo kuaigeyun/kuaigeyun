@@ -41,7 +41,7 @@ class QuotationService:
     def _quotation_to_response(
         self,
         quotation: Quotation,
-        items: Optional[List[QuotationItem]] = None,
+        items: list[QuotationItem] | None = None,
     ) -> QuotationResponse:
         """将 Quotation 转为 QuotationResponse"""
         base = {
@@ -103,7 +103,7 @@ class QuotationService:
         return QuotationResponse(**base)
 
     async def _generate_quotation_code(
-        self, tenant_id: int, quotation_date: Optional[date]
+        self, tenant_id: int, quotation_date: date | None
     ) -> str:
         """生成报价单编码"""
         from core.config.code_rule_pages import CODE_RULE_PAGES
@@ -260,9 +260,9 @@ class QuotationService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        status: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        status: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> QuotationListResponse:
         """获取报价单列表"""
         query = Quotation.filter(tenant_id=tenant_id, deleted_at__isnull=True)

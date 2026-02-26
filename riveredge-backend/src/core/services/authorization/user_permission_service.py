@@ -34,7 +34,7 @@ class UserPermissionService:
         user_id: int,
         tenant_id: int,
         include_inactive_roles: bool = False
-    ) -> Set[str]:
+    ) -> set[str]:
         """
         获取用户的所有权限代码
         
@@ -134,7 +134,7 @@ class UserPermissionService:
     async def has_any_permission(
         user_id: int,
         tenant_id: int,
-        permission_codes: List[str],
+        permission_codes: list[str],
         include_inactive_roles: bool = False
     ) -> bool:
         """
@@ -169,7 +169,7 @@ class UserPermissionService:
     async def has_all_permissions(
         user_id: int,
         tenant_id: int,
-        permission_codes: List[str],
+        permission_codes: list[str],
         include_inactive_roles: bool = False
     ) -> bool:
         """
@@ -205,7 +205,7 @@ class UserPermissionService:
         user_id: int,
         tenant_id: int,
         include_inactive: bool = False
-    ) -> List[Role]:
+    ) -> list[Role]:
         """
         获取用户的所有角色
         
@@ -263,7 +263,7 @@ class UserPermissionService:
     async def require_any_permission(
         user_id: int,
         tenant_id: int,
-        permission_codes: List[str],
+        permission_codes: list[str],
         include_inactive_roles: bool = False
     ):
         """
@@ -292,7 +292,7 @@ class UserPermissionService:
     async def require_all_permissions(
         user_id: int,
         tenant_id: int,
-        permission_codes: List[str],
+        permission_codes: list[str],
         include_inactive_roles: bool = False
     ):
         """

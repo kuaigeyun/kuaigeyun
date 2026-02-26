@@ -29,13 +29,13 @@ class PurchaseCostService:
     async def calculate_purchase_cost(
         self,
         tenant_id: int,
-        material_id: Optional[int] = None,
-        purchase_order_id: Optional[int] = None,
-        purchase_order_item_id: Optional[int] = None,
-        quantity: Optional[Decimal] = None,
-        calculation_date: Optional[date] = None,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        material_id: int | None = None,
+        purchase_order_id: int | None = None,
+        purchase_order_item_id: int | None = None,
+        quantity: Decimal | None = None,
+        calculation_date: date | None = None,
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         核算采购成本
         
@@ -90,8 +90,8 @@ class PurchaseCostService:
         material_id: int,
         quantity: Decimal,
         calculation_date: date,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         计算标准采购成本
         
@@ -163,7 +163,7 @@ class PurchaseCostService:
         tenant_id: int,
         purchase_order_item_id: int,
         calculation_date: date
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         计算实际采购成本（基于采购订单明细）
         
@@ -241,7 +241,7 @@ class PurchaseCostService:
         tenant_id: int,
         purchase_order_id: int,
         calculation_date: date
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         计算实际采购成本（基于采购订单，整单核算）
         
@@ -332,7 +332,7 @@ class PurchaseCostService:
         tenant_id: int,
         material: Material,
         quantity: Decimal
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算采购价格（标准成本）
         
@@ -379,7 +379,7 @@ class PurchaseCostService:
         material: Material,
         quantity: Decimal,
         purchase_price: Decimal
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算采购费用（标准成本）
         
@@ -451,9 +451,9 @@ class PurchaseCostService:
     async def _calculate_actual_purchase_fee(
         self,
         order: PurchaseOrder,
-        order_item: Optional[PurchaseOrderItem],
+        order_item: PurchaseOrderItem | None,
         purchase_price: Decimal
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算实际采购费用
         

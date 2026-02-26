@@ -20,7 +20,7 @@ class RiverEdgeException(Exception):
         message: str,
         code: str,
         status_code: int = 500,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ):
         """
         初始化异常
@@ -41,21 +41,21 @@ class RiverEdgeException(Exception):
 class ValidationError(RiverEdgeException):
     """数据验证错误"""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(message, "VALIDATION_ERROR", 422, details)
 
 
 class AuthenticationError(RiverEdgeException):
     """认证错误"""
 
-    def __init__(self, message: str = "认证失败", details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str = "认证失败", details: dict[str, Any] | None = None):
         super().__init__(message, "AUTHENTICATION_ERROR", 401, details)
 
 
 class AuthorizationError(RiverEdgeException):
     """授权错误"""
 
-    def __init__(self, message: str = "权限不足", details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str = "权限不足", details: dict[str, Any] | None = None):
         super().__init__(message, "AUTHORIZATION_ERROR", 403, details)
 
 
@@ -67,7 +67,7 @@ PermissionDeniedError = AuthorizationError
 class NotFoundError(RiverEdgeException):
     """资源不存在错误"""
 
-    def __init__(self, resource: str, resource_id: Optional[str] = None):
+    def __init__(self, resource: str, resource_id: str | None = None):
         message = f"{resource}不存在"
         if resource_id:
             message = f"{resource} '{resource_id}' 不存在"
@@ -78,42 +78,42 @@ class NotFoundError(RiverEdgeException):
 class ConflictError(RiverEdgeException):
     """资源冲突错误"""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(message, "CONFLICT", 409, details)
 
 
 class BusinessLogicError(RiverEdgeException):
     """业务逻辑错误"""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(message, "BUSINESS_LOGIC_ERROR", 400, details)
 
 
 class TenantError(RiverEdgeException):
     """组织相关错误"""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(message, "TENANT_ERROR", 400, details)
 
 
 class DatabaseError(RiverEdgeException):
     """数据库错误"""
 
-    def __init__(self, message: str = "数据库操作失败", details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str = "数据库操作失败", details: dict[str, Any] | None = None):
         super().__init__(message, "DATABASE_ERROR", 503, details)
 
 
 class CacheError(RiverEdgeException):
     """缓存错误"""
 
-    def __init__(self, message: str = "缓存操作失败", details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str = "缓存操作失败", details: dict[str, Any] | None = None):
         super().__init__(message, "CACHE_ERROR", 503, details)
 
 
 class ExternalServiceError(RiverEdgeException):
     """外部服务错误"""
 
-    def __init__(self, service: str, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, service: str, message: str, details: dict[str, Any] | None = None):
         details = details or {}
         details["service"] = service
         super().__init__(f"外部服务 {service} 错误: {message}", "EXTERNAL_SERVICE_ERROR", 502, details)
@@ -122,35 +122,35 @@ class ExternalServiceError(RiverEdgeException):
 class ConfigurationError(RiverEdgeException):
     """配置错误"""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(message, "CONFIGURATION_ERROR", 500, details)
 
 
 class RateLimitError(RiverEdgeException):
     """请求频率限制错误"""
 
-    def __init__(self, message: str = "请求过于频繁，请稍后再试", details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str = "请求过于频繁，请稍后再试", details: dict[str, Any] | None = None):
         super().__init__(message, "RATE_LIMIT_ERROR", 429, details)
 
 
 # 便捷的异常工厂函数
 
-def user_not_found(user_id: Optional[int] = None) -> NotFoundError:
+def user_not_found(user_id: int | None = None) -> NotFoundError:
     """用户不存在异常"""
     return NotFoundError("用户", str(user_id) if user_id else None)
 
 
-def tenant_not_found(tenant_id: Optional[int] = None) -> NotFoundError:
+def tenant_not_found(tenant_id: int | None = None) -> NotFoundError:
     """组织不存在异常"""
     return NotFoundError("组织", str(tenant_id) if tenant_id else None)
 
 
-def role_not_found(role_id: Optional[int] = None) -> NotFoundError:
+def role_not_found(role_id: int | None = None) -> NotFoundError:
     """角色不存在异常"""
     return NotFoundError("角色", str(role_id) if role_id else None)
 
 
-def permission_not_found(permission_id: Optional[int] = None) -> NotFoundError:
+def permission_not_found(permission_id: int | None = None) -> NotFoundError:
     """权限不存在异常"""
     return NotFoundError("权限", str(permission_id) if permission_id else None)
 
@@ -193,12 +193,12 @@ def tenant_context_missing() -> TenantError:
     return TenantError("组织上下文未设置，无法执行多组织操作")
 
 
-def database_connection_error(details: Optional[Dict[str, Any]] = None) -> DatabaseError:
+def database_connection_error(details: dict[str, Any] | None = None) -> DatabaseError:
     """数据库连接错误"""
     return DatabaseError("数据库连接失败", details)
 
 
-def redis_connection_error(details: Optional[Dict[str, Any]] = None) -> CacheError:
+def redis_connection_error(details: dict[str, Any] | None = None) -> CacheError:
     """Redis 连接错误"""
     return CacheError("Redis 连接失败", details)
 
@@ -207,9 +207,9 @@ def redis_connection_error(details: Optional[Dict[str, Any]] = None) -> CacheErr
 
 def create_error_response(
     exception: RiverEdgeException,
-    request_path: Optional[str] = None,
-    trace_id: Optional[str] = None
-) -> Dict[str, Any]:
+    request_path: str | None = None,
+    trace_id: str | None = None
+) -> dict[str, Any]:
     """
     创建统一的错误响应
 

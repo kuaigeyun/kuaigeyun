@@ -33,17 +33,17 @@ class InitWizardStepResponse(BaseModel):
 
 class InitStepsResponse(BaseModel):
     """初始化步骤列表响应"""
-    steps: List[InitWizardStepResponse] = Field(..., description="步骤列表")
-    current_step: Optional[str] = Field(None, description="当前步骤ID")
+    steps: list[InitWizardStepResponse] = Field(..., description="步骤列表")
+    current_step: str | None = Field(None, description="当前步骤ID")
     progress: float = Field(0.0, description="完成进度（0-100）")
 
 
 # 步骤1：组织信息完善
 class Step1OrganizationInfo(BaseModel):
     """步骤1：组织信息完善"""
-    organization_code: Optional[str] = Field(None, max_length=50, description="组织代码")
-    industry: Optional[str] = Field(None, max_length=100, description="行业")
-    scale: Optional[str] = Field(None, max_length=50, description="规模（small/medium/large）")
+    organization_code: str | None = Field(None, max_length=50, description="组织代码")
+    industry: str | None = Field(None, max_length=100, description="行业")
+    scale: str | None = Field(None, max_length=50, description="规模（small/medium/large）")
 
 
 # 步骤2：默认设置
@@ -58,36 +58,36 @@ class Step2DefaultSettings(BaseModel):
 class Step2_5CodeRules(BaseModel):
     """步骤2.5：编码规则配置"""
     use_default_rules: bool = Field(True, description="是否使用默认编码规则")
-    custom_rules: Optional[Dict[str, Any]] = Field(None, description="自定义编码规则（可选）")
+    custom_rules: dict[str, Any] | None = Field(None, description="自定义编码规则（可选）")
 
 
 # 步骤3：管理员信息
 class Step3AdminInfo(BaseModel):
     """步骤3：管理员信息"""
-    full_name: Optional[str] = Field(None, max_length=100, description="管理员全名")
-    email: Optional[str] = Field(None, description="管理员邮箱")
+    full_name: str | None = Field(None, max_length=100, description="管理员全名")
+    email: str | None = Field(None, description="管理员邮箱")
 
 
 # 步骤4：选择行业模板
 class Step4Template(BaseModel):
     """步骤4：选择行业模板"""
-    template_id: Optional[int] = Field(None, description="行业模板ID")
+    template_id: int | None = Field(None, description="行业模板ID")
 
 
 # 步骤数据汇总
 class InitWizardData(BaseModel):
     """初始化向导数据"""
-    step1_organization_info: Optional[Step1OrganizationInfo] = Field(None, description="步骤1数据")
-    step2_default_settings: Optional[Step2DefaultSettings] = Field(None, description="步骤2数据")
-    step2_5_code_rules: Optional[Step2_5CodeRules] = Field(None, description="步骤2.5数据")
-    step3_admin_info: Optional[Step3AdminInfo] = Field(None, description="步骤3数据")
-    step4_template: Optional[Step4Template] = Field(None, description="步骤4数据")
+    step1_organization_info: Step1OrganizationInfo | None = Field(None, description="步骤1数据")
+    step2_default_settings: Step2DefaultSettings | None = Field(None, description="步骤2数据")
+    step2_5_code_rules: Step2_5CodeRules | None = Field(None, description="步骤2.5数据")
+    step3_admin_info: Step3AdminInfo | None = Field(None, description="步骤3数据")
+    step4_template: Step4Template | None = Field(None, description="步骤4数据")
 
 
 class StepCompleteRequest(BaseModel):
     """完成步骤请求"""
     step_id: str = Field(..., description="步骤ID")
-    data: Dict[str, Any] = Field(..., description="步骤数据")
+    data: dict[str, Any] = Field(..., description="步骤数据")
 
 
 class InitWizardCompleteRequest(BaseModel):

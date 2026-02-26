@@ -79,11 +79,11 @@ class PositionService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        keyword: Optional[str] = None,
-        name: Optional[str] = None,
-        code: Optional[str] = None,
-        department_uuid: Optional[str] = None,
-        is_active: Optional[bool] = None,
+        keyword: str | None = None,
+        name: str | None = None,
+        code: str | None = None,
+        department_uuid: str | None = None,
+        is_active: bool | None = None,
     ) -> dict:
         """
         获取职位列表

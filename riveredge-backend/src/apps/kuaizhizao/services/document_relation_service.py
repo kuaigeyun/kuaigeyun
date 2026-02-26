@@ -70,7 +70,7 @@ class DocumentRelationService:
         tenant_id: int,
         document_type: str,
         document_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取单据的关联关系（上游和下游单据）
 
@@ -204,7 +204,7 @@ class DocumentRelationService:
         document_type: str,
         document_id: int,
         direction: str = "both"  # "upstream", "downstream", "both"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         追溯单据关联链（完整追溯）
 
@@ -234,15 +234,15 @@ class DocumentRelationService:
 
     # ============ 上游单据查询方法 ============
 
-    async def _get_sales_forecast_upstream(self, tenant_id: int, forecast_id: int) -> List[Dict[str, Any]]:
+    async def _get_sales_forecast_upstream(self, tenant_id: int, forecast_id: int) -> list[dict[str, Any]]:
         """获取销售预测的上游单据（通常没有）"""
         return []
 
-    async def _get_sales_order_upstream(self, tenant_id: int, order_id: int) -> List[Dict[str, Any]]:
+    async def _get_sales_order_upstream(self, tenant_id: int, order_id: int) -> list[dict[str, Any]]:
         """获取销售订单的上游单据（通常没有）"""
         return []
 
-    async def _get_demand_computation_upstream(self, tenant_id: int, computation_id: int) -> List[Dict[str, Any]]:
+    async def _get_demand_computation_upstream(self, tenant_id: int, computation_id: int) -> list[dict[str, Any]]:
         """获取需求计算的上游单据（需求、销售预测/销售订单）"""
         computation = await DemandComputation.get_or_none(tenant_id=tenant_id, id=computation_id)
         if not computation:
@@ -292,7 +292,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         work_order_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取工单的上游单据（销售预测/销售订单、MRP/LRP运算）"""
         work_order = await WorkOrder.get_or_none(tenant_id=tenant_id, id=work_order_id)
         if not work_order:
@@ -369,7 +369,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         picking_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取生产领料的上游单据（工单）"""
         picking = await ProductionPicking.get_or_none(tenant_id=tenant_id, id=picking_id)
         if not picking:
@@ -392,7 +392,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         return_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取生产退料的上游单据（工单、生产领料）"""
         ret = await ProductionReturn.get_or_none(tenant_id=tenant_id, id=return_id)
         if not ret:
@@ -431,7 +431,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         receipt_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取成品入库的上游单据（工单、报工记录）"""
         receipt = await FinishedGoodsReceipt.get_or_none(tenant_id=tenant_id, id=receipt_id)
         if not receipt:
@@ -472,7 +472,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         order_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取采购单的上游单据（需求计算，统一替代 MRP/LRP）"""
         order = await PurchaseOrder.get_or_none(tenant_id=tenant_id, id=order_id)
         if not order or not order.source_type or not order.source_id:
@@ -523,7 +523,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         receipt_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取采购入库单的上游单据（采购单）"""
         receipt = await PurchaseReceipt.get_or_none(tenant_id=tenant_id, id=receipt_id)
         if not receipt:
@@ -586,7 +586,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         payable_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取应付单的上游单据（采购入库单）"""
         payable = await Payable.get_or_none(tenant_id=tenant_id, id=payable_id)
         if not payable:
@@ -625,7 +625,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         inspection_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取来料检验单的上游单据（采购入库单）"""
         inspection = await IncomingInspection.get_or_none(tenant_id=tenant_id, id=inspection_id)
         if not inspection:
@@ -664,7 +664,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         inspection_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取过程检验单的上游单据（工单、报工记录）"""
         inspection = await ProcessInspection.get_or_none(tenant_id=tenant_id, id=inspection_id)
         if not inspection:
@@ -711,7 +711,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         inspection_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取成品检验单的上游单据（工单、成品入库单）"""
         inspection = await FinishedGoodsInspection.get_or_none(tenant_id=tenant_id, id=inspection_id)
         if not inspection:
@@ -757,7 +757,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         delivery_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取销售出库单的上游单据（销售订单、工单、成品入库单）"""
         delivery = await SalesDelivery.get_or_none(tenant_id=tenant_id, id=delivery_id)
         if not delivery:
@@ -821,7 +821,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         delivery_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取销售出库单的下游单据（应收单、送货单）"""
         downstream = []
 
@@ -863,7 +863,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         receivable_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取应收单的上游单据（销售出库单）"""
         receivable = await Receivable.get_or_none(tenant_id=tenant_id, id=receivable_id)
         if not receivable:
@@ -905,7 +905,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         forecast_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取销售预测的下游单据（需求计算、工单、采购单、销售出库单）"""
         downstream = []
 
@@ -965,7 +965,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         demand_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取统一需求的下游单据（需求计算、工单、销售出库单）"""
         downstream = []
         
@@ -1061,7 +1061,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         order_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取销售订单的下游单据（需求计算、工单、销售出库单）"""
         downstream = []
 
@@ -1120,7 +1120,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         order_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取销售订单变更对下游的影响范围（排程管理增强）
         用于上游单据变更时，展示受影响的需求、需求计算、生产计划、工单及建议操作。
@@ -1239,7 +1239,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         demand_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取需求变更对下游的影响范围（排程管理增强）
 
@@ -1384,7 +1384,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         quotation_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取报价单的下游单据（转订单后的销售订单）"""
         downstream = []
         quotation = await Quotation.get_or_none(
@@ -1405,7 +1405,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         borrow_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取借料单的下游单据（还料单）"""
         downstream = []
         returns = await MaterialReturn.filter(
@@ -1426,7 +1426,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         notice_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取送货单的上游单据（销售出库单、销售订单）"""
         upstream = []
         notice = await DeliveryNotice.get_or_none(
@@ -1466,7 +1466,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         return_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取还料单的上游单据（借料单）"""
         upstream = []
         return_obj = await MaterialReturn.get_or_none(
@@ -1491,7 +1491,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         computation_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取需求计算的下游单据（工单、采购单）"""
         downstream = []
 
@@ -1540,7 +1540,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         work_order_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取工单的下游单据（生产领料、报工记录、成品入库、销售出库）"""
         downstream = []
 
@@ -1612,7 +1612,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         picking_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取生产领料的下游单据（报工记录、生产退料）"""
         picking = await ProductionPicking.get_or_none(tenant_id=tenant_id, id=picking_id)
         if not picking:
@@ -1656,7 +1656,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         receipt_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取成品入库的下游单据（销售出库单）"""
         receipt = await FinishedGoodsReceipt.get_or_none(tenant_id=tenant_id, id=receipt_id)
         if not receipt:
@@ -1686,7 +1686,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         order_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取采购单的下游单据（采购入库单）"""
         downstream = []
 
@@ -1711,7 +1711,7 @@ class DocumentRelationService:
         self,
         tenant_id: int,
         receipt_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取采购入库单的下游单据（应付单）"""
         downstream = []
 
@@ -1740,8 +1740,8 @@ class DocumentRelationService:
         tenant_id: int,
         document_type: str,
         document_id: int,
-        visited: Optional[set] = None
-    ) -> List[Dict[str, Any]]:
+        visited: set | None = None
+    ) -> list[dict[str, Any]]:
         """向上追溯关联链"""
         if visited is None:
             visited = set()
@@ -1774,8 +1774,8 @@ class DocumentRelationService:
         tenant_id: int,
         document_type: str,
         document_id: int,
-        visited: Optional[set] = None
-    ) -> List[Dict[str, Any]]:
+        visited: set | None = None
+    ) -> list[dict[str, Any]]:
         """向下追溯关联链"""
         if visited is None:
             visited = set()

@@ -37,7 +37,7 @@ class DataCompensationService:
         snapshot_time: datetime,
         launch_date: datetime,
         created_by: int = 1
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         计算动态数据补偿
         
@@ -95,7 +95,7 @@ class DataCompensationService:
         snapshot_time: datetime,
         launch_date: datetime,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         计算库存变化补偿
         
@@ -272,7 +272,7 @@ class DataCompensationService:
                         review_status="已审核",
                         total_quantity=float(out_qty),
                         total_amount=Decimal('0'),
-                        notes=f"动态数据补偿（出库补偿）",
+                        notes="动态数据补偿（出库补偿）",
                         created_by=created_by,
                         updated_by=created_by,
                     )
@@ -309,7 +309,7 @@ class DataCompensationService:
         snapshot_time: datetime,
         launch_date: datetime,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         计算在制品变化补偿
         
@@ -362,7 +362,7 @@ class DataCompensationService:
         snapshot_time: datetime,
         launch_date: datetime,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         计算应收应付变化补偿
         

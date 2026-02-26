@@ -33,7 +33,7 @@ class MaterialCodeService:
     async def generate_main_code(
         tenant_id: int,
         material_type: str = "RAW",
-        rule_id: Optional[int] = None
+        rule_id: int | None = None
     ) -> str:
         """
         生成主编码
@@ -90,14 +90,14 @@ class MaterialCodeService:
                     if not existing:
                         break
                 else:
-                    raise ValidationError(f"无法生成唯一的主编码，请检查规则配置")
+                    raise ValidationError("无法生成唯一的主编码，请检查规则配置")
             
             logger.info(f"为租户 {tenant_id} 生成主编码: {main_code} (类型: {material_type})")
             return main_code
             
         except NotFoundError:
             # 如果找不到规则配置，使用默认规则（向后兼容）
-            logger.warning(f"未找到主编码规则配置，使用默认规则生成编码")
+            logger.warning("未找到主编码规则配置，使用默认规则生成编码")
             return await MaterialCodeService._generate_main_code_fallback(
                 tenant_id=tenant_id,
                 material_type=material_type
@@ -154,11 +154,11 @@ class MaterialCodeService:
         material_id: int,
         code_type: str,
         code: str,
-        department: Optional[str] = None,
-        description: Optional[str] = None,
+        department: str | None = None,
+        description: str | None = None,
         is_primary: bool = False,
-        external_entity_type: Optional[str] = None,
-        external_entity_id: Optional[int] = None
+        external_entity_type: str | None = None,
+        external_entity_id: int | None = None
     ) -> MaterialCodeAlias:
         """
         创建编码别名（部门编码）
@@ -249,8 +249,8 @@ class MaterialCodeService:
     async def get_material_by_code(
         tenant_id: int,
         code: str,
-        code_type: Optional[str] = None
-    ) -> Optional[Material]:
+        code_type: str | None = None
+    ) -> Material | None:
         """
         通过编码查询物料（支持主编码和部门编码）
         
@@ -299,7 +299,7 @@ class MaterialCodeService:
     async def get_material_aliases(
         tenant_id: int,
         material_id: int
-    ) -> List[MaterialCodeAlias]:
+    ) -> list[MaterialCodeAlias]:
         """
         获取物料的所有编码别名
         
@@ -322,9 +322,9 @@ class MaterialCodeService:
     async def find_duplicate_materials(
         tenant_id: int,
         name: str,
-        specification: Optional[str] = None,
-        base_unit: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        specification: str | None = None,
+        base_unit: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         智能识别重复物料
         

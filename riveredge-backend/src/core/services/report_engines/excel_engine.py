@@ -22,7 +22,7 @@ class ExcelEngine:
     使用openpyxl生成Excel文件。
     """
 
-    def generate(self, config: Dict[str, Any], data: Dict[str, Any]) -> BytesIO:
+    def generate(self, config: dict[str, Any], data: dict[str, Any]) -> BytesIO:
         """
         生成Excel报表
 
@@ -55,8 +55,8 @@ class ExcelEngine:
     def _render_component(
         self,
         ws,
-        component: Dict[str, Any],
-        data: Dict[str, Any],
+        component: dict[str, Any],
+        data: dict[str, Any],
         font: Font,
     ):
         """
@@ -86,8 +86,8 @@ class ExcelEngine:
     def _render_table(
         self,
         ws,
-        component: Dict[str, Any],
-        data: Dict[str, Any],
+        component: dict[str, Any],
+        data: dict[str, Any],
         font: Font,
         start_x: int,
         start_y: int,
@@ -135,7 +135,7 @@ class ExcelEngine:
     def _render_text(
         self,
         ws,
-        component: Dict[str, Any],
+        component: dict[str, Any],
         font: Font,
         start_x: int,
         start_y: int,

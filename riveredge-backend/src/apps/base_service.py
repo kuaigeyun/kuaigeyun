@@ -32,7 +32,7 @@ class AppBaseService(BaseService[T]):
     - 统一的CRUD操作（带租户隔离）
     """
 
-    def __init__(self, model: Optional[Type[T]] = None):
+    def __init__(self, model: type[T] | None = None):
         """
         初始化服务
 
@@ -47,7 +47,7 @@ class AppBaseService(BaseService[T]):
         self,
         tenant_id: int,
         code_type: str,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         **kwargs
     ) -> str:
         """
@@ -78,7 +78,7 @@ class AppBaseService(BaseService[T]):
 
     # ==================== 用户信息获取 ====================
 
-    async def get_user_info(self, user_id: int) -> Dict[str, Any]:
+    async def get_user_info(self, user_id: int) -> dict[str, Any]:
         """
         获取用户信息
 
@@ -129,7 +129,7 @@ class AppBaseService(BaseService[T]):
         tenant_id: int,
         record_id: int,
         raise_if_not_found: bool = True
-    ) -> Optional[T]:
+    ) -> T | None:
         """
         根据ID获取记录（带租户隔离）
 
@@ -165,7 +165,7 @@ class AppBaseService(BaseService[T]):
         skip: int = 0,
         limit: int = 100,
         **filters
-    ) -> List[T]:
+    ) -> list[T]:
         """
         获取所有记录（带租户隔离和分页）
 
@@ -222,7 +222,7 @@ class AppBaseService(BaseService[T]):
         record_id: int,
         updated_by: int,
         **data
-    ) -> Optional[T]:
+    ) -> T | None:
         """
         更新记录（自动添加用户信息）
 
@@ -259,7 +259,7 @@ class AppBaseService(BaseService[T]):
         self,
         tenant_id: int,
         record_id: int,
-        validate_func: Optional[callable] = None,
+        validate_func: callable | None = None,
         soft_delete: bool = True
     ) -> bool:
         """

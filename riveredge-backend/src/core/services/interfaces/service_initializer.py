@@ -36,7 +36,7 @@ class ServiceInitializer:
     """
 
     # 需要注册的服务实现列表
-    _service_implementations: List[Type] = [
+    _service_implementations: list[type] = [
         UserActivityServiceImpl,
         AuditLogServiceImpl,
         ApplicationServiceImpl,
@@ -68,7 +68,7 @@ class ServiceInitializer:
 
     @staticmethod
     async def _register_service_implementation(
-        service_impl_class: Type,
+        service_impl_class: type,
     ) -> None:
         """
         注册单个服务实现

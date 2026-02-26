@@ -50,8 +50,8 @@ class OnlineUserService:
     async def update_user_activity(
         tenant_id: int,
         user_id: int,
-        login_ip: Optional[str] = None,
-        login_time: Optional[datetime] = None,
+        login_ip: str | None = None,
+        login_time: datetime | None = None,
     ) -> None:
         """
         更新用户活动时间
@@ -109,8 +109,8 @@ class OnlineUserService:
     
     @staticmethod
     async def list_online_users(
-        tenant_id: Optional[int] = None
-    ) -> List[OnlineUserResponse]:
+        tenant_id: int | None = None
+    ) -> list[OnlineUserResponse]:
         """
         获取在线用户列表
         
@@ -216,7 +216,7 @@ class OnlineUserService:
     async def get_online_user_by_user_id(
         tenant_id: int,
         user_id: int
-    ) -> Optional[OnlineUserResponse]:
+    ) -> OnlineUserResponse | None:
         """
         根据用户ID获取在线用户信息
         
@@ -298,7 +298,7 @@ class OnlineUserService:
     
     @staticmethod
     async def get_online_user_statistics(
-        tenant_id: Optional[int] = None
+        tenant_id: int | None = None
     ) -> OnlineUserStatisticsResponse:
         """
         获取在线用户统计
@@ -321,7 +321,7 @@ class OnlineUserService:
         )
         
         # 按组织统计
-        by_tenant: Dict[str, int] = {}
+        by_tenant: dict[str, int] = {}
         for user in online_users:
             tenant_id_key = str(user.tenant_id)
             by_tenant[tenant_id_key] = by_tenant.get(tenant_id_key, 0) + 1

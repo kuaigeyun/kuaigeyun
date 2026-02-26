@@ -54,16 +54,16 @@ def get_user_service_with_fallback() -> Any:
             tenant_id: int,
             page: int = 1,
             page_size: int = 20,
-            keyword: Optional[str] = None,
-            username: Optional[str] = None,
-            email: Optional[str] = None,
-            full_name: Optional[str] = None,
-            phone: Optional[str] = None,
-            department_uuid: Optional[str] = None,
-            position_uuid: Optional[str] = None,
-            is_active: Optional[bool] = None,
-            is_tenant_admin: Optional[bool] = None,
-            current_user_id: Optional[int] = None
+            keyword: str | None = None,
+            username: str | None = None,
+            email: str | None = None,
+            full_name: str | None = None,
+            phone: str | None = None,
+            department_uuid: str | None = None,
+            position_uuid: str | None = None,
+            is_active: bool | None = None,
+            is_tenant_admin: bool | None = None,
+            current_user_id: int | None = None
         ):
             return await UserService.get_user_list(
                 tenant_id=tenant_id,

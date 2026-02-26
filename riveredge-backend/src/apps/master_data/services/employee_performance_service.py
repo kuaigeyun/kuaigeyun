@@ -64,7 +64,7 @@ class EmployeePerformanceConfigService:
         return EmployeePerformanceConfigResponse.model_validate(config)
 
     @staticmethod
-    async def get_by_employee(tenant_id: int, employee_id: int) -> Optional[EmployeePerformanceConfigResponse]:
+    async def get_by_employee(tenant_id: int, employee_id: int) -> EmployeePerformanceConfigResponse | None:
         config = await EmployeePerformanceConfig.filter(
             tenant_id=tenant_id,
             employee_id=employee_id,
@@ -80,8 +80,8 @@ class EmployeePerformanceConfigService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        employee_id: Optional[int] = None,
-    ) -> List[EmployeePerformanceConfigResponse]:
+        employee_id: int | None = None,
+    ) -> list[EmployeePerformanceConfigResponse]:
         query = EmployeePerformanceConfig.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if employee_id is not None:
             query = query.filter(employee_id=employee_id)
@@ -138,9 +138,9 @@ class PieceRateService:
     async def get_rate_for_operation(
         tenant_id: int,
         operation_id: int,
-        material_id: Optional[int] = None,
-        as_of_date: Optional[date] = None,
-    ) -> Optional[Decimal]:
+        material_id: int | None = None,
+        as_of_date: date | None = None,
+    ) -> Decimal | None:
         """获取工序（及可选物料）的计件单价，优先工序+物料，其次仅工序"""
         dt = as_of_date or date.today()
         # 优先：工序+物料
@@ -179,8 +179,8 @@ class PieceRateService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        operation_id: Optional[int] = None,
-    ) -> List[PieceRateResponse]:
+        operation_id: int | None = None,
+    ) -> list[PieceRateResponse]:
         query = PieceRate.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if operation_id is not None:
             query = query.filter(operation_id=operation_id)
@@ -221,10 +221,10 @@ class HourlyRateService:
     async def get_rate_for_employee(
         tenant_id: int,
         employee_id: int,
-        department_id: Optional[int] = None,
-        position_id: Optional[int] = None,
-        as_of_date: Optional[date] = None,
-    ) -> Optional[Decimal]:
+        department_id: int | None = None,
+        position_id: int | None = None,
+        as_of_date: date | None = None,
+    ) -> Decimal | None:
         """获取员工的工时单价：优先员工配置，其次部门/职位"""
         from apps.master_data.services.employee_performance_service import EmployeePerformanceConfigService
         config = await EmployeePerformanceConfigService.get_by_employee(tenant_id, employee_id)
@@ -264,7 +264,7 @@ class HourlyRateService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[HourlyRateResponse]:
+    ) -> list[HourlyRateResponse]:
         rates = await HourlyRate.filter(tenant_id=tenant_id, deleted_at__isnull=True).offset(skip).limit(limit).all()
         return [HourlyRateResponse.model_validate(r) for r in rates]
 
@@ -313,7 +313,7 @@ class KPIDefinitionService:
         return KPIDefinitionResponse.model_validate(kpi)
 
     @staticmethod
-    async def list(tenant_id: int, skip: int = 0, limit: int = 100) -> List[KPIDefinitionResponse]:
+    async def list(tenant_id: int, skip: int = 0, limit: int = 100) -> list[KPIDefinitionResponse]:
         kpis = await KPIDefinition.filter(tenant_id=tenant_id, deleted_at__isnull=True, is_active=True).offset(skip).limit(limit).all()
         return [KPIDefinitionResponse.model_validate(k) for k in kpis]
 

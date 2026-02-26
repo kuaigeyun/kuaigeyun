@@ -15,8 +15,8 @@ class MessageConfigBase(BaseModel):
     name: str = Field(..., max_length=100, description="配置名称")
     code: str = Field(..., max_length=50, description="配置代码")
     type: str = Field(..., max_length=20, description="消息类型")
-    description: Optional[str] = Field(None, description="配置描述")
-    config: Dict[str, Any] = Field(..., description="配置信息")
+    description: str | None = Field(None, description="配置描述")
+    config: dict[str, Any] = Field(..., description="配置信息")
     is_active: bool = Field(True, description="是否启用")
     is_default: bool = Field(False, description="是否默认配置")
     
@@ -37,13 +37,13 @@ class MessageConfigCreate(MessageConfigBase):
 
 class MessageConfigUpdate(BaseModel):
     """更新消息配置 Schema"""
-    name: Optional[str] = Field(None, max_length=100, description="配置名称")
-    code: Optional[str] = Field(None, max_length=50, description="配置代码")
-    type: Optional[str] = Field(None, max_length=20, description="消息类型")
-    description: Optional[str] = Field(None, description="配置描述")
-    config: Optional[Dict[str, Any]] = Field(None, description="配置信息")
-    is_active: Optional[bool] = Field(None, description="是否启用")
-    is_default: Optional[bool] = Field(None, description="是否默认配置")
+    name: str | None = Field(None, max_length=100, description="配置名称")
+    code: str | None = Field(None, max_length=50, description="配置代码")
+    type: str | None = Field(None, max_length=20, description="消息类型")
+    description: str | None = Field(None, description="配置描述")
+    config: dict[str, Any] | None = Field(None, description="配置信息")
+    is_active: bool | None = Field(None, description="是否启用")
+    is_default: bool | None = Field(None, description="是否默认配置")
 
 
 class MessageConfigResponse(MessageConfigBase):
@@ -59,7 +59,7 @@ class MessageConfigResponse(MessageConfigBase):
 class MessageConfigTestRequest(BaseModel):
     """测试消息配置请求 Schema"""
     type: str = Field(..., max_length=20, description="消息类型")
-    config: Dict[str, Any] = Field(..., description="配置信息")
+    config: dict[str, Any] = Field(..., description="配置信息")
     target: str = Field(..., description="测试目标（如：接收邮箱、接收手机号）")
 
 
@@ -67,5 +67,5 @@ class MessageConfigTestResponse(BaseModel):
     """测试消息配置响应 Schema"""
     success: bool = Field(..., description="是否测试成功")
     message: str = Field(..., description="测试结果说明")
-    error_detail: Optional[str] = Field(None, description="错误详情（如果失败）")
+    error_detail: str | None = Field(None, description="错误详情（如果失败）")
 

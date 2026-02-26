@@ -31,7 +31,7 @@ class DemandSourceChainService:
         self,
         tenant_id: int,
         work_order_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取工单的需求来源链路
         
@@ -122,7 +122,7 @@ class DemandSourceChainService:
         self,
         tenant_id: int,
         purchase_order_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取采购单的需求来源链路
         
@@ -212,7 +212,7 @@ class DemandSourceChainService:
         self,
         tenant_id: int,
         requisition_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取采购申请的需求来源链路
         

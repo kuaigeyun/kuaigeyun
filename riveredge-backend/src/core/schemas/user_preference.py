@@ -12,12 +12,12 @@ from uuid import UUID
 
 class UserPreferenceBase(BaseModel):
     """用户偏好基础 Schema"""
-    preferences: Dict[str, Any] = Field(default_factory=dict, description="偏好设置（JSON格式）")
+    preferences: dict[str, Any] = Field(default_factory=dict, description="偏好设置（JSON格式）")
 
 
 class UserPreferenceUpdate(BaseModel):
     """更新用户偏好 Schema"""
-    preferences: Optional[Dict[str, Any]] = Field(None, description="偏好设置（JSON格式）")
+    preferences: dict[str, Any] | None = Field(None, description="偏好设置（JSON格式）")
 
 
 class UserPreferenceResponse(UserPreferenceBase):

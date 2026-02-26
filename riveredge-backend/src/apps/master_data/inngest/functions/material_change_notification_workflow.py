@@ -23,7 +23,7 @@ from infra.domain.tenant_context import get_current_tenant_id
     retries=2,
 )
 @with_tenant_isolation
-async def material_change_notification_workflow(event: Event, **kwargs) -> Dict[str, Any]:
+async def material_change_notification_workflow(event: Event, **kwargs) -> dict[str, Any]:
     """
     物料变更后，汇总受影响的下游单据并通知更新人。
 
@@ -43,8 +43,8 @@ async def material_change_notification_workflow(event: Event, **kwargs) -> Dict[
         return {"success": False, "error": "缺少必要参数：material_id"}
 
     try:
-        summary_parts: List[str] = []
-        actions: List[str] = []
+        summary_parts: list[str] = []
+        actions: list[str] = []
 
         # BOM：作为父件或子件
         from apps.master_data.models.material import BOM

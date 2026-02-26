@@ -11,7 +11,7 @@ Date: 2026-02-20
 from typing import Dict, Any, List, Optional
 
 # document_type -> (model, code_field) 用于解析 document_code，延迟导入避免循环依赖
-def _get_model_registry() -> Dict[str, tuple]:
+def _get_model_registry() -> dict[str, tuple]:
     from apps.kuaizhizao.models.demand import Demand
     from apps.kuaizhizao.models.sales_order import SalesOrder
     from apps.kuaizhizao.models.work_order import WorkOrder
@@ -36,7 +36,7 @@ class DocumentTrackingService:
         tenant_id: int,
         document_type: str,
         document_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取单据的操作记录时间线及关联关系
 
@@ -50,8 +50,8 @@ class DocumentTrackingService:
         """
         document_code, doc_meta = await self._resolve_document_meta(tenant_id, document_type, document_id)
 
-        timeline: List[Dict[str, Any]] = []
-        relations: Dict[str, List[Dict]] = {"upstream": [], "downstream": []}
+        timeline: list[dict[str, Any]] = []
+        relations: dict[str, list[dict]] = {"upstream": [], "downstream": []}
 
         # 0. 创建记录（从单据 created_at 生成）
         if doc_meta and doc_meta.get("created_at"):

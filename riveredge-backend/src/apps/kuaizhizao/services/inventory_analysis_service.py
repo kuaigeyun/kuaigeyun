@@ -25,10 +25,10 @@ class InventoryAnalysisService:
     async def get_inventory_analysis(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        warehouse_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        warehouse_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取库存分析数据
 
@@ -73,10 +73,10 @@ class InventoryAnalysisService:
     async def _calculate_turnover_rate(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        warehouse_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        warehouse_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         计算库存周转率
 
@@ -118,8 +118,8 @@ class InventoryAnalysisService:
     async def _calculate_abc_analysis(
         self,
         tenant_id: int,
-        warehouse_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        warehouse_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         计算ABC分析
 
@@ -172,9 +172,9 @@ class InventoryAnalysisService:
     async def _calculate_slow_moving_analysis(
         self,
         tenant_id: int,
-        warehouse_id: Optional[int] = None,
+        warehouse_id: int | None = None,
         days_threshold: int = 90,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         计算呆滞料分析
 
@@ -219,10 +219,10 @@ class InventoryAnalysisService:
     async def get_inventory_cost_analysis(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-        warehouse_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        warehouse_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取库存成本分析
 

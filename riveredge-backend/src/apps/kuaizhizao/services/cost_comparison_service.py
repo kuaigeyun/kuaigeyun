@@ -37,15 +37,15 @@ class CostComparisonService:
     async def compare_standard_vs_actual_cost(
         self,
         tenant_id: int,
-        material_id: Optional[int] = None,
-        work_order_id: Optional[int] = None,
-        purchase_order_id: Optional[int] = None,
-        purchase_order_item_id: Optional[int] = None,
-        outsource_work_order_id: Optional[int] = None,
-        quantity: Optional[Decimal] = None,
-        calculation_date: Optional[date] = None,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        material_id: int | None = None,
+        work_order_id: int | None = None,
+        purchase_order_id: int | None = None,
+        purchase_order_item_id: int | None = None,
+        outsource_work_order_id: int | None = None,
+        quantity: Decimal | None = None,
+        calculation_date: date | None = None,
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         对比标准成本和实际成本
         
@@ -161,8 +161,8 @@ class CostComparisonService:
         material: Material,
         quantity: Decimal,
         calculation_date: date,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         计算标准成本
         
@@ -240,13 +240,13 @@ class CostComparisonService:
         material: Material,
         source_type: str,
         calculation_date: date,
-        work_order_id: Optional[int] = None,
-        purchase_order_id: Optional[int] = None,
-        purchase_order_item_id: Optional[int] = None,
-        outsource_work_order_id: Optional[int] = None,
-        quantity: Optional[Decimal] = None,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        work_order_id: int | None = None,
+        purchase_order_id: int | None = None,
+        purchase_order_item_id: int | None = None,
+        outsource_work_order_id: int | None = None,
+        quantity: Decimal | None = None,
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         计算实际成本
         
@@ -372,10 +372,10 @@ class CostComparisonService:
     async def compare_costs_by_source_type(
         self,
         tenant_id: int,
-        material_ids: List[int],
-        calculation_date: Optional[date] = None,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        material_ids: list[int],
+        calculation_date: date | None = None,
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         按物料来源类型对比成本
         

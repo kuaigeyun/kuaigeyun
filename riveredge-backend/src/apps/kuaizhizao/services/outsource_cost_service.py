@@ -33,12 +33,12 @@ class OutsourceCostService:
     async def calculate_outsource_cost(
         self,
         tenant_id: int,
-        material_id: Optional[int] = None,
-        outsource_work_order_id: Optional[int] = None,
-        quantity: Optional[Decimal] = None,
-        calculation_date: Optional[date] = None,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        material_id: int | None = None,
+        outsource_work_order_id: int | None = None,
+        quantity: Decimal | None = None,
+        calculation_date: date | None = None,
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         核算委外成本
         
@@ -85,8 +85,8 @@ class OutsourceCostService:
         material_id: int,
         quantity: Decimal,
         calculation_date: date,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         计算标准委外成本
         
@@ -159,7 +159,7 @@ class OutsourceCostService:
         tenant_id: int,
         outsource_work_order_id: int,
         calculation_date: date
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         计算实际委外成本
         
@@ -225,7 +225,7 @@ class OutsourceCostService:
         tenant_id: int,
         material: Material,
         quantity: Decimal
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算委外材料成本（标准成本）
         
@@ -292,7 +292,7 @@ class OutsourceCostService:
         self,
         tenant_id: int,
         outsource_work_order: OutsourceWorkOrder
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算实际材料成本
         
@@ -357,7 +357,7 @@ class OutsourceCostService:
         tenant_id: int,
         material: Material,
         quantity: Decimal
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算委外加工费用（标准成本）
         
@@ -398,7 +398,7 @@ class OutsourceCostService:
     async def _calculate_actual_processing_cost(
         self,
         outsource_work_order: OutsourceWorkOrder
-    ) -> tuple[Decimal, List[Dict[str, Any]]]:
+    ) -> tuple[Decimal, list[dict[str, Any]]]:
         """
         计算实际委外加工费用
         

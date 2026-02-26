@@ -74,7 +74,7 @@ class File(BaseModel):
             ("created_at",),
         ]
     
-    def get_tags(self) -> List[str]:
+    def get_tags(self) -> list[str]:
         """
         获取文件标签列表
         
@@ -83,7 +83,7 @@ class File(BaseModel):
         """
         return self.tags or []
     
-    def set_tags(self, tags: List[str]) -> None:
+    def set_tags(self, tags: list[str]) -> None:
         """
         设置文件标签列表
         

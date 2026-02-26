@@ -23,7 +23,7 @@ from infra.domain.tenant_context import get_current_tenant_id
     retries=2,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def material_ai_suggestion_workflow(event: Event) -> Dict[str, Any]:
+async def material_ai_suggestion_workflow(event: Event) -> dict[str, Any]:
     """
     物料创建后的 AI 建议工作流
     

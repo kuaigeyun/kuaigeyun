@@ -26,7 +26,7 @@ from infra.domain.tenant_context import get_current_tenant_id
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def scheduled_task_executor_function(event: Event) -> Dict[str, Any]:
+async def scheduled_task_executor_function(event: Event) -> dict[str, Any]:
     """
     定时任务执行器工作流函数
     
@@ -129,7 +129,7 @@ async def scheduled_task_executor_function(event: Event) -> Dict[str, Any]:
         }
 
 
-async def _execute_api_call_task(scheduled_task: ScheduledTask) -> Dict[str, Any]:
+async def _execute_api_call_task(scheduled_task: ScheduledTask) -> dict[str, Any]:
     """
     执行 API 调用任务
     
@@ -192,7 +192,7 @@ async def _execute_api_call_task(scheduled_task: ScheduledTask) -> Dict[str, Any
         }
 
 
-async def _execute_python_script_task(scheduled_task: ScheduledTask) -> Dict[str, Any]:
+async def _execute_python_script_task(scheduled_task: ScheduledTask) -> dict[str, Any]:
     """
     执行 Python 脚本任务
     
@@ -224,7 +224,7 @@ async def _execute_python_script_task(scheduled_task: ScheduledTask) -> Dict[str
     }
 
 
-async def _execute_backup_task(tenant_id: int, scheduled_task: ScheduledTask) -> Dict[str, Any]:
+async def _execute_backup_task(tenant_id: int, scheduled_task: ScheduledTask) -> dict[str, Any]:
     """
     执行数据备份任务
     

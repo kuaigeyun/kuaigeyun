@@ -42,7 +42,7 @@ class MaterialCodeRuleEngine:
     }
     
     @staticmethod
-    def parse_template(template: str) -> List[Dict[str, Any]]:
+    def parse_template(template: str) -> list[dict[str, Any]]:
         """
         解析格式模板，提取占位符信息
         
@@ -101,7 +101,7 @@ class MaterialCodeRuleEngine:
     async def generate_main_code(
         tenant_id: int,
         material_type: str,
-        rule_id: Optional[int] = None
+        rule_id: int | None = None
     ) -> str:
         """
         生成主编码
@@ -188,10 +188,10 @@ class MaterialCodeRuleEngine:
         tenant_id: int,
         rule_id: int,
         placeholder_type: str,
-        prefix: Optional[str],
+        prefix: str | None,
         material_type: str,
         type_config: MaterialTypeConfig,
-        sequence_config: Dict[str, Any],
+        sequence_config: dict[str, Any],
         independent_by_type: bool,
     ) -> str:
         """
@@ -281,7 +281,7 @@ class MaterialCodeRuleEngine:
     @staticmethod
     async def _resolve_scope_value(
         placeholder_type: str,
-        prefix: Optional[str],
+        prefix: str | None,
         material_type: str,
     ) -> str:
         """
@@ -313,8 +313,8 @@ class MaterialCodeRuleEngine:
     async def _get_next_sequence(
         tenant_id: int,
         rule_id: int,
-        type_code: Optional[str],
-        sequence_config: Dict[str, Any],
+        type_code: str | None,
+        sequence_config: dict[str, Any],
     ) -> int:
         """
         获取下一个序号
@@ -403,11 +403,11 @@ class MaterialCodeRuleEngine:
     async def preview_code(
         tenant_id: int,
         template: str,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         material_type: str = "RAW",
         sample_sequence: int = 1,
-        sequence_config: Optional[Dict[str, Any]] = None,
-    ) -> tuple[str, Optional[str]]:
+        sequence_config: dict[str, Any] | None = None,
+    ) -> tuple[str, str | None]:
         """
         预览编码生成效果
         
@@ -430,7 +430,7 @@ class MaterialCodeRuleEngine:
         placeholders = MaterialCodeRuleEngine.parse_template(template)
         
         # 计算 Scope Key (如果提供了 sequence_config)
-        scope_key: Optional[str] = None
+        scope_key: str | None = None
         if sequence_config:
              scope_fields = sequence_config.get("scope_fields")
              independent_by_type = sequence_config.get("independent_by_type", True)

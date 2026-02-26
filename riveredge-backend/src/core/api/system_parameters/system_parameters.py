@@ -52,11 +52,11 @@ async def create_parameter(
         )
 
 
-@router.get("", response_model=List[SystemParameterResponse])
+@router.get("", response_model=list[SystemParameterResponse])
 async def list_parameters(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -226,9 +226,9 @@ async def delete_parameter(
         )
 
 
-@router.post("/batch-update", response_model=List[SystemParameterResponse])
+@router.post("/batch-update", response_model=list[SystemParameterResponse])
 async def batch_update_parameters(
-    updates: Dict[str, Any] = Body(..., description="批量更新字典，key 为参数键，value 为参数值"),
+    updates: dict[str, Any] = Body(..., description="批量更新字典，key 为参数键，value 为参数值"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

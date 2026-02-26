@@ -19,7 +19,7 @@ class ApprovalHistoryService:
         approval_instance_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ApprovalHistoryResponse]:
+    ) -> list[ApprovalHistoryResponse]:
         """
         获取审批历史记录列表
         

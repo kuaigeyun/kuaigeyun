@@ -61,12 +61,12 @@ class QRCodeService:
     
     @staticmethod
     def generate_qrcode(
-        data: Dict[str, Any],
+        data: dict[str, Any],
         qrcode_type: str,
         size: int = 10,
         border: int = 4,
         error_correction: str = "M"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成二维码
         
@@ -130,7 +130,7 @@ class QRCodeService:
         }
     
     @staticmethod
-    def parse_qrcode(qrcode_text: str) -> Dict[str, Any]:
+    def parse_qrcode(qrcode_text: str) -> dict[str, Any]:
         """
         解析二维码内容
         
@@ -162,7 +162,7 @@ class QRCodeService:
             raise ValidationError(f"解析二维码失败: {str(e)}")
     
     @staticmethod
-    def parse_qrcode_image(image_base64: str) -> Dict[str, Any]:
+    def parse_qrcode_image(image_base64: str) -> dict[str, Any]:
         """
         从图片中解析二维码
         
@@ -205,7 +205,7 @@ class QRCodeService:
         material_code: str,
         material_name: str,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成物料二维码
         
@@ -231,7 +231,7 @@ class QRCodeService:
         work_order_code: str,
         material_code: str,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成工单二维码
         
@@ -257,7 +257,7 @@ class QRCodeService:
         operation_name: str,
         work_order_code: str,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成工序二维码
         
@@ -283,7 +283,7 @@ class QRCodeService:
         equipment_code: str,
         equipment_name: str,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成设备二维码
         
@@ -309,7 +309,7 @@ class QRCodeService:
         employee_code: str,
         employee_name: str,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成人员二维码
         
@@ -333,9 +333,9 @@ class QRCodeService:
     def generate_box_qrcode(
         box_uuid: str,
         box_code: str,
-        material_codes: List[str],
+        material_codes: list[str],
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成装箱二维码
         
@@ -359,9 +359,9 @@ class QRCodeService:
     def generate_trace_qrcode(
         trace_uuid: str,
         trace_code: str,
-        trace_data: Dict[str, Any],
+        trace_data: dict[str, Any],
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成追溯二维码
         

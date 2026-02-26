@@ -35,7 +35,7 @@ class MoldService:
     async def create_mold(
         tenant_id: int,
         data: MoldCreate,
-        created_by: Optional[int] = None
+        created_by: int | None = None
     ) -> Mold:
         """
         创建模具
@@ -108,11 +108,11 @@ class MoldService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        type: Optional[str] = None,
-        status: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        search: Optional[str] = None
-    ) -> tuple[List[Mold], int]:
+        type: str | None = None,
+        status: str | None = None,
+        is_active: bool | None = None,
+        search: str | None = None
+    ) -> tuple[list[Mold], int]:
         """
         获取模具列表
         
@@ -228,7 +228,7 @@ class MoldUsageService:
     async def create_mold_usage(
         tenant_id: int,
         data: MoldUsageCreate,
-        created_by: Optional[int] = None
+        created_by: int | None = None
     ) -> MoldUsage:
         """
         创建模具使用记录
@@ -332,11 +332,11 @@ class MoldUsageService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        mold_uuid: Optional[str] = None,
-        source_type: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None
-    ) -> tuple[List[MoldUsage], int]:
+        mold_uuid: str | None = None,
+        source_type: str | None = None,
+        status: str | None = None,
+        search: str | None = None
+    ) -> tuple[list[MoldUsage], int]:
         """
         获取模具使用记录列表
         
@@ -454,7 +454,7 @@ class MoldCalibrationService:
         mold_uuid: str,
         skip: int = 0,
         limit: int = 100,
-    ) -> tuple[List[MoldCalibration], int]:
+    ) -> tuple[list[MoldCalibration], int]:
         """
         获取模具校验记录列表
 

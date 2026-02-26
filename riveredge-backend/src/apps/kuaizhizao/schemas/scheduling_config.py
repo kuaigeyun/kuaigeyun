@@ -15,10 +15,10 @@ class SchedulingConfigBase(BaseModel):
     """排程配置基础Schema"""
     config_code: str = Field(..., max_length=50, description="配置编码")
     config_name: str = Field(..., max_length=200, description="配置名称")
-    constraints: Dict[str, Any] = Field(..., description="排程约束（JSON格式，含4M开关及权重）")
+    constraints: dict[str, Any] = Field(..., description="排程约束（JSON格式，含4M开关及权重）")
     is_default: bool = Field(False, description="是否为默认配置")
     is_active: bool = Field(True, description="是否启用")
-    description: Optional[str] = Field(None, description="配置描述")
+    description: str | None = Field(None, description="配置描述")
 
 
 class SchedulingConfigCreate(SchedulingConfigBase):
@@ -28,11 +28,11 @@ class SchedulingConfigCreate(SchedulingConfigBase):
 
 class SchedulingConfigUpdate(BaseModel):
     """更新排程配置Schema"""
-    config_name: Optional[str] = Field(None, max_length=200, description="配置名称")
-    constraints: Optional[Dict[str, Any]] = Field(None, description="排程约束（JSON格式）")
-    is_default: Optional[bool] = Field(None, description="是否为默认配置")
-    is_active: Optional[bool] = Field(None, description="是否启用")
-    description: Optional[str] = Field(None, description="配置描述")
+    config_name: str | None = Field(None, max_length=200, description="配置名称")
+    constraints: dict[str, Any] | None = Field(None, description="排程约束（JSON格式）")
+    is_default: bool | None = Field(None, description="是否为默认配置")
+    is_active: bool | None = Field(None, description="是否启用")
+    description: str | None = Field(None, description="配置描述")
 
 
 class SchedulingConfigResponse(SchedulingConfigBase):
@@ -42,8 +42,8 @@ class SchedulingConfigResponse(SchedulingConfigBase):
     tenant_id: int
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[int]
-    updated_by: Optional[int]
+    created_by: int | None
+    updated_by: int | None
 
     class Config:
         from_attributes = True

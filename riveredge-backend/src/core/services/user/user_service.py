@@ -150,17 +150,17 @@ class UserService:
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        keyword: Optional[str] = None,
-        username: Optional[str] = None,
-        email: Optional[str] = None,
-        full_name: Optional[str] = None,
-        phone: Optional[str] = None,
-        department_uuid: Optional[str] = None,
-        position_uuid: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        is_tenant_admin: Optional[bool] = None,
+        keyword: str | None = None,
+        username: str | None = None,
+        email: str | None = None,
+        full_name: str | None = None,
+        phone: str | None = None,
+        department_uuid: str | None = None,
+        position_uuid: str | None = None,
+        is_active: bool | None = None,
+        is_tenant_admin: bool | None = None,
         current_user_id: int = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取用户列表
         
@@ -283,7 +283,7 @@ class UserService:
 
                 items.append(user_dict)
 
-            except Exception as e:
+            except Exception:
                 # 如果单个用户处理失败，跳过该用户
                 continue
             
@@ -480,10 +480,10 @@ class UserService:
     async def _handle_department_position_change(
         tenant_id: int,
         user_id: int,
-        old_department_id: Optional[int],
-        new_department_id: Optional[int],
-        old_position_id: Optional[int],
-        new_position_id: Optional[int]
+        old_department_id: int | None,
+        new_department_id: int | None,
+        old_position_id: int | None,
+        new_position_id: int | None
     ) -> None:
         """
         处理部门/职位变更后的权限更新
@@ -586,9 +586,9 @@ class UserService:
     @staticmethod
     async def import_users_from_data(
         tenant_id: int,
-        data: List[List[Any]],  # 二维数组数据（从 uni_import 组件传递）
+        data: list[list[Any]],  # 二维数组数据（从 uni_import 组件传递）
         current_user_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从二维数组数据导入用户
         
@@ -797,11 +797,11 @@ class UserService:
     @staticmethod
     async def export_users_to_excel(
         tenant_id: int,
-        keyword: Optional[str] = None,
-        department_uuid: Optional[str] = None,
-        position_uuid: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        is_tenant_admin: Optional[bool] = None,
+        keyword: str | None = None,
+        department_uuid: str | None = None,
+        position_uuid: str | None = None,
+        is_active: bool | None = None,
+        is_tenant_admin: bool | None = None,
         current_user_id: int = None
     ) -> str:
         """

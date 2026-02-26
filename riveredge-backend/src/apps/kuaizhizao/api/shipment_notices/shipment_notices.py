@@ -51,13 +51,13 @@ async def create_shipment_notice(
         )
 
 
-@router.get("", response_model=List[ShipmentNoticeListResponse], summary="获取发货通知单列表")
+@router.get("", response_model=list[ShipmentNoticeListResponse], summary="获取发货通知单列表")
 async def list_shipment_notices(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    status: Optional[str] = Query(None),
-    sales_order_id: Optional[int] = Query(None),
-    customer_id: Optional[int] = Query(None),
+    status: str | None = Query(None),
+    sales_order_id: int | None = Query(None),
+    customer_id: int | None = Query(None),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

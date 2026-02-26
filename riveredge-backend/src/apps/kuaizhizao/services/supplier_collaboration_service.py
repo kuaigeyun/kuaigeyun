@@ -33,7 +33,7 @@ class SupplierCollaborationService(BaseService):
         tenant_id: int,
         purchase_order_id: int,
         send_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         下发采购订单到供应商协同平台
         
@@ -92,9 +92,9 @@ class SupplierCollaborationService(BaseService):
         self,
         tenant_id: int,
         purchase_order_id: int,
-        progress_data: Dict[str, Any],
+        progress_data: dict[str, Any],
         updated_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         更新采购订单进度
         
@@ -159,9 +159,9 @@ class SupplierCollaborationService(BaseService):
         self,
         tenant_id: int,
         purchase_order_id: int,
-        delivery_data: Dict[str, Any],
+        delivery_data: dict[str, Any],
         submitted_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         提交发货通知
         
@@ -234,8 +234,8 @@ class SupplierCollaborationService(BaseService):
         self,
         tenant_id: int,
         supplier_id: int,
-        status: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        status: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         获取供应商的采购订单列表
         

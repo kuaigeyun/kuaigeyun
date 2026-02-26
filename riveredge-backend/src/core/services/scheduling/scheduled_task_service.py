@@ -96,10 +96,10 @@ class ScheduledTaskService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        type: Optional[str] = None,
-        trigger_type: Optional[str] = None,
-        is_active: Optional[bool] = None
-    ) -> List[ScheduledTask]:
+        type: str | None = None,
+        trigger_type: str | None = None,
+        is_active: bool | None = None
+    ) -> list[ScheduledTask]:
         """
         获取定时任务列表
         
@@ -267,7 +267,7 @@ class ScheduledTaskService:
     async def mark_task_running(
         tenant_id: int,
         task_uuid: str,
-        inngest_run_id: Optional[str] = None
+        inngest_run_id: str | None = None
     ) -> ScheduledTask:
         """
         标记定时任务开始执行（由 Inngest 函数调用）
@@ -296,8 +296,8 @@ class ScheduledTaskService:
         tenant_id: int,
         task_uuid: str,
         status: str,
-        error: Optional[str] = None,
-        inngest_run_id: Optional[str] = None
+        error: str | None = None,
+        inngest_run_id: str | None = None
     ) -> ScheduledTask:
         """
         更新定时任务执行结果（由 Inngest 函数调用）
@@ -350,8 +350,8 @@ class ScheduledTaskService:
         tenant_id: int,
         scheduled_task: ScheduledTask,
         status: str,
-        error: Optional[str],
-        old_status: Optional[str]
+        error: str | None,
+        old_status: str | None
     ) -> None:
         """
         发送定时任务执行结果通知

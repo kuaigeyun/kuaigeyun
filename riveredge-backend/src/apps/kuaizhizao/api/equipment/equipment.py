@@ -77,12 +77,12 @@ async def create_equipment(
 async def list_equipment(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    type: Optional[str] = Query(None, description="设备类型（可选）"),
-    category: Optional[str] = Query(None, description="设备分类（可选）"),
-    status: Optional[str] = Query(None, description="设备状态（可选）"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
-    workstation_id: Optional[int] = Query(None, description="工位ID（可选）"),
-    search: Optional[str] = Query(None, description="搜索关键词（可选，搜索编码、名称）"),
+    type: str | None = Query(None, description="设备类型（可选）"),
+    category: str | None = Query(None, description="设备分类（可选）"),
+    status: str | None = Query(None, description="设备状态（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
+    workstation_id: int | None = Query(None, description="工位ID（可选）"),
+    search: str | None = Query(None, description="搜索关键词（可选，搜索编码、名称）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -400,8 +400,8 @@ async def create_equipment_calibration(
 @router.get("/{uuid}/oee", response_model=EquipmentOEResponse)
 async def get_equipment_oee(
     uuid: str,
-    date_start: Optional[str] = Query(None, description="开始日期（YYYY-MM-DD）"),
-    date_end: Optional[str] = Query(None, description="结束日期（YYYY-MM-DD）"),
+    date_start: str | None = Query(None, description="开始日期（YYYY-MM-DD）"),
+    date_end: str | None = Query(None, description="结束日期（YYYY-MM-DD）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -437,9 +437,9 @@ async def get_equipment_oee(
 
 @router.get("/oee/list", response_model=EquipmentOEEListResponse)
 async def list_equipment_oee(
-    date_start: Optional[str] = Query(None, description="开始日期（YYYY-MM-DD）"),
-    date_end: Optional[str] = Query(None, description="结束日期（YYYY-MM-DD）"),
-    equipment_ids: Optional[str] = Query(None, description="设备ID列表（逗号分隔）"),
+    date_start: str | None = Query(None, description="开始日期（YYYY-MM-DD）"),
+    date_end: str | None = Query(None, description="结束日期（YYYY-MM-DD）"),
+    equipment_ids: str | None = Query(None, description="设备ID列表（逗号分隔）"),
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
     current_user: User = Depends(soil_get_current_user),
@@ -482,8 +482,8 @@ async def list_equipment_oee(
 @router.get("/{uuid}/oee/trend", response_model=EquipmentOEETrendResponse)
 async def get_equipment_oee_trend(
     uuid: str,
-    date_start: Optional[str] = Query(None, description="开始日期（YYYY-MM-DD）"),
-    date_end: Optional[str] = Query(None, description="结束日期（YYYY-MM-DD）"),
+    date_start: str | None = Query(None, description="开始日期（YYYY-MM-DD）"),
+    date_end: str | None = Query(None, description="结束日期（YYYY-MM-DD）"),
     period: str = Query("day", description="统计周期（day/week/month）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),

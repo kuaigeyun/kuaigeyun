@@ -30,7 +30,7 @@ class AuthServiceImpl(AuthServiceInterface):
     def service_version(self) -> str:
         return "1.0.0"
     
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """服务健康检查"""
         return {
             "status": "healthy",
@@ -38,7 +38,7 @@ class AuthServiceImpl(AuthServiceInterface):
             "version": self.service_version
         }
     
-    async def login(self, data: Any, request: Any) -> Dict[str, Any]:
+    async def login(self, data: Any, request: Any) -> dict[str, Any]:
         """用户登录"""
         return await self._auth_service.login(data, request)
     
@@ -46,15 +46,15 @@ class AuthServiceImpl(AuthServiceInterface):
         """用户注册"""
         return await self._auth_service.register(data)
     
-    async def guest_login(self, request: Any = None) -> Dict[str, Any]:
+    async def guest_login(self, request: Any = None) -> dict[str, Any]:
         """体验登录"""
         return await self._auth_service.guest_login(request)
     
-    async def register_personal(self, data: Any) -> Dict[str, Any]:
+    async def register_personal(self, data: Any) -> dict[str, Any]:
         """个人注册"""
         return await self._auth_service.register_personal(data)
     
-    async def register_organization(self, data: Any) -> Dict[str, Any]:
+    async def register_organization(self, data: Any) -> dict[str, Any]:
         """组织注册"""
         return await self._auth_service.register_organization(data)
 

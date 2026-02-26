@@ -43,15 +43,15 @@ class LoginLogService:
     
     @staticmethod
     async def get_login_logs(
-        tenant_id: Optional[int],
+        tenant_id: int | None,
         page: int = 1,
         page_size: int = 20,
-        user_id: Optional[int] = None,
-        username: Optional[str] = None,
-        login_status: Optional[str] = None,
-        login_ip: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        user_id: int | None = None,
+        username: str | None = None,
+        login_status: str | None = None,
+        login_ip: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> LoginLogListResponse:
         """
         获取登录日志列表
@@ -105,7 +105,7 @@ class LoginLogService:
     
     @staticmethod
     async def get_login_log_by_uuid(
-        tenant_id: Optional[int],
+        tenant_id: int | None,
         uuid: str
     ) -> LoginLogResponse:
         """
@@ -133,7 +133,7 @@ class LoginLogService:
     
     @staticmethod
     async def get_login_log_stats(
-        tenant_id: Optional[int],
+        tenant_id: int | None,
     ) -> LoginLogStatsResponse:
         """
         获取登录日志统计

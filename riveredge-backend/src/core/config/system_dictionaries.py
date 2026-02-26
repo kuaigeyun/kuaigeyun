@@ -11,7 +11,7 @@ from typing import List, Dict, Any
 
 
 # 系统字典定义
-SYSTEM_DICTIONARIES: List[Dict[str, Any]] = [
+SYSTEM_DICTIONARIES: list[dict[str, Any]] = [
     {
         "code": "MATERIAL_TYPE",
         "name": "物料类型",

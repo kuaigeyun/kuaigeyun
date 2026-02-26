@@ -75,12 +75,12 @@ SALES_ORDER_SORTABLE_FIELDS = frozenset({
 async def list_sales_orders(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    status: Optional[str] = Query(None, description="订单状态"),
-    review_status: Optional[str] = Query(None, description="审核状态"),
-    start_date: Optional[date] = Query(None, description="开始日期"),
-    end_date: Optional[date] = Query(None, description="结束日期"),
-    customer_name: Optional[str] = Query(None, description="客户名称（模糊匹配）"),
-    order_by: Optional[str] = Query(None, description="排序字段，如 order_code、-created_at（前缀-表示降序）"),
+    status: str | None = Query(None, description="订单状态"),
+    review_status: str | None = Query(None, description="审核状态"),
+    start_date: date | None = Query(None, description="开始日期"),
+    end_date: date | None = Query(None, description="结束日期"),
+    customer_name: str | None = Query(None, description="客户名称（模糊匹配）"),
+    order_by: str | None = Query(None, description="排序字段，如 order_code、-created_at（前缀-表示降序）"),
     include_items: bool = Query(False, description="是否包含订单明细"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -308,7 +308,7 @@ async def reject_sales_order(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="驳回销售订单失败")
 
 
-@router.get("/{sales_order_id}/push-to-computation/preview", response_model=Dict[str, Any], summary="下推需求计算预览")
+@router.get("/{sales_order_id}/push-to-computation/preview", response_model=dict[str, Any], summary="下推需求计算预览")
 async def preview_push_sales_order_to_computation(
     sales_order_id: int = Path(..., description="销售订单ID"),
     current_user: User = Depends(get_current_user),
@@ -327,7 +327,7 @@ async def preview_push_sales_order_to_computation(
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/{sales_order_id}/push-to-computation", response_model=Dict[str, Any], summary="下推销售订单到需求计算")
+@router.post("/{sales_order_id}/push-to-computation", response_model=dict[str, Any], summary="下推销售订单到需求计算")
 async def push_sales_order_to_computation(
     sales_order_id: int = Path(..., description="销售订单ID"),
     current_user: User = Depends(get_current_user),
@@ -354,7 +354,7 @@ async def push_sales_order_to_computation(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="下推销售订单到需求计算失败")
 
 
-@router.get("/{sales_order_id}/push-to-production-plan/preview", response_model=Dict[str, Any], summary="直推生产计划预览")
+@router.get("/{sales_order_id}/push-to-production-plan/preview", response_model=dict[str, Any], summary="直推生产计划预览")
 async def preview_push_sales_order_to_production_plan(
     sales_order_id: int = Path(..., description="销售订单ID"),
     current_user: User = Depends(get_current_user),
@@ -373,7 +373,7 @@ async def preview_push_sales_order_to_production_plan(
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/{sales_order_id}/push-to-production-plan", response_model=Dict[str, Any], summary="直推销售订单到生产计划")
+@router.post("/{sales_order_id}/push-to-production-plan", response_model=dict[str, Any], summary="直推销售订单到生产计划")
 async def push_sales_order_to_production_plan(
     sales_order_id: int = Path(..., description="销售订单ID"),
     current_user: User = Depends(get_current_user),
@@ -400,7 +400,7 @@ async def push_sales_order_to_production_plan(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="直推生产计划失败")
 
 
-@router.get("/{sales_order_id}/push-to-work-order/preview", response_model=Dict[str, Any], summary="直推工单预览")
+@router.get("/{sales_order_id}/push-to-work-order/preview", response_model=dict[str, Any], summary="直推工单预览")
 async def preview_push_sales_order_to_work_order(
     sales_order_id: int = Path(..., description="销售订单ID"),
     current_user: User = Depends(get_current_user),
@@ -419,7 +419,7 @@ async def preview_push_sales_order_to_work_order(
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/{sales_order_id}/push-to-work-order", response_model=Dict[str, Any], summary="直推销售订单到工单")
+@router.post("/{sales_order_id}/push-to-work-order", response_model=dict[str, Any], summary="直推销售订单到工单")
 async def push_sales_order_to_work_order(
     sales_order_id: int = Path(..., description="销售订单ID"),
     current_user: User = Depends(get_current_user),
@@ -446,7 +446,7 @@ async def push_sales_order_to_work_order(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="直推工单失败")
 
 
-@router.post("/{sales_order_id}/remind", response_model=Dict[str, Any], summary="发送销售订单提醒")
+@router.post("/{sales_order_id}/remind", response_model=dict[str, Any], summary="发送销售订单提醒")
 async def create_sales_order_reminder(
     sales_order_id: int = Path(..., description="销售订单ID"),
     data: SalesOrderRemindCreate = ...,
@@ -529,7 +529,7 @@ async def confirm_sales_order(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="确认销售订单失败")
 
 
-@router.post("/{sales_order_id}/push-to-shipment-notice", response_model=Dict[str, Any], summary="下推到发货通知单")
+@router.post("/{sales_order_id}/push-to-shipment-notice", response_model=dict[str, Any], summary="下推到发货通知单")
 async def push_sales_order_to_shipment_notice(
     sales_order_id: int = Path(..., description="销售订单ID"),
     current_user: User = Depends(get_current_user),
@@ -554,7 +554,7 @@ async def push_sales_order_to_shipment_notice(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="下推发货通知单失败")
 
 
-@router.post("/{sales_order_id}/push-to-invoice", response_model=Dict[str, Any], summary="下推到销售发票")
+@router.post("/{sales_order_id}/push-to-invoice", response_model=dict[str, Any], summary="下推到销售发票")
 async def push_sales_order_to_invoice(
     sales_order_id: int = Path(..., description="销售订单ID"),
     current_user: User = Depends(get_current_user),
@@ -582,7 +582,7 @@ async def push_sales_order_to_invoice(
 @router.post("/{sales_order_id}/push-to-delivery", summary="下推到销售出库")
 async def push_sales_order_to_delivery(
     sales_order_id: int = Path(..., description="销售订单ID"),
-    delivery_quantities: Optional[Dict[int, float]] = Body(None, description="出库数量字典 {item_id: quantity}"),
+    delivery_quantities: dict[int, float] | None = Body(None, description="出库数量字典 {item_id: quantity}"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -659,9 +659,9 @@ async def delete_sales_order(
         raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="删除销售订单失败")
 
 
-@router.post("/batch-delete", response_model=Dict[str, Any], summary="批量删除销售订单")
+@router.post("/batch-delete", response_model=dict[str, Any], summary="批量删除销售订单")
 async def bulk_delete_sales_orders(
-    ids: List[int] = Body(..., description="要删除的销售订单ID列表"),
+    ids: list[int] = Body(..., description="要删除的销售订单ID列表"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

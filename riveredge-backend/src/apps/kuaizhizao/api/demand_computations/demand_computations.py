@@ -58,14 +58,14 @@ async def create_computation(
 
 @router.get("", summary="获取需求计算列表")
 async def list_computations(
-    demand_id: Optional[int] = Query(None, description="需求ID"),
-    demand_code: Optional[str] = Query(None, description="需求编码"),
-    computation_code: Optional[str] = Query(None, description="计算编码"),
-    computation_type: Optional[str] = Query(None, description="计算类型（MRP/LRP）"),
-    computation_status: Optional[str] = Query(None, description="计算状态"),
-    business_mode: Optional[str] = Query(None, description="业务模式（MTS/MTO）"),
-    start_date: Optional[str] = Query(None, description="开始日期（YYYY-MM-DD）"),
-    end_date: Optional[str] = Query(None, description="结束日期（YYYY-MM-DD）"),
+    demand_id: int | None = Query(None, description="需求ID"),
+    demand_code: str | None = Query(None, description="需求编码"),
+    computation_code: str | None = Query(None, description="计算编码"),
+    computation_type: str | None = Query(None, description="计算类型（MRP/LRP）"),
+    computation_status: str | None = Query(None, description="计算状态"),
+    business_mode: str | None = Query(None, description="业务模式（MTS/MTO）"),
+    start_date: str | None = Query(None, description="开始日期（YYYY-MM-DD）"),
+    end_date: str | None = Query(None, description="结束日期（YYYY-MM-DD）"),
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(20, ge=1, le=100, description="限制数量"),
     current_user: User = Depends(get_current_user),
@@ -123,7 +123,7 @@ async def get_computation(
 @router.post("/{computation_id}/execute/preview", summary="执行计算预览")
 async def preview_execute_computation(
     computation_id: int = Path(..., description="计算ID"),
-    body: Optional[ExecuteComputationRequest] = Body(None, description="可选临时覆盖参数"),
+    body: ExecuteComputationRequest | None = Body(None, description="可选临时覆盖参数"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -151,7 +151,7 @@ async def preview_execute_computation(
 @router.post("/{computation_id}/execute", response_model=DemandComputationResponse, summary="执行需求计算")
 async def execute_computation(
     computation_id: int = Path(..., description="计算ID"),
-    body: Optional[ExecuteComputationRequest] = Body(None, description="可选临时覆盖参数"),
+    body: ExecuteComputationRequest | None = Body(None, description="可选临时覆盖参数"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -254,7 +254,7 @@ async def get_push_records(
         )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
+    except Exception:
         logger.exception("获取下推记录失败")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取下推记录失败")
 
@@ -387,8 +387,8 @@ async def get_push_options(
 @router.get("/{computation_id}/push-preview", summary="下推预览")
 async def get_push_preview(
     computation_id: int = Path(..., description="计算ID"),
-    production: Optional[str] = Query(None, description="生产路径：plan|work_order"),
-    purchase: Optional[str] = Query(None, description="采购路径：requisition|purchase_order"),
+    production: str | None = Query(None, description="生产路径：plan|work_order"),
+    purchase: str | None = Query(None, description="采购路径：requisition|purchase_order"),
     outsource_only: bool = Query(False, description="仅委外工单预览"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -419,7 +419,7 @@ async def get_push_preview(
 @router.post("/{computation_id}/push-all", summary="一键下推")
 async def push_all(
     computation_id: int = Path(..., description="计算ID"),
-    body: Optional[Dict[str, Any]] = Body(default=None, description="配置：production, purchase, include_outsource"),
+    body: dict[str, Any] | None = Body(default=None, description="配置：production, purchase, include_outsource"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -466,7 +466,7 @@ async def push_to_purchase_requisition(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except BusinessLogicError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
+    except Exception:
         logger.exception("下推到采购申请失败")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="下推到采购申请失败")
 
@@ -494,17 +494,17 @@ async def push_to_production_plan(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except BusinessLogicError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
+    except Exception:
         logger.exception("下推到生产计划失败")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="下推到生产计划失败")
 
 
 @router.get("/history", summary="查询需求计算历史记录")
 async def list_computation_history(
-    demand_id: Optional[int] = Query(None, description="需求ID"),
-    computation_type: Optional[str] = Query(None, description="计算类型（MRP/LRP）"),
-    start_date: Optional[str] = Query(None, description="开始日期（YYYY-MM-DD）"),
-    end_date: Optional[str] = Query(None, description="结束日期（YYYY-MM-DD）"),
+    demand_id: int | None = Query(None, description="需求ID"),
+    computation_type: str | None = Query(None, description="计算类型（MRP/LRP）"),
+    start_date: str | None = Query(None, description="开始日期（YYYY-MM-DD）"),
+    end_date: str | None = Query(None, description="结束日期（YYYY-MM-DD）"),
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(20, ge=1, le=100, description="限制数量"),
     current_user: User = Depends(get_current_user),

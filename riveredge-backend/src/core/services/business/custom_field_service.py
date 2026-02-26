@@ -119,11 +119,11 @@ class CustomFieldService:
     @staticmethod
     async def list_fields(
         tenant_id: int,
-        table_name: Optional[str] = None,
+        table_name: str | None = None,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None
-    ) -> Tuple[List[CustomField], int]:
+        is_active: bool | None = None
+    ) -> tuple[list[CustomField], int]:
         """
         获取字段列表
         
@@ -160,8 +160,8 @@ class CustomFieldService:
     async def get_fields_by_table(
         tenant_id: int,
         table_name: str,
-        is_active: Optional[bool] = None
-    ) -> List[CustomField]:
+        is_active: bool | None = None
+    ) -> list[CustomField]:
         """
         获取指定表的所有自定义字段
         
@@ -325,7 +325,7 @@ class CustomFieldService:
         tenant_id: int,
         record_table: str,
         record_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取记录的所有自定义字段值
         
@@ -365,8 +365,8 @@ class CustomFieldService:
         tenant_id: int,
         record_table: str,
         record_id: int,
-        values: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        values: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         批量设置字段值
         
@@ -394,7 +394,7 @@ class CustomFieldService:
     async def update_fields_by_dictionary_code(
         tenant_id: int,
         dictionary_code: str,
-        is_active: Optional[bool] = None
+        is_active: bool | None = None
     ) -> int:
         """
         根据数据字典代码更新关联的自定义字段

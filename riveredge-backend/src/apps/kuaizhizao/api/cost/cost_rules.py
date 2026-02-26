@@ -65,10 +65,10 @@ async def create_cost_rule(
 async def list_cost_rules(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    rule_type: Optional[str] = Query(None, description="规则类型（可选）"),
-    cost_type: Optional[str] = Query(None, description="成本类型（可选）"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
-    search: Optional[str] = Query(None, description="搜索关键词（可选，搜索编码、名称）"),
+    rule_type: str | None = Query(None, description="规则类型（可选）"),
+    cost_type: str | None = Query(None, description="成本类型（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
+    search: str | None = Query(None, description="搜索关键词（可选，搜索编码、名称）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

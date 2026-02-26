@@ -163,7 +163,7 @@ class MaterialBindingService(AppBaseService[MaterialBinding]):
         self,
         tenant_id: int,
         reporting_record_id: int
-    ) -> List[MaterialBindingListResponse]:
+    ) -> list[MaterialBindingListResponse]:
         """
         根据报工记录ID获取物料绑定记录列表
 

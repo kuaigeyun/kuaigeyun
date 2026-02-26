@@ -27,10 +27,10 @@ async def _get_bom_for_material(
     tenant_id: int,
     material_id: int,
     only_approved: bool,
-    bom_version: Optional[str],
+    bom_version: str | None,
     use_default_bom: bool,
-    material_bom_versions: Optional[Dict[int, str]],
-) -> Optional[BOM]:
+    material_bom_versions: dict[int, str] | None,
+) -> BOM | None:
     """根据版本参数获取物料的 BOM（支持指定版本或默认版本）"""
     versions = material_bom_versions or {}
     version = versions.get(material_id) or versions.get(str(material_id))  # 兼容 JSON 字符串 key
@@ -93,7 +93,7 @@ VALID_MANUFACTURING_MODES = [MANUFACTURING_MODE_FABRICATION, MANUFACTURING_MODE_
 async def get_material_source_type(
     tenant_id: int,
     material_id: int
-) -> Optional[str]:
+) -> str | None:
     """
     获取物料的来源类型
     
@@ -115,7 +115,7 @@ async def validate_material_source_config(
     tenant_id: int,
     material_id: int,
     source_type: str
-) -> Tuple[bool, List[str]]:
+) -> tuple[bool, list[str]]:
     """
     验证物料来源配置的完整性
     
@@ -236,10 +236,10 @@ async def expand_bom_with_source_control(
     only_approved: bool = True,
     level: int = 0,
     max_level: int = 10,
-    bom_version: Optional[str] = None,
+    bom_version: str | None = None,
     use_default_bom: bool = False,
-    material_bom_versions: Optional[Dict[int, str]] = None
-) -> List[Dict[str, Any]]:
+    material_bom_versions: dict[int, str] | None = None
+) -> list[dict[str, Any]]:
     """
     展开BOM，自动跳过虚拟件（物料来源控制）
     
@@ -452,7 +452,7 @@ async def expand_bom_with_source_control(
 async def get_material_source_config(
     tenant_id: int,
     material_id: int
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     获取物料的来源配置
     

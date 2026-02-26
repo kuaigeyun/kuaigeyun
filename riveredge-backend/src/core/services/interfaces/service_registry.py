@@ -24,8 +24,8 @@ class ServiceRegistry:
     """
 
     _instance: Optional['ServiceRegistry'] = None
-    _services: Dict[str, ServiceInterface]  # ⚠️ 修复：使用普通字典而不是 WeakValueDictionary，避免服务被垃圾回收
-    _service_types: Dict[str, Type[ServiceInterface]]
+    _services: dict[str, ServiceInterface]  # ⚠️ 修复：使用普通字典而不是 WeakValueDictionary，避免服务被垃圾回收
+    _service_types: dict[str, type[ServiceInterface]]
     _initialized: bool = False
 
     def __new__(cls) -> 'ServiceRegistry':
@@ -45,7 +45,7 @@ class ServiceRegistry:
 
     def register_service_type(
         self,
-        service_type: Type[ServiceInterface],
+        service_type: type[ServiceInterface],
     ) -> None:
         """
         注册服务类型
@@ -124,7 +124,7 @@ class ServiceRegistry:
         """
         return service_name in self._services
 
-    def list_services(self) -> List[str]:
+    def list_services(self) -> list[str]:
         """
         列出所有已注册的服务
 
@@ -133,7 +133,7 @@ class ServiceRegistry:
         """
         return list(self._services.keys())
 
-    def list_service_types(self) -> List[str]:
+    def list_service_types(self) -> list[str]:
         """
         列出所有已注册的服务类型
 
@@ -142,7 +142,7 @@ class ServiceRegistry:
         """
         return list(self._service_types.keys())
 
-    async def health_check_all(self) -> Dict[str, Any]:
+    async def health_check_all(self) -> dict[str, Any]:
         """
         检查所有服务的健康状态
 
@@ -189,7 +189,7 @@ class ServiceLocator:
     _registry: ServiceRegistry = ServiceRegistry.get_instance()
 
     @staticmethod
-    def register_service_type(service_type: Type[ServiceInterface]) -> None:
+    def register_service_type(service_type: type[ServiceInterface]) -> None:
         """
         注册服务类型
 
@@ -242,7 +242,7 @@ class ServiceNotFoundError(Exception):
 
 
 # 便捷的装饰器
-def service_implementation(service_interface: Type[ServiceInterface]):
+def service_implementation(service_interface: type[ServiceInterface]):
     """
     服务实现装饰器
 
@@ -254,7 +254,7 @@ def service_implementation(service_interface: Type[ServiceInterface]):
     Returns:
         装饰器函数
     """
-    def decorator(cls: Type) -> Type:
+    def decorator(cls: type) -> type:
         # 注册服务类型
         ServiceLocator.register_service_type(service_interface)
 

@@ -48,7 +48,7 @@ def is_private_ip(ip: str) -> bool:
     return False
 
 
-def parse_user_agent(user_agent: str) -> Dict[str, Optional[str]]:
+def parse_user_agent(user_agent: str) -> dict[str, str | None]:
     """
     从User-Agent字符串解析浏览器和设备信息
     
@@ -138,7 +138,7 @@ def parse_user_agent(user_agent: str) -> Dict[str, Optional[str]]:
     }
 
 
-async def get_public_ip() -> Optional[str]:
+async def get_public_ip() -> str | None:
     """
     获取本机的公网IP地址
     
@@ -184,7 +184,7 @@ async def get_public_ip() -> Optional[str]:
         return None
 
 
-async def get_ip_location(ip: str, timeout: float = 2.0) -> Optional[str]:
+async def get_ip_location(ip: str, timeout: float = 2.0) -> str | None:
     """
     获取IP地址的地理位置信息
     
@@ -242,7 +242,7 @@ async def get_ip_location(ip: str, timeout: float = 2.0) -> Optional[str]:
         return None
 
 
-async def parse_ip_info(ip: str, user_agent: str = "") -> Dict[str, Optional[str]]:
+async def parse_ip_info(ip: str, user_agent: str = "") -> dict[str, str | None]:
     """
     解析IP地址和User-Agent的完整信息
     

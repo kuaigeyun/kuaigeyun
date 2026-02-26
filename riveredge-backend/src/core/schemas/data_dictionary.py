@@ -19,7 +19,7 @@ class DataDictionaryBase(BaseModel):
     """
     name: str = Field(..., min_length=1, max_length=100, description="字典名称")
     code: str = Field(..., min_length=1, max_length=50, description="字典代码（唯一，用于程序识别）")
-    description: Optional[str] = Field(None, description="字典描述")
+    description: str | None = Field(None, description="字典描述")
     is_system: bool = Field(default=False, description="是否系统字典（系统字典不可删除）")
     is_active: bool = Field(default=True, description="是否启用")
 
@@ -39,10 +39,10 @@ class DataDictionaryUpdate(BaseModel):
     
     用于更新数据字典的请求数据，所有字段可选。
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="字典名称")
-    code: Optional[str] = Field(None, min_length=1, max_length=50, description="字典代码")
-    description: Optional[str] = Field(None, description="字典描述")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    name: str | None = Field(None, min_length=1, max_length=100, description="字典名称")
+    code: str | None = Field(None, min_length=1, max_length=50, description="字典代码")
+    description: str | None = Field(None, description="字典描述")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class DataDictionaryResponse(DataDictionaryBase):
@@ -65,6 +65,6 @@ class DataDictionaryListResponse(BaseModel):
     
     用于返回数据字典列表（分页）。
     """
-    items: List[DataDictionaryResponse] = Field(..., description="数据字典列表")
+    items: list[DataDictionaryResponse] = Field(..., description="数据字典列表")
     total: int = Field(..., ge=0, description="总数")
 

@@ -21,7 +21,7 @@ class ErrorLogger:
     @staticmethod
     def log_error(
         error: Exception,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
         level: str = "error"
     ) -> None:
         """
@@ -58,9 +58,9 @@ class ErrorLogger:
         error: Exception,
         request_path: str,
         request_method: str,
-        tenant_id: Optional[int] = None,
-        user_id: Optional[int] = None,
-        status_code: Optional[int] = None
+        tenant_id: int | None = None,
+        user_id: int | None = None,
+        status_code: int | None = None
     ) -> None:
         """
         记录 API 错误日志
@@ -91,9 +91,9 @@ class ErrorLogger:
         error: Exception,
         business_module: str,
         business_action: str,
-        tenant_id: Optional[int] = None,
-        user_id: Optional[int] = None,
-        business_data: Optional[Dict[str, Any]] = None
+        tenant_id: int | None = None,
+        user_id: int | None = None,
+        business_data: dict[str, Any] | None = None
     ) -> None:
         """
         记录业务错误日志
@@ -124,8 +124,8 @@ class ErrorLogger:
     def log_database_error(
         error: Exception,
         operation: str,
-        table_name: Optional[str] = None,
-        tenant_id: Optional[int] = None
+        table_name: str | None = None,
+        tenant_id: int | None = None
     ) -> None:
         """
         记录数据库错误日志
@@ -151,8 +151,8 @@ class ErrorLogger:
     def log_external_service_error(
         error: Exception,
         service_name: str,
-        service_url: Optional[str] = None,
-        tenant_id: Optional[int] = None
+        service_url: str | None = None,
+        tenant_id: int | None = None
     ) -> None:
         """
         记录外部服务错误日志

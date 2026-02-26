@@ -35,7 +35,7 @@ class MaintenancePlanService:
     async def create_maintenance_plan(
         tenant_id: int,
         data: MaintenancePlanCreate,
-        created_by: Optional[int] = None
+        created_by: int | None = None
     ) -> MaintenancePlan:
         """
         创建维护计划
@@ -121,11 +121,11 @@ class MaintenancePlanService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        equipment_uuid: Optional[str] = None,
-        status: Optional[str] = None,
-        plan_type: Optional[str] = None,
-        search: Optional[str] = None
-    ) -> tuple[List[MaintenancePlan], int]:
+        equipment_uuid: str | None = None,
+        status: str | None = None,
+        plan_type: str | None = None,
+        search: str | None = None
+    ) -> tuple[list[MaintenancePlan], int]:
         """
         获取维护计划列表
         
@@ -234,7 +234,7 @@ class MaintenanceExecutionService:
     async def create_maintenance_execution(
         tenant_id: int,
         data: MaintenanceExecutionCreate,
-        created_by: Optional[int] = None
+        created_by: int | None = None
     ) -> MaintenanceExecution:
         """
         创建维护执行记录
@@ -334,11 +334,11 @@ class MaintenanceExecutionService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        equipment_uuid: Optional[str] = None,
-        maintenance_plan_uuid: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None
-    ) -> tuple[List[MaintenanceExecution], int]:
+        equipment_uuid: str | None = None,
+        maintenance_plan_uuid: str | None = None,
+        status: str | None = None,
+        search: str | None = None
+    ) -> tuple[list[MaintenanceExecution], int]:
         """
         获取维护执行记录列表
         

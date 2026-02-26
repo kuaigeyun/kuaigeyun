@@ -333,7 +333,7 @@ class OperationLogMiddleware(BaseHTTPMiddleware):
         }
         return method_map.get(method, "unknown")
     
-    def _parse_operation_module(self, path: str) -> Optional[str]:
+    def _parse_operation_module(self, path: str) -> str | None:
         """
         解析操作模块
         
@@ -363,7 +363,7 @@ class OperationLogMiddleware(BaseHTTPMiddleware):
             return module
         return None
     
-    def _parse_operation_object_type(self, path: str) -> Optional[str]:
+    def _parse_operation_object_type(self, path: str) -> str | None:
         """
         解析操作对象类型
         
@@ -407,7 +407,7 @@ class OperationLogMiddleware(BaseHTTPMiddleware):
         
         return object_name
     
-    def _parse_operation_object_uuid(self, path: str) -> Optional[str]:
+    def _parse_operation_object_uuid(self, path: str) -> str | None:
         """
         从请求路径中提取操作对象的 UUID
         
@@ -428,7 +428,7 @@ class OperationLogMiddleware(BaseHTTPMiddleware):
             return match.group(0)
         return None
     
-    def _get_client_ip(self, request: Request) -> Optional[str]:
+    def _get_client_ip(self, request: Request) -> str | None:
         """
         获取客户端真实IP地址（优先获取外网IP）
         

@@ -61,12 +61,12 @@ async def create_computation_config(
 async def list_computation_configs(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(20, ge=1, le=100, description="限制数量"),
-    config_scope: Optional[str] = Query(None, description="配置维度筛选"),
-    material_id: Optional[int] = Query(None, description="物料ID筛选"),
-    warehouse_id: Optional[int] = Query(None, description="仓库ID筛选"),
-    is_template: Optional[bool] = Query(None, description="是否模板筛选"),
-    is_active: Optional[bool] = Query(None, description="是否启用筛选"),
-    keyword: Optional[str] = Query(None, description="关键词搜索"),
+    config_scope: str | None = Query(None, description="配置维度筛选"),
+    material_id: int | None = Query(None, description="物料ID筛选"),
+    warehouse_id: int | None = Query(None, description="仓库ID筛选"),
+    is_template: bool | None = Query(None, description="是否模板筛选"),
+    is_active: bool | None = Query(None, description="是否启用筛选"),
+    keyword: str | None = Query(None, description="关键词搜索"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -166,8 +166,8 @@ async def delete_computation_config(
 
 @router.get("/for-computation/params", summary="获取用于计算的参数配置")
 async def get_computation_params(
-    material_id: Optional[int] = Query(None, description="物料ID"),
-    warehouse_id: Optional[int] = Query(None, description="仓库ID"),
+    material_id: int | None = Query(None, description="物料ID"),
+    warehouse_id: int | None = Query(None, description="仓库ID"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

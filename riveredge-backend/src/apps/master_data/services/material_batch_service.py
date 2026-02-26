@@ -126,9 +126,9 @@ class MaterialBatchService:
     @staticmethod
     async def list_batches(
         tenant_id: int,
-        material_uuid: Optional[str] = None,
-        batch_no: Optional[str] = None,
-        status: Optional[str] = None,
+        material_uuid: str | None = None,
+        batch_no: str | None = None,
+        status: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> MaterialBatchListResponse:
@@ -259,10 +259,10 @@ class MaterialBatchService:
     async def generate_batch_no(
         tenant_id: int,
         material_uuid: str,
-        rule: Optional[str] = None,
-        rule_id: Optional[int] = None,
-        rule_uuid: Optional[str] = None,
-        supplier_code: Optional[str] = None,
+        rule: str | None = None,
+        rule_id: int | None = None,
+        rule_uuid: str | None = None,
+        supplier_code: str | None = None,
     ) -> str:
         """
         生成批号
@@ -337,7 +337,7 @@ class MaterialBatchService:
     async def trace_batch(
         tenant_id: int,
         batch_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         批号追溯
         

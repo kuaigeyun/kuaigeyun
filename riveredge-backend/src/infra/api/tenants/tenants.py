@@ -30,12 +30,12 @@ router = APIRouter(prefix="/tenants", tags=["Infra Tenants"])
 async def list_tenants_for_superadmin(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
-    status: Optional[TenantStatus] = Query(None, description="组织状态筛选"),
-    plan: Optional[TenantPlan] = Query(None, description="组织套餐筛选"),
-    name: Optional[str] = Query(None, description="组织名称搜索（模糊搜索）"),
-    domain: Optional[str] = Query(None, description="域名搜索（模糊搜索）"),
-    sort: Optional[str] = Query(None, description="排序字段（如：name、status、created_at）"),
-    order: Optional[str] = Query(None, description="排序顺序（asc 或 desc）"),
+    status: TenantStatus | None = Query(None, description="组织状态筛选"),
+    plan: TenantPlan | None = Query(None, description="组织套餐筛选"),
+    name: str | None = Query(None, description="组织名称搜索（模糊搜索）"),
+    domain: str | None = Query(None, description="域名搜索（模糊搜索）"),
+    sort: str | None = Query(None, description="排序字段（如：name、status、created_at）"),
+    order: str | None = Query(None, description="排序顺序（asc 或 desc）"),
     current_admin: InfraSuperAdmin = Depends(get_current_infra_superadmin),
     tenant_service: Any = Depends(get_tenant_service_with_fallback)  # ⚠️ 第三阶段改进：依赖注入
 ):
@@ -168,7 +168,7 @@ async def approve_tenant_registration(
 @router.post("/{tenant_id}/reject", response_model=TenantResponse)
 async def reject_tenant_registration(
     tenant_id: int,
-    reason: Optional[str] = Query(None, description="拒绝原因"),
+    reason: str | None = Query(None, description="拒绝原因"),
     current_admin: InfraSuperAdmin = Depends(get_current_infra_superadmin),
     tenant_service: Any = Depends(get_tenant_service_with_fallback)  # ⚠️ 第三阶段改进：依赖注入
 ):

@@ -47,19 +47,19 @@ from infra.services.business_config_service import BusinessConfigService
 
 class _PreviewResultCarrier(Exception):
     """用于预览时携带结果并触发事务回滚（不持久化）"""
-    def __init__(self, preview_data: Dict[str, Any]):
+    def __init__(self, preview_data: dict[str, Any]):
         self.preview_data = preview_data
 
 
 async def _fetch_config_via_raw_conn(
     conn: Any,
     tenant_id: int,
-    material_id: Optional[int],
-    warehouse_id: Optional[int],
-) -> Dict[str, Any]:
+    material_id: int | None,
+    warehouse_id: int | None,
+) -> dict[str, Any]:
     """在独立连接上查询 ComputationConfig，表不存在时由调用方捕获。"""
     import json
-    merged: Dict[str, Any] = {}
+    merged: dict[str, Any] = {}
     tbl = "apps_kuaizhizao_computation_configs"
     # 按优先级查询：global, warehouse, material, material_warehouse
     scopes = [
@@ -105,7 +105,7 @@ async def _get_material_safety_reorder(
     tenant_id: int,
     material: Any,
     material_id: int,
-    computation_params: Dict[str, Any],
+    computation_params: dict[str, Any],
 ) -> tuple[float, float]:
     """
     从物料主数据、ComputationConfig 或计算参数获取安全库存、再订货点。
@@ -151,11 +151,11 @@ async def _get_material_safety_reorder(
 
 
 def _compute_supply_and_net(
-    inventory_info: Dict[str, Any],
+    inventory_info: dict[str, Any],
     safety_stock: float,
     reorder_point: float,
     gross_requirement: float,
-    computation_params: Dict[str, Any],
+    computation_params: dict[str, Any],
 ) -> tuple[float, float]:
     """
     按可配置参数计算可供应量与净需求。
@@ -308,7 +308,7 @@ class DemandComputationService:
     async def _build_computation_response(
         self,
         computation: DemandComputation,
-        items: List[DemandComputationItem]
+        items: list[DemandComputationItem]
     ) -> DemandComputationResponse:
         """构建计算响应对象"""
         item_responses = [
@@ -372,17 +372,17 @@ class DemandComputationService:
     async def list_computations(
         self,
         tenant_id: int,
-        demand_id: Optional[int] = None,
-        demand_code: Optional[str] = None,
-        computation_code: Optional[str] = None,
-        computation_type: Optional[str] = None,
-        computation_status: Optional[str] = None,
-        business_mode: Optional[str] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        demand_id: int | None = None,
+        demand_code: str | None = None,
+        computation_code: str | None = None,
+        computation_type: str | None = None,
+        computation_status: str | None = None,
+        business_mode: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         skip: int = 0,
         limit: int = 20
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取需求计算列表
         
@@ -456,7 +456,7 @@ class DemandComputationService:
         self,
         tenant_id: int,
         computation_id: int,
-        computation_params_override: Optional[Dict[str, Any]] = None,
+        computation_params_override: dict[str, Any] | None = None,
     ) -> DemandComputationResponse:
         """
         执行需求计算
@@ -542,8 +542,8 @@ class DemandComputationService:
         self,
         tenant_id: int,
         computation_id: int,
-        computation_params_override: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        computation_params_override: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         预览执行结果：运行计算逻辑但不持久化，返回计算结果预览供二次确认。
         通过事务回滚实现，不写入数据库。
@@ -616,13 +616,13 @@ class DemandComputationService:
         self,
         tenant_id: int,
         computation_id: int,
-        operator_id: Optional[int] = None,
+        operator_id: int | None = None,
     ) -> DemandComputationResponse:
         """
         重新计算：仅允许对「完成」或「失败」的计算重新执行。
         重算前写入需求计算快照与重算历史；再删除原明细、重置状态并执行计算。
         """
-        snapshot_id_saved: Optional[int] = None
+        snapshot_id_saved: int | None = None
         async with in_transaction():
             computation = await DemandComputation.get_or_none(tenant_id=tenant_id, id=computation_id)
             if not computation:
@@ -695,7 +695,7 @@ class DemandComputationService:
 
     async def list_computation_recalc_history(
         self, tenant_id: int, computation_id: int, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取需求计算重算历史列表。"""
         computation = await DemandComputation.get_or_none(tenant_id=tenant_id, id=computation_id)
         if not computation:
@@ -718,7 +718,7 @@ class DemandComputationService:
 
     async def list_computation_snapshots(
         self, tenant_id: int, computation_id: int, limit: int = 20
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取需求计算快照列表。"""
         computation = await DemandComputation.get_or_none(tenant_id=tenant_id, id=computation_id)
         if not computation:
@@ -742,7 +742,7 @@ class DemandComputationService:
         tenant_id: int,
         computation_id1: int,
         computation_id2: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         对比两个需求计算结果
         
@@ -1609,7 +1609,7 @@ class DemandComputationService:
         created_by: int,
         generate_mode: str = "all",
         allow_draft: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从需求计算结果一键生成工单和采购单
         
@@ -1704,10 +1704,10 @@ class DemandComputationService:
         purchase_orders = []
         
         # 按供应商分组采购件（物料来源控制增强）
-        purchase_items_by_supplier: Dict[int, List[DemandComputationItem]] = {}
+        purchase_items_by_supplier: dict[int, list[DemandComputationItem]] = {}
         
         # 按物料聚合生产类明细（同一物料多行合并为一行，避免重复生成工单）
-        def _build_aggregated_item(group: List[DemandComputationItem]):
+        def _build_aggregated_item(group: list[DemandComputationItem]):
             first = group[0]
             if len(group) == 1:
                 return first
@@ -1969,7 +1969,7 @@ class DemandComputationService:
         self,
         tenant_id: int,
         computation_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取需求计算的下推记录，包含目标单据是否仍存在的标识。
         用于详情抽屉展示下推记录，已删除的单据会标识为 target_exists=False。
@@ -2027,7 +2027,7 @@ class DemandComputationService:
 
     async def _get_already_pushed_exclusions(
         self, tenant_id: int, computation_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取需求计算已下推且仍存在的单据对应的物料ID等排除信息。
         用于重新下推时避免重复生成。
@@ -2095,7 +2095,7 @@ class DemandComputationService:
         self,
         tenant_id: int,
         computation_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取需求计算的下推能力与一键下推默认配置，供前端弹窗预填。
         """
@@ -2174,8 +2174,8 @@ class DemandComputationService:
         self,
         tenant_id: int,
         computation_id: int,
-        push_config: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        push_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         获取下推预览（不实际执行），用于下推前展示将生成的单据数量。
         push_config: { "production": "plan"|"work_order", "purchase": "requisition"|"purchase_order" }
@@ -2279,10 +2279,10 @@ class DemandComputationService:
         tenant_id: int,
         computation_id: int,
         created_by: int,
-        production: Optional[str] = None,
-        purchase: Optional[str] = None,
+        production: str | None = None,
+        purchase: str | None = None,
         include_outsource: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         一键下推：按配置执行生产计划/工单、采购申请/采购单、委外工单。
         production: "plan"|"work_order"|null
@@ -2370,7 +2370,7 @@ class DemandComputationService:
         created_by: int,
         is_outsource: bool = False,
         allow_draft: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从计算结果明细创建工单
         
@@ -2473,7 +2473,7 @@ class DemandComputationService:
         item: DemandComputationItem,
         created_by: int,
         allow_draft: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从计算结果明细创建委外工单（OutsourceWorkOrder）
         
@@ -2583,7 +2583,7 @@ class DemandComputationService:
         computation: DemandComputation,
         item: DemandComputationItem,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从计算结果明细创建采购单（物料来源控制增强）
         
@@ -2695,10 +2695,10 @@ class DemandComputationService:
         self,
         tenant_id: int,
         computation: DemandComputation,
-        items: List[DemandComputationItem],
+        items: list[DemandComputationItem],
         supplier_id: int,
         created_by: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从多个计算结果明细创建采购单（按供应商分组，物料来源控制增强）
         

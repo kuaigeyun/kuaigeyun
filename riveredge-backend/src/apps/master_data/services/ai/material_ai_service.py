@@ -25,12 +25,12 @@ class MaterialAIService:
     @staticmethod
     async def generate_suggestions(
         tenant_id: int,
-        material_id: Optional[int] = None,
-        material_name: Optional[str] = None,
-        specification: Optional[str] = None,
-        base_unit: Optional[str] = None,
-        material_type: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        material_id: int | None = None,
+        material_name: str | None = None,
+        specification: str | None = None,
+        base_unit: str | None = None,
+        material_type: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         生成物料 AI 建议（简易版）
         
@@ -165,8 +165,8 @@ class MaterialAIService:
     @staticmethod
     def _generate_configuration_suggestions(
         material_type: str,
-        specification: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        specification: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         生成配置建议（基于物料类型）
         
@@ -219,7 +219,7 @@ class MaterialAIService:
         return suggestions
     
     @staticmethod
-    def _check_data_completeness(material: Material) -> List[Dict[str, Any]]:
+    def _check_data_completeness(material: Material) -> list[dict[str, Any]]:
         """
         检查数据完整性
         

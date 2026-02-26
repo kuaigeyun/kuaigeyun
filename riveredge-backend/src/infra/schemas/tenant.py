@@ -33,10 +33,10 @@ class TenantBase(BaseModel):
     domain: str = Field(..., min_length=1, max_length=100, description="组织域名（用于子域名访问）")
     status: TenantStatus = Field(default=TenantStatus.INACTIVE, description="组织状态")
     plan: TenantPlan = Field(default=TenantPlan.TRIAL, description="组织套餐（默认体验套餐）")
-    settings: Dict[str, Any] = Field(default_factory=dict, description="组织配置（JSONB 存储）")
-    max_users: Optional[int] = Field(default=None, ge=1, description="最大用户数限制（可选，根据套餐自动设置）")
-    max_storage: Optional[int] = Field(default=None, ge=0, description="最大存储空间限制（可选，根据套餐自动设置，单位：MB）")
-    expires_at: Optional[datetime] = Field(default=None, description="过期时间（可选）")
+    settings: dict[str, Any] = Field(default_factory=dict, description="组织配置（JSONB 存储）")
+    max_users: int | None = Field(default=None, ge=1, description="最大用户数限制（可选，根据套餐自动设置）")
+    max_storage: int | None = Field(default=None, ge=0, description="最大存储空间限制（可选，根据套餐自动设置，单位：MB）")
+    expires_at: datetime | None = Field(default=None, description="过期时间（可选）")
 
 
 class TenantCreate(TenantBase):
@@ -76,14 +76,14 @@ class TenantUpdate(BaseModel):
         expires_at: 过期时间（可选）
     """
     
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="组织名称")
-    domain: Optional[str] = Field(None, min_length=1, max_length=100, description="组织域名")
-    status: Optional[TenantStatus] = Field(None, description="组织状态")
-    plan: Optional[TenantPlan] = Field(None, description="组织套餐")
-    settings: Optional[Dict[str, Any]] = Field(None, description="组织配置")
-    max_users: Optional[int] = Field(None, ge=1, description="最大用户数限制")
-    max_storage: Optional[int] = Field(None, ge=0, description="最大存储空间限制（MB）")
-    expires_at: Optional[datetime] = Field(None, description="过期时间")
+    name: str | None = Field(None, min_length=1, max_length=100, description="组织名称")
+    domain: str | None = Field(None, min_length=1, max_length=100, description="组织域名")
+    status: TenantStatus | None = Field(None, description="组织状态")
+    plan: TenantPlan | None = Field(None, description="组织套餐")
+    settings: dict[str, Any] | None = Field(None, description="组织配置")
+    max_users: int | None = Field(None, ge=1, description="最大用户数限制")
+    max_storage: int | None = Field(None, ge=0, description="最大存储空间限制（MB）")
+    expires_at: datetime | None = Field(None, description="过期时间")
 
 
 class TenantResponse(TenantBase):
@@ -181,8 +181,8 @@ class TenantCheckResponse(BaseModel):
     """
     
     exists: bool = Field(..., description="组织是否存在")
-    tenant_id: Optional[int] = Field(None, description="组织 ID（如果存在）")
-    tenant_name: Optional[str] = Field(None, description="组织名称（如果存在）")
+    tenant_id: int | None = Field(None, description="组织 ID（如果存在）")
+    tenant_name: str | None = Field(None, description="组织名称（如果存在）")
 
 
 class TenantUsageResponse(BaseModel):
@@ -233,8 +233,8 @@ class TenantActivityLogResponse(BaseModel):
     tenant_id: int = Field(..., description="组织 ID")
     action: str = Field(..., description="操作类型")
     description: str = Field(..., description="操作描述")
-    operator_id: Optional[int] = Field(None, description="操作人 ID（可选）")
-    operator_name: Optional[str] = Field(None, description="操作人名称（可选）")
+    operator_id: int | None = Field(None, description="操作人 ID（可选）")
+    operator_name: str | None = Field(None, description="操作人名称（可选）")
     created_at: datetime = Field(..., description="操作时间")
     
     model_config = ConfigDict(from_attributes=True)

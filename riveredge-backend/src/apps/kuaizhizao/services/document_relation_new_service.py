@@ -33,13 +33,13 @@ _CHANGE_IMPACT_STATUS_FIELDS = {
 }
 
 
-def _relation_key(source_type: str, source_id: int, target_type: str, target_id: int) -> Tuple:
+def _relation_key(source_type: str, source_id: int, target_type: str, target_id: int) -> tuple:
     """关联关系去重键"""
     return (source_type, source_id, target_type, target_id)
 
 
 def _derived_to_response(
-    doc: Dict[str, Any],
+    doc: dict[str, Any],
     document_type: str,
     document_id: int,
     tenant_id: int,
@@ -231,14 +231,14 @@ class DocumentRelationNewService:
         tenant_id: int,
         source_type: str,
         source_id: int,
-        source_code: Optional[str],
-        source_name: Optional[str],
-        target_documents: List[Dict[str, Any]],
+        source_code: str | None,
+        source_name: str | None,
+        target_documents: list[dict[str, Any]],
         relation_mode: str = "push",
-        business_mode: Optional[str] = None,
-        demand_id: Optional[int] = None,
+        business_mode: str | None = None,
+        demand_id: int | None = None,
         created_by: int = None
-    ) -> List[DocumentRelationResponse]:
+    ) -> list[DocumentRelationResponse]:
         """
         批量创建关联关系
         
@@ -362,8 +362,8 @@ class DocumentRelationNewService:
         root_code, root_name = await self._get_document_info(tenant_id, document_type, document_id)
         
         # 初始化追溯结果
-        upstream_chain: List[DocumentTraceNode] = []
-        downstream_chain: List[DocumentTraceNode] = []
+        upstream_chain: list[DocumentTraceNode] = []
+        downstream_chain: list[DocumentTraceNode] = []
         
         # 用于避免循环引用的集合
         visited_upstream = set()
@@ -408,7 +408,7 @@ class DocumentRelationNewService:
         level: int,
         max_depth: int,
         visited: set
-    ) -> List[DocumentTraceNode]:
+    ) -> list[DocumentTraceNode]:
         """递归向上追溯（使用合并后的 get_relations，含表驱动+业务推导）"""
         if level >= max_depth:
             return []
@@ -419,7 +419,7 @@ class DocumentRelationNewService:
         visited.add(key)
         
         result = await self.get_relations(tenant_id, document_type, document_id)
-        nodes: List[DocumentTraceNode] = []
+        nodes: list[DocumentTraceNode] = []
         
         for rel in result.upstream:
             children = await self._trace_upstream_recursive(
@@ -449,7 +449,7 @@ class DocumentRelationNewService:
         level: int,
         max_depth: int,
         visited: set
-    ) -> List[DocumentTraceNode]:
+    ) -> list[DocumentTraceNode]:
         """递归向下追溯（使用合并后的 get_relations，含表驱动+业务推导）"""
         if level >= max_depth:
             return []
@@ -460,7 +460,7 @@ class DocumentRelationNewService:
         visited.add(key)
         
         result = await self.get_relations(tenant_id, document_type, document_id)
-        nodes: List[DocumentTraceNode] = []
+        nodes: list[DocumentTraceNode] = []
         
         for rel in result.downstream:
             children = await self._trace_downstream_recursive(
@@ -487,7 +487,7 @@ class DocumentRelationNewService:
         tenant_id: int,
         document_type: str,
         document_id: int
-    ) -> tuple[Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None]:
         """获取单据基本信息（编码和名称）"""
         try:
             from apps.kuaizhizao.services.document_relation_service import DocumentRelationService
@@ -509,9 +509,9 @@ class DocumentRelationNewService:
 
     def _flatten_downstream_nodes(
         self,
-        nodes: List[DocumentTraceNode],
-        collected: Optional[Dict[Tuple[str, int], Dict[str, Any]]] = None,
-    ) -> Dict[Tuple[str, int], Dict[str, Any]]:
+        nodes: list[DocumentTraceNode],
+        collected: dict[tuple[str, int], dict[str, Any]] | None = None,
+    ) -> dict[tuple[str, int], dict[str, Any]]:
         """扁平化下游追溯树，收集所有 (document_type, document_id) 及 code/name/status"""
         if collected is None:
             collected = {}
@@ -532,7 +532,7 @@ class DocumentRelationNewService:
         tenant_id: int,
         document_type: str,
         document_id: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """获取单据状态"""
         try:
             from apps.kuaizhizao.services.document_relation_service import DocumentRelationService
@@ -559,7 +559,7 @@ class DocumentRelationNewService:
         self,
         tenant_id: int,
         demand_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取需求变更对下游的影响范围（与 trace 使用相同数据源 get_relations）
         """
@@ -636,7 +636,7 @@ class DocumentRelationNewService:
         self,
         tenant_id: int,
         order_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取销售订单变更对下游的影响范围（与 trace 使用相同数据源 get_relations）
         """

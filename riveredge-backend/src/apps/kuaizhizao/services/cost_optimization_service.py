@@ -38,12 +38,12 @@ class CostOptimizationService:
     async def generate_optimization_suggestions(
         self,
         tenant_id: int,
-        material_id: Optional[int] = None,
-        material_ids: Optional[List[int]] = None,
-        quantity: Optional[Decimal] = None,
-        calculation_date: Optional[date] = None,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        material_id: int | None = None,
+        material_ids: list[int] | None = None,
+        quantity: Decimal | None = None,
+        calculation_date: date | None = None,
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         生成成本优化建议
         
@@ -99,8 +99,8 @@ class CostOptimizationService:
         material_id: int,
         quantity: Decimal,
         calculation_date: date,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         分析单个物料的成本优化建议
         
@@ -166,11 +166,11 @@ class CostOptimizationService:
     async def _analyze_multiple_materials(
         self,
         tenant_id: int,
-        material_ids: List[int],
+        material_ids: list[int],
         quantity: Decimal,
         calculation_date: date,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         批量分析多个物料的成本优化建议
         
@@ -227,8 +227,8 @@ class CostOptimizationService:
         material: Material,
         quantity: Decimal,
         calculation_date: date,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Any]:
+        created_by: int | None = None
+    ) -> dict[str, Any]:
         """
         计算当前来源类型的成本
         
@@ -287,8 +287,8 @@ class CostOptimizationService:
         material: Material,
         quantity: Decimal,
         calculation_date: date,
-        created_by: Optional[int] = None
-    ) -> Dict[str, Dict[str, Any]]:
+        created_by: int | None = None
+    ) -> dict[str, dict[str, Any]]:
         """
         计算其他来源类型的成本
         
@@ -389,9 +389,9 @@ class CostOptimizationService:
         self,
         material: Material,
         current_source_type: str,
-        current_cost: Dict[str, Any],
-        alternative_costs: Dict[str, Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        current_cost: dict[str, Any],
+        alternative_costs: dict[str, dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         生成优化建议
         

@@ -68,7 +68,7 @@ class PayableService(AppBaseService[Payable]):
             raise NotFoundError(f"应付单不存在: {payable_id}")
         return PayableResponse.model_validate(payable)
 
-    async def list_payables(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[PayableListResponse]:
+    async def list_payables(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[PayableListResponse]:
         """获取应付单列表"""
         query = Payable.filter(tenant_id=tenant_id)
 
@@ -126,7 +126,7 @@ class PayableService(AppBaseService[Payable]):
             updated_payable = await self.get_payable_by_id(tenant_id, payable_id)
             return updated_payable
 
-    async def approve_payable(self, tenant_id: int, payable_id: int, approved_by: int, rejection_reason: Optional[str] = None) -> PayableResponse:
+    async def approve_payable(self, tenant_id: int, payable_id: int, approved_by: int, rejection_reason: str | None = None) -> PayableResponse:
         """审核应付单"""
         async with in_transaction():
             payable = await self.get_payable_by_id(tenant_id, payable_id)
@@ -180,7 +180,7 @@ class PurchaseInvoiceService(AppBaseService[PurchaseInvoice]):
             raise NotFoundError(f"采购发票不存在: {invoice_id}")
         return PurchaseInvoiceResponse.model_validate(invoice)
 
-    async def list_purchase_invoices(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[PurchaseInvoiceListResponse]:
+    async def list_purchase_invoices(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[PurchaseInvoiceListResponse]:
         """获取采购发票列表"""
         query = PurchaseInvoice.filter(tenant_id=tenant_id)
 
@@ -195,7 +195,7 @@ class PurchaseInvoiceService(AppBaseService[PurchaseInvoice]):
         invoices = await query.offset(skip).limit(limit).order_by('-created_at')
         return [PurchaseInvoiceListResponse.model_validate(invoice) for invoice in invoices]
 
-    async def approve_invoice(self, tenant_id: int, invoice_id: int, approved_by: int, rejection_reason: Optional[str] = None) -> PurchaseInvoiceResponse:
+    async def approve_invoice(self, tenant_id: int, invoice_id: int, approved_by: int, rejection_reason: str | None = None) -> PurchaseInvoiceResponse:
         """审核采购发票"""
         async with in_transaction():
             invoice = await self.get_purchase_invoice_by_id(tenant_id, invoice_id)
@@ -264,7 +264,7 @@ class ReceivableService(AppBaseService[Receivable]):
             raise NotFoundError(f"应收单不存在: {receivable_id}")
         return ReceivableResponse.model_validate(receivable)
 
-    async def list_receivables(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[ReceivableListResponse]:
+    async def list_receivables(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[ReceivableListResponse]:
         """获取应收单列表"""
         query = Receivable.filter(tenant_id=tenant_id)
 
@@ -311,7 +311,7 @@ class ReceivableService(AppBaseService[Receivable]):
             updated_receivable = await self.get_receivable_by_id(tenant_id, receivable_id)
             return updated_receivable
 
-    async def approve_receivable(self, tenant_id: int, receivable_id: int, approved_by: int, rejection_reason: Optional[str] = None) -> ReceivableResponse:
+    async def approve_receivable(self, tenant_id: int, receivable_id: int, approved_by: int, rejection_reason: str | None = None) -> ReceivableResponse:
         """审核应收单"""
         async with in_transaction():
             receivable = await self.get_receivable_by_id(tenant_id, receivable_id)

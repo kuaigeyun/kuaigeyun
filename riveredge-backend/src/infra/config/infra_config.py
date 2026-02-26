@@ -113,7 +113,7 @@ class InfraSettings(BaseSettings):
     
     @field_validator("CORS_ORIGINS_STR", "CORS_ALLOW_METHODS_STR", "CORS_ALLOW_HEADERS_STR", mode="before")
     @classmethod
-    def parse_comma_separated_str(cls, v: Union[str, List[str]]) -> str:
+    def parse_comma_separated_str(cls, v: str | list[str]) -> str:
         """
         解析逗号分隔的字符串配置
         
@@ -140,7 +140,7 @@ class InfraSettings(BaseSettings):
         return str(v) if v is not None else ""
     
     @property
-    def CORS_ORIGINS(self) -> List[str]:
+    def CORS_ORIGINS(self) -> list[str]:
         """
         获取 CORS 允许的来源列表
         
@@ -152,7 +152,7 @@ class InfraSettings(BaseSettings):
         return [item.strip() for item in self.CORS_ORIGINS_STR.split(",") if item.strip()]
     
     @property
-    def CORS_ALLOW_METHODS(self) -> List[str]:
+    def CORS_ALLOW_METHODS(self) -> list[str]:
         """
         获取 CORS 允许的方法列表
         
@@ -164,7 +164,7 @@ class InfraSettings(BaseSettings):
         return [item.strip() for item in self.CORS_ALLOW_METHODS_STR.split(",") if item.strip()]
     
     @property
-    def CORS_ALLOW_HEADERS(self) -> List[str]:
+    def CORS_ALLOW_HEADERS(self) -> list[str]:
         """
         获取 CORS 允许的请求头列表
         
@@ -175,7 +175,7 @@ class InfraSettings(BaseSettings):
             return ["*"]
         return [item.strip() for item in self.CORS_ALLOW_HEADERS_STR.split(",") if item.strip()]
     
-    def get_cors_origins(self) -> List[str]:
+    def get_cors_origins(self) -> list[str]:
         """
         获取 CORS 允许的来源列表
         

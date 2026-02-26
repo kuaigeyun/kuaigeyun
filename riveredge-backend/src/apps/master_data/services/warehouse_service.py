@@ -137,8 +137,8 @@ class WarehouseService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None
-    ) -> List[WarehouseResponse]:
+        is_active: bool | None = None
+    ) -> list[WarehouseResponse]:
         """
         获取仓库列表
         
@@ -262,7 +262,7 @@ class WarehouseService:
     @staticmethod
     async def batch_delete_warehouses(
         tenant_id: int,
-        warehouse_uuids: List[str]
+        warehouse_uuids: list[str]
     ) -> dict:
         """
         批量删除仓库（软删除）
@@ -457,9 +457,9 @@ class WarehouseService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        warehouse_id: Optional[int] = None,
-        is_active: Optional[bool] = None
-    ) -> List[StorageAreaResponse]:
+        warehouse_id: int | None = None,
+        is_active: bool | None = None
+    ) -> list[StorageAreaResponse]:
         """
         获取库区列表
         
@@ -598,7 +598,7 @@ class WarehouseService:
     @staticmethod
     async def batch_delete_storage_areas(
         tenant_id: int,
-        storage_area_uuids: List[str]
+        storage_area_uuids: list[str]
     ) -> dict:
         """
         批量删除库区（软删除）
@@ -793,9 +793,9 @@ class WarehouseService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        storage_area_id: Optional[int] = None,
-        is_active: Optional[bool] = None
-    ) -> List[StorageLocationResponse]:
+        storage_area_id: int | None = None,
+        is_active: bool | None = None
+    ) -> list[StorageLocationResponse]:
         """
         获取库位列表
         
@@ -923,7 +923,7 @@ class WarehouseService:
     @staticmethod
     async def batch_delete_storage_locations(
         tenant_id: int,
-        storage_location_uuids: List[str]
+        storage_location_uuids: list[str]
     ) -> dict:
         """
         批量删除库位（软删除）
@@ -984,8 +984,8 @@ class WarehouseService:
     @staticmethod
     async def get_warehouse_tree(
         tenant_id: int,
-        is_active: Optional[bool] = None
-    ) -> List["WarehouseTreeResponse"]:
+        is_active: bool | None = None
+    ) -> list["WarehouseTreeResponse"]:
         """
         获取仓库数据树形结构（仓库→库区→库位）
         
@@ -1036,7 +1036,7 @@ class WarehouseService:
         storage_locations = await storage_location_query.prefetch_related("storage_area").order_by("code").all()
         
         # 构建库位映射（按库区ID分组）
-        storage_location_map: dict[int, List[StorageLocationTreeResponse]] = {}
+        storage_location_map: dict[int, list[StorageLocationTreeResponse]] = {}
         for storage_location in storage_locations:
             area_id = storage_location.storage_area_id
             if area_id not in storage_location_map:
@@ -1044,7 +1044,7 @@ class WarehouseService:
             storage_location_map[area_id].append(StorageLocationTreeResponse.model_validate(storage_location))
         
         # 构建库区映射（按仓库ID分组）
-        storage_area_map: dict[int, List[StorageAreaTreeResponse]] = {}
+        storage_area_map: dict[int, list[StorageAreaTreeResponse]] = {}
         for storage_area in storage_areas:
             warehouse_id = storage_area.warehouse_id
             if warehouse_id not in storage_area_map:
@@ -1059,7 +1059,7 @@ class WarehouseService:
             storage_area_map[warehouse_id].append(area_response)
         
         # 构建仓库树形结构
-        result: List[WarehouseTreeResponse] = []
+        result: list[WarehouseTreeResponse] = []
         for warehouse in warehouses:
             # 获取该仓库的库区列表
             warehouse_storage_areas = storage_area_map.get(warehouse.id, [])

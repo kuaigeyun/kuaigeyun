@@ -81,9 +81,9 @@ async def create_data_source(
 async def list_data_sources(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    search: Optional[str] = Query(None, description="搜索关键词（名称、代码）"),
-    type: Optional[str] = Query(None, description="数据源类型筛选"),
-    is_active: Optional[bool] = Query(None, description="是否启用筛选"),
+    search: str | None = Query(None, description="搜索关键词（名称、代码）"),
+    type: str | None = Query(None, description="数据源类型筛选"),
+    is_active: bool | None = Query(None, description="是否启用筛选"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

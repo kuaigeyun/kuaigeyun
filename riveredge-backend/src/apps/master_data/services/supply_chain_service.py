@@ -101,9 +101,9 @@ class SupplyChainService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        category: Optional[str] = None,
-        is_active: Optional[bool] = None
-    ) -> List[CustomerResponse]:
+        category: str | None = None,
+        is_active: bool | None = None
+    ) -> list[CustomerResponse]:
         """
         获取客户列表
         
@@ -298,12 +298,12 @@ class SupplyChainService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        category: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        keyword: Optional[str] = None,
-        code: Optional[str] = None,
-        name: Optional[str] = None
-    ) -> List[SupplierResponse]:
+        category: str | None = None,
+        is_active: bool | None = None,
+        keyword: str | None = None,
+        code: str | None = None,
+        name: str | None = None
+    ) -> list[SupplierResponse]:
         """
         获取供应商列表
 

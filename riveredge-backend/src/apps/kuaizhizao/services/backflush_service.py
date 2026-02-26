@@ -37,7 +37,7 @@ class BackflushService(AppBaseService[BackflushRecord]):
         tenant_id: int,
         product_id: int,
         report_quantity: float
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         根据BOM计算物料消耗量
 
@@ -78,7 +78,7 @@ class BackflushService(AppBaseService[BackflushRecord]):
         self,
         tenant_id: int,
         work_order: WorkOrder
-    ) -> List[Warehouse]:
+    ) -> list[Warehouse]:
         """
         获取工单关联车间对应的线边仓列表
 
@@ -108,10 +108,10 @@ class BackflushService(AppBaseService[BackflushRecord]):
         self,
         tenant_id: int,
         material_id: int,
-        warehouse_ids: List[int],
+        warehouse_ids: list[int],
         required_quantity: Decimal,
-        work_order_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        work_order_id: int | None = None
+    ) -> list[dict[str, Any]]:
         """
         按FIFO自动选择批次
 
@@ -228,10 +228,10 @@ class BackflushService(AppBaseService[BackflushRecord]):
         work_order_id: int,
         report_id: int,
         report_quantity: float,
-        operation_id: Optional[int] = None,
-        operation_code: Optional[str] = None,
-        processed_by: Optional[int] = None
-    ) -> List[BackflushRecord]:
+        operation_id: int | None = None,
+        operation_code: str | None = None,
+        processed_by: int | None = None
+    ) -> list[BackflushRecord]:
         """
         根据报工触发物料倒冲
 
@@ -371,8 +371,8 @@ class BackflushService(AppBaseService[BackflushRecord]):
         self,
         tenant_id: int,
         failed_record_id: int,
-        processed_by: Optional[int] = None
-    ) -> Optional[BackflushRecord]:
+        processed_by: int | None = None
+    ) -> BackflushRecord | None:
         """
         重试单条失败的倒冲记录
 

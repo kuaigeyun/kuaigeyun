@@ -59,10 +59,10 @@ class ToolService:
         tenant_id: int, 
         skip: int = 0, 
         limit: int = 100,
-        type: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None
-    ) -> Tuple[List[Tool], int]:
+        type: str | None = None,
+        status: str | None = None,
+        search: str | None = None
+    ) -> tuple[list[Tool], int]:
         query = Tool.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if type: query = query.filter(type=type)
         if status: query = query.filter(status=status)
@@ -96,7 +96,7 @@ class ToolUsageService:
         tool_uuid: str,
         skip: int = 0,
         limit: int = 100,
-    ) -> Tuple[List[ToolUsage], int]:
+    ) -> tuple[list[ToolUsage], int]:
         tool = await ToolService.get_tool_by_uuid(tenant_id, tool_uuid)
         query = ToolUsage.filter(tenant_id=tenant_id, tool_id=tool.id, deleted_at__isnull=True)
         total = await query.count()
@@ -126,7 +126,7 @@ class ToolUsageService:
         return usage
 
     @staticmethod
-    async def checkin_tool(tenant_id: int, uuid: str, remark: Optional[str] = None) -> ToolUsage:
+    async def checkin_tool(tenant_id: int, uuid: str, remark: str | None = None) -> ToolUsage:
         usage = await ToolUsage.filter(tenant_id=tenant_id, uuid=uuid).first()
         if not usage or usage.status == "已归还":
             raise ValidationError("有效的领用记录不存在或已归还")
@@ -153,7 +153,7 @@ class ToolMaintenanceService:
         tool_uuid: str,
         skip: int = 0,
         limit: int = 100,
-    ) -> Tuple[List[ToolMaintenance], int]:
+    ) -> tuple[list[ToolMaintenance], int]:
         tool = await ToolService.get_tool_by_uuid(tenant_id, tool_uuid)
         query = ToolMaintenance.filter(tenant_id=tenant_id, tool_id=tool.id, deleted_at__isnull=True)
         total = await query.count()
@@ -166,7 +166,7 @@ class ToolMaintenanceService:
         tool_uuid: str,
         skip: int = 0,
         limit: int = 100,
-    ) -> Tuple[List[ToolCalibration], int]:
+    ) -> tuple[list[ToolCalibration], int]:
         tool = await ToolService.get_tool_by_uuid(tenant_id, tool_uuid)
         query = ToolCalibration.filter(tenant_id=tenant_id, tool_id=tool.id, deleted_at__isnull=True)
         total = await query.count()

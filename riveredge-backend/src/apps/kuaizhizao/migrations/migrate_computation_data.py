@@ -21,10 +21,10 @@ class ComputationDataMigration:
     """需求计算数据迁移类"""
     
     def __init__(self):
-        self.migration_log: List[Dict[str, Any]] = []
-        self.rollback_data: List[Dict[str, Any]] = []
+        self.migration_log: list[dict[str, Any]] = []
+        self.rollback_data: list[dict[str, Any]] = []
     
-    async def migrate_all(self, tenant_id: int, dry_run: bool = False) -> Dict[str, Any]:
+    async def migrate_all(self, tenant_id: int, dry_run: bool = False) -> dict[str, Any]:
         """
         迁移所有数据
         
@@ -70,7 +70,7 @@ class ComputationDataMigration:
         
         return result
     
-    async def migrate_mrp_results(self, tenant_id: int, dry_run: bool = False) -> Dict[str, Any]:
+    async def migrate_mrp_results(self, tenant_id: int, dry_run: bool = False) -> dict[str, Any]:
         """
         迁移MRP运算结果数据
         
@@ -307,7 +307,7 @@ class ComputationDataMigration:
                 notes=row.get("notes"),
             )
     
-    async def migrate_lrp_results(self, tenant_id: int, dry_run: bool = False) -> Dict[str, Any]:
+    async def migrate_lrp_results(self, tenant_id: int, dry_run: bool = False) -> dict[str, Any]:
         """
         迁移LRP运算结果数据
         

@@ -120,8 +120,8 @@ class ApprovalInstanceService:
         entity_id: int,
         entity_uuid: str,
         title: str,
-        content: Optional[str] = None,
-    ) -> Optional[ApprovalInstance]:
+        content: str | None = None,
+    ) -> ApprovalInstance | None:
         """
         按 process_code 启动审批流程（统一入口）
 
@@ -169,7 +169,7 @@ class ApprovalInstanceService:
         tenant_id: int,
         entity_type: str,
         entity_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         按 entity_type + entity_id 获取审批状态（统一入口）
 
@@ -242,8 +242,8 @@ class ApprovalInstanceService:
         entity_id: int,
         approver_id: int,
         approved: bool,
-        comment: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        comment: str | None = None,
+    ) -> dict[str, Any]:
         """
         按 entity 执行审批（统一入口）
 
@@ -327,7 +327,7 @@ class ApprovalInstanceService:
         tenant_id: int,
         entity_type: str,
         entity_id: int,
-    ) -> Optional[ApprovalInstance]:
+    ) -> ApprovalInstance | None:
         """按 entity 查找审批实例（最近一条）"""
         instances = await ApprovalInstance.filter(
             tenant_id=tenant_id,
@@ -374,10 +374,10 @@ class ApprovalInstanceService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        status: Optional[str] = None,
-        submitter_id: Optional[int] = None,
-        current_approver_id: Optional[int] = None
-    ) -> List[ApprovalInstance]:
+        status: str | None = None,
+        submitter_id: int | None = None,
+        current_approver_id: int | None = None
+    ) -> list[ApprovalInstance]:
         """
         获取审批实例列表
         
@@ -551,7 +551,7 @@ class ApprovalInstanceService:
         return instance
 
     @staticmethod
-    async def _create_node_tasks(tenant_id: int, instance: ApprovalInstance, node: dict) -> List[ApprovalTask]:
+    async def _create_node_tasks(tenant_id: int, instance: ApprovalInstance, node: dict) -> list[ApprovalTask]:
         """为节点创建审批任务"""
         approvers = await ApprovalInstanceService._resolve_node_approvers(node, instance)
         tasks = []
@@ -573,7 +573,7 @@ class ApprovalInstanceService:
         return tasks
 
     @staticmethod
-    async def _resolve_node_approvers(node: dict, instance: ApprovalInstance) -> List[int]:
+    async def _resolve_node_approvers(node: dict, instance: ApprovalInstance) -> list[int]:
         """解析节点审批人"""
         node_data = node.get("data", {})
         approver_type = node_data.get("approver_type", "user") # user, role, department, manager
@@ -817,7 +817,7 @@ class ApprovalInstanceService:
         action: ApprovalInstanceAction,
         user_id: int,
         old_status: str,
-        old_current_approver_id: Optional[int]
+        old_current_approver_id: int | None
     ) -> None:
         """
         发送审批操作通知
@@ -917,7 +917,7 @@ class ApprovalInstanceService:
             logger.error(f"发送审批操作通知失败: {str(e)}")
     
     @staticmethod
-    def _get_start_node(nodes: dict) -> Optional[dict]:
+    def _get_start_node(nodes: dict) -> dict | None:
         """
         获取起始节点
         
@@ -947,7 +947,7 @@ class ApprovalInstanceService:
         return None
     
     @staticmethod
-    def _get_next_node(nodes: dict, current_node_id: Optional[str]) -> Optional[dict]:
+    def _get_next_node(nodes: dict, current_node_id: str | None) -> dict | None:
         """
         获取下一个节点
         
@@ -986,7 +986,7 @@ class ApprovalInstanceService:
         return None
     
     @staticmethod
-    def _get_node_approver(node: dict, approval_instance: ApprovalInstance) -> Optional[int]:
+    def _get_node_approver(node: dict, approval_instance: ApprovalInstance) -> int | None:
         """
         获取节点审批人
         
@@ -1022,11 +1022,11 @@ class ApprovalInstanceService:
         approval_instance_id: int,
         action: str,
         action_by: int,
-        comment: Optional[str] = None,
-        from_node: Optional[str] = None,
-        to_node: Optional[str] = None,
-        from_approver_id: Optional[int] = None,
-        to_approver_id: Optional[int] = None
+        comment: str | None = None,
+        from_node: str | None = None,
+        to_node: str | None = None,
+        from_approver_id: int | None = None,
+        to_approver_id: int | None = None
     ) -> None:
         """
         创建审批历史记录

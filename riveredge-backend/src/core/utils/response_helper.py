@@ -11,9 +11,9 @@ from infra.responses import StandardResponse, PaginatedResponse
 
 def create_success_response(
     data: Any = None,
-    message: Optional[str] = None,
-    code: Optional[str] = None
-) -> Dict[str, Any]:
+    message: str | None = None,
+    code: str | None = None
+) -> dict[str, Any]:
     """
     创建成功响应
     
@@ -41,12 +41,12 @@ def create_success_response(
 
 
 def create_paginated_response(
-    items: List[Any],
+    items: list[Any],
     total: int,
     page: int,
     page_size: int,
-    message: Optional[str] = None
-) -> Dict[str, Any]:
+    message: str | None = None
+) -> dict[str, Any]:
     """
     创建分页响应
     
@@ -78,9 +78,9 @@ def create_paginated_response(
 
 
 def create_list_response(
-    items: List[Any],
-    message: Optional[str] = None
-) -> Dict[str, Any]:
+    items: list[Any],
+    message: str | None = None
+) -> dict[str, Any]:
     """
     创建列表响应（无分页）
     

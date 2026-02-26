@@ -27,7 +27,7 @@ class MessageServiceImpl(MessageServiceInterface):
     def service_version(self) -> str:
         return "1.0.0"
     
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """服务健康检查"""
         return {
             "status": "healthy",

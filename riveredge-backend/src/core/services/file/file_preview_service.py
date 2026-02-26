@@ -36,7 +36,7 @@ class FilePreviewService:
     HEALTH_CHECK_CACHE_TTL = 60  # 健康检查结果缓存时间（1分钟）
     
     # 健康检查状态缓存（内存缓存，用于快速访问）
-    _health_status_cache: Dict[str, Dict[str, Any]] = {}
+    _health_status_cache: dict[str, dict[str, Any]] = {}
     
     @staticmethod
     def _generate_preview_token(
@@ -71,7 +71,7 @@ class FilePreviewService:
         return token
     
     @staticmethod
-    def verify_preview_token(token: str) -> Dict[str, Any]:
+    def verify_preview_token(token: str) -> dict[str, Any]:
         """
         验证预览token
 
@@ -144,7 +144,7 @@ class FilePreviewService:
         return FilePreviewService.KKFILEVIEW_URL  # 使用默认值
     
     @staticmethod
-    async def _get_kkfileview_urls(tenant_id: int) -> List[str]:
+    async def _get_kkfileview_urls(tenant_id: int) -> list[str]:
         """
         从系统参数读取 kkFileView 服务地址列表（支持负载均衡）
         
@@ -173,7 +173,7 @@ class FilePreviewService:
         return [single_url] if single_url else []
     
     @staticmethod
-    async def _select_healthy_url(urls: List[str], tenant_id: int) -> Optional[str]:
+    async def _select_healthy_url(urls: list[str], tenant_id: int) -> str | None:
         """
         从URL列表中选择一个健康的服务地址（负载均衡）
         
@@ -274,7 +274,7 @@ class FilePreviewService:
             return False
     
     @staticmethod
-    def _is_simple_preview_supported(file_type: Optional[str]) -> bool:
+    def _is_simple_preview_supported(file_type: str | None) -> bool:
         """
         检查文件类型是否支持简单预览
         
@@ -453,7 +453,7 @@ class FilePreviewService:
     async def get_preview_info(
         file_uuid: str,
         tenant_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取文件预览信息（根据配置选择预览模式）
         
@@ -506,7 +506,7 @@ class FilePreviewService:
             }
     
     @staticmethod
-    async def check_kkfileview_health(tenant_id: Optional[int] = None) -> Dict[str, Any]:
+    async def check_kkfileview_health(tenant_id: int | None = None) -> dict[str, Any]:
         """
         检查 kkFileView 服务健康状态（支持多实例）
         
@@ -568,7 +568,7 @@ class FilePreviewService:
         }
     
     @staticmethod
-    async def clear_preview_cache(tenant_id: int, file_uuid: Optional[str] = None) -> None:
+    async def clear_preview_cache(tenant_id: int, file_uuid: str | None = None) -> None:
         """
         清除预览URL缓存
         

@@ -24,8 +24,8 @@ class LLMResponse:
     """LLM 响应数据类"""
     content: str
     model: str
-    usage: Optional[Dict[str, Any]] = None  # token 使用情况
-    finish_reason: Optional[str] = None
+    usage: dict[str, Any] | None = None  # token 使用情况
+    finish_reason: str | None = None
 
 
 class LLMProvider(ABC):
@@ -35,7 +35,7 @@ class LLMProvider(ABC):
     所有 LLM 提供商必须实现此接口。
     """
     
-    def __init__(self, api_key: str, model: str, base_url: Optional[str] = None, **kwargs):
+    def __init__(self, api_key: str, model: str, base_url: str | None = None, **kwargs):
         """
         初始化 LLM 提供商
         
@@ -53,9 +53,9 @@ class LLMProvider(ABC):
     @abstractmethod
     async def chat_completion(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs
     ) -> LLMResponse:
         """
@@ -76,9 +76,9 @@ class LLMProvider(ABC):
     async def generate_text(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs
     ) -> str:
         """

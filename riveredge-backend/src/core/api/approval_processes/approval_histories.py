@@ -15,7 +15,7 @@ from infra.exceptions.exceptions import NotFoundError
 router = APIRouter(prefix="/approval-histories", tags=["ApprovalHistories"])
 
 
-@router.get("", response_model=List[ApprovalHistoryResponse])
+@router.get("", response_model=list[ApprovalHistoryResponse])
 async def list_approval_histories(
     approval_instance_id: int = Query(..., description="审批实例ID"),
     skip: int = Query(0, ge=0, description="跳过数量"),

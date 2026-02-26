@@ -39,8 +39,8 @@ class UserTaskService:
         user_id: int,
         page: int = 1,
         page_size: int = 20,
-        status: Optional[str] = None,
-        task_type: Optional[str] = None,  # "pending" 待处理, "submitted" 我提交的
+        status: str | None = None,
+        task_type: str | None = None,  # "pending" 待处理, "submitted" 我提交的
     ) -> UserTaskListResponse:
         """
         获取用户任务列表

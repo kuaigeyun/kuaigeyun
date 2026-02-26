@@ -27,18 +27,18 @@ router = APIRouter(prefix="/data-quality", tags=["Data Quality"])
 
 class DataValidationRequest(BaseModel):
     """数据验证请求"""
-    data: List[List[Any]] = Field(..., description="二维数组数据（第一行是表头，从第二行开始是数据）")
-    headers: List[str] = Field(..., description="表头列表")
-    field_rules: Dict[str, Dict[str, Any]] = Field(default_factory=dict, description="字段验证规则")
-    required_fields: List[str] = Field(default_factory=list, description="必填字段列表")
-    reference_data: Optional[Dict[str, List[str]]] = Field(None, description="参考数据（用于关联性验证）")
+    data: list[list[Any]] = Field(..., description="二维数组数据（第一行是表头，从第二行开始是数据）")
+    headers: list[str] = Field(..., description="表头列表")
+    field_rules: dict[str, dict[str, Any]] = Field(default_factory=dict, description="字段验证规则")
+    required_fields: list[str] = Field(default_factory=list, description="必填字段列表")
+    reference_data: dict[str, list[str]] | None = Field(None, description="参考数据（用于关联性验证）")
 
 
 class DataCleaningRequest(BaseModel):
     """数据清洗检测请求"""
-    data: List[List[Any]] = Field(..., description="二维数组数据")
-    headers: List[str] = Field(..., description="表头列表")
-    key_fields: List[str] = Field(default_factory=list, description="关键字段列表（用于检测重复）")
+    data: list[list[Any]] = Field(..., description="二维数组数据")
+    headers: list[str] = Field(..., description="表头列表")
+    key_fields: list[str] = Field(default_factory=list, description="关键字段列表（用于检测重复）")
 
 
 @router.post("/validate", summary="数据验证（导入前）")
@@ -133,7 +133,7 @@ async def detect_data_issues(
 @router.post("/quality-report", summary="生成数据质量报告")
 async def generate_quality_report(
     validation_request: DataValidationRequest,
-    cleaning_request: Optional[DataCleaningRequest] = None,
+    cleaning_request: DataCleaningRequest | None = None,
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

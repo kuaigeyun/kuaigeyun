@@ -15,14 +15,14 @@ from pydantic import BaseModel, Field, ConfigDict
 
 class EmployeePerformanceConfigBase(BaseModel):
     employee_id: int = Field(..., description="员工ID（User.id）")
-    employee_name: Optional[str] = Field(None, max_length=100, description="员工姓名")
+    employee_name: str | None = Field(None, max_length=100, description="员工姓名")
     calc_mode: str = Field("time", max_length=20, description="计算模式：time/piece/mixed")
-    piece_rate_mode: Optional[str] = Field(None, max_length=20, description="计件单价来源")
-    hourly_rate: Optional[Decimal] = Field(None, description="工时单价（元/小时）")
-    default_piece_rate: Optional[Decimal] = Field(None, description="默认计件单价（元/件）")
-    base_salary: Optional[Decimal] = Field(None, description="月保障工资（元）")
-    effective_from: Optional[date] = Field(None, description="生效日期")
-    effective_to: Optional[date] = Field(None, description="失效日期")
+    piece_rate_mode: str | None = Field(None, max_length=20, description="计件单价来源")
+    hourly_rate: Decimal | None = Field(None, description="工时单价（元/小时）")
+    default_piece_rate: Decimal | None = Field(None, description="默认计件单价（元/件）")
+    base_salary: Decimal | None = Field(None, description="月保障工资（元）")
+    effective_from: date | None = Field(None, description="生效日期")
+    effective_to: date | None = Field(None, description="失效日期")
     is_active: bool = Field(True, description="是否启用")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -33,15 +33,15 @@ class EmployeePerformanceConfigCreate(EmployeePerformanceConfigBase):
 
 
 class EmployeePerformanceConfigUpdate(BaseModel):
-    employee_name: Optional[str] = None
-    calc_mode: Optional[str] = None
-    piece_rate_mode: Optional[str] = None
-    hourly_rate: Optional[Decimal] = None
-    default_piece_rate: Optional[Decimal] = None
-    base_salary: Optional[Decimal] = None
-    effective_from: Optional[date] = None
-    effective_to: Optional[date] = None
-    is_active: Optional[bool] = None
+    employee_name: str | None = None
+    calc_mode: str | None = None
+    piece_rate_mode: str | None = None
+    hourly_rate: Decimal | None = None
+    default_piece_rate: Decimal | None = None
+    base_salary: Decimal | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
+    is_active: bool | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -49,7 +49,7 @@ class EmployeePerformanceConfigUpdate(BaseModel):
 class EmployeePerformanceConfigResponse(EmployeePerformanceConfigBase):
     id: int = Field(..., description="主键ID")
     uuid: str = Field(..., description="UUID")
-    tenant_id: Optional[int] = Field(None, description="租户ID")
+    tenant_id: int | None = Field(None, description="租户ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
@@ -60,13 +60,13 @@ class EmployeePerformanceConfigResponse(EmployeePerformanceConfigBase):
 
 class PieceRateBase(BaseModel):
     operation_id: int = Field(..., description="工序ID")
-    operation_code: Optional[str] = Field(None, max_length=50)
-    operation_name: Optional[str] = Field(None, max_length=200)
-    material_id: Optional[int] = Field(None, description="物料ID（可选）")
-    material_code: Optional[str] = Field(None, max_length=50)
+    operation_code: str | None = Field(None, max_length=50)
+    operation_name: str | None = Field(None, max_length=200)
+    material_id: int | None = Field(None, description="物料ID（可选）")
+    material_code: str | None = Field(None, max_length=50)
     rate: Decimal = Field(..., description="单价（元/件）")
-    effective_from: Optional[date] = Field(None, description="生效日期")
-    effective_to: Optional[date] = Field(None, description="失效日期")
+    effective_from: date | None = Field(None, description="生效日期")
+    effective_to: date | None = Field(None, description="失效日期")
     is_active: bool = Field(True, description="是否启用")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -77,14 +77,14 @@ class PieceRateCreate(PieceRateBase):
 
 
 class PieceRateUpdate(BaseModel):
-    operation_code: Optional[str] = None
-    operation_name: Optional[str] = None
-    material_id: Optional[int] = None
-    material_code: Optional[str] = None
-    rate: Optional[Decimal] = None
-    effective_from: Optional[date] = None
-    effective_to: Optional[date] = None
-    is_active: Optional[bool] = None
+    operation_code: str | None = None
+    operation_name: str | None = None
+    material_id: int | None = None
+    material_code: str | None = None
+    rate: Decimal | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
+    is_active: bool | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -92,7 +92,7 @@ class PieceRateUpdate(BaseModel):
 class PieceRateResponse(PieceRateBase):
     id: int = Field(..., description="主键ID")
     uuid: str = Field(..., description="UUID")
-    tenant_id: Optional[int] = Field(None, description="租户ID")
+    tenant_id: int | None = Field(None, description="租户ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
@@ -102,13 +102,13 @@ class PieceRateResponse(PieceRateBase):
 # ==================== 工时单价 ====================
 
 class HourlyRateBase(BaseModel):
-    department_id: Optional[int] = Field(None, description="部门ID")
-    department_name: Optional[str] = Field(None, max_length=100)
-    position_id: Optional[int] = Field(None, description="职位ID")
-    position_name: Optional[str] = Field(None, max_length=100)
+    department_id: int | None = Field(None, description="部门ID")
+    department_name: str | None = Field(None, max_length=100)
+    position_id: int | None = Field(None, description="职位ID")
+    position_name: str | None = Field(None, max_length=100)
     rate: Decimal = Field(..., description="工时单价（元/小时）")
-    effective_from: Optional[date] = Field(None, description="生效日期")
-    effective_to: Optional[date] = Field(None, description="失效日期")
+    effective_from: date | None = Field(None, description="生效日期")
+    effective_to: date | None = Field(None, description="失效日期")
     is_active: bool = Field(True, description="是否启用")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -119,14 +119,14 @@ class HourlyRateCreate(HourlyRateBase):
 
 
 class HourlyRateUpdate(BaseModel):
-    department_id: Optional[int] = None
-    department_name: Optional[str] = None
-    position_id: Optional[int] = None
-    position_name: Optional[str] = None
-    rate: Optional[Decimal] = None
-    effective_from: Optional[date] = None
-    effective_to: Optional[date] = None
-    is_active: Optional[bool] = None
+    department_id: int | None = None
+    department_name: str | None = None
+    position_id: int | None = None
+    position_name: str | None = None
+    rate: Decimal | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
+    is_active: bool | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -134,7 +134,7 @@ class HourlyRateUpdate(BaseModel):
 class HourlyRateResponse(HourlyRateBase):
     id: int = Field(..., description="主键ID")
     uuid: str = Field(..., description="UUID")
-    tenant_id: Optional[int] = Field(None, description="租户ID")
+    tenant_id: int | None = Field(None, description="租户ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
@@ -148,7 +148,7 @@ class KPIDefinitionBase(BaseModel):
     name: str = Field(..., max_length=200, description="指标名称")
     weight: Decimal = Field(1, description="权重")
     calc_type: str = Field(..., max_length=50, description="计算类型：quality/efficiency/attendance/output")
-    formula_json: Optional[Any] = Field(None, description="计算公式（JSON）")
+    formula_json: Any | None = Field(None, description="计算公式（JSON）")
     is_active: bool = Field(True, description="是否启用")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -159,11 +159,11 @@ class KPIDefinitionCreate(KPIDefinitionBase):
 
 
 class KPIDefinitionUpdate(BaseModel):
-    name: Optional[str] = None
-    weight: Optional[Decimal] = None
-    calc_type: Optional[str] = None
-    formula_json: Optional[Any] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    weight: Decimal | None = None
+    calc_type: str | None = None
+    formula_json: Any | None = None
+    is_active: bool | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -171,7 +171,7 @@ class KPIDefinitionUpdate(BaseModel):
 class KPIDefinitionResponse(KPIDefinitionBase):
     id: int = Field(..., description="主键ID")
     uuid: str = Field(..., description="UUID")
-    tenant_id: Optional[int] = Field(None, description="租户ID")
+    tenant_id: int | None = Field(None, description="租户ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
@@ -183,9 +183,9 @@ class KPIDefinitionResponse(KPIDefinitionBase):
 class PerformanceSummaryResponse(BaseModel):
     id: int = Field(..., description="主键ID")
     uuid: str = Field(..., description="UUID")
-    tenant_id: Optional[int] = Field(None, description="租户ID")
+    tenant_id: int | None = Field(None, description="租户ID")
     employee_id: int = Field(..., description="员工ID")
-    employee_name: Optional[str] = Field(None, description="员工姓名")
+    employee_name: str | None = Field(None, description="员工姓名")
     period: str = Field(..., description="周期（YYYY-MM）")
     total_hours: Decimal = Field(0, description="总工时（小时）")
     total_pieces: Decimal = Field(0, description="总件数（合格）")
@@ -193,8 +193,8 @@ class PerformanceSummaryResponse(BaseModel):
     time_amount: Decimal = Field(0, description="计时金额（元）")
     piece_amount: Decimal = Field(0, description="计件金额（元）")
     total_amount: Decimal = Field(0, description="应发总额（元）")
-    kpi_score: Optional[Decimal] = Field(None, description="KPI综合分")
-    kpi_coefficient: Optional[Decimal] = Field(None, description="绩效系数")
+    kpi_score: Decimal | None = Field(None, description="KPI综合分")
+    kpi_coefficient: Decimal | None = Field(None, description="绩效系数")
     status: str = Field("draft", description="状态")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
@@ -212,9 +212,9 @@ class PerformanceDetailItem(BaseModel):
     qualified_quantity: Decimal = Field(0, description="合格数量")
     unqualified_quantity: Decimal = Field(0, description="不合格数量")
     work_hours: Decimal = Field(0, description="工时（小时）")
-    piece_rate: Optional[Decimal] = Field(None, description="计件单价")
-    piece_amount: Optional[Decimal] = Field(None, description="计件金额")
-    time_amount: Optional[Decimal] = Field(None, description="计时金额")
+    piece_rate: Decimal | None = Field(None, description="计件单价")
+    piece_amount: Decimal | None = Field(None, description="计件金额")
+    time_amount: Decimal | None = Field(None, description="计时金额")
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
@@ -222,9 +222,9 @@ class PerformanceDetailItem(BaseModel):
 class PerformanceDetailResponse(BaseModel):
     """绩效明细（含报工记录列表）"""
     employee_id: int = Field(..., description="员工ID")
-    employee_name: Optional[str] = Field(None, description="员工姓名")
+    employee_name: str | None = Field(None, description="员工姓名")
     period: str = Field(..., description="周期（YYYY-MM）")
-    summary: Optional[PerformanceSummaryResponse] = Field(None, description="汇总信息")
-    items: List[PerformanceDetailItem] = Field(default_factory=list, description="报工明细列表")
+    summary: PerformanceSummaryResponse | None = Field(None, description="汇总信息")
+    items: list[PerformanceDetailItem] = Field(default_factory=list, description="报工明细列表")
 
     model_config = ConfigDict(populate_by_name=True)

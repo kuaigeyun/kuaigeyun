@@ -58,12 +58,12 @@ async def create_material_group(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/groups", response_model=List[MaterialGroupResponse], summary="获取物料分组列表")
+@router.get("/groups", response_model=list[MaterialGroupResponse], summary="获取物料分组列表")
 async def list_material_groups(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    parent_id: Optional[int] = Query(None, description="父分组ID（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用"),
+    parent_id: int | None = Query(None, description="父分组ID（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):
@@ -78,9 +78,9 @@ async def list_material_groups(
     return await MaterialService.list_material_groups(tenant_id, skip, limit, parent_id, is_active)
 
 
-@router.get("/groups/tree", response_model=List[MaterialGroupTreeResponse], response_model_by_alias=True, summary="获取物料分组树形结构")
+@router.get("/groups/tree", response_model=list[MaterialGroupTreeResponse], response_model_by_alias=True, summary="获取物料分组树形结构")
 async def get_material_group_tree(
-    is_active: Optional[bool] = Query(None, description="是否只查询启用的数据（可选）"),
+    is_active: bool | None = Query(None, description="是否只查询启用的数据（可选）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):
@@ -191,7 +191,7 @@ async def delete_material_group(
 # ==================== BOM相关接口 ====================
 # 注意：BOM 路由必须在物料详情路由之前，避免 /bom 被 /{material_uuid} 匹配
 
-@router.post("/bom", response_model=List[BOMResponse], summary="创建BOM（支持批量创建）")
+@router.post("/bom", response_model=list[BOMResponse], summary="创建BOM（支持批量创建）")
 async def create_bom(
     data: BOMBatchCreate,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -217,12 +217,12 @@ async def create_bom(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/bom", response_model=List[BOMResponse], summary="获取BOM列表")
+@router.get("/bom", response_model=list[BOMResponse], summary="获取BOM列表")
 async def list_bom(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    material_id: Optional[int] = Query(None, description="主物料ID（过滤）"),
-    is_active: Optional[bool] = Query(None, description="是否启用"),
+    material_id: int | None = Query(None, description="主物料ID（过滤）"),
+    is_active: bool | None = Query(None, description="是否启用"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):
@@ -242,9 +242,9 @@ async def list_bom(
 async def batch_check_has_bom(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    material_ids: List[int] = Query(..., description="物料ID列表"),
+    material_ids: list[int] = Query(..., description="物料ID列表"),
     only_active: bool = Query(True, description="是否只检查已审核的BOM"),
-) -> Dict[str, bool]:
+) -> dict[str, bool]:
     """
     批量检查物料是否有BOM配置（用于销售订单明细视图等批量检查场景）
 
@@ -331,7 +331,7 @@ async def approve_bom(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     approved: bool = Query(True, description="是否通过审核"),
-    approval_comment: Optional[str] = Query(None, description="审核意见")
+    approval_comment: str | None = Query(None, description="审核意见")
 ):
     """
     审核BOM
@@ -354,13 +354,13 @@ async def approve_bom(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/bom/batch-approve", response_model=List[BOMResponse], summary="批量审核BOM")
+@router.post("/bom/batch-approve", response_model=list[BOMResponse], summary="批量审核BOM")
 async def batch_approve_bom(
-    bom_uuids: List[str] = Body(..., description="BOM UUID列表"),
+    bom_uuids: list[str] = Body(..., description="BOM UUID列表"),
     approved: bool = Body(True, description="是否通过审核"),
     recursive: bool = Body(False, description="是否递归处理子BOM"),
     is_reverse: bool = Body(False, description="是否反审核（重置为草稿）"),
-    approval_comment: Optional[str] = Body(None, description="审核意见"),
+    approval_comment: str | None = Body(None, description="审核意见"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):
@@ -390,7 +390,7 @@ async def copy_bom(
     bom_uuid: str,
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    new_version: Optional[str] = Query(None, description="新版本号（可选）")
+    new_version: str | None = Query(None, description="新版本号（可选）")
 ):
     """
     复制BOM（创建新版本）
@@ -415,7 +415,7 @@ async def revise_bom(
     bom_uuid: str,
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    new_version: Optional[str] = Query(None, description="新修订版本号（可选）")
+    new_version: str | None = Query(None, description="新修订版本号（可选）")
 ):
     """
     BOM升版（根据已审核版本创建新的草稿版本）
@@ -434,12 +434,12 @@ async def revise_bom(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/bom/material/{material_id}", response_model=List[BOMResponse], summary="根据主物料获取BOM列表")
+@router.get("/bom/material/{material_id}", response_model=list[BOMResponse], summary="根据主物料获取BOM列表")
 async def get_bom_by_material(
     material_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    version: Optional[str] = Query(None, description="版本号（可选）"),
+    version: str | None = Query(None, description="版本号（可选）"),
     only_active: bool = Query(True, description="是否只返回已审核的BOM")
 ):
     """
@@ -462,7 +462,7 @@ async def get_bom_by_material(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/bom/versions/{bom_code}", response_model=List[BOMResponse], summary="获取BOM所有版本")
+@router.get("/bom/versions/{bom_code}", response_model=list[BOMResponse], summary="获取BOM所有版本")
 async def get_bom_versions(
     bom_code: str,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -484,7 +484,7 @@ async def get_bom_versions(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/bom/batch-import", response_model=List[BOMResponse], summary="批量导入BOM（支持部门编码）")
+@router.post("/bom/batch-import", response_model=list[BOMResponse], summary="批量导入BOM（支持部门编码）")
 async def batch_import_bom(
     data: BOMBatchImport,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -526,7 +526,7 @@ async def batch_import_bom(
 @router.get("/bom/material/{material_id}/hierarchy", summary="生成BOM层级结构")
 async def get_bom_hierarchy(
     material_id: int,
-    version: Optional[str] = Query(None, description="BOM版本（可选，如果不提供则使用最新版本）"),
+    version: str | None = Query(None, description="BOM版本（可选，如果不提供则使用最新版本）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):
@@ -554,7 +554,7 @@ async def calculate_bom_quantity(
     parent_quantity: float = Query(1.0, ge=0, description="父物料数量（默认1.0）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-    version: Optional[str] = Query(None, description="BOM版本（可选，如果不提供则使用最新版本）")
+    version: str | None = Query(None, description="BOM版本（可选，如果不提供则使用最新版本）")
 ):
     """
     计算BOM用量（考虑多层级和损耗率）
@@ -578,7 +578,7 @@ async def calculate_bom_quantity(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/bom/material/{material_id}/version", response_model=List[BOMResponse], summary="创建BOM新版本")
+@router.post("/bom/material/{material_id}/version", response_model=list[BOMResponse], summary="创建BOM新版本")
 async def create_bom_version(
     material_id: int,
     data: BOMVersionCreate,
@@ -689,11 +689,11 @@ async def create_material_code_mapping(
 async def list_material_code_mappings(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
-    material_uuid: Optional[str] = Query(None, description="物料UUID（过滤）"),
-    external_system: Optional[str] = Query(None, description="外部系统名称（过滤）"),
-    internal_code: Optional[str] = Query(None, description="内部编码（模糊匹配）"),
-    external_code: Optional[str] = Query(None, description="外部编码（模糊匹配）"),
-    is_active: Optional[bool] = Query(None, description="是否启用（过滤）"),
+    material_uuid: str | None = Query(None, description="物料UUID（过滤）"),
+    external_system: str | None = Query(None, description="外部系统名称（过滤）"),
+    internal_code: str | None = Query(None, description="内部编码（模糊匹配）"),
+    external_code: str | None = Query(None, description="外部编码（模糊匹配）"),
+    is_active: bool | None = Query(None, description="是否启用（过滤）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页大小")
 ):
@@ -807,7 +807,7 @@ async def convert_material_code(
 
 @router.post("/mapping/batch-import", summary="批量导入物料编码映射")
 async def batch_import_material_code_mappings(
-    mappings_data: List[MaterialCodeMappingCreate],
+    mappings_data: list[MaterialCodeMappingCreate],
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)]
 ):
@@ -858,9 +858,9 @@ async def create_material_batch(
 
 @router.get("/batches", response_model=MaterialBatchListResponse, summary="获取物料批号列表")
 async def list_material_batches(
-    material_uuid: Optional[str] = Query(None, description="物料UUID（筛选条件）"),
-    batch_no: Optional[str] = Query(None, description="批号（模糊搜索）"),
-    batch_status: Optional[str] = Query(None, alias="status", description="状态（筛选条件）"),
+    material_uuid: str | None = Query(None, description="物料UUID（筛选条件）"),
+    batch_no: str | None = Query(None, description="批号（模糊搜索）"),
+    batch_status: str | None = Query(None, alias="status", description="状态（筛选条件）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     current_user: Annotated[User, Depends(get_current_user)] = None,
@@ -939,10 +939,10 @@ async def delete_material_batch(
 @router.post("/batches/generate", summary="生成批号")
 async def generate_batch_no(
     material_uuid: str = Query(..., description="物料UUID"),
-    rule: Optional[str] = Query(None, description="批号生成规则字符串（可选，向后兼容）"),
-    rule_id: Optional[int] = Query(None, description="批号规则ID（可选，优先于物料默认规则）"),
-    rule_uuid: Optional[str] = Query(None, description="批号规则UUID（可选）"),
-    supplier_code: Optional[str] = Query(None, description="供应商编码（可选，用于规则变量）"),
+    rule: str | None = Query(None, description="批号生成规则字符串（可选，向后兼容）"),
+    rule_id: int | None = Query(None, description="批号规则ID（可选，优先于物料默认规则）"),
+    rule_uuid: str | None = Query(None, description="批号规则UUID（可选）"),
+    supplier_code: str | None = Query(None, description="供应商编码（可选，用于规则变量）"),
     current_user: Annotated[User, Depends(get_current_user)] = None,
     tenant_id: Annotated[int, Depends(get_current_tenant)] = None
 ):
@@ -1010,9 +1010,9 @@ async def create_material_serial(
 
 @router.get("/serials", response_model=MaterialSerialListResponse, summary="获取物料序列号列表")
 async def list_material_serials(
-    material_uuid: Optional[str] = Query(None, description="物料UUID（筛选条件）"),
-    serial_no: Optional[str] = Query(None, description="序列号（模糊搜索）"),
-    serial_status: Optional[str] = Query(None, alias="status", description="状态（筛选条件）"),
+    material_uuid: str | None = Query(None, description="物料UUID（筛选条件）"),
+    serial_no: str | None = Query(None, description="序列号（模糊搜索）"),
+    serial_status: str | None = Query(None, alias="status", description="状态（筛选条件）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     current_user: Annotated[User, Depends(get_current_user)] = None,
@@ -1092,9 +1092,9 @@ async def delete_material_serial(
 async def generate_serial_nos(
     material_uuid: str = Query(..., description="物料UUID"),
     count: int = Query(1, ge=1, le=1000, description="生成数量"),
-    rule: Optional[str] = Query(None, description="序列号生成规则字符串（可选，向后兼容）"),
-    rule_id: Optional[int] = Query(None, description="序列号规则ID（可选，优先于物料默认规则）"),
-    rule_uuid: Optional[str] = Query(None, description="序列号规则UUID（可选）"),
+    rule: str | None = Query(None, description="序列号生成规则字符串（可选，向后兼容）"),
+    rule_id: int | None = Query(None, description="序列号规则ID（可选，优先于物料默认规则）"),
+    rule_uuid: str | None = Query(None, description="序列号规则UUID（可选）"),
     current_user: Annotated[User, Depends(get_current_user)] = None,
     tenant_id: Annotated[int, Depends(get_current_tenant)] = None
 ):
@@ -1167,20 +1167,20 @@ async def create_material(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("", response_model=List[MaterialResponse], summary="获取物料列表")
+@router.get("", response_model=list[MaterialResponse], summary="获取物料列表")
 async def list_materials(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    group_id: Optional[int] = Query(None, alias="groupId", description="物料分组ID（过滤）"),
-    is_active: Optional[bool] = Query(None, alias="isActive", description="是否启用"),
-    keyword: Optional[str] = Query(None, description="搜索关键词（物料编码或名称）"),
-    code: Optional[str] = Query(None, description="物料编码（精确匹配）"),
-    name: Optional[str] = Query(None, description="物料名称（模糊匹配）"),
-    material_type: Optional[str] = Query(None, alias="materialType", description="物料类型（过滤）"),
-    specification: Optional[str] = Query(None, description="规格（模糊匹配）"),
-    brand: Optional[str] = Query(None, description="品牌（模糊匹配）"),
-    model: Optional[str] = Query(None, description="型号（模糊匹配）"),
-    base_unit: Optional[str] = Query(None, alias="baseUnit", description="基础单位（精确匹配）"),
+    group_id: int | None = Query(None, alias="groupId", description="物料分组ID（过滤）"),
+    is_active: bool | None = Query(None, alias="isActive", description="是否启用"),
+    keyword: str | None = Query(None, description="搜索关键词（物料编码或名称）"),
+    code: str | None = Query(None, description="物料编码（精确匹配）"),
+    name: str | None = Query(None, description="物料名称（模糊匹配）"),
+    material_type: str | None = Query(None, alias="materialType", description="物料类型（过滤）"),
+    specification: str | None = Query(None, description="规格（模糊匹配）"),
+    brand: str | None = Query(None, description="品牌（模糊匹配）"),
+    model: str | None = Query(None, description="型号（模糊匹配）"),
+    base_unit: str | None = Query(None, alias="baseUnit", description="基础单位（精确匹配）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):
@@ -1287,9 +1287,9 @@ async def preview_ai_suggestions(
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
     material_name: str = Query(..., description="物料名称"),
-    specification: Optional[str] = Query(None, description="规格"),
-    base_unit: Optional[str] = Query(None, description="基础单位"),
-    material_type: Optional[str] = Query(None, description="物料类型")
+    specification: str | None = Query(None, description="规格"),
+    base_unit: str | None = Query(None, description="基础单位"),
+    material_type: str | None = Query(None, description="物料类型")
 ):
     """
     预览 AI 建议（创建前）
@@ -1394,7 +1394,7 @@ async def validate_material_source(
 
 @router.post("/{material_uuid}/source/validate-batch", summary="批量验证物料来源配置")
 async def validate_batch_material_sources(
-    material_uuids: List[str],
+    material_uuids: list[str],
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)]
 ):
@@ -1448,7 +1448,7 @@ async def check_source_change_impact(
 async def change_material_source(
     material_uuid: str = Path(..., description="物料UUID"),
     new_source_type: str = Body(..., description="新的来源类型"),
-    new_source_config: Optional[Dict[str, Any]] = Body(None, description="新的来源配置（可选）"),
+    new_source_config: dict[str, Any] | None = Body(None, description="新的来源配置（可选）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):

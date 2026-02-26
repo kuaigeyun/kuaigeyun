@@ -16,9 +16,9 @@ T = TypeVar('T')
 
 def get_service_or_fallback(
     service_name: str,
-    service_type: Type[T],
-    fallback_class: Optional[Type] = None
-) -> Optional[T]:
+    service_type: type[T],
+    fallback_class: type | None = None
+) -> T | None:
     """
     获取服务，如果未注册则回退到直接导入
     
@@ -63,7 +63,7 @@ def get_service_or_fallback(
         return None
 
 
-def get_user_service() -> Optional[Any]:
+def get_user_service() -> Any | None:
     """
     获取用户服务（依赖注入）
     
@@ -78,7 +78,7 @@ def get_user_service() -> Optional[Any]:
     return get_service_or_fallback("user_service", UserServiceInterface, UserService)
 
 
-def get_role_service() -> Optional[Any]:
+def get_role_service() -> Any | None:
     """
     获取角色服务（依赖注入）
     
@@ -91,7 +91,7 @@ def get_role_service() -> Optional[Any]:
     return get_service_or_fallback("role_service", RoleServiceInterface, RoleService)
 
 
-def get_message_service() -> Optional[Any]:
+def get_message_service() -> Any | None:
     """
     获取消息服务（依赖注入）
     

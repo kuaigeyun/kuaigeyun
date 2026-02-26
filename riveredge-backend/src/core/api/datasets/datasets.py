@@ -103,10 +103,10 @@ async def create_dataset(
 async def list_datasets(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    search: Optional[str] = Query(None, description="搜索关键词（名称、代码）"),
-    query_type: Optional[str] = Query(None, description="查询类型筛选"),
-    data_source_uuid: Optional[UUID] = Query(None, description="数据源UUID筛选"),
-    is_active: Optional[bool] = Query(None, description="是否启用筛选"),
+    search: str | None = Query(None, description="搜索关键词（名称、代码）"),
+    query_type: str | None = Query(None, description="查询类型筛选"),
+    data_source_uuid: UUID | None = Query(None, description="数据源UUID筛选"),
+    is_active: bool | None = Query(None, description="是否启用筛选"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -349,7 +349,7 @@ async def execute_dataset_query(
 @router.post("/{dataset_uuid}/test-api", response_model=APITestResponse)
 async def test_api_for_dataset(
     dataset_uuid: UUID,
-    test_parameters: Optional[dict] = None,
+    test_parameters: dict | None = None,
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

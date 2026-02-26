@@ -25,8 +25,8 @@ usage_analysis_service = UsageAnalysisService()
 
 @router.get("/function-usage", summary="分析功能使用情况")
 async def analyze_function_usage(
-    start_date: Optional[datetime] = Query(None, description="开始日期"),
-    end_date: Optional[datetime] = Query(None, description="结束日期"),
+    start_date: datetime | None = Query(None, description="开始日期"),
+    end_date: datetime | None = Query(None, description="结束日期"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -91,8 +91,8 @@ async def analyze_data_quality(
 
 @router.get("/performance", summary="分析系统性能")
 async def analyze_performance(
-    start_date: Optional[datetime] = Query(None, description="开始日期"),
-    end_date: Optional[datetime] = Query(None, description="结束日期"),
+    start_date: datetime | None = Query(None, description="开始日期"),
+    end_date: datetime | None = Query(None, description="结束日期"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

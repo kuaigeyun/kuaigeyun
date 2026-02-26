@@ -19,10 +19,10 @@ class EquipmentOEEBase(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    equipment: Dict[str, Any] = Field(..., description="设备信息")
-    period: Dict[str, str] = Field(..., description="统计周期")
-    metrics: Dict[str, float] = Field(..., description="指标数据")
-    oee: Dict[str, float] = Field(..., description="OEE指标")
+    equipment: dict[str, Any] = Field(..., description="设备信息")
+    period: dict[str, str] = Field(..., description="统计周期")
+    metrics: dict[str, float] = Field(..., description="指标数据")
+    oee: dict[str, float] = Field(..., description="OEE指标")
     record_count: int = Field(..., description="报工记录数")
 
 
@@ -43,7 +43,7 @@ class EquipmentOEEListResponse(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    items: List[EquipmentOEResponse] = Field(default_factory=list, description="OEE统计列表")
+    items: list[EquipmentOEResponse] = Field(default_factory=list, description="OEE统计列表")
     total: int = Field(0, description="总数量")
 
 
@@ -57,4 +57,4 @@ class EquipmentOEETrendResponse(BaseModel):
 
     equipment_id: int = Field(..., description="设备ID")
     period_type: str = Field(..., description="统计周期类型（day/week/month）")
-    trend_data: List[Dict[str, Any]] = Field(default_factory=list, description="趋势数据")
+    trend_data: list[dict[str, Any]] = Field(default_factory=list, description="趋势数据")

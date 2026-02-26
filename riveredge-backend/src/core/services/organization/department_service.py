@@ -98,10 +98,10 @@ class DepartmentService:
     @staticmethod
     async def get_department_tree(
         tenant_id: int,
-        parent_id: Optional[int] = None,
-        keyword: Optional[str] = None,
-        is_active: Optional[bool] = None,
-    ) -> List[Dict[str, Any]]:
+        parent_id: int | None = None,
+        keyword: str | None = None,
+        is_active: bool | None = None,
+    ) -> list[dict[str, Any]]:
         """
         获取部门树（支持搜索和筛选）
         
@@ -206,7 +206,7 @@ class DepartmentService:
         return root_nodes
 
     @staticmethod
-    async def _get_recursive_tree(tenant_id: int, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    async def _get_recursive_tree(tenant_id: int, parent_id: int | None = None) -> list[dict[str, Any]]:
         """原有递归加载树的辅助函数"""
         departments = await Department.filter(
             tenant_id=tenant_id,
@@ -420,7 +420,7 @@ class DepartmentService:
     @staticmethod
     async def update_department_order(
         tenant_id: int,
-        department_orders: List[Dict[str, Any]]
+        department_orders: list[dict[str, Any]]
     ) -> bool:
         """
         更新部门排序
@@ -452,9 +452,9 @@ class DepartmentService:
     @staticmethod
     async def import_departments_from_data(
         tenant_id: int,
-        data: List[List[Any]],
+        data: list[list[Any]],
         current_user_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从二维数组数据导入部门
         
@@ -524,7 +524,7 @@ class DepartmentService:
         errors = []
         
         # 用于缓存已创建的部门（按名称），用于处理父子关系
-        created_departments_cache: Dict[str, Department] = {}
+        created_departments_cache: dict[str, Department] = {}
         
         for row, row_idx in non_empty_rows:
             try:

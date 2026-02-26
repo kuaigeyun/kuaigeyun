@@ -25,7 +25,7 @@ from infra.domain.tenant_context import get_current_tenant_id
     retries=3,
 )
 @with_tenant_isolation  # 添加租户隔离装饰器
-async def message_sender_function(event: Event) -> Dict[str, Any]:
+async def message_sender_function(event: Event) -> dict[str, Any]:
     """
     消息发送器工作流函数
     
@@ -124,7 +124,7 @@ async def _send_email(
     recipient: str,
     subject: str,
     content: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     发送邮件
     
@@ -171,7 +171,7 @@ async def _send_sms(
     config_uuid: str,
     recipient: str,
     content: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     发送短信
     
@@ -217,7 +217,7 @@ async def _send_push_notification(
     recipient: str,
     subject: str,
     content: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     发送推送通知
     

@@ -33,7 +33,7 @@ class OperationGuideCreate(BaseModel):
     """创建操作引导请求"""
     page_key: str = Field(..., description="页面标识")
     page_name: str = Field(..., description="页面名称")
-    steps: List[OperationGuideStep] = Field(..., description="引导步骤列表")
+    steps: list[OperationGuideStep] = Field(..., description="引导步骤列表")
 
 
 @router.get("/{page_key}", summary="获取操作引导")

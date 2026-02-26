@@ -23,7 +23,7 @@ class InfraServiceRegistry:
     """
     
     _instance: Optional['InfraServiceRegistry'] = None
-    _services: Dict[str, Any]  # ⚠️ 修复：使用普通Dict而不是WeakValueDictionary，避免服务实例被垃圾回收
+    _services: dict[str, Any]  # ⚠️ 修复：使用普通Dict而不是WeakValueDictionary，避免服务实例被垃圾回收
     
     def __new__(cls) -> 'InfraServiceRegistry':
         if cls._instance is None:
@@ -97,7 +97,7 @@ class InfraServiceRegistry:
         """
         return service_name in self._services
     
-    def list_services(self) -> List[str]:
+    def list_services(self) -> list[str]:
         """
         列出所有已注册的服务
         
@@ -159,7 +159,7 @@ class InfraServiceLocator:
         return InfraServiceLocator._registry.has_service(service_name)
     
     @staticmethod
-    def list_services() -> List[str]:
+    def list_services() -> list[str]:
         """
         列出所有已注册的服务
         

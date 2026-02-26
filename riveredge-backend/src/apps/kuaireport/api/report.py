@@ -59,7 +59,7 @@ async def get_report_by_share_token(
 @router.post("/shared/execute", summary="通过分享链接执行报表查询（公开）")
 async def execute_report_by_share_token_route(
     token: str = Query(..., description="分享令牌"),
-    filters: Dict[str, Any] = Body(default_factory=dict),
+    filters: dict[str, Any] = Body(default_factory=dict),
 ):
     """通过分享令牌执行报表查询，无需登录"""
     return await report_service.execute_report_by_share_token(token, filters)
@@ -130,7 +130,7 @@ async def delete_report(
 @router.post("/{id}/execute", summary="执行报表查询")
 async def execute_report(
     id: int,
-    filters: Dict[str, Any] = {},
+    filters: dict[str, Any] = {},
     current_user: dict = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -145,7 +145,7 @@ async def execute_report(
 @router.post("/{id}/share", summary="生成分享链接")
 async def share_report(
     id: int,
-    expires_days: Optional[int] = Body(30, embed=True),
+    expires_days: int | None = Body(30, embed=True),
     current_user: dict = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -168,8 +168,8 @@ async def unshare_report(
 @router.post("/{id}/mount-to-menu", summary="挂载到菜单")
 async def mount_report_to_menu(
     id: int,
-    menu_name: Optional[str] = Body(None, embed=True),
-    parent_uuid: Optional[str] = Body(None, embed=True),
+    menu_name: str | None = Body(None, embed=True),
+    parent_uuid: str | None = Body(None, embed=True),
     current_user: dict = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

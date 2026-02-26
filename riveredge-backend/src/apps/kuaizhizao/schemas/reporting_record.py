@@ -32,9 +32,9 @@ class ReportingRecordBase(BaseModel):
     work_hours: Decimal = Field(..., description="工时（小时）")
     status: str = Field("pending", description="审核状态")
     reported_at: datetime = Field(..., description="报工时间")
-    remarks: Optional[str] = Field(None, description="备注")
-    device_info: Optional[Any] = Field(None, description="设备信息")
-    sop_parameters: Optional[Any] = Field(None, description="SOP参数数据（JSON格式，存储报工时收集的SOP参数）")
+    remarks: str | None = Field(None, description="备注")
+    device_info: Any | None = Field(None, description="设备信息")
+    sop_parameters: Any | None = Field(None, description="SOP参数数据（JSON格式，存储报工时收集的SOP参数）")
 
 
 class ReportingRecordCreate(ReportingRecordBase):
@@ -54,16 +54,16 @@ class ReportingRecordUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    reported_quantity: Optional[Decimal] = Field(None, description="报工数量")
-    qualified_quantity: Optional[Decimal] = Field(None, description="合格数量")
-    unqualified_quantity: Optional[Decimal] = Field(None, description="不合格数量")
-    work_hours: Optional[Decimal] = Field(None, description="工时（小时）")
-    remarks: Optional[str] = Field(None, description="备注")
-    sop_parameters: Optional[Any] = Field(None, description="SOP参数数据（JSON格式）")
-    status: Optional[str] = Field(None, description="审核状态")
-    approved_by: Optional[int] = Field(None, description="审核人ID")
-    approved_by_name: Optional[str] = Field(None, description="审核人姓名")
-    rejection_reason: Optional[str] = Field(None, description="驳回原因")
+    reported_quantity: Decimal | None = Field(None, description="报工数量")
+    qualified_quantity: Decimal | None = Field(None, description="合格数量")
+    unqualified_quantity: Decimal | None = Field(None, description="不合格数量")
+    work_hours: Decimal | None = Field(None, description="工时（小时）")
+    remarks: str | None = Field(None, description="备注")
+    sop_parameters: Any | None = Field(None, description="SOP参数数据（JSON格式）")
+    status: str | None = Field(None, description="审核状态")
+    approved_by: int | None = Field(None, description="审核人ID")
+    approved_by_name: str | None = Field(None, description="审核人姓名")
+    rejection_reason: str | None = Field(None, description="驳回原因")
 
 
 class ReportingRecordResponse(ReportingRecordBase):
@@ -75,12 +75,12 @@ class ReportingRecordResponse(ReportingRecordBase):
     id: int = Field(..., description="报工记录ID")
     uuid: str = Field(..., description="业务ID")
     tenant_id: int = Field(..., description="组织ID")
-    approved_at: Optional[datetime] = Field(None, description="审核时间")
-    approved_by: Optional[int] = Field(None, description="审核人ID")
-    approved_by_name: Optional[str] = Field(None, description="审核人姓名")
-    rejection_reason: Optional[str] = Field(None, description="驳回原因")
-    device_info: Optional[Any] = Field(None, description="设备信息")
-    sop_parameters: Optional[Any] = Field(None, description="SOP参数数据（JSON格式）")
+    approved_at: datetime | None = Field(None, description="审核时间")
+    approved_by: int | None = Field(None, description="审核人ID")
+    approved_by_name: str | None = Field(None, description="审核人姓名")
+    rejection_reason: str | None = Field(None, description="驳回原因")
+    device_info: Any | None = Field(None, description="设备信息")
+    sop_parameters: Any | None = Field(None, description="SOP参数数据（JSON格式）")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 

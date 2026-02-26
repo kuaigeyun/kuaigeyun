@@ -16,7 +16,7 @@ from infra.exceptions.exceptions import NotFoundError, ValidationError
 from infra.config.infra_config import infra_settings as settings
 
 # Redis 客户端（全局单例）
-_redis_client: Optional[redis.Redis] = None
+_redis_client: redis.Redis | None = None
 
 
 async def get_redis_client() -> redis.Redis:
@@ -58,7 +58,7 @@ class SystemParameterService:
         return f"system_parameter:{tenant_id}:{key}"
     
     @staticmethod
-    async def _get_from_cache(tenant_id: int, key: str) -> Optional[Any]:
+    async def _get_from_cache(tenant_id: int, key: str) -> Any | None:
         """
         从缓存获取参数值
         
@@ -125,7 +125,7 @@ class SystemParameterService:
         tenant_id: int,
         key: str,
         use_cache: bool = True
-    ) -> Optional[SystemParameter]:
+    ) -> SystemParameter | None:
         """
         获取参数（优先从缓存读取）
         
@@ -201,8 +201,8 @@ class SystemParameterService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None
-    ) -> List[SystemParameter]:
+        is_active: bool | None = None
+    ) -> list[SystemParameter]:
         """
         获取参数列表
         
@@ -334,8 +334,8 @@ class SystemParameterService:
     @staticmethod
     async def batch_update_parameters(
         tenant_id: int,
-        updates: Dict[str, Any]
-    ) -> List[SystemParameter]:
+        updates: dict[str, Any]
+    ) -> list[SystemParameter]:
         """
         批量更新参数
         

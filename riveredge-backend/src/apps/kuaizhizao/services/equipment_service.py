@@ -28,7 +28,7 @@ class EquipmentService:
     async def create_equipment(
         tenant_id: int,
         data: EquipmentCreate,
-        created_by: Optional[int] = None
+        created_by: int | None = None
     ) -> Equipment:
         """
         创建设备
@@ -101,7 +101,7 @@ class EquipmentService:
     async def get_equipment_by_code(
         tenant_id: int,
         code: str
-    ) -> Optional[Equipment]:
+    ) -> Equipment | None:
         """
         根据编码获取设备
         
@@ -123,13 +123,13 @@ class EquipmentService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        type: Optional[str] = None,
-        category: Optional[str] = None,
-        status: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        workstation_id: Optional[int] = None,
-        search: Optional[str] = None
-    ) -> tuple[List[Equipment], int]:
+        type: str | None = None,
+        category: str | None = None,
+        status: str | None = None,
+        is_active: bool | None = None,
+        workstation_id: int | None = None,
+        search: str | None = None
+    ) -> tuple[list[Equipment], int]:
         """
         获取设备列表
         

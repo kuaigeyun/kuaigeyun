@@ -28,9 +28,9 @@ router = APIRouter(prefix="/files", tags=["Files"])
 @router.post("/upload", response_model=FileUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_file(
     file: UploadFile = FastAPIFile(...),
-    category: Optional[str] = Query(None, description="文件分类（可选）"),
-    tags: Optional[str] = Query(None, description="文件标签（JSON数组字符串，可选）"),
-    description: Optional[str] = Query(None, description="文件描述（可选）"),
+    category: str | None = Query(None, description="文件分类（可选）"),
+    tags: str | None = Query(None, description="文件标签（JSON数组字符串，可选）"),
+    description: str | None = Query(None, description="文件描述（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -119,10 +119,10 @@ async def upload_file(
         )
 
 
-@router.post("/upload/multiple", response_model=List[FileUploadResponse], status_code=status.HTTP_201_CREATED)
+@router.post("/upload/multiple", response_model=list[FileUploadResponse], status_code=status.HTTP_201_CREATED)
 async def upload_multiple_files(
-    files: List[UploadFile] = FastAPIFile(...),
-    category: Optional[str] = Query(None, description="文件分类（可选）"),
+    files: list[UploadFile] = FastAPIFile(...),
+    category: str | None = Query(None, description="文件分类（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -180,7 +180,7 @@ async def upload_multiple_files(
                 file_extension=file_obj.file_extension,
                 file_path=file_obj.file_path,
             ))
-        except Exception as e:
+        except Exception:
             # 单个文件上传失败，继续处理其他文件
             continue
     
@@ -191,9 +191,9 @@ async def upload_multiple_files(
 async def list_files(
     page: int = Query(1, ge=1, description="页码（从1开始）"),
     page_size: int = Query(20, ge=1, le=1000, description="每页数量（最大1000，用于文件管理器一次性加载）"),
-    search: Optional[str] = Query(None, description="搜索关键词（搜索文件名、原始文件名）"),
-    category: Optional[str] = Query(None, description="文件分类筛选"),
-    file_type: Optional[str] = Query(None, description="文件类型筛选"),
+    search: str | None = Query(None, description="搜索关键词（搜索文件名、原始文件名）"),
+    category: str | None = Query(None, description="文件分类筛选"),
+    file_type: str | None = Query(None, description="文件类型筛选"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """
@@ -266,9 +266,9 @@ async def get_file(
 async def download_file(
     uuid: str,
     request: Request,
-    token: Optional[str] = Query(None, description="预览token（用于权限验证）"),
-    access_token: Optional[str] = Query(None, description="标准访问令牌（Bearer Token），用于鉴权"),
-    x_tenant_id: Optional[str] = Header(None, alias="X-Tenant-ID"),
+    token: str | None = Query(None, description="预览token（用于权限验证）"),
+    access_token: str | None = Query(None, description="标准访问令牌（Bearer Token），用于鉴权"),
+    x_tenant_id: str | None = Header(None, alias="X-Tenant-ID"),
 ):
     from loguru import logger
     logger.info(f"🔍 download_file 请求: uuid={uuid}, token={token[:50] if token else 'None'}..., access_token={access_token[:50] if access_token else 'None'}..., x_tenant_id={x_tenant_id}")
@@ -501,7 +501,7 @@ async def delete_file(
 
 @router.post("/batch-delete", status_code=status.HTTP_200_OK)
 async def batch_delete_files(
-    uuids: List[str],
+    uuids: list[str],
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

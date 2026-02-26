@@ -10,7 +10,7 @@ class DashboardService(AppBaseService[Dashboard]):
     def __init__(self):
         super().__init__(Dashboard)
 
-    async def get_dashboard_by_code(self, tenant_id: int, code: str) -> Optional[Dashboard]:
+    async def get_dashboard_by_code(self, tenant_id: int, code: str) -> Dashboard | None:
         return await self.model.get_or_none(tenant_id=tenant_id, code=code)
 
     async def create(self, tenant_id: int, data: DashboardCreate, created_by: int) -> Dashboard:
@@ -21,7 +21,7 @@ class DashboardService(AppBaseService[Dashboard]):
         """更新看板"""
         return await self.update_with_user(tenant_id, id, updated_by, **data.model_dump(exclude_unset=True))
 
-    async def list(self, tenant_id: int, skip: int = 0, limit: int = 100) -> Dict[str, Any]:
+    async def list(self, tenant_id: int, skip: int = 0, limit: int = 100) -> dict[str, Any]:
         """列表查询"""
         total = await self.model.filter(tenant_id=tenant_id).count()
         data = await self.list_all(tenant_id, skip, limit)
@@ -36,8 +36,8 @@ class DashboardService(AppBaseService[Dashboard]):
         return await self.delete_with_validation(tenant_id, id, soft_delete=False)
 
     async def share(
-        self, tenant_id: int, dashboard_id: int, expires_days: Optional[int] = 30
-    ) -> Dict[str, Any]:
+        self, tenant_id: int, dashboard_id: int, expires_days: int | None = 30
+    ) -> dict[str, Any]:
         """生成分享链接"""
         dashboard = await self.model.get_or_none(tenant_id=tenant_id, id=dashboard_id)
         if not dashboard:
@@ -64,7 +64,7 @@ class DashboardService(AppBaseService[Dashboard]):
         dashboard.share_expires_at = None
         await dashboard.save()
 
-    async def get_by_share_token(self, token: str) -> Optional[Dashboard]:
+    async def get_by_share_token(self, token: str) -> Dashboard | None:
         """通过分享令牌获取大屏（公开，无需登录）"""
         dashboard = await self.model.get_or_none(share_token=token)
         if not dashboard:

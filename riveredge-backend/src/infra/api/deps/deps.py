@@ -73,7 +73,7 @@ async def get_current_user(
         # 这是平台超级管理员 Token，允许全局访问
         # 创建一个虚拟的 User 对象，标记为平台超级管理员
         from loguru import logger
-        logger.info(f"✅ 检测到平台超级管理员 Token，允许全局访问")
+        logger.info("✅ 检测到平台超级管理员 Token，允许全局访问")
         
         # 获取平台超级管理员 ID
         admin_id = int(infra_superadmin_payload.get("sub"))
@@ -97,16 +97,16 @@ async def get_current_user(
         # 使用 User 模型的构造函数创建临时对象（不保存到数据库）
         virtual_user = User()
         # 使用 setattr 确保属性正确设置（Tortoise ORM 模型需要）
-        setattr(virtual_user, 'id', admin_id)
-        setattr(virtual_user, 'username', admin.username)
-        setattr(virtual_user, 'email', getattr(admin, 'email', None))
-        setattr(virtual_user, 'is_active', True)
-        setattr(virtual_user, 'tenant_id', None)  # 平台超级管理员不属于任何租户
-        setattr(virtual_user, 'password_hash', "")  # 虚拟用户不需要密码
-        setattr(virtual_user, 'full_name', getattr(admin, 'full_name', admin.username))
+        virtual_user.id = admin_id
+        virtual_user.username = admin.username
+        virtual_user.email = getattr(admin, 'email', None)
+        virtual_user.is_active = True
+        virtual_user.tenant_id = None  # 平台超级管理员不属于任何租户
+        virtual_user.password_hash = ""  # 虚拟用户不需要密码
+        virtual_user.full_name = getattr(admin, 'full_name', admin.username)
         # 设置一个标记，表示这是平台超级管理员
-        setattr(virtual_user, '_is_infra_superadmin', True)
-        setattr(virtual_user, '_infra_superadmin_id', admin_id)
+        virtual_user._is_infra_superadmin = True
+        virtual_user._infra_superadmin_id = admin_id
         
         # 确保 id 属性可以直接访问
         if not hasattr(virtual_user, 'id') or virtual_user.id is None:
@@ -192,7 +192,7 @@ async def get_current_active_user(
 # 注意：get_current_superadmin 函数已移除，使用 get_current_infra_superadmin 替代
 
 async def get_current_infra_superadmin(
-    token: Optional[str] = Depends(infra_superadmin_oauth2_scheme)
+    token: str | None = Depends(infra_superadmin_oauth2_scheme)
 ) -> InfraSuperAdmin:
     """
     获取当前平台超级管理员依赖
@@ -224,7 +224,7 @@ async def get_current_infra_superadmin(
     
     # ⚠️ 关键修复：处理 token 为 None 的情况（当 auto_error=False 且没有 Token 时）
     if not token:
-        logger.warning(f"❌ [get_current_infra_superadmin] Token 为空或 None")
+        logger.warning("❌ [get_current_infra_superadmin] Token 为空或 None")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="未提供 Token",

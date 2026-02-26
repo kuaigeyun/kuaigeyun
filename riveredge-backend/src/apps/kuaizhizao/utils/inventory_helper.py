@@ -16,7 +16,7 @@ from loguru import logger
 async def get_material_available_quantity(
     tenant_id: int,
     material_id: int,
-    warehouse_id: Optional[int] = None
+    warehouse_id: int | None = None
 ) -> Decimal:
     """
     获取物料的可用库存数量
@@ -50,8 +50,8 @@ async def get_material_available_quantity(
 async def get_material_inventory_info(
     tenant_id: int,
     material_id: int,
-    warehouse_id: Optional[int] = None
-) -> Dict[str, Any]:
+    warehouse_id: int | None = None
+) -> dict[str, Any]:
     """
     获取物料的库存信息（用于需求计算可供应量）
 

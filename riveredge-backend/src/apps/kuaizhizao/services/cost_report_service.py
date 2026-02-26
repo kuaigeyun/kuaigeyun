@@ -39,10 +39,10 @@ class CostReportService:
         tenant_id: int,
         start_date: date,
         end_date: date,
-        material_id: Optional[int] = None,
-        source_type: Optional[str] = None,
+        material_id: int | None = None,
+        source_type: str | None = None,
         group_by: str = "month"  # month, week, day
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         分析成本趋势
         
@@ -165,11 +165,11 @@ class CostReportService:
     async def analyze_cost_structure(
         self,
         tenant_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        source_type: Optional[str] = None
-    ) -> Dict[str, Any]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        source_type: str | None = None
+    ) -> dict[str, Any]:
         """
         分析成本结构
         
@@ -294,12 +294,12 @@ class CostReportService:
         self,
         tenant_id: int,
         report_type: str,  # trend, structure, comprehensive
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        material_id: Optional[int] = None,
-        source_type: Optional[str] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        material_id: int | None = None,
+        source_type: str | None = None,
         group_by: str = "month"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成成本报表
         

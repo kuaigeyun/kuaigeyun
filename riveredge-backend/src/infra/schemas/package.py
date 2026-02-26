@@ -34,9 +34,9 @@ class PackageBase(BaseModel):
     max_users: int = Field(..., ge=1, description="最大用户数限制")
     max_storage_mb: int = Field(..., ge=0, description="最大存储空间限制（MB）")
     allow_pro_apps: bool = Field(default=False, description="是否允许使用 PRO 应用")
-    description: Optional[str] = Field(default=None, max_length=500, description="套餐描述")
-    price: Optional[float] = Field(default=None, ge=0, description="套餐价格（可选）")
-    features: Optional[List[str]] = Field(default=None, description="套餐功能列表（可选）")
+    description: str | None = Field(default=None, max_length=500, description="套餐描述")
+    price: float | None = Field(default=None, ge=0, description="套餐价格（可选）")
+    features: list[str] | None = Field(default=None, description="套餐功能列表（可选）")
 
 
 class PackageCreate(PackageBase):
@@ -56,13 +56,13 @@ class PackageUpdate(BaseModel):
     所有字段都是可选的，只更新提供的字段。
     """
     
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="套餐名称")
-    max_users: Optional[int] = Field(None, ge=1, description="最大用户数限制")
-    max_storage_mb: Optional[int] = Field(None, ge=0, description="最大存储空间限制（MB）")
-    allow_pro_apps: Optional[bool] = Field(None, description="是否允许使用 PRO 应用")
-    description: Optional[str] = Field(None, max_length=500, description="套餐描述")
-    price: Optional[float] = Field(None, ge=0, description="套餐价格")
-    features: Optional[List[str]] = Field(None, description="套餐功能列表")
+    name: str | None = Field(None, min_length=1, max_length=100, description="套餐名称")
+    max_users: int | None = Field(None, ge=1, description="最大用户数限制")
+    max_storage_mb: int | None = Field(None, ge=0, description="最大存储空间限制（MB）")
+    allow_pro_apps: bool | None = Field(None, description="是否允许使用 PRO 应用")
+    description: str | None = Field(None, max_length=500, description="套餐描述")
+    price: float | None = Field(None, ge=0, description="套餐价格")
+    features: list[str] | None = Field(None, description="套餐功能列表")
 
 
 class PackageResponse(PackageBase):
@@ -99,7 +99,7 @@ class PackageListResponse(BaseModel):
         page_size: 每页数量
     """
     
-    items: List[PackageResponse] = Field(default_factory=list, description="套餐列表")
+    items: list[PackageResponse] = Field(default_factory=list, description="套餐列表")
     total: int = Field(default=0, description="总数量")
     page: int = Field(default=1, description="当前页码")
     page_size: int = Field(default=10, description="每页数量")

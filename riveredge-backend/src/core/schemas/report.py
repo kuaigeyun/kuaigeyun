@@ -28,7 +28,7 @@ class ReportComponentBase(BaseModel):
     y: int = Field(0, description="Y坐标")
     width: int = Field(100, description="宽度")
     height: int = Field(100, description="高度")
-    style: Optional[Dict[str, Any]] = Field(None, description="样式配置")
+    style: dict[str, Any] | None = Field(None, description="样式配置")
 
 
 class TableComponent(ReportComponentBase):
@@ -36,9 +36,9 @@ class TableComponent(ReportComponentBase):
     表格组件Schema
     """
     type: str = Field("table", description="组件类型")
-    data_source: Optional[str] = Field(None, description="数据源配置")
-    columns: Optional[List[Dict[str, Any]]] = Field(None, description="列配置")
-    pagination: Optional[Dict[str, Any]] = Field(None, description="分页配置")
+    data_source: str | None = Field(None, description="数据源配置")
+    columns: list[dict[str, Any]] | None = Field(None, description="列配置")
+    pagination: dict[str, Any] | None = Field(None, description="分页配置")
 
 
 class ChartComponent(ReportComponentBase):
@@ -46,8 +46,8 @@ class ChartComponent(ReportComponentBase):
     图表组件Schema
     """
     type: str = Field(..., description="图表类型（bar/line/pie/scatter等）")
-    data_source: Optional[str] = Field(None, description="数据源配置")
-    chart_config: Optional[Dict[str, Any]] = Field(None, description="图表配置")
+    data_source: str | None = Field(None, description="数据源配置")
+    chart_config: dict[str, Any] | None = Field(None, description="图表配置")
 
 
 class TextComponent(ReportComponentBase):
@@ -65,7 +65,7 @@ class ImageComponent(ReportComponentBase):
     """
     type: str = Field("image", description="组件类型")
     src: str = Field(..., description="图片URL")
-    alt: Optional[str] = Field(None, description="图片描述")
+    alt: str | None = Field(None, description="图片描述")
 
 
 class GroupComponent(ReportComponentBase):
@@ -73,7 +73,7 @@ class GroupComponent(ReportComponentBase):
     分组组件Schema
     """
     type: str = Field("group", description="组件类型")
-    children: List[ReportComponentBase] = Field(default_factory=list, description="子组件列表")
+    children: list[ReportComponentBase] = Field(default_factory=list, description="子组件列表")
 
 
 # ============ 报表配置Schema ============
@@ -87,10 +87,10 @@ class ReportConfig(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     version: str = Field("1.0", description="配置版本")
-    layout: Dict[str, Any] = Field(default_factory=dict, description="布局配置")
-    components: List[ReportComponentBase] = Field(default_factory=list, description="组件列表")
-    data_sources: Optional[List[Dict[str, Any]]] = Field(None, description="数据源配置列表")
-    styles: Optional[Dict[str, Any]] = Field(None, description="全局样式配置")
+    layout: dict[str, Any] = Field(default_factory=dict, description="布局配置")
+    components: list[ReportComponentBase] = Field(default_factory=list, description="组件列表")
+    data_sources: list[dict[str, Any]] | None = Field(None, description="数据源配置列表")
+    styles: dict[str, Any] | None = Field(None, description="全局样式配置")
 
 
 # ============ 报表模板Schema ============
@@ -105,10 +105,10 @@ class ReportTemplateBase(BaseModel):
     code: str = Field(..., description="模板编码")
     type: str = Field(..., description="报表类型")
     category: str = Field("personal", description="分类")
-    config: Dict[str, Any] = Field(..., description="报表配置（JSON格式）")
+    config: dict[str, Any] = Field(..., description="报表配置（JSON格式）")
     status: str = Field("draft", description="状态")
     is_default: bool = Field(False, description="是否默认模板")
-    description: Optional[str] = Field(None, description="描述")
+    description: str | None = Field(None, description="描述")
 
 
 class ReportTemplateCreate(ReportTemplateBase):
@@ -124,14 +124,14 @@ class ReportTemplateUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    name: Optional[str] = Field(None, description="模板名称")
-    code: Optional[str] = Field(None, description="模板编码")
-    type: Optional[str] = Field(None, description="报表类型")
-    category: Optional[str] = Field(None, description="分类")
-    config: Optional[Dict[str, Any]] = Field(None, description="报表配置")
-    status: Optional[str] = Field(None, description="状态")
-    is_default: Optional[bool] = Field(None, description="是否默认模板")
-    description: Optional[str] = Field(None, description="描述")
+    name: str | None = Field(None, description="模板名称")
+    code: str | None = Field(None, description="模板编码")
+    type: str | None = Field(None, description="报表类型")
+    category: str | None = Field(None, description="分类")
+    config: dict[str, Any] | None = Field(None, description="报表配置")
+    status: str | None = Field(None, description="状态")
+    is_default: bool | None = Field(None, description="是否默认模板")
+    description: str | None = Field(None, description="描述")
 
 
 class ReportTemplateResponse(ReportTemplateBase):
@@ -140,10 +140,10 @@ class ReportTemplateResponse(ReportTemplateBase):
     """
     id: int = Field(..., description="模板ID")
     uuid: str = Field(..., description="业务ID")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
-    updated_by_name: Optional[str] = Field(None, description="更新人姓名")
+    created_by: int | None = Field(None, description="创建人ID")
+    created_by_name: str | None = Field(None, description="创建人姓名")
+    updated_by: int | None = Field(None, description="更新人ID")
+    updated_by_name: str | None = Field(None, description="更新人姓名")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 

@@ -27,7 +27,7 @@ class HelpDocumentResponse(BaseModel):
     """帮助文档响应"""
     key: str = Field(..., description="文档标识")
     title: str = Field(..., description="文档标题")
-    sections: List[HelpSectionResponse] = Field(..., description="文档章节列表")
+    sections: list[HelpSectionResponse] = Field(..., description="文档章节列表")
 
 
 @router.get("/{document_key}", response_model=HelpDocumentResponse)
@@ -63,9 +63,9 @@ async def get_help_document(
         )
 
 
-@router.get("", response_model=List[HelpDocumentResponse])
+@router.get("", response_model=list[HelpDocumentResponse])
 async def list_help_documents(
-    keyword: Optional[str] = Query(None, description="搜索关键词（可选）"),
+    keyword: str | None = Query(None, description="搜索关键词（可选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

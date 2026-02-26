@@ -23,7 +23,7 @@ class DatabasePerformanceAnalyzer:
     async def analyze_slow_queries(
         min_duration: float = 1.0,
         limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         分析慢查询
         
@@ -79,8 +79,8 @@ class DatabasePerformanceAnalyzer:
     
     @staticmethod
     async def analyze_index_usage(
-        table_name: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        table_name: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         分析索引使用情况
         
@@ -145,8 +145,8 @@ class DatabasePerformanceAnalyzer:
     
     @staticmethod
     async def analyze_table_statistics(
-        table_name: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        table_name: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         分析表统计信息
         
@@ -227,7 +227,7 @@ class DatabasePerformanceAnalyzer:
     @staticmethod
     async def find_unused_indexes(
         min_scans: int = 10
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         查找未使用的索引
         
@@ -275,7 +275,7 @@ class DatabasePerformanceAnalyzer:
     @staticmethod
     async def analyze_query_plans(
         query: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         分析查询执行计划
         

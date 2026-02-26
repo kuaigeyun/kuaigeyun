@@ -17,7 +17,7 @@ class BaseService(Generic[T]):
     提供基本的CRUD操作和通用功能
     """
 
-    def __init__(self, model: Optional[Type[T]] = None):
+    def __init__(self, model: type[T] | None = None):
         """
         初始化服务
 
@@ -26,7 +26,7 @@ class BaseService(Generic[T]):
         """
         self.model = model
 
-    async def get_by_id(self, id: int) -> Optional[T]:
+    async def get_by_id(self, id: int) -> T | None:
         """
         根据ID获取记录
 
@@ -40,7 +40,7 @@ class BaseService(Generic[T]):
             return None
         return await self.model.get_or_none(id=id)
 
-    async def list_all(self, **filters) -> List[T]:
+    async def list_all(self, **filters) -> list[T]:
         """
         获取所有记录（支持筛选）
 
@@ -68,7 +68,7 @@ class BaseService(Generic[T]):
             raise ValueError("Model not set")
         return await self.model.create(**data)
 
-    async def update(self, id: int, **data) -> Optional[T]:
+    async def update(self, id: int, **data) -> T | None:
         """
         更新记录
 

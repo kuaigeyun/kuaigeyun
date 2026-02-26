@@ -264,12 +264,12 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        code: Optional[str] = None,
-        original_work_order_id: Optional[int] = None,
-        product_name: Optional[str] = None,
-        status: Optional[str] = None,
-        rework_type: Optional[str] = None,
-    ) -> List[ReworkOrderListResponse]:
+        code: str | None = None,
+        original_work_order_id: int | None = None,
+        product_name: str | None = None,
+        status: str | None = None,
+        rework_type: str | None = None,
+    ) -> list[ReworkOrderListResponse]:
         """
         获取返工单列表
 

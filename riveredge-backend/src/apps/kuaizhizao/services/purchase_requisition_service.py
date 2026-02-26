@@ -121,9 +121,9 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 20,
-        status: Optional[str] = None,
-        source_type: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        status: str | None = None,
+        source_type: str | None = None,
+    ) -> dict[str, Any]:
         """列表查询，返回 { data, total, success }"""
         query = PurchaseRequisition.filter(
             tenant_id=tenant_id, deleted_at__isnull=True
@@ -227,7 +227,7 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
         requisition_id: int,
         data: ConvertToPurchaseOrderRequest,
         created_by: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """将采购申请行转为采购订单（按供应商分组）"""
         req = await PurchaseRequisition.get_or_none(
             tenant_id=tenant_id, id=requisition_id, deleted_at__isnull=True
@@ -327,7 +327,7 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
         requisition_id: int,
         data: UrgentPurchaseRequest,
         operator_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """紧急采购：跳过审批，直接生成采购单"""
         req = await PurchaseRequisition.get_or_none(
             tenant_id=tenant_id, id=requisition_id, deleted_at__isnull=True
@@ -347,7 +347,7 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
             raise BusinessLogicError("采购申请无明细")
 
         # 按 supplier_id 分组（无 supplier 的用默认 1）
-        by_supplier: Dict[int, List] = {}
+        by_supplier: dict[int, list] = {}
         for item in items:
             sid = item.supplier_id or 1
             if sid not in by_supplier:

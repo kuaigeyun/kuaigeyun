@@ -23,17 +23,17 @@ class InventoryAlertRuleBase(BaseModel):
 
     name: str = Field(..., description="预警规则名称")
     alert_type: str = Field(..., description="预警类型（low_stock/high_stock/expired）")
-    material_id: Optional[int] = Field(None, description="物料ID（可选）")
-    material_code: Optional[str] = Field(None, description="物料编码（可选）")
-    material_name: Optional[str] = Field(None, description="物料名称（可选）")
-    warehouse_id: Optional[int] = Field(None, description="仓库ID（可选）")
-    warehouse_name: Optional[str] = Field(None, description="仓库名称（可选）")
+    material_id: int | None = Field(None, description="物料ID（可选）")
+    material_code: str | None = Field(None, description="物料编码（可选）")
+    material_name: str | None = Field(None, description="物料名称（可选）")
+    warehouse_id: int | None = Field(None, description="仓库ID（可选）")
+    warehouse_name: str | None = Field(None, description="仓库名称（可选）")
     threshold_type: str = Field(..., description="阈值类型（quantity/percentage/days）")
     threshold_value: Decimal = Field(..., description="阈值数值")
     is_enabled: bool = Field(True, description="是否启用")
-    notify_users: Optional[List[int]] = Field(None, description="通知用户ID列表")
-    notify_roles: Optional[List[int]] = Field(None, description="通知角色ID列表")
-    remarks: Optional[str] = Field(None, description="备注")
+    notify_users: list[int] | None = Field(None, description="通知用户ID列表")
+    notify_roles: list[int] | None = Field(None, description="通知角色ID列表")
+    remarks: str | None = Field(None, description="备注")
 
 
 class InventoryAlertRuleCreate(InventoryAlertRuleBase):
@@ -53,13 +53,13 @@ class InventoryAlertRuleUpdate(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    name: Optional[str] = Field(None, description="预警规则名称")
-    threshold_type: Optional[str] = Field(None, description="阈值类型")
-    threshold_value: Optional[Decimal] = Field(None, description="阈值数值")
-    is_enabled: Optional[bool] = Field(None, description="是否启用")
-    notify_users: Optional[List[int]] = Field(None, description="通知用户ID列表")
-    notify_roles: Optional[List[int]] = Field(None, description="通知角色ID列表")
-    remarks: Optional[str] = Field(None, description="备注")
+    name: str | None = Field(None, description="预警规则名称")
+    threshold_type: str | None = Field(None, description="阈值类型")
+    threshold_value: Decimal | None = Field(None, description="阈值数值")
+    is_enabled: bool | None = Field(None, description="是否启用")
+    notify_users: list[int] | None = Field(None, description="通知用户ID列表")
+    notify_roles: list[int] | None = Field(None, description="通知角色ID列表")
+    remarks: str | None = Field(None, description="备注")
 
 
 class InventoryAlertRuleResponse(InventoryAlertRuleBase):
@@ -73,8 +73,8 @@ class InventoryAlertRuleResponse(InventoryAlertRuleBase):
     code: str = Field(..., description="预警规则编码")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
+    created_by: int | None = Field(None, description="创建人ID")
+    created_by_name: str | None = Field(None, description="创建人姓名")
 
 
 class InventoryAlertRuleListResponse(InventoryAlertRuleResponse):
@@ -94,7 +94,7 @@ class InventoryAlertBase(BaseModel):
     """
     model_config = ConfigDict(from_attributes=True)
 
-    alert_rule_id: Optional[int] = Field(None, description="预警规则ID")
+    alert_rule_id: int | None = Field(None, description="预警规则ID")
     alert_type: str = Field(..., description="预警类型")
     material_id: int = Field(..., description="物料ID")
     material_code: str = Field(..., description="物料编码")
@@ -116,12 +116,12 @@ class InventoryAlertResponse(InventoryAlertBase):
     id: int = Field(..., description="预警记录ID")
     uuid: str = Field(..., description="业务ID")
     status: str = Field(..., description="状态")
-    handled_by: Optional[int] = Field(None, description="处理人ID")
-    handled_by_name: Optional[str] = Field(None, description="处理人姓名")
-    handled_at: Optional[datetime] = Field(None, description="处理时间")
-    handling_notes: Optional[str] = Field(None, description="处理备注")
+    handled_by: int | None = Field(None, description="处理人ID")
+    handled_by_name: str | None = Field(None, description="处理人姓名")
+    handled_at: datetime | None = Field(None, description="处理时间")
+    handling_notes: str | None = Field(None, description="处理备注")
     triggered_at: datetime = Field(..., description="触发时间")
-    resolved_at: Optional[datetime] = Field(None, description="解决时间")
+    resolved_at: datetime | None = Field(None, description="解决时间")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
@@ -142,5 +142,5 @@ class InventoryAlertHandleRequest(BaseModel):
     用于处理库存预警的请求数据。
     """
     status: str = Field(..., description="处理状态（processing/resolved/ignored）")
-    handling_notes: Optional[str] = Field(None, description="处理备注")
+    handling_notes: str | None = Field(None, description="处理备注")
 

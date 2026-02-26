@@ -18,8 +18,8 @@ class ValidationResult:
     """验证结果"""
 
     is_valid: bool
-    errors: List[str]
-    warnings: List[str]
+    errors: list[str]
+    warnings: list[str]
 
     def __init__(self):
         self.is_valid = True
@@ -231,7 +231,7 @@ class DataValidationService:
             result.add_error(f"验证工艺路线 {process_route.code} 的工序数据时发生错误: {str(e)}")
 
     @staticmethod
-    def _extract_operation_ids_from_sequence(operation_sequence: Any) -> List[int]:
+    def _extract_operation_ids_from_sequence(operation_sequence: Any) -> list[int]:
         """
         从工序序列中提取工序ID列表
 
@@ -276,7 +276,7 @@ class DataValidationService:
     async def validate_work_order_data_integrity(
         tenant_id: int,
         product_id: int,
-        process_route_id: Optional[int] = None
+        process_route_id: int | None = None
     ) -> ValidationResult:
         """
         验证工单数据的完整性

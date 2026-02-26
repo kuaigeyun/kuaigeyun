@@ -153,7 +153,7 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
         self,
         tenant_id: int,
         params: PurchaseOrderListParams
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取采购订单列表
 
@@ -520,8 +520,8 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
         tenant_id: int,
         order_id: int,
         created_by: int,
-        receipt_quantities: Optional[Dict[int, float]] = None
-    ) -> Dict[str, Any]:
+        receipt_quantities: dict[int, float] | None = None
+    ) -> dict[str, Any]:
         """
         下推到采购入库
         

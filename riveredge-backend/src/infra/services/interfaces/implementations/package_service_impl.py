@@ -30,7 +30,7 @@ class PackageServiceImpl(PackageServiceInterface):
     def service_version(self) -> str:
         return "1.0.0"
     
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """服务健康检查"""
         return {
             "status": "healthy",
@@ -43,7 +43,7 @@ class PackageServiceImpl(PackageServiceInterface):
         page: int = 1,
         page_size: int = 10,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取套餐列表"""
         return await self._package_service.list_packages(
             page=page,
@@ -51,7 +51,7 @@ class PackageServiceImpl(PackageServiceInterface):
             **kwargs
         )
     
-    async def get_package_by_id(self, package_id: int) -> Optional[Any]:
+    async def get_package_by_id(self, package_id: int) -> Any | None:
         """根据ID获取套餐"""
         return await self._package_service.get_package_by_id(package_id)
 

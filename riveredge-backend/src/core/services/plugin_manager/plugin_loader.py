@@ -29,7 +29,7 @@ class PluginLoaderService:
         self.apps_dir = apps_dir
         self.discovery_service = PluginDiscoveryService(apps_dir)
 
-    def load_enabled_plugins(self, enabled_plugins: List[str]) -> List[Dict[str, Any]]:
+    def load_enabled_plugins(self, enabled_plugins: list[str]) -> list[dict[str, Any]]:
         """
         加载所有启用的插件
 
@@ -74,7 +74,7 @@ class PluginLoaderService:
 
         return loaded_plugins
 
-    def _load_plugin_routers(self, plugin: DiscoveredPlugin) -> List[APIRouter]:
+    def _load_plugin_routers(self, plugin: DiscoveredPlugin) -> list[APIRouter]:
         """
         加载插件的路由
 
@@ -110,7 +110,7 @@ class PluginLoaderService:
 
         return routers
 
-    def _load_plugin_submodule_routers(self, plugin: DiscoveredPlugin, api_module_path: str, routers: List[APIRouter]):
+    def _load_plugin_submodule_routers(self, plugin: DiscoveredPlugin, api_module_path: str, routers: list[APIRouter]):
         """
         加载插件子模块的路由
 
@@ -150,7 +150,7 @@ class PluginLoaderService:
                 except Exception as e:
                     print(f"  ⚠️ 加载子模块 {submodule_path} 失败: {str(e)}")
 
-    def get_available_plugins(self) -> List[Dict[str, Any]]:
+    def get_available_plugins(self) -> list[dict[str, Any]]:
         """
         获取所有可用的插件信息
 

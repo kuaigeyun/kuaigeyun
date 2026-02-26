@@ -58,11 +58,11 @@ async def create_status_monitor(
 async def list_status_monitors(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    equipment_uuid: Optional[str] = Query(None, description="设备UUID（可选）"),
-    status: Optional[str] = Query(None, description="设备状态（可选）"),
-    is_online: Optional[bool] = Query(None, description="是否在线（可选）"),
-    date_start: Optional[str] = Query(None, description="开始日期（YYYY-MM-DD）"),
-    date_end: Optional[str] = Query(None, description="结束日期（YYYY-MM-DD）"),
+    equipment_uuid: str | None = Query(None, description="设备UUID（可选）"),
+    status: str | None = Query(None, description="设备状态（可选）"),
+    is_online: bool | None = Query(None, description="是否在线（可选）"),
+    date_start: str | None = Query(None, description="开始日期（YYYY-MM-DD）"),
+    date_end: str | None = Query(None, description="结束日期（YYYY-MM-DD）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -104,9 +104,9 @@ async def list_status_monitors(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"获取监控列表失败: {str(e)}")
 
 
-@router.get("/realtime", response_model=List[dict])
+@router.get("/realtime", response_model=list[dict])
 async def get_realtime_status_list(
-    equipment_ids: Optional[str] = Query(None, description="设备ID列表（逗号分隔）"),
+    equipment_ids: str | None = Query(None, description="设备ID列表（逗号分隔）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

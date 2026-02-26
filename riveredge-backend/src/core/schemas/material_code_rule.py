@@ -19,7 +19,7 @@ class MaterialTypeConfigBase(BaseModel):
     
     code: str = Field(..., max_length=20, description="类型代码（如：FIN, SEMI, RAW）")
     name: str = Field(..., max_length=100, description="类型名称（如：成品, 半成品, 原材料）")
-    description: Optional[str] = Field(None, max_length=255, description="类型描述")
+    description: str | None = Field(None, max_length=255, description="类型描述")
     independent_sequence: bool = Field(True, description="是否独立计数")
 
 
@@ -29,7 +29,7 @@ class SequenceConfigBase(BaseModel):
     length: int = Field(4, ge=1, le=10, description="序号位数")
     start_value: int = Field(1, ge=0, description="起始值")
     step: int = Field(1, ge=1, description="步长")
-    padding: Dict[str, Any] = Field(
+    padding: dict[str, Any] = Field(
         default={"direction": "left", "char": "0"},
         description="填充配置：{'direction': 'left/right', 'char': '0'}"
     )
@@ -37,7 +37,7 @@ class SequenceConfigBase(BaseModel):
     
     @field_validator("padding")
     @classmethod
-    def validate_padding(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_padding(cls, v: dict[str, Any]) -> dict[str, Any]:
         """验证填充配置"""
         if "direction" not in v:
             v["direction"] = "left"
@@ -53,9 +53,9 @@ class MaterialCodeRuleMainBase(BaseModel):
     
     rule_name: str = Field(..., min_length=1, max_length=100, description="规则名称")
     template: str = Field(..., min_length=1, max_length=200, description="格式模板（如：{PREFIX}-{TYPE}-{SEQUENCE}）")
-    prefix: Optional[str] = Field(None, max_length=50, description="前缀（如：MAT）")
-    sequence_config: Optional[Dict[str, Any]] = Field(None, description="序号配置（JSON格式）")
-    material_types: Optional[List[MaterialTypeConfigBase]] = Field(None, description="物料类型列表")
+    prefix: str | None = Field(None, max_length=50, description="前缀（如：MAT）")
+    sequence_config: dict[str, Any] | None = Field(None, description="序号配置（JSON格式）")
+    material_types: list[MaterialTypeConfigBase] | None = Field(None, description="物料类型列表")
 
 
 class MaterialCodeRuleMainCreate(MaterialCodeRuleMainBase):
@@ -66,11 +66,11 @@ class MaterialCodeRuleMainCreate(MaterialCodeRuleMainBase):
 class MaterialCodeRuleMainUpdate(BaseModel):
     """更新主编码规则 Schema"""
     
-    rule_name: Optional[str] = Field(None, min_length=1, max_length=100, description="规则名称")
-    template: Optional[str] = Field(None, min_length=1, max_length=200, description="格式模板")
-    prefix: Optional[str] = Field(None, max_length=50, description="前缀")
-    sequence_config: Optional[Dict[str, Any]] = Field(None, description="序号配置")
-    material_types: Optional[List[MaterialTypeConfigBase]] = Field(None, description="物料类型列表")
+    rule_name: str | None = Field(None, min_length=1, max_length=100, description="规则名称")
+    template: str | None = Field(None, min_length=1, max_length=200, description="格式模板")
+    prefix: str | None = Field(None, max_length=50, description="前缀")
+    sequence_config: dict[str, Any] | None = Field(None, description="序号配置")
+    material_types: list[MaterialTypeConfigBase] | None = Field(None, description="物料类型列表")
 
 
 class MaterialCodeRuleMainResponse(MaterialCodeRuleMainBase):
@@ -81,8 +81,8 @@ class MaterialCodeRuleMainResponse(MaterialCodeRuleMainBase):
     tenant_id: int = Field(..., description="组织ID")
     is_active: bool = Field(..., description="是否启用")
     version: int = Field(..., description="版本号")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
+    created_by: int | None = Field(None, description="创建人ID")
+    updated_by: int | None = Field(None, description="更新人ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     
@@ -98,10 +98,10 @@ class MaterialCodeRuleAliasBase(BaseModel):
     
     code_type: str = Field(..., min_length=1, max_length=50, description="编码类型代码（如：SALE, DES, SUP）")
     code_type_name: str = Field(..., min_length=1, max_length=100, description="编码类型名称（如：销售编码, 设计编码）")
-    template: Optional[str] = Field(None, max_length=200, description="格式模板（如：{PREFIX}-{DEPT}-{SEQUENCE}）")
-    prefix: Optional[str] = Field(None, max_length=50, description="前缀（如：SALE）")
-    validation_pattern: Optional[str] = Field(None, max_length=500, description="验证规则（正则表达式）")
-    departments: Optional[List[str]] = Field(None, description="关联部门列表")
+    template: str | None = Field(None, max_length=200, description="格式模板（如：{PREFIX}-{DEPT}-{SEQUENCE}）")
+    prefix: str | None = Field(None, max_length=50, description="前缀（如：SALE）")
+    validation_pattern: str | None = Field(None, max_length=500, description="验证规则（正则表达式）")
+    departments: list[str] | None = Field(None, description="关联部门列表")
 
 
 class MaterialCodeRuleAliasCreate(MaterialCodeRuleAliasBase):
@@ -112,11 +112,11 @@ class MaterialCodeRuleAliasCreate(MaterialCodeRuleAliasBase):
 class MaterialCodeRuleAliasUpdate(BaseModel):
     """更新部门编码规则 Schema"""
     
-    code_type_name: Optional[str] = Field(None, min_length=1, max_length=100, description="编码类型名称")
-    template: Optional[str] = Field(None, max_length=200, description="格式模板")
-    prefix: Optional[str] = Field(None, max_length=50, description="前缀")
-    validation_pattern: Optional[str] = Field(None, max_length=500, description="验证规则")
-    departments: Optional[List[str]] = Field(None, description="关联部门列表")
+    code_type_name: str | None = Field(None, min_length=1, max_length=100, description="编码类型名称")
+    template: str | None = Field(None, max_length=200, description="格式模板")
+    prefix: str | None = Field(None, max_length=50, description="前缀")
+    validation_pattern: str | None = Field(None, max_length=500, description="验证规则")
+    departments: list[str] | None = Field(None, description="关联部门列表")
 
 
 class MaterialCodeRuleAliasResponse(MaterialCodeRuleAliasBase):
@@ -127,8 +127,8 @@ class MaterialCodeRuleAliasResponse(MaterialCodeRuleAliasBase):
     tenant_id: int = Field(..., description="组织ID")
     is_active: bool = Field(..., description="是否启用")
     version: int = Field(..., description="版本号")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
+    created_by: int | None = Field(None, description="创建人ID")
+    updated_by: int | None = Field(None, description="更新人ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     
@@ -143,14 +143,14 @@ class CodePreviewRequest(BaseModel):
     """编码预览请求 Schema"""
     
     template: str = Field(..., min_length=1, max_length=200, description="格式模板")
-    prefix: Optional[str] = Field(None, max_length=50, description="前缀")
+    prefix: str | None = Field(None, max_length=50, description="前缀")
     material_type: str = Field("RAW", max_length=20, description="物料类型代码")
     sample_sequence: int = Field(1, ge=1, description="示例序号")
-    sequence_config: Optional[Dict[str, Any]] = Field(None, description="序号配置（用于预览 Scope Key）")
+    sequence_config: dict[str, Any] | None = Field(None, description="序号配置（用于预览 Scope Key）")
 
 
 class CodePreviewResponse(BaseModel):
     """编码预览响应 Schema"""
     
     preview_code: str = Field(..., description="预览的编码")
-    sequence_key: Optional[str] = Field(None, description="序号作用域 Key（用于验证隔离策略）")
+    sequence_key: str | None = Field(None, description="序号作用域 Key（用于验证隔离策略）")

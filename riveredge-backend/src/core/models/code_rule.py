@@ -100,7 +100,7 @@ class CodeRule(BaseModel):
                 return False
         return True
     
-    def get_rule_components(self) -> Optional[List[Dict[str, Any]]]:
+    def get_rule_components(self) -> list[dict[str, Any]] | None:
         """
         获取规则组件列表
         
@@ -113,7 +113,7 @@ class CodeRule(BaseModel):
             return self.rule_components
         return None
     
-    def set_rule_components(self, components: List[Dict[str, Any]]) -> None:
+    def set_rule_components(self, components: list[dict[str, Any]]) -> None:
         """
         设置规则组件列表
         

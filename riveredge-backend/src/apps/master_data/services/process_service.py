@@ -21,7 +21,7 @@ from apps.master_data.schemas.process_schemas import (
 from infra.exceptions.exceptions import NotFoundError, ValidationError
 
 
-async def _resolve_default_operator_uuids(tenant_id: int, default_operator_uuids: Optional[List[str]]) -> List[int]:
+async def _resolve_default_operator_uuids(tenant_id: int, default_operator_uuids: list[str] | None) -> list[int]:
     """解析默认生产人员 UUID 列表 -> 用户 ID 列表，校验同组织。"""
     if not default_operator_uuids or not isinstance(default_operator_uuids, list):
         return []
@@ -37,7 +37,7 @@ async def _resolve_default_operator_uuids(tenant_id: int, default_operator_uuids
     return [u.id for u in users]
 
 
-async def _sync_operation_defect_types(operation_id: int, defect_type_uuids: List[str], tenant_id: int) -> None:
+async def _sync_operation_defect_types(operation_id: int, defect_type_uuids: list[str], tenant_id: int) -> None:
     """同步工序绑定不良品项：清空后按 uuid 列表重建。"""
     await OperationDefectType.filter(operation_id=operation_id).delete()
     if not defect_type_uuids:
@@ -51,12 +51,12 @@ async def _sync_operation_defect_types(operation_id: int, defect_type_uuids: Lis
             await OperationDefectType.create(operation_id=operation_id, defect_type_id=did)
 
 
-def _apply_default_operator_ids(op: Operation, default_operator_ids: List[int]) -> None:
+def _apply_default_operator_ids(op: Operation, default_operator_ids: list[int]) -> None:
     """将解析后的 default_operator_ids 赋给 op（JSON数组）。"""
     op.default_operator_ids = default_operator_ids if default_operator_ids else None
 
 
-def _defect_type_to_response_data(dt: DefectType) -> Dict[str, Any]:
+def _defect_type_to_response_data(dt: DefectType) -> dict[str, Any]:
     """从 DefectType ORM 实例构建 DefectTypeResponse 所需的字典，避免 model_validate(orm) 引发 500。"""
     return {
         "id": dt.id,
@@ -73,7 +73,7 @@ def _defect_type_to_response_data(dt: DefectType) -> Dict[str, Any]:
     }
 
 
-async def _get_operation_defect_types_via_table(operation_id: int) -> List[Dict[str, Any]]:
+async def _get_operation_defect_types_via_table(operation_id: int) -> list[dict[str, Any]]:
     """通过关联表原始 SQL 获取工序绑定的不良品列表，避免依赖 Tortoise 的 through 模型解析。"""
     try:
         from tortoise import Tortoise
@@ -103,12 +103,12 @@ async def _get_operation_defect_types_via_table(operation_id: int) -> List[Dict[
         return []
 
 
-async def _operation_to_response_data(op: Operation) -> Dict[str, Any]:
+async def _operation_to_response_data(op: Operation) -> dict[str, Any]:
     """从 Operation ORM 实例构建 OperationResponse 所需的字典，含绑定不良品项与默认生产人员。"""
-    defect_types: List[Dict[str, Any]] = await _get_operation_defect_types_via_table(op.id)
-    default_operator_ids: List[int] = []
-    default_operator_uuids: List[str] = []
-    default_operator_names: List[str] = []
+    defect_types: list[dict[str, Any]] = await _get_operation_defect_types_via_table(op.id)
+    default_operator_ids: list[int] = []
+    default_operator_uuids: list[str] = []
+    default_operator_names: list[str] = []
     oids = getattr(op, "default_operator_ids", None)
     if oids:
         try:
@@ -274,9 +274,9 @@ class ProcessService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        category: Optional[str] = None,
-        is_active: Optional[bool] = None
-    ) -> tuple[List[DefectTypeResponse], int]:
+        category: str | None = None,
+        is_active: bool | None = None
+    ) -> tuple[list[DefectTypeResponse], int]:
         """
         获取不良品列表（分页，返回列表与总数）
         
@@ -548,8 +548,8 @@ class ProcessService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None
-    ) -> List[OperationResponse]:
+        is_active: bool | None = None
+    ) -> list[OperationResponse]:
         """
         获取工序列表
         
@@ -807,8 +807,8 @@ class ProcessService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None
-    ) -> List[ProcessRouteResponse]:
+        is_active: bool | None = None
+    ) -> list[ProcessRouteResponse]:
         """
         获取工艺路线列表
         
@@ -923,8 +923,8 @@ class ProcessService:
     @staticmethod
     async def get_process_route_tree(
         tenant_id: int,
-        is_active: Optional[bool] = None
-    ) -> List["ProcessRouteTreeResponse"]:
+        is_active: bool | None = None
+    ) -> list["ProcessRouteTreeResponse"]:
         """
         获取工艺路线树形结构（工艺路线→工序）
         
@@ -965,10 +965,10 @@ class ProcessService:
         operations = await operation_query.all()
         
         # 构建工序映射（按ID）
-        operation_map: Dict[int, Operation] = {op.id: op for op in operations}
+        operation_map: dict[int, Operation] = {op.id: op for op in operations}
         
         # 构建工艺路线树形结构
-        result: List[ProcessRouteTreeResponse] = []
+        result: list[ProcessRouteTreeResponse] = []
         for route in process_routes:
             # 创建工艺路线响应对象
             route_response = ProcessRouteTreeResponse.model_validate(route)
@@ -1081,7 +1081,7 @@ class ProcessService:
     async def batch_create_sops_from_route(
         tenant_id: int,
         data: "SOPBatchCreateFromRouteRequest"
-    ) -> List[SOPResponse]:
+    ) -> list[SOPResponse]:
         """
         按工艺路线批量创建 SOP 草稿
         
@@ -1232,12 +1232,12 @@ class ProcessService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        operation_id: Optional[int] = None,
-        is_active: Optional[bool] = None,
-        material_uuid: Optional[str] = None,
-        material_group_uuid: Optional[str] = None,
-        route_uuid: Optional[str] = None,
-    ) -> List[SOPResponse]:
+        operation_id: int | None = None,
+        is_active: bool | None = None,
+        material_uuid: str | None = None,
+        material_group_uuid: str | None = None,
+        route_uuid: str | None = None,
+    ) -> list[SOPResponse]:
         """
         获取作业程序（SOP）列表
         
@@ -1377,8 +1377,8 @@ class ProcessService:
     async def get_sop_for_material(
         tenant_id: int,
         material_uuid: str,
-        operation_uuid: Optional[str] = None,
-    ) -> Optional[SOPResponse]:
+        operation_uuid: str | None = None,
+    ) -> SOPResponse | None:
         """
         按物料匹配 SOP，供工单/报工「以 SOP 为依据生成流程单据」使用。
         匹配规则：具体物料优先于物料组。
@@ -1448,7 +1448,7 @@ class ProcessService:
         tenant_id: int,
         work_order_id: int,
         operation_id: int,
-    ) -> Optional[SOPResponse]:
+    ) -> SOPResponse | None:
         """
         按工单+工序匹配 SOP，供报工使用。
         逻辑：取工单产品 -> 物料 UUID -> get_sop_for_material（含 fallback 仅工序）。
@@ -1522,7 +1522,6 @@ class ProcessService:
             ValidationError: 当版本号已存在时抛出
         """
         from datetime import datetime
-        import re
         
         # 获取当前最新版本的工艺路线
         current_route = await ProcessRoute.filter(
@@ -1565,7 +1564,7 @@ class ProcessService:
     async def get_process_route_versions(
         tenant_id: int,
         process_route_code: str
-    ) -> List[ProcessRouteResponse]:
+    ) -> list[ProcessRouteResponse]:
         """
         获取工艺路线的所有版本
         
@@ -1707,7 +1706,7 @@ class ProcessService:
         tenant_id: int,
         process_route_code: str,
         target_version: str,
-        new_version: Optional[str] = None
+        new_version: str | None = None
     ) -> ProcessRouteResponse:
         """
         回退工艺路线到指定版本
@@ -1729,7 +1728,6 @@ class ProcessService:
             ValidationError: 当新版本号已存在时抛出
         """
         from datetime import datetime
-        import re
         
         # 获取目标版本的工艺路线
         target_route = await ProcessRoute.filter(
@@ -1949,7 +1947,7 @@ class ProcessService:
     async def get_process_route_for_material(
         tenant_id: int,
         material_uuid: str
-    ) -> Optional[ProcessRouteResponse]:
+    ) -> ProcessRouteResponse | None:
         """
         获取物料匹配的工艺路线（按优先级）
         
@@ -2014,7 +2012,7 @@ class ProcessService:
     async def get_process_route_for_material_group(
         tenant_id: int,
         material_group_uuid: str
-    ) -> Optional[ProcessRouteResponse]:
+    ) -> ProcessRouteResponse | None:
         """
         获取物料组匹配的工艺路线
         
@@ -2054,7 +2052,7 @@ class ProcessService:
     async def get_bound_materials(
         tenant_id: int,
         process_route_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取工艺路线绑定的物料和物料分组
         
@@ -2193,8 +2191,8 @@ class ProcessService:
     async def get_sub_routes(
         tenant_id: int,
         parent_route_uuid: str,
-        parent_operation_uuid: Optional[str] = None
-    ) -> List[ProcessRouteResponse]:
+        parent_operation_uuid: str | None = None
+    ) -> list[ProcessRouteResponse]:
         """
         获取子工艺路线列表
         
@@ -2315,9 +2313,9 @@ class ProcessService:
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        category: Optional[str] = None,
-        is_active: Optional[bool] = None
-    ) -> List[ProcessRouteTemplateResponse]:
+        category: str | None = None,
+        is_active: bool | None = None
+    ) -> list[ProcessRouteTemplateResponse]:
         """
         获取工艺路线模板列表
         

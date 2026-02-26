@@ -93,7 +93,7 @@ class MaterialVariantAttributeDefinition(BaseModel):
             return self.enum_values if isinstance(self.enum_values, list) else []
         return []
     
-    def get_validation_rules(self) -> Dict[str, Any]:
+    def get_validation_rules(self) -> dict[str, Any]:
         """
         获取验证规则
         
@@ -102,7 +102,7 @@ class MaterialVariantAttributeDefinition(BaseModel):
         """
         return self.validation_rules or {}
     
-    def get_dependencies(self) -> Dict[str, Any]:
+    def get_dependencies(self) -> dict[str, Any]:
         """
         获取依赖关系
         

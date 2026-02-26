@@ -50,7 +50,7 @@ def get_sync_connection():
             conn.close()
 
 
-def execute_query(query: str, params: tuple = None, fetch_one: bool = False) -> Optional[Dict[str, Any]]:
+def execute_query(query: str, params: tuple = None, fetch_one: bool = False) -> dict[str, Any] | None:
     """
     执行查询并返回结果
 
@@ -72,7 +72,7 @@ def execute_query(query: str, params: tuple = None, fetch_one: bool = False) -> 
                 return cur.fetchall()
 
 
-def authenticate_user(username: str, password: str, tenant_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+def authenticate_user(username: str, password: str, tenant_id: int | None = None) -> dict[str, Any] | None:
     """
     验证用户身份
 

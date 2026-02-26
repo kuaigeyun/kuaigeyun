@@ -57,13 +57,13 @@ async def create_print_template(
         )
 
 
-@router.get("", response_model=List[PrintTemplateResponse])
+@router.get("", response_model=list[PrintTemplateResponse])
 async def list_print_templates(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
-    type: Optional[str] = Query(None, description="模板类型（可选）"),
-    is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
-    document_type: Optional[str] = Query(None, description="关联业务单据类型（可选，按 config.document_type 筛选）"),
+    type: str | None = Query(None, description="模板类型（可选）"),
+    is_active: bool | None = Query(None, description="是否启用（可选）"),
+    document_type: str | None = Query(None, description="关联业务单据类型（可选，按 config.document_type 筛选）"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """

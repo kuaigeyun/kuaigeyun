@@ -28,7 +28,7 @@ class LaunchChecklistService:
     async def generate_checklist(
         self,
         tenant_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         自动生成检查清单
         
@@ -153,7 +153,7 @@ class LaunchChecklistService:
     async def check_items(
         self,
         tenant_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         自动检查检查清单项
         
@@ -184,10 +184,10 @@ class LaunchChecklistService:
     
     async def _check_item(
         self,
-        item: Dict[str, Any],
-        progress: Dict[str, Any],
+        item: dict[str, Any],
+        progress: dict[str, Any],
         countdown: LaunchCountdown
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """检查单个检查项"""
         item_key = item["key"]
         
@@ -217,7 +217,7 @@ class LaunchChecklistService:
     async def generate_check_report(
         self,
         tenant_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成检查报告
         
@@ -247,7 +247,7 @@ class LaunchChecklistService:
                 "passed_items": passed_items,
                 "failed_items": failed_items,
                 "pending_items": pending_items,
-                "pass_rate": int((passed_items / total_items * 100)) if total_items > 0 else 0,
+                "pass_rate": int(passed_items / total_items * 100) if total_items > 0 else 0,
                 "critical_total": len(critical_items),
                 "critical_passed": critical_passed,
                 "critical_failed": critical_failed,

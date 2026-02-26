@@ -74,7 +74,7 @@ class CustomField(BaseModel):
             ("created_at",),
         ]
     
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         """
         获取字段配置
         
@@ -83,7 +83,7 @@ class CustomField(BaseModel):
         """
         return self.config or {}
     
-    def set_config(self, config: Dict[str, Any]) -> None:
+    def set_config(self, config: dict[str, Any]) -> None:
         """
         设置字段配置
         

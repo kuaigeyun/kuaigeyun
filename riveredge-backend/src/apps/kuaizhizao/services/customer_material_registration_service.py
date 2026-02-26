@@ -104,9 +104,9 @@ class BarcodeMappingRuleService(AppBaseService[BarcodeMappingRule]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        customer_id: Optional[int] = None,
-        is_enabled: Optional[bool] = None,
-    ) -> List[BarcodeMappingRuleListResponse]:
+        customer_id: int | None = None,
+        is_enabled: bool | None = None,
+    ) -> list[BarcodeMappingRuleListResponse]:
         """
         获取条码映射规则列表
 
@@ -274,7 +274,7 @@ class CustomerMaterialRegistrationService(AppBaseService[CustomerMaterialRegistr
                     mapped_material_name = parse_result.mapped_material_name
                     mapping_rule_id = parse_result.mapping_rule_id
                     parsed_data = parse_result.parsed_data
-                except Exception as e:
+                except Exception:
                     # 解析失败，但不阻止登记
                     pass
 
@@ -319,11 +319,11 @@ class CustomerMaterialRegistrationService(AppBaseService[CustomerMaterialRegistr
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        customer_id: Optional[int] = None,
-        status: Optional[str] = None,
-        registration_date_start: Optional[datetime] = None,
-        registration_date_end: Optional[datetime] = None,
-    ) -> List[CustomerMaterialRegistrationListResponse]:
+        customer_id: int | None = None,
+        status: str | None = None,
+        registration_date_start: datetime | None = None,
+        registration_date_end: datetime | None = None,
+    ) -> list[CustomerMaterialRegistrationListResponse]:
         """
         获取客户来料登记列表
 

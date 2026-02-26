@@ -34,8 +34,8 @@ data_compensation_service = DataCompensationService()
 
 @router.post("/inventory/import", summary="导入期初库存")
 async def import_initial_inventory(
-    data: List[List[Any]],  # 二维数组数据（从 uni_import 组件传递）
-    snapshot_time: Optional[datetime] = Query(None, description="快照时间点（可选）"),
+    data: list[list[Any]],  # 二维数组数据（从 uni_import 组件传递）
+    snapshot_time: datetime | None = Query(None, description="快照时间点（可选）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -88,8 +88,8 @@ async def import_initial_inventory(
 
 @router.post("/wip/import", summary="导入期初在制品")
 async def import_initial_wip(
-    data: List[List[Any]],  # 二维数组数据（从 uni_import 组件传递）
-    snapshot_time: Optional[datetime] = Query(None, description="快照时间点（可选）"),
+    data: list[list[Any]],  # 二维数组数据（从 uni_import 组件传递）
+    snapshot_time: datetime | None = Query(None, description="快照时间点（可选）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -143,8 +143,8 @@ async def import_initial_wip(
 
 @router.post("/receivables-payables/import", summary="导入期初应收应付")
 async def import_initial_receivables_payables(
-    data: List[List[Any]],  # 二维数组数据（从 uni_import 组件传递）
-    snapshot_time: Optional[datetime] = Query(None, description="快照时间点（可选）"),
+    data: list[list[Any]],  # 二维数组数据（从 uni_import 组件传递）
+    snapshot_time: datetime | None = Query(None, description="快照时间点（可选）"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):

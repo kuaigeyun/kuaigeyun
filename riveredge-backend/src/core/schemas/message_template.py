@@ -15,10 +15,10 @@ class MessageTemplateBase(BaseModel):
     name: str = Field(..., max_length=100, description="模板名称")
     code: str = Field(..., max_length=50, description="模板代码")
     type: str = Field(..., max_length=20, description="消息类型")
-    description: Optional[str] = Field(None, description="模板描述")
-    subject: Optional[str] = Field(None, max_length=200, description="主题（邮件、推送通知）")
+    description: str | None = Field(None, description="模板描述")
+    subject: str | None = Field(None, max_length=200, description="主题（邮件、推送通知）")
     content: str = Field(..., description="模板内容（支持变量）")
-    variables: Optional[Dict[str, Any]] = Field(None, description="模板变量定义（JSON格式）")
+    variables: dict[str, Any] | None = Field(None, description="模板变量定义（JSON格式）")
     is_active: bool = Field(True, description="是否启用")
     
     @field_validator('type')
@@ -38,14 +38,14 @@ class MessageTemplateCreate(MessageTemplateBase):
 
 class MessageTemplateUpdate(BaseModel):
     """更新消息模板 Schema"""
-    name: Optional[str] = Field(None, max_length=100, description="模板名称")
-    code: Optional[str] = Field(None, max_length=50, description="模板代码")
-    type: Optional[str] = Field(None, max_length=20, description="消息类型")
-    description: Optional[str] = Field(None, description="模板描述")
-    subject: Optional[str] = Field(None, max_length=200, description="主题")
-    content: Optional[str] = Field(None, description="模板内容")
-    variables: Optional[Dict[str, Any]] = Field(None, description="模板变量定义")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    name: str | None = Field(None, max_length=100, description="模板名称")
+    code: str | None = Field(None, max_length=50, description="模板代码")
+    type: str | None = Field(None, max_length=20, description="消息类型")
+    description: str | None = Field(None, description="模板描述")
+    subject: str | None = Field(None, max_length=200, description="主题")
+    content: str | None = Field(None, description="模板内容")
+    variables: dict[str, Any] | None = Field(None, description="模板变量定义")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class MessageTemplateResponse(MessageTemplateBase):
@@ -60,20 +60,20 @@ class MessageTemplateResponse(MessageTemplateBase):
 
 class SendMessageRequest(BaseModel):
     """发送消息请求 Schema"""
-    template_uuid: Optional[UUID] = Field(None, description="模板UUID（可选）")
-    template_code: Optional[str] = Field(None, max_length=50, description="模板代码（可选）")
-    config_uuid: Optional[UUID] = Field(None, description="配置UUID（可选，使用默认配置）")
+    template_uuid: UUID | None = Field(None, description="模板UUID（可选）")
+    template_code: str | None = Field(None, max_length=50, description="模板代码（可选）")
+    config_uuid: UUID | None = Field(None, description="配置UUID（可选，使用默认配置）")
     type: str = Field(..., max_length=20, description="消息类型")
     recipient: str = Field(..., max_length=200, description="接收者")
-    subject: Optional[str] = Field(None, max_length=200, description="主题")
-    content: Optional[str] = Field(None, description="消息内容（如果使用了模板，则可选）")
-    variables: Optional[Dict[str, Any]] = Field(None, description="模板变量值（JSON格式）")
+    subject: str | None = Field(None, max_length=200, description="主题")
+    content: str | None = Field(None, description="消息内容（如果使用了模板，则可选）")
+    variables: dict[str, Any] | None = Field(None, description="模板变量值（JSON格式）")
 
 
 class SendMessageResponse(BaseModel):
     """发送消息响应 Schema"""
     success: bool = Field(..., description="是否成功")
-    message_log_uuid: Optional[UUID] = Field(None, description="消息记录UUID")
-    inngest_run_id: Optional[str] = Field(None, description="Inngest 运行ID")
-    error: Optional[str] = Field(None, description="错误信息")
+    message_log_uuid: UUID | None = Field(None, description="消息记录UUID")
+    inngest_run_id: str | None = Field(None, description="Inngest 运行ID")
+    error: str | None = Field(None, description="错误信息")
 

@@ -309,14 +309,14 @@ class ReportingService(AppBaseService[ReportingRecord]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        work_order_code: Optional[str] = None,
-        work_order_name: Optional[str] = None,
-        operation_name: Optional[str] = None,
-        worker_name: Optional[str] = None,
-        status: Optional[str] = None,
-        reported_at_start: Optional[datetime] = None,
-        reported_at_end: Optional[datetime] = None,
-    ) -> List[ReportingRecordListResponse]:
+        work_order_code: str | None = None,
+        work_order_name: str | None = None,
+        operation_name: str | None = None,
+        worker_name: str | None = None,
+        status: str | None = None,
+        reported_at_start: datetime | None = None,
+        reported_at_end: datetime | None = None,
+    ) -> list[ReportingRecordListResponse]:
         """
         获取报工记录列表
 
@@ -362,7 +362,7 @@ class ReportingService(AppBaseService[ReportingRecord]):
         tenant_id: int,
         record_id: int,
         approved_by: int,
-        rejection_reason: Optional[str] = None
+        rejection_reason: str | None = None
     ) -> ReportingRecordResponse:
         """
         审核报工记录
@@ -485,8 +485,8 @@ class ReportingService(AppBaseService[ReportingRecord]):
     async def get_reporting_statistics(
         self,
         tenant_id: int,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
     ) -> dict:
         """
         获取报工统计信息
@@ -521,13 +521,13 @@ class ReportingService(AppBaseService[ReportingRecord]):
         total_work_hours = sum(r.work_hours for r in records) or Decimal("0")
 
         # 计算合格率
-        qualification_rate = float((total_qualified_quantity / total_reported_quantity * 100)) if total_reported_quantity > 0 else 0
+        qualification_rate = float(total_qualified_quantity / total_reported_quantity * 100) if total_reported_quantity > 0 else 0
 
         # 效率分析：平均每小时报工数量
         avg_quantity_per_hour = float(total_reported_quantity / total_work_hours) if total_work_hours > 0 else 0
 
         # 异常分析：统计不合格率
-        unqualified_rate = float((total_unqualified_quantity / total_reported_quantity * 100)) if total_reported_quantity > 0 else 0
+        unqualified_rate = float(total_unqualified_quantity / total_reported_quantity * 100) if total_reported_quantity > 0 else 0
 
         # 按工序统计（前10个）
         operation_stats = {}
@@ -548,7 +548,7 @@ class ReportingService(AppBaseService[ReportingRecord]):
         # 转换为列表并计算合格率
         operation_stats_list = []
         for op_name, stats in sorted(operation_stats.items(), key=lambda x: x[1]['count'], reverse=True)[:10]:
-            op_rate = float((stats['qualified_quantity'] / stats['reported_quantity'] * 100)) if stats['reported_quantity'] > 0 else 0
+            op_rate = float(stats['qualified_quantity'] / stats['reported_quantity'] * 100) if stats['reported_quantity'] > 0 else 0
             operation_stats_list.append({
                 'operation_name': op_name,
                 'count': stats['count'],
@@ -576,7 +576,7 @@ class ReportingService(AppBaseService[ReportingRecord]):
 
         worker_stats_list = []
         for worker_name, stats in sorted(worker_stats.items(), key=lambda x: x[1]['count'], reverse=True)[:10]:
-            worker_rate = float((stats['qualified_quantity'] / stats['reported_quantity'] * 100)) if stats['reported_quantity'] > 0 else 0
+            worker_rate = float(stats['qualified_quantity'] / stats['reported_quantity'] * 100) if stats['reported_quantity'] > 0 else 0
             worker_stats_list.append({
                 'worker_name': worker_name,
                 'count': stats['count'],
@@ -609,7 +609,7 @@ class ReportingService(AppBaseService[ReportingRecord]):
         work_order: WorkOrder,
         qualified_quantity: float,
         reporting_record_id: int,
-        operator_name: Optional[str] = None,
+        operator_name: str | None = None,
     ) -> None:
         """
         报工生效时自动创建模具使用记录并累计使用次数。
@@ -705,7 +705,7 @@ class ReportingService(AppBaseService[ReportingRecord]):
         self,
         tenant_id: int,
         work_order_id: int,
-        work_order: Optional[WorkOrder] = None
+        work_order: WorkOrder | None = None
     ) -> None:
         """
         更新工单的不合格数量

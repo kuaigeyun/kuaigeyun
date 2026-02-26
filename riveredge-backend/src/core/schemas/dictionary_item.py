@@ -18,9 +18,9 @@ class DictionaryItemBase(BaseModel):
     """
     label: str = Field(..., min_length=1, max_length=100, description="字典项标签（显示名称）")
     value: str = Field(..., min_length=1, max_length=100, description="字典项值（用于程序识别）")
-    description: Optional[str] = Field(None, description="字典项描述")
-    color: Optional[str] = Field(None, max_length=20, description="标签颜色（可选）")
-    icon: Optional[str] = Field(None, max_length=50, description="图标（可选）")
+    description: str | None = Field(None, description="字典项描述")
+    color: str | None = Field(None, max_length=20, description="标签颜色（可选）")
+    icon: str | None = Field(None, max_length=50, description="图标（可选）")
     sort_order: int = Field(default=0, description="排序顺序")
     is_active: bool = Field(default=True, description="是否启用")
 
@@ -40,13 +40,13 @@ class DictionaryItemUpdate(BaseModel):
     
     用于更新字典项的请求数据，所有字段可选。
     """
-    label: Optional[str] = Field(None, min_length=1, max_length=100, description="字典项标签")
-    value: Optional[str] = Field(None, min_length=1, max_length=100, description="字典项值")
-    description: Optional[str] = Field(None, description="字典项描述")
-    color: Optional[str] = Field(None, max_length=20, description="标签颜色")
-    icon: Optional[str] = Field(None, max_length=50, description="图标")
-    sort_order: Optional[int] = Field(None, description="排序顺序")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    label: str | None = Field(None, min_length=1, max_length=100, description="字典项标签")
+    value: str | None = Field(None, min_length=1, max_length=100, description="字典项值")
+    description: str | None = Field(None, description="字典项描述")
+    color: str | None = Field(None, max_length=20, description="标签颜色")
+    icon: str | None = Field(None, max_length=50, description="图标")
+    sort_order: int | None = Field(None, description="排序顺序")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class DictionaryItemResponse(DictionaryItemBase):

@@ -26,7 +26,7 @@ from core.services.interfaces.service_factory import (
 )
 
 
-def get_user_service() -> Optional[UserServiceInterface]:
+def get_user_service() -> UserServiceInterface | None:
     """
     获取用户服务（依赖注入）
     
@@ -38,7 +38,7 @@ def get_user_service() -> Optional[UserServiceInterface]:
     return _get_user_service()
 
 
-def get_role_service() -> Optional[RoleServiceInterface]:
+def get_role_service() -> RoleServiceInterface | None:
     """
     获取角色服务（依赖注入）
     
@@ -48,7 +48,7 @@ def get_role_service() -> Optional[RoleServiceInterface]:
     return _get_role_service()
 
 
-def get_message_service() -> Optional[MessageServiceInterface]:
+def get_message_service() -> MessageServiceInterface | None:
     """
     获取消息服务（依赖注入）
     
@@ -58,7 +58,7 @@ def get_message_service() -> Optional[MessageServiceInterface]:
     return _get_message_service()
 
 
-def get_application_service() -> Optional[ApplicationServiceInterface]:
+def get_application_service() -> ApplicationServiceInterface | None:
     """
     获取应用服务（依赖注入）
     
@@ -71,7 +71,7 @@ def get_application_service() -> Optional[ApplicationServiceInterface]:
         return None
 
 
-def get_user_activity_service() -> Optional[UserActivityServiceInterface]:
+def get_user_activity_service() -> UserActivityServiceInterface | None:
     """
     获取用户活动服务（依赖注入）
     
@@ -84,7 +84,7 @@ def get_user_activity_service() -> Optional[UserActivityServiceInterface]:
         return None
 
 
-def get_audit_log_service() -> Optional[AuditLogServiceInterface]:
+def get_audit_log_service() -> AuditLogServiceInterface | None:
     """
     获取审计日志服务（依赖注入）
     

@@ -27,7 +27,7 @@ class RoleServiceImpl(RoleServiceInterface):
     def service_version(self) -> str:
         return "1.0.0"
     
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """服务健康检查"""
         return {
             "status": "healthy",
@@ -64,11 +64,11 @@ class RoleServiceImpl(RoleServiceInterface):
         tenant_id: int,
         page: int = 1,
         page_size: int = 20,
-        keyword: Optional[str] = None,
-        name: Optional[str] = None,
-        code: Optional[str] = None,
-        current_user_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        keyword: str | None = None,
+        name: str | None = None,
+        code: str | None = None,
+        current_user_id: int | None = None
+    ) -> dict[str, Any]:
         """获取角色列表"""
         return await RoleService.get_role_list(
             tenant_id=tenant_id,

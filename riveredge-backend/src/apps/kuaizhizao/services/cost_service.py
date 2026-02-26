@@ -141,11 +141,11 @@ class CostRuleService(AppBaseService[CostRule]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        rule_type: Optional[str] = None,
-        cost_type: Optional[str] = None,
-        is_active: Optional[bool] = None,
-        search: Optional[str] = None,
-    ) -> List[CostRuleListResponse]:
+        rule_type: str | None = None,
+        cost_type: str | None = None,
+        is_active: bool | None = None,
+        search: str | None = None,
+    ) -> list[CostRuleListResponse]:
         """
         获取成本核算规则列表
 
@@ -632,7 +632,7 @@ class CostCalculationService(AppBaseService[CostCalculation]):
 
         return total_manufacturing_cost
 
-    async def _get_material_cost_breakdown(self, tenant_id: int, work_order: WorkOrder) -> List[Dict[str, Any]]:
+    async def _get_material_cost_breakdown(self, tenant_id: int, work_order: WorkOrder) -> list[dict[str, Any]]:
         """
         获取材料成本明细
 
@@ -646,7 +646,7 @@ class CostCalculationService(AppBaseService[CostCalculation]):
         # TODO: 实现材料成本明细
         return []
 
-    async def _get_labor_cost_breakdown(self, tenant_id: int, work_order: WorkOrder) -> List[Dict[str, Any]]:
+    async def _get_labor_cost_breakdown(self, tenant_id: int, work_order: WorkOrder) -> list[dict[str, Any]]:
         """
         获取人工成本明细
 
@@ -660,7 +660,7 @@ class CostCalculationService(AppBaseService[CostCalculation]):
         # TODO: 实现人工成本明细
         return []
 
-    async def _get_manufacturing_cost_breakdown(self, tenant_id: int, work_order: WorkOrder) -> List[Dict[str, Any]]:
+    async def _get_manufacturing_cost_breakdown(self, tenant_id: int, work_order: WorkOrder) -> list[dict[str, Any]]:
         """
         获取制造费用明细
 
@@ -674,7 +674,7 @@ class CostCalculationService(AppBaseService[CostCalculation]):
         # TODO: 实现制造费用明细
         return []
 
-    async def _get_product_material_cost_breakdown(self, tenant_id: int, product: Material, quantity: Decimal) -> List[Dict[str, Any]]:
+    async def _get_product_material_cost_breakdown(self, tenant_id: int, product: Material, quantity: Decimal) -> list[dict[str, Any]]:
         """
         获取产品材料成本明细
 
@@ -689,7 +689,7 @@ class CostCalculationService(AppBaseService[CostCalculation]):
         # TODO: 实现产品材料成本明细
         return []
 
-    async def _get_product_labor_cost_breakdown(self, tenant_id: int, product: Material, quantity: Decimal) -> List[Dict[str, Any]]:
+    async def _get_product_labor_cost_breakdown(self, tenant_id: int, product: Material, quantity: Decimal) -> list[dict[str, Any]]:
         """
         获取产品人工成本明细
 
@@ -704,7 +704,7 @@ class CostCalculationService(AppBaseService[CostCalculation]):
         # TODO: 实现产品人工成本明细
         return []
 
-    async def _get_product_manufacturing_cost_breakdown(self, tenant_id: int, product: Material, quantity: Decimal) -> List[Dict[str, Any]]:
+    async def _get_product_manufacturing_cost_breakdown(self, tenant_id: int, product: Material, quantity: Decimal) -> list[dict[str, Any]]:
         """
         获取产品制造费用明细
 
@@ -745,11 +745,11 @@ class CostCalculationService(AppBaseService[CostCalculation]):
         tenant_id: int,
         skip: int = 0,
         limit: int = 100,
-        calculation_type: Optional[str] = None,
-        work_order_id: Optional[int] = None,
-        product_id: Optional[int] = None,
-        calculation_status: Optional[str] = None,
-    ) -> List[CostCalculationListResponse]:
+        calculation_type: str | None = None,
+        work_order_id: int | None = None,
+        product_id: int | None = None,
+        calculation_status: str | None = None,
+    ) -> list[CostCalculationListResponse]:
         """
         获取成本核算记录列表
 

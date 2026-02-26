@@ -97,7 +97,7 @@ class ProductionPlanningService(BaseService):
         await plan.save()
         return True
 
-    async def list_production_plans(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[ProductionPlanListResponse]:
+    async def list_production_plans(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> list[ProductionPlanListResponse]:
         """获取生产计划列表"""
         query = ProductionPlan.filter(tenant_id=tenant_id, deleted_at__isnull=True)
 
@@ -120,7 +120,7 @@ class ProductionPlanningService(BaseService):
             query = query.filter(status=filters['status'])
         return await query.count()
 
-    async def get_production_plan_statistics(self, tenant_id: int) -> Dict[str, Any]:
+    async def get_production_plan_statistics(self, tenant_id: int) -> dict[str, Any]:
         """获取生产计划统计信息"""
         base_query = ProductionPlan.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         total_plans = await base_query.count()
@@ -135,7 +135,7 @@ class ProductionPlanningService(BaseService):
             "executed_count": executed_plans
         }
 
-    async def get_plan_items(self, tenant_id: int, plan_id: int) -> List[ProductionPlanItemResponse]:
+    async def get_plan_items(self, tenant_id: int, plan_id: int) -> list[ProductionPlanItemResponse]:
         """获取生产计划明细"""
         items = await ProductionPlanItem.filter(tenant_id=tenant_id, plan_id=plan_id).order_by('planned_date')
         return [ProductionPlanItemResponse.model_validate(item) for item in items]

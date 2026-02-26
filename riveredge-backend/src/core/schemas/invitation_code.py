@@ -15,10 +15,10 @@ class InvitationCodeBase(BaseModel):
     
     包含邀请码的基本字段，用于创建和更新操作。
     """
-    email: Optional[str] = Field(None, max_length=100, description="邀请邮箱（可选）")
-    role_id: Optional[int] = Field(None, description="默认角色ID（可选）")
+    email: str | None = Field(None, max_length=100, description="邀请邮箱（可选）")
+    role_id: int | None = Field(None, description="默认角色ID（可选）")
     max_uses: int = Field(default=1, ge=1, description="最大使用次数")
-    expires_at: Optional[datetime] = Field(None, description="过期时间（可选）")
+    expires_at: datetime | None = Field(None, description="过期时间（可选）")
     is_active: bool = Field(default=True, description="是否启用")
 
 
@@ -37,11 +37,11 @@ class InvitationCodeUpdate(BaseModel):
     
     用于更新邀请码的请求数据，所有字段可选。
     """
-    email: Optional[str] = Field(None, max_length=100, description="邀请邮箱（可选）")
-    role_id: Optional[int] = Field(None, description="默认角色ID（可选）")
-    max_uses: Optional[int] = Field(None, ge=1, description="最大使用次数")
-    expires_at: Optional[datetime] = Field(None, description="过期时间（可选）")
-    is_active: Optional[bool] = Field(None, description="是否启用")
+    email: str | None = Field(None, max_length=100, description="邀请邮箱（可选）")
+    role_id: int | None = Field(None, description="默认角色ID（可选）")
+    max_uses: int | None = Field(None, ge=1, description="最大使用次数")
+    expires_at: datetime | None = Field(None, description="过期时间（可选）")
+    is_active: bool | None = Field(None, description="是否启用")
 
 
 class InvitationCodeResponse(InvitationCodeBase):
@@ -77,5 +77,5 @@ class InvitationCodeVerifyResponse(BaseModel):
     """
     valid: bool = Field(..., description="是否有效")
     message: str = Field(..., description="验证消息")
-    invitation_code: Optional[InvitationCodeResponse] = Field(None, description="邀请码信息（如果有效）")
+    invitation_code: InvitationCodeResponse | None = Field(None, description="邀请码信息（如果有效）")
 

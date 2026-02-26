@@ -51,16 +51,16 @@ async def create_report_template(
     )
 
 
-@router.get("", response_model=List[ReportTemplateListResponse], summary="获取报表模板列表")
+@router.get("", response_model=list[ReportTemplateListResponse], summary="获取报表模板列表")
 async def list_report_templates(
-    type: Optional[str] = Query(None, description="报表类型"),
-    category: Optional[str] = Query(None, description="分类"),
-    status: Optional[str] = Query(None, description="状态"),
+    type: str | None = Query(None, description="报表类型"),
+    category: str | None = Query(None, description="分类"),
+    status: str | None = Query(None, description="状态"),
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[ReportTemplateListResponse]:
+) -> list[ReportTemplateListResponse]:
     """
     获取报表模板列表
 
