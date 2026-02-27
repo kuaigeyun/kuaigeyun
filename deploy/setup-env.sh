@@ -44,6 +44,8 @@ DB_PASSWORD=$DB_PW
 REDIS_PASSWORD=
 INNGEST_EVENT_KEY=$INNGEST_EVENT
 INNGEST_SIGNING_KEY=$INNGEST_SIGNING
+INNGEST_POSTGRES_URI=postgres://riveredge:${DB_PW}@127.0.0.1:5432/inngest
+INNGEST_REDIS_URI=redis://127.0.0.1:6379
 INFRA_SUPERADMIN_USERNAME=infra_admin
 INFRA_SUPERADMIN_PASSWORD=$ADMIN_PW
 INFRA_SUPERADMIN_EMAIL=infra_admin@riveredge.cn
@@ -55,7 +57,6 @@ echo "✅ 已生成 $OUTPUT"
 echo ""
 echo "请将以下文件同步到服务器 /opt/riveredge/："
 echo "  - $OUTPUT (重命名为 .env)"
-echo "  - $SCRIPT_DIR/../docker-compose.prod.yml"
 echo "  - $SCRIPT_DIR/ (deploy 目录)"
 echo ""
 echo "平台管理员登录：https://$DOMAIN/infra/login"

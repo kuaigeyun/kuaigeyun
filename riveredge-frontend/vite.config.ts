@@ -142,13 +142,17 @@ export default defineConfig({
   },
   // 构建配置 - 优化性能
   build: {
+    outDir: resolve(__dirname, 'dist'), // 输出到 riveredge-frontend/dist
     // 单块告警阈值（KB），拆分后各块仍可能较大
-    chunkSizeWarningLimit: 800,
+    chunkSizeWarningLimit: 3000,
     // 生产环境配置
     sourcemap: process.env.NODE_ENV === 'production' ? false : true, // 生产环境关闭sourcemap，减小体积
     minify: process.env.NODE_ENV === 'production' ? 'esbuild' : false, // 生产环境使用esbuild压缩，速度更快
     // 代码分割配置（按依赖类型分割，不按路由分割，避免菜单加载慢）
-    rollupOptions: {
+    onwarn(warning, warn) {
+        if (warning.code === 'BIGCHUNK') return;
+        warn(warning);
+      },
       output: {
         // 手动代码分割策略（顺序重要：优先匹配最具体的路径）
         manualChunks: (id) => {

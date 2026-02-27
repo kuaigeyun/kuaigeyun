@@ -7,8 +7,16 @@ www.kuaigeyun.com {
 }
 
 {$DOMAIN:localhost} {
-    # 反向代理到前端（前端内部已将 /api/ 代理到后端）
-    reverse_proxy frontend:80
+    # API 反向代理到后端 uvicorn
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8200
+    }
+
+    # 静态文件（前端构建产物）
+    handle {
+        root * /opt/riveredge/frontend-dist
+        file_server
+    }
 
     # 传递真实客户端信息
     header {
