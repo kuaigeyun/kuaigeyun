@@ -1,3 +1,0 @@
-# @formily/path
-
-> Path System

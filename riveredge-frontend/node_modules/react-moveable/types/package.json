@@ -1,9 +1,0 @@
-{
-    "name": "react-moveable/types",
-    "private": true,
-    "main": "./index.js",
-    "module": "./index.js",
-    "typings": "../declaration/externalTypes.d.ts",
-    "types": "../declaration/externalTypes.d.ts",
-    "sideEffects": false
-  }
