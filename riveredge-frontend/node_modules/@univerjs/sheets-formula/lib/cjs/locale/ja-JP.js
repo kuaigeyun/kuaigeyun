@@ -1,0 +1,1 @@
+"use strict";const a={formula:{progress:{analyzing:"解析中",calculating:"計算中","array-analysis":"配列の解析","array-calculation":"配列の計算",done:"完了"}}};module.exports=a;

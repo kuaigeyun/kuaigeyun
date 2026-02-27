@@ -1,0 +1,53 @@
+{
+  "name": "@scena/dragscroll",
+  "version": "1.4.0",
+  "description": "",
+  "main": "./dist/dragscroll.cjs.js",
+  "module": "./dist/dragscroll.esm.js",
+  "sideEffects": false,
+  "types": "declaration/index.d.ts",
+  "scripts": {
+    "start": "rollup -c -w",
+    "build": "rollup -c && npm run declaration && print-sizes ./dist",
+    "doc": "rm -rf ./doc && jsdoc -c jsdoc.json",
+    "declaration": "rm -rf declaration && tsc -p tsconfig.declaration.json",
+    "prerelease": "npm run build && npm run doc && prerelease --dirs=dist,doc",
+    "release": "npm run build && npm run doc && release --dirs=dist,doc",
+    "release:init": "npm run build && npm run doc && release -i --dirs=dist,doc",
+    "deploy": "gh-pages -d ./demo --dest=./ --add --remote origin",
+    "deploy:init": "gh-pages -d ./demo --dest=./ --remote origin",
+    "test:local": "npm run build && pvu --path=./ --distUpdate=../selecto --distPaths=declaration,dist"
+  },
+  "keywords": [
+    "dragscroll",
+    "drag",
+    "scroll",
+    "moveable"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daybrush/dragscroll.git"
+  },
+  "author": "Daybrush",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/daybrush/dragscroll/issues"
+  },
+  "homepage": "https://github.com/daybrush/dragscroll#readme",
+  "dependencies": {
+    "@daybrush/utils": "^1.6.0",
+    "@scena/event-emitter": "^1.0.2"
+  },
+  "devDependencies": {
+    "@daybrush/builder": "^0.1.2",
+    "@daybrush/jsdoc": "^0.4.3",
+    "@daybrush/release": "^0.2.4",
+    "@types/react": "^16.9.17",
+    "@types/react-dom": "^16.9.4",
+    "daybrush-jsdoc-template": "^1.6.0",
+    "print-sizes": "^0.1.0",
+    "pvu": "^0.6.1",
+    "tslint": "^5.20.1",
+    "typescript": "^3.7.4"
+  }
+}

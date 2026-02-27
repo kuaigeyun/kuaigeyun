@@ -1,0 +1,6 @@
+// @univerjs/sheets-hyper-link-ui/locale/ja-JP
+(function(e,n){typeof exports=="object"&&typeof module<"u"?module.exports=n():typeof define=="function"&&define.amd?define(n):(e=typeof globalThis<"u"?globalThis:e||self,e.UniverSheetsHyperLinkUiJaJP=n())})(this,(function(){"use strict";return{hyperLink:{form:{editTitle:"リンクの編集",addTitle:"リンクの挿入",label:"表示文字列",type:"種類",link:"リンク",linkPlaceholder:"リンクを入力",range:"範囲",worksheet:"ワークシート",definedName:"定義済みの名前",ok:"OK",cancel:"キャンセル",labelPlaceholder:"表示する文字列を入力",inputError:"値を入力してください",selectError:"選択してください",linkError:"有効なリンクを入力してください"},menu:{add:"リンクの挿入"},message:{noSheet:"対象のワークシートが削除されました",refError:"無効な範囲です",hiddenSheet:"リンクを開けません。参照先のワークシートが非表示です",coped:"リンクがクリップボードにコピーされました"},popup:{copy:"リンクをコピー",edit:"リンクの編集",cancel:"リンク解除"}}}}));
+
+
+// locale/ja-JP
+(function(e,i){typeof exports=="object"&&typeof module<"u"?module.exports=i(require("@univerjs/core"),require("@univerjs/sheets-hyper-link-ui/locale/ja-JP")):typeof define=="function"&&define.amd?define(["@univerjs/core","@univerjs/sheets-hyper-link-ui/locale/ja-JP"],i):(e=typeof globalThis<"u"?globalThis:e||self,e.UniverPresetSheetsHyperLinkJaJP=i(e.UniverCore,e.UniverSheetsHyperLinkUiJaJP))})(this,(function(e,i){"use strict";return e.mergeLocales(i)}));

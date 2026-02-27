@@ -1,0 +1,46 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.mergeOptions = mergeOptions;
+const lodash_1 = require("lodash");
+/**
+ * 合并多个图配置项，优先级从左到右递增
+ * @param options 图配置项列表
+ * @returns 最后用于渲染的配置项
+ */
+function mergeOptions(...options) {
+    if (options.length === 0)
+        return {};
+    const merged = { ...options[0] };
+    for (let i = 1; i < options.length; i++) {
+        const currentOptions = options[i];
+        for (const key in currentOptions) {
+            if (currentOptions.hasOwnProperty(key)) {
+                const currValue = currentOptions[key];
+                const prevValue = merged[key];
+                if (['component', 'data'].includes(key)) {
+                    merged[key] = currValue;
+                }
+                else if (typeof currValue === 'function') {
+                    if (['plugins', 'behaviors', 'transforms'].includes(key)) {
+                        merged[key] = currValue(prevValue || []);
+                    }
+                    else {
+                        merged[key] = function (datum) {
+                            const value = currValue.call(this, datum);
+                            if ((0, lodash_1.isPlainObject)(value))
+                                return mergeOptions(prevValue, value);
+                            return value;
+                        };
+                    }
+                }
+                else if ((0, lodash_1.isPlainObject)(currValue) && (0, lodash_1.isPlainObject)(prevValue)) {
+                    merged[key] = mergeOptions(prevValue, currValue);
+                }
+                else {
+                    merged[key] = currValue;
+                }
+            }
+        }
+    }
+    return merged;
+}

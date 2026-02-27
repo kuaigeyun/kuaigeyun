@@ -1,0 +1,11 @@
+import { PresetInfo, PresetResult, NavigatorUABrandVersion } from "./types";
+export declare function some<T>(arr: T[], callback: (value: T, index: number) => any): boolean;
+export declare function find<T>(arr: T[], callback: (value: T, index: number) => any): T | null;
+export declare function getUserAgentString(agent?: string): string;
+export declare function execRegExp(pattern: string, text: string): RegExpExecArray | null;
+export declare function hasUserAgentData(): boolean;
+export declare function findVersion(versionTest: string, userAgent: string): string;
+export declare function convertVersion(text: string): string;
+export declare function findPreset(presets: PresetInfo[], userAgent: string): PresetResult;
+export declare function findPresetBrand(presets: PresetInfo[], brands: NavigatorUABrandVersion[]): NavigatorUABrandVersion;
+export declare function findBrand(brands: NavigatorUABrandVersion[], preset: PresetInfo): NavigatorUABrandVersion | null;

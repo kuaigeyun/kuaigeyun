@@ -1,0 +1,28 @@
+.fr-virtual-list {
+  margin-bottom: 12px;
+}
+.fr-virtual-list .ant-form-item {
+  margin-bottom: 0;
+}
+.fr-virtual-list .ant-form-item-label {
+  display: none;
+}
+.fr-virtual-list .ant-form-item-explain-error {
+  display: none;
+}
+.fr-virtual-list .fr-list-item-operate {
+  gap: 0 !important;
+}
+.fr-popover-error .ant-popover-inner-content {
+  color: #ff4d4f !important;
+}
+.fr-virtual-list-no-popover .ant-table-tbody .ant-table-cell {
+  padding: 24px 8px 0px 8px !important;
+}
+.fr-virtual-list-no-popover .ant-form-item {
+  margin-bottom: 24px;
+}
+.fr-virtual-list-no-popover .ant-form-item-explain-error {
+  display: block;
+  font-size: 10px;
+}

@@ -1,0 +1,1 @@
+(function(e,i){typeof exports=="object"&&typeof module<"u"?module.exports=i():typeof define=="function"&&define.amd?define(i):(e=typeof globalThis<"u"?globalThis:e||self,e.UniverSheetsFindReplaceJaJP=i())})(this,(function(){"use strict";return{"sheet-find-replace":{replace:{"partial-failure":"一部のセルの置換に失敗しました",failure:"すべてのセルの置換に失敗しました"}}}}));

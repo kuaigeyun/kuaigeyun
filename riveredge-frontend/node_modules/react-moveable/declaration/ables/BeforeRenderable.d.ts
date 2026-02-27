@@ -1,0 +1,25 @@
+import { MoveableManagerInterface, BeforeRenderableProps, OnBeforeRenderStart, OnBeforeRender, MoveableGroupInterface } from "../types";
+declare const _default: {
+    readonly isPinch: true;
+    readonly name: "beforeRenderable";
+    readonly props: readonly [];
+    readonly events: readonly ["beforeRenderStart", "beforeRender", "beforeRenderEnd", "beforeRenderGroupStart", "beforeRenderGroup", "beforeRenderGroupEnd"];
+    readonly dragRelation: "weak";
+    readonly setTransform: (moveable: MoveableManagerInterface<BeforeRenderableProps>, e: any) => void;
+    readonly resetStyle: (e: any) => void;
+    readonly fillDragStartParams: (moveable: MoveableManagerInterface<BeforeRenderableProps>, e: any) => OnBeforeRenderStart;
+    readonly fillDragParams: (moveable: MoveableManagerInterface<BeforeRenderableProps>, e: any) => OnBeforeRender;
+    readonly dragStart: (moveable: MoveableManagerInterface<BeforeRenderableProps>, e: any) => void;
+    readonly drag: (moveable: MoveableManagerInterface<BeforeRenderableProps>, e: any) => void;
+    readonly dragEnd: (moveable: MoveableManagerInterface<BeforeRenderableProps>, e: any) => void;
+    readonly dragGroupStart: (moveable: MoveableGroupInterface<BeforeRenderableProps>, e: any) => void;
+    readonly dragGroup: (moveable: MoveableGroupInterface<BeforeRenderableProps>, e: any) => void;
+    readonly dragGroupEnd: (moveable: MoveableGroupInterface<BeforeRenderableProps>, e: any) => void;
+    readonly dragControlStart: (moveable: MoveableManagerInterface<BeforeRenderableProps>, e: any) => void;
+    readonly dragControl: (moveable: MoveableManagerInterface<BeforeRenderableProps>, e: any) => void;
+    readonly dragControlEnd: (moveable: MoveableManagerInterface<BeforeRenderableProps>, e: any) => void;
+    readonly dragGroupControlStart: (moveable: MoveableGroupInterface<BeforeRenderableProps>, e: any) => void;
+    readonly dragGroupControl: (moveable: MoveableGroupInterface<BeforeRenderableProps>, e: any) => void;
+    readonly dragGroupControlEnd: (moveable: MoveableGroupInterface<BeforeRenderableProps>, e: any) => void;
+};
+export default _default;

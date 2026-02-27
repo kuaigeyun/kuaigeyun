@@ -1,0 +1,1 @@
+(function(e,n){typeof exports=="object"&&typeof module<"u"?module.exports=n():typeof define=="function"&&define.amd?define(n):(e=typeof globalThis<"u"?globalThis:e||self,e.UniverSheetsFormulaJaJP=n())})(this,(function(){"use strict";return{formula:{progress:{analyzing:"解析中",calculating:"計算中","array-analysis":"配列の解析","array-calculation":"配列の計算",done:"完了"}}}}));

@@ -1,0 +1,1 @@
+{"version":3,"file":"path.js","sourceRoot":"","sources":["../src/path.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,IAAI,IAAI,QAAQ,EAA8B,MAAM,eAAe,CAAA;AAE5E,OAAO,EAAE,QAAQ,EAAmB,CAAA","sourcesContent":["import { Path as FormPath, Pattern as FormPathPattern } from '@formily/path'\n\nexport { FormPath, FormPathPattern }\n"]}

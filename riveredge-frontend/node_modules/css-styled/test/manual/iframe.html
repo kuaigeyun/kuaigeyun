@@ -1,0 +1,31 @@
+<html>
+    <body>
+        <div class="a">222</div>
+        <iframe></iframe>
+    </body>
+</html>
+<script src="../../dist/styled.js"></script>
+<script>
+    var frameBody = document.querySelector("iframe").contentDocument.querySelector("body");
+    frameBody.innerHTML = `<div class="b">111</div>`;
+
+    const injector = styled(`
+    :host.a {
+        background: #f55;
+    }
+    :host.b {
+        background: #f5f;
+    }
+    `);
+
+    var windowDiv = document.querySelector("div");
+    var frameDiv = frameBody.querySelector("div");
+
+
+    injector.inject(windowDiv);
+
+    injector.inject(frameDiv);
+
+    windowDiv.className = injector.className + " a";
+    frameDiv.className = injector.className + " b";
+</script>

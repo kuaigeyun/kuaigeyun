@@ -1,0 +1,22 @@
+import { Rect } from "./types";
+export declare function getAreaSize(points: number[][]): number;
+export declare function fitPoints(points: number[][], rect: Rect): number[][];
+export declare function getMinMaxs(points: number[][]): {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+};
+export declare function isInside(pos: number[], points: number[][], excludeLine?: boolean): boolean;
+export declare function getDistanceFromPointToConstants([a, b, c]: [number, number, number], pos: number[]): number;
+export declare function getLinearConstants(point1: number[], point2: number[]): [number, number, number];
+export declare function getIntersectionPointsByConstants(linearConstants1: number[], linearConstants2: number[]): number[][];
+export declare function getIntersectionPoints(line1: number[][], line2: number[][], isLimit?: boolean): number[][];
+export declare function isPointOnLine(pos: number[], line: number[][]): boolean;
+export declare function getPointsOnLines(points: number[][], lines: number[][][]): number[][];
+export declare function convertLines(points: number[][]): number[][][];
+export declare function getOverlapPoints(points1: number[][], points2: number[][]): number[][];
+export declare function getOverlapAreas(points1: number[][], points2: number[][]): number[][][];
+export declare function findConnectedAreas(points1: number[][], points2: number[][]): number[][][];
+export declare function getUnoverlapAreas(points1: number[][], points2: number[][]): number[][][];
+export declare function getOverlapSize(points1: number[][], points2: number[][]): number;

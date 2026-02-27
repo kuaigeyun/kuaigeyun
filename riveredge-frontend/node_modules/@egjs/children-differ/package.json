@@ -1,0 +1,73 @@
+{
+	"name": "@egjs/children-differ",
+	"version": "1.0.1",
+	"description": "A module that checks diff when child elements are added, removed, or changed",
+	"main": "./dist/children-differ.js",
+	"module": "./dist/children-differ.esm.js",
+	"types": "./declaration/index.d.ts",
+	"es2015": "./dist/children-differ.esm.js",
+	"sideEffects": false,
+	"scripts": {
+		"start": "rollup -c -w",
+		"test": "jest --watchAll",
+		"coverage": "jest --coverage && print-coveralls --sort=desc",
+		"coveralls": "cat ./coverage/lcov.info | coveralls",
+		"build": "rm -rf ./dist ./declaration && rollup -c && npm run declaration && npm run printsizes",
+		"declaration": "rm -rf declaration && tsc -p tsconfig.declaration.json",
+		"printsizes": "print-sizes ./dist --exclude=\\.map",
+		"lint": "tslint -c tslint.json 'src/**/*.ts'",
+		"jsdoc": "rm -rf ./doc && jsdoc -c jsdoc.json",
+		"demo:build": "npm run build && cpx 'dist/**/*' demo/release/latest/dist --clean",
+		"demo:prebuild-version": "cpx 'dist/**/*' demo/release/$npm_package_version/dist --clean && cpx 'doc/**/*' demo/release/$npm_package_version/doc --clean",
+		"demo:prebuild-latest": "cpx 'dist/**/*' demo/release/latest/dist --clean && cpx 'doc/**/*' demo/release/latest/doc --clean",
+		"demo:deploy-init": "npm run build && npm run jsdoc && npm run demo:prebuild-version && npm run demo:prebuild-latest && gh-pages -d demo/ --remote upstream",
+		"demo:deploy": "npm run build && npm run jsdoc && npm run demo:prebuild-version && npm run demo:prebuild-latest && gh-pages -d demo/ --add --remote upstream",
+		"release": "release-helper upstream",
+		"packages": "npm run packages:update && npm run packages:build && npm run packages:publish",
+		"packages:update": "pvu --update=react-children-differ,ngx-children-differ/projects/ngx-children-differ,vue-children-differ",
+		"packages:build": "pvu --build=react-children-differ,ngx-children-differ,vue-children-differ",
+		"packages:publish": "pvu --publish=react-children-differ,ngx-children-differ/dist/ngx-children-differ,vue-children-differ"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/naver/egjs-children-differ"
+	},
+	"author": {
+		"name": "NAVER Corp."
+	},
+	"namespace": {
+		"eg": "eg"
+	},
+	"keywords": [
+		"diff",
+		"arr",
+		"list",
+		"children",
+		"dom",
+		"differ",
+		"data"
+	],
+	"license": "MIT",
+	"dependencies": {
+		"@egjs/list-differ": "^1.0.0"
+	},
+	"devDependencies": {
+		"@daybrush/jsdoc": "^0.3.7",
+		"@egjs/build-helper": "0.0.4",
+		"@egjs/release-helper": "^0.0.3",
+		"@types/jest": "^24.0.11",
+		"@types/sinon": "^7.0.11",
+		"coveralls": "^3.0.3",
+		"cpx": "^1.5.0",
+		"egjs-jsdoc-template": "^1.4.4",
+		"gh-pages": "^2.0.1",
+		"jest": "^24.7.1",
+		"print-coveralls": "^1.2.2",
+		"print-sizes": "0.0.4",
+		"pvu": "^0.4.1",
+		"sinon": "^7.3.1",
+		"ts-jest": "^24.0.1",
+		"tslint": "^5.15.0",
+		"typescript": "^3.4.1"
+	}
+}

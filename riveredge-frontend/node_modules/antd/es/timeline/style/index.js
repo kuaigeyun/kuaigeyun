@@ -1,0 +1,170 @@
+import { resetComponent } from '../../style';
+import { genStyleHooks, mergeToken } from '../../theme/internal';
+import genHorizontalStyle from './horizontal';
+const genTimelineStyle = token => {
+  const {
+    componentCls,
+    tailColor
+  } = token;
+  const itemCls = `${componentCls}-item`;
+  return {
+    [componentCls]: [
+    // ==============================================================
+    // ==                           Item                           ==
+    // ==============================================================
+    {
+      ...resetComponent(token),
+      [itemCls]: {
+        '--steps-title-horizontal-title-height': token.fontHeight,
+        '--steps-vertical-rail-margin': '0px',
+        '--steps-title-horizontal-rail-gap': '0px',
+        // Root Level: Record Steps icon size and support fallback
+        '--steps-icon-dot-size-origin': 'var(--steps-icon-size-active)',
+        '--steps-icon-dot-size-custom': token.dotSize,
+        // Item Level: Record Steps icon color and support fallback
+        '--steps-item-icon-dot-bg-color-origin': 'var(--steps-item-icon-dot-bg-color)',
+        '--steps-item-icon-dot-bg-color-custom': token.dotBg,
+        '--steps-icon-size': 'var(--steps-icon-dot-size-custom, var(--steps-icon-dot-size-origin))',
+        // Icon
+        [`${itemCls}-icon`]: {
+          '--steps-dot-icon-border-width': token.dotBorderWidth,
+          '--steps-dot-icon-size': 'var(--steps-icon-size)',
+          '--steps-item-icon-dot-bg-color': 'var(--steps-item-icon-dot-bg-color-custom, var(--steps-item-icon-dot-bg-color-origin))'
+        },
+        // Title
+        [`${itemCls}-title`]: {
+          fontSize: token.fontSize,
+          lineHeight: token.lineHeight
+        },
+        // Content
+        [`${itemCls}-content`]: {
+          color: token.colorText
+        },
+        // Rail
+        [`${itemCls}-rail`]: {
+          '--steps-item-solid-line-color': tailColor,
+          '--steps-rail-size': token.tailWidth
+        }
+      }
+    },
+    // ==============================================================
+    // ==                          Status                          ==
+    // ==============================================================
+    {
+      [itemCls]: {
+        '--steps-item-process-rail-line-style': 'dotted'
+      },
+      [`${itemCls}${itemCls}${itemCls}-color`]: {
+        '&-blue': {
+          '--steps-item-icon-dot-color': token.colorPrimary
+        },
+        '&-red': {
+          '--steps-item-icon-dot-color': token.colorError
+        },
+        '&-green': {
+          '--steps-item-icon-dot-color': token.colorSuccess
+        },
+        '&-gray': {
+          '--steps-item-icon-dot-color': token.colorTextDisabled
+        }
+      }
+    }]
+  };
+};
+const genVerticalStyle = token => {
+  const {
+    calc,
+    componentCls,
+    itemPaddingBottom
+  } = token;
+  const itemCls = `${componentCls}-item`;
+  return {
+    [`${componentCls}:not(${componentCls}-horizontal)`]: {
+      '--timeline-head-span': '12',
+      '--timeline-head-span-ptg': 'calc(var(--timeline-head-span) / 24 * 100%)',
+      // =============================================================
+      // ==                        Alternate                        ==
+      // =============================================================
+      [`&${componentCls}-layout-alternate`]: {
+        [itemCls]: {
+          '--timeline-alternate-gap': calc(token.margin).mul(2).add('var(--steps-dot-icon-size)').equal(),
+          minHeight: 'auto',
+          paddingBottom: itemPaddingBottom,
+          // Icon & Rail
+          [`${itemCls}-icon, ${itemCls}-rail`]: {
+            position: 'absolute',
+            insetInlineStart: 'var(--timeline-head-span-ptg)'
+          },
+          // Icon
+          [`${itemCls}-icon`]: {
+            marginInlineStart: `calc(var(--steps-icon-size) / -2)`
+          },
+          // Section
+          [`${itemCls}-section`]: {
+            display: 'flex',
+            flexWrap: 'nowrap',
+            gap: 'var(--timeline-alternate-gap)'
+          },
+          // >>> Header
+          [`${itemCls}-header`]: {
+            textAlign: 'end',
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            flex: '1 1 calc(var(--timeline-head-span-ptg) - var(--timeline-alternate-gap) / 2)'
+          },
+          // >>> Content
+          [`${itemCls}-content`]: {
+            textAlign: 'start',
+            flex: '1 1 calc(100% - var(--timeline-head-span-ptg) - var(--timeline-alternate-gap) / 2)'
+          },
+          // Placement
+          '&-placement-end': {
+            [`${itemCls}-header`]: {
+              textAlign: 'start',
+              order: 1
+            },
+            [`${itemCls}-content`]: {
+              textAlign: 'end'
+            },
+            [`${itemCls}-icon, ${itemCls}-rail`]: {
+              insetInlineStart: 'calc(100% - var(--timeline-head-span-ptg))'
+            }
+          }
+        }
+      },
+      // =============================================================
+      // ==                        Same Side                        ==
+      // =============================================================
+      [`&:not(${componentCls}-layout-alternate)`]: {
+        [`${itemCls}-placement-end`]: {
+          textAlign: 'end',
+          [`${itemCls}-icon`]: {
+            order: 1
+          },
+          [`${itemCls}-rail`]: {
+            insetInlineStart: 'auto',
+            insetInlineEnd: 'calc(var(--steps-icon-size) / 2)',
+            marginInlineEnd: `calc(var(--steps-rail-size) / -2)`
+          }
+        }
+      }
+    }
+  };
+};
+// ============================== Export ==============================
+export const prepareComponentToken = token => ({
+  tailColor: token.colorSplit,
+  tailWidth: token.lineWidthBold,
+  dotBorderWidth: token.lineWidthBold,
+  dotBg: undefined,
+  dotSize: undefined,
+  itemPaddingBottom: token.padding * 1.25
+});
+export default genStyleHooks('Timeline', token => {
+  const timeLineToken = mergeToken(token, {
+    itemHeadSize: 10,
+    customHeadPaddingVertical: token.paddingXXS,
+    paddingInlineEnd: 2
+  });
+  return [genTimelineStyle(timeLineToken), genVerticalStyle(timeLineToken), genHorizontalStyle(timeLineToken)];
+}, prepareComponentToken);

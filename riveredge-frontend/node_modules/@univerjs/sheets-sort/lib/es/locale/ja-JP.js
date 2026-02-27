@@ -1,0 +1,18 @@
+const t = {
+  sheetsSort: {
+    title: "並べ替え",
+    toolbar: {
+      "sort-asc": "昇順",
+      "sort-desc": "降順",
+      "sort-custom": "カスタム順序"
+    },
+    "context-menu": {
+      "sort-asc": "昇順",
+      "sort-desc": "降順",
+      "sort-custom": "カスタム順序"
+    }
+  }
+};
+export {
+  t as default
+};
