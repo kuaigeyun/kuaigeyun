@@ -1,5 +1,7 @@
 #!/bin/bash
 # RiverEdge 生产环境启动脚本 (Linux / Mac)
+# 针对 Ubuntu 22.04 优化，支持 apt 安装依赖
+# 针对 4GB 内存优化：Node 构建限制 1GB 堆，后端单 worker
 # 构建前端、手机端，启动后端、Inngest、Caddy 反向代理
 # Caddyfile 由面板根据 deploy-config.json 生成；独立运行时从模板生成
 #
@@ -16,6 +18,9 @@ cd "$PROJECT_ROOT"
 BACKEND_PORT="${BACKEND_PORT:-8200}"
 PROXY_PORT="${PROXY_PORT:-8080}"
 INNGEST_PORT="${INNGEST_PORT:-8288}"
+
+# 4GB 内存优化：限制 Node 构建时堆内存，避免 OOM（可覆盖：NODE_BUILD_MEM=1536）
+export NODE_OPTIONS="--max-old-space-size=${NODE_BUILD_MEM:-1024}"
 
 # 日志
 mkdir -p .logs
@@ -73,7 +78,7 @@ start_backend() {
     export ENVIRONMENT=production
     export DEBUG=false
     export SETUPTOOLS_EGG_INFO_DIR="$PROJECT_ROOT/.logs"
-    PYTHONPATH="$(pwd)/src" nohup uv run uvicorn server.main:app --host 127.0.0.1 --port $BACKEND_PORT > ../.logs/backend.log 2>&1 &
+    PYTHONPATH="$(pwd)/src" nohup uv run uvicorn server.main:app --host 127.0.0.1 --port $BACKEND_PORT --workers 1 > ../.logs/backend.log 2>&1 &
     echo $! > ../.logs/backend.pid
     cd ..
     sleep 3

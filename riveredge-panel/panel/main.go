@@ -34,7 +34,19 @@ var (
 	sessions   = make(map[string]time.Time)
 	sessionsMu sync.RWMutex
 	sessionTTL = 24 * time.Hour
+
+	// 一键安装任务状态（Ubuntu/Linux）
+	installJobs   = make(map[string]*installJob)
+	installJobsMu sync.RWMutex
 )
+
+type installJob struct {
+	Running bool
+	Done    bool
+	Success bool
+	Output  string
+	Start   time.Time
+}
 
 func init() {
 	execPath, _ := os.Executable()
@@ -56,6 +68,8 @@ type checkItem struct {
 
 type checkResult struct {
 	Platform string               `json:"platform"`
+	Distro   string               `json:"distro,omitempty"`   // ubuntu, debian, etc.
+	DistroVer string              `json:"distro_ver,omitempty"` // 22.04, etc.
 	Checks   map[string]checkItem `json:"checks"`
 }
 
@@ -520,6 +534,28 @@ func extractVersion(s, re string) string {
 	return s
 }
 
+// detectDistro 读取 /etc/os-release 检测 Linux 发行版（Ubuntu 22 等）
+func detectDistro() (distro, ver string) {
+	if runtime.GOOS != "linux" {
+		return "", ""
+	}
+	data, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return "", ""
+	}
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "ID=") {
+			distro = strings.Trim(strings.TrimPrefix(line, "ID="), `"`)
+		}
+		if strings.HasPrefix(line, "VERSION_ID=") {
+			ver = strings.Trim(strings.TrimPrefix(line, "VERSION_ID="), `"`)
+		}
+	}
+	return distro, ver
+}
+
 func versionGE(v, min string) bool {
 	va := strings.Split(v, ".")
 	vb := strings.Split(min, ".")
@@ -546,8 +582,11 @@ func apiCheck(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	distro, distroVer := detectDistro()
 	res := checkResult{
-		Platform: runtime.GOOS,
+		Platform:  runtime.GOOS,
+		Distro:    distro,
+		DistroVer: distroVer,
 		Checks: map[string]checkItem{
 			"node":       checkNode(),
 			"python":     checkPython(),
@@ -600,36 +639,44 @@ func apiSaveConfig(w http.ResponseWriter, r *http.Request) {
 
 var installScripts = map[string]map[string]string{
 	"node": {
-		"windows": "winget install OpenJS.NodeJS.LTS --accept-package-agreements",
-		"linux":   "sudo apt update && sudo apt install -y nodejs npm || sudo dnf install -y nodejs npm",
+		"windows":  "winget install OpenJS.NodeJS.LTS --accept-package-agreements",
+		"linux":    "sudo apt update && sudo apt install -y nodejs npm || sudo dnf install -y nodejs npm",
+		"ubuntu22": "sudo apt update && sudo apt install -y ca-certificates curl gnupg && sudo mkdir -p /etc/apt/keyrings && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && echo 'deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main' | sudo tee /etc/apt/sources.list.d/nodesource.list && sudo apt update && sudo apt install -y nodejs",
 	},
 	"python": {
-		"windows": "winget install Python.Python.3.12 --accept-package-agreements",
-		"linux":   "sudo apt install -y python3.12 python3.12-venv python3-pip || sudo dnf install -y python3.12",
+		"windows":  "winget install Python.Python.3.12 --accept-package-agreements",
+		"linux":    "sudo apt install -y python3.12 python3.12-venv python3-pip || sudo dnf install -y python3.12",
+		"ubuntu22": "sudo apt update && sudo apt install -y software-properties-common && sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt update && sudo apt install -y python3.12 python3.12-venv && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12",
 	},
 	"uv": {
-		"windows": `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`,
-		"linux":   "curl -LsSf https://astral.sh/uv/install.sh | sh",
+		"windows":  `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`,
+		"linux":    "curl -LsSf https://astral.sh/uv/install.sh | sh",
+		"ubuntu22": "curl -LsSf https://astral.sh/uv/install.sh | sh",
 	},
 	"postgresql": {
-		"windows": "winget install PostgreSQL.PostgreSQL --accept-package-agreements",
-		"linux":   "sudo apt install -y postgresql postgresql-contrib || sudo dnf install -y postgresql-server postgresql-contrib",
+		"windows":  "winget install PostgreSQL.PostgreSQL --accept-package-agreements",
+		"linux":    "sudo apt install -y postgresql postgresql-contrib || sudo dnf install -y postgresql-server postgresql-contrib",
+		"ubuntu22": "sudo apt update && sudo apt install -y postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh && sudo apt install -y postgresql-15 postgresql-contrib-15",
 	},
 	"redis": {
-		"windows": "winget install Redis.Redis --accept-package-agreements",
-		"linux":   "sudo apt install -y redis-server || sudo dnf install -y redis",
+		"windows":  "winget install Redis.Redis --accept-package-agreements",
+		"linux":    "sudo apt install -y redis-server || sudo dnf install -y redis",
+		"ubuntu22": "sudo apt update && sudo apt install -y redis-server",
 	},
 	"inngest": {
-		"windows": "从 bin/inngest/ 目录或 https://github.com/inngest/inngest-cli/releases 下载 inngest.exe 置于项目 bin/inngest/",
-		"linux":   "从 https://github.com/inngest/inngest-cli/releases 下载对应架构的 inngest 置于项目 bin/inngest/",
+		"windows":  "从 bin/inngest/ 目录或 https://github.com/inngest/inngest-cli/releases 下载 inngest.exe 置于项目 bin/inngest/",
+		"linux":    "从 https://github.com/inngest/inngest-cli/releases 下载对应架构的 inngest 置于项目 bin/inngest/",
+		"ubuntu22": "从 https://github.com/inngest/inngest-cli/releases 下载对应架构的 inngest 置于项目 bin/inngest/",
 	},
 	"bash": {
-		"windows": "winget install Git.Git --accept-package-agreements（安装 Git for Windows 含 Git Bash），或启用 WSL",
-		"linux":   "通常已预装 bash",
+		"windows":  "winget install Git.Git --accept-package-agreements（安装 Git for Windows 含 Git Bash），或启用 WSL",
+		"linux":    "通常已预装 bash",
+		"ubuntu22": "通常已预装 bash",
 	},
 	"caddy": {
-		"windows": "从 https://github.com/caddyserver/caddy/releases 下载 caddy_*_windows_amd64.zip 解压到 PATH",
-		"linux":   "sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl && curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg && curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list && sudo apt update && sudo apt install caddy",
+		"windows":  "从 https://github.com/caddyserver/caddy/releases 下载 caddy_*_windows_amd64.zip 解压到 PATH",
+		"linux":    "sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl && curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg && curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list && sudo apt update && sudo apt install caddy",
+		"ubuntu22": "sudo apt update && sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl && curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg && curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list && sudo apt update && sudo apt install -y caddy",
 	},
 }
 
@@ -649,7 +696,102 @@ func apiInstallScript(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cmd := scripts[plat]
+	// Ubuntu 22 优先使用优化脚本
+	if plat == "linux" {
+		distro, ver := detectDistro()
+		if distro == "ubuntu" && (strings.HasPrefix(ver, "22") || strings.HasPrefix(ver, "24")) {
+			if ubuntuCmd, has := scripts["ubuntu22"]; has && ubuntuCmd != "" {
+				cmd = ubuntuCmd
+				plat = "ubuntu22"
+			}
+		}
+	}
 	writeJSON(w, map[string]string{"platform": plat, "component": comp, "command": cmd})
+}
+
+// 可一键安装的组件（排除需手动下载的 inngest、bash）
+var installableComponents = map[string]bool{
+	"node": true, "python": true, "uv": true, "postgresql": true, "redis": true, "caddy": true,
+}
+
+func apiInstall(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if runtime.GOOS != "linux" {
+		http.Error(w, "一键安装仅支持 Linux (Ubuntu 22)", http.StatusBadRequest)
+		return
+	}
+	comp := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/install/"), "/")
+	if !installableComponents[comp] {
+		http.Error(w, "该组件不支持一键安装，请手动执行安装命令", http.StatusBadRequest)
+		return
+	}
+	scripts, ok := installScripts[comp]
+	if !ok {
+		http.Error(w, "unknown component", http.StatusNotFound)
+		return
+	}
+	plat := "linux"
+	distro, ver := detectDistro()
+	if distro == "ubuntu" && (strings.HasPrefix(ver, "22") || strings.HasPrefix(ver, "24")) {
+		if ubuntuCmd, has := scripts["ubuntu22"]; has && ubuntuCmd != "" {
+			plat = "ubuntu22"
+		}
+	}
+	cmd := scripts[plat]
+	if cmd == "" {
+		cmd = scripts["linux"]
+	}
+	// 检查是否已在运行
+	installJobsMu.Lock()
+	if j, ok := installJobs[comp]; ok && j.Running {
+		installJobsMu.Unlock()
+		writeJSON(w, map[string]any{"started": false, "message": "该组件正在安装中"})
+		return
+	}
+	installJobs[comp] = &installJob{Running: true, Start: time.Now()}
+	installJobsMu.Unlock()
+	// 后台执行
+	go func() {
+		runCmd := exec.Command("bash", "-c", cmd)
+		var out strings.Builder
+		runCmd.Stdout = &out
+		runCmd.Stderr = &out
+		err := runCmd.Run()
+		installJobsMu.Lock()
+		j := installJobs[comp]
+		if j != nil {
+			j.Running = false
+			j.Done = true
+			j.Success = err == nil
+			j.Output = out.String()
+		}
+		installJobsMu.Unlock()
+	}()
+	writeJSON(w, map[string]any{"started": true, "message": "安装已启动，请稍候"})
+}
+
+func apiInstallStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	comp := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/install-status/"), "/")
+	installJobsMu.RLock()
+	j := installJobs[comp]
+	installJobsMu.RUnlock()
+	if j == nil {
+		writeJSON(w, map[string]any{"running": false, "done": false})
+		return
+	}
+	writeJSON(w, map[string]any{
+		"running": j.Running,
+		"done":    j.Done,
+		"success": j.Success,
+		"output":  j.Output,
+	})
 }
 
 func generateJwtSecret() string {
@@ -1268,6 +1410,8 @@ func main() {
 		}
 	})))
 	mux.HandleFunc("/api/install-script/", cors(requireAuth(apiInstallScript)))
+	mux.HandleFunc("/api/install/", cors(requireAuth(apiInstall)))
+	mux.HandleFunc("/api/install-status/", cors(requireAuth(apiInstallStatus)))
 	mux.HandleFunc("/api/generate-env", cors(requireAuth(apiGenerateEnv)))
 	mux.HandleFunc("/api/migrate", cors(requireAuth(apiMigrate)))
 	mux.HandleFunc("/api/launch", cors(requireAuth(apiLaunch)))

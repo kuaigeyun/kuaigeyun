@@ -156,7 +156,7 @@
       <div id="checkError" class="alert alert-error" style="display:none"></div>
       <div id="checkLoading" style="text-align:center;padding:24px;color:#8c8c8c">正在检测...</div>
       <div id="checkResult" style="display:none">
-        <p style="margin-bottom:16px">当前系统：<strong id="platform"></strong> <span id="statusTag" class="tag"></span></p>
+        <p style="margin-bottom:16px">当前系统：<strong id="platform"></strong><span id="distroInfo" style="margin-left:8px;color:#8c8c8c;font-size:14px"></span> <span id="statusTag" class="tag"></span></p>
         <div class="check-grid" id="checkGrid"></div>
         <div style="margin-top:24px;display:flex;gap:12px">
           <button class="btn btn-primary" onclick="runCheck()" id="btnCheck">重新检测</button>
@@ -168,8 +168,15 @@
 
     <div id="step2" class="card" style="display:none">
       <h2>第二步：安装缺失组件</h2>
-      <p class="desc">复制下方命令，在 <strong>以管理员身份运行</strong> 的终端中执行。<br>Windows：右键「开始」→ Windows Terminal（管理员）或 CMD（管理员）。</p>
+      <p class="desc" id="step2Desc">复制下方命令，在 <strong>以管理员身份运行</strong> 的终端中执行。<br>Windows：右键「开始」→ Windows Terminal（管理员）或 CMD（管理员）。</p>
+      <div id="ubuntuInstallHint" class="alert alert-info" style="display:none;margin-bottom:16px">
+        <strong>Ubuntu 22 一键安装</strong>：下方支持「一键安装」的组件可直接点击按钮安装，需 <code>sudo</code> 权限。若提示需输入密码，请以 <code>sudo ./riveredge-panel</code> 运行面板。
+      </div>
       <div id="installList"></div>
+      <div id="installOutputBox" style="display:none;margin-top:16px">
+        <div style="font-weight:500;margin-bottom:8px">安装输出：</div>
+        <div id="installOutput" class="cmd-box" style="max-height:200px;overflow-y:auto;white-space:pre-wrap;font-size:12px"></div>
+      </div>
       <div style="margin-top:24px">
         <button class="btn btn-secondary" onclick="goStep(1)">← 返回检测</button>
         <button class="btn btn-primary" onclick="goStep(3)" style="margin-left:8px">已安装完成，去配置 →</button>
@@ -626,6 +633,12 @@ createdb -U postgres riveredge</div>
       const allOk = required.every(k => checks[k]?.installed && checks[k]?.meets_requirement !== false);
       const hasMissing = required.some(k => !checks[k]?.installed || checks[k]?.meets_requirement === false);
       document.getElementById('platform').textContent = checkData.platform || '未知';
+      const distroEl = document.getElementById('distroInfo');
+      if (checkData.distro) {
+        distroEl.textContent = '(' + (checkData.distro || '') + (checkData.distro_ver ? ' ' + checkData.distro_ver : '') + ')';
+      } else {
+        distroEl.textContent = '';
+      }
       const tag = document.getElementById('statusTag');
       tag.textContent = allOk ? '全部通过' : '有未安装项';
       tag.className = 'tag ' + (allOk ? 'tag-ok' : 'tag-warn');
@@ -642,10 +655,26 @@ createdb -U postgres riveredge</div>
       document.getElementById('btnNextConfig').style.display = allOk ? 'inline-flex' : 'none';
     }
 
+    const INSTALLABLE = ['node','python','uv','postgresql','redis','caddy'];
+    function canOneClickInstall() {
+      const d = checkData?.distro;
+      const v = checkData?.distro_ver || '';
+      return d === 'ubuntu' && (v.startsWith('22') || v.startsWith('24'));
+    }
+    let installPollTimer = null;
+    let currentInstallComp = null;
+    let currentInstallBtn = null;
     async function loadInstall() {
       const comps = ['bash', 'caddy', 'python', 'uv', 'node', 'npm', 'postgresql', 'redis', 'inngest'];
       const list = document.getElementById('installList');
       list.innerHTML = '';
+      const isUbuntu = canOneClickInstall();
+      document.getElementById('ubuntuInstallHint').style.display = isUbuntu ? 'block' : 'none';
+      document.getElementById('step2Desc').innerHTML = isUbuntu
+        ? 'Ubuntu 22 用户可点击「一键安装」直接安装；或复制命令到终端执行。'
+        : '复制下方命令，在 <strong>以管理员身份运行</strong> 的终端中执行。<br>Windows：右键「开始」→ Windows Terminal（管理员）或 CMD（管理员）。';
+      document.getElementById('installOutputBox').style.display = 'none';
+      if (installPollTimer) { clearInterval(installPollTimer); installPollTimer = null; }
       for (const c of comps) {
         const inst = checkData?.checks?.[c]?.installed;
         if (inst) continue;
@@ -653,11 +682,59 @@ createdb -U postgres riveredge</div>
         try { const r = await fetchApi('/install-script/' + c); cmd = r.command || ''; } catch (_) {}
         const div = document.createElement('div');
         div.style.marginBottom = '16px';
-        div.innerHTML = '<strong>' + (LABELS[c] || c) + '</strong><div class="cmd-row"><div class="cmd-box">' + cmd.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div><button class="btn btn-primary" onclick="copyText(this)">复制</button></div>';
+        const oneClick = canOneClickInstall() && INSTALLABLE.includes(c);
+        const btnHtml = oneClick ? '<button class="btn btn-green btn-install-' + c + '" onclick="doOneClickInstall(\'' + c + '\', this)">一键安装</button>' : '';
+        div.innerHTML = '<strong>' + (LABELS[c] || c) + '</strong><div class="cmd-row"><div class="cmd-box">' + cmd.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div><button class="btn btn-primary" onclick="copyText(this)">复制</button>' + btnHtml + '</div>';
         div.querySelector('.cmd-box').dataset.cmd = cmd;
         list.appendChild(div);
       }
       if (list.innerHTML === '') list.innerHTML = '<p class="alert alert-info">所有组件已安装，可直接前往「填写配置」。</p>';
+    }
+    async function doOneClickInstall(comp, btn) {
+      if (currentInstallComp) return;
+      currentInstallComp = comp;
+      currentInstallBtn = btn;
+      btn.disabled = true;
+      btn.textContent = '安装中...';
+      document.getElementById('installOutputBox').style.display = 'block';
+      document.getElementById('installOutput').textContent = '正在启动安装...';
+      try {
+        const r = await fetchApi('/install/' + comp, { method: 'POST' });
+        if (!r.started) {
+          document.getElementById('installOutput').textContent = r.message || '已在安装中';
+          btn.textContent = '一键安装';
+          btn.disabled = false;
+          currentInstallComp = null;
+          currentInstallBtn = null;
+          return;
+        }
+        installPollTimer = setInterval(pollInstallStatus, 1500);
+        pollInstallStatus();
+      } catch (e) {
+        document.getElementById('installOutput').textContent = '启动失败：' + (e.message || '');
+        btn.textContent = '一键安装';
+        btn.disabled = false;
+        currentInstallComp = null;
+        currentInstallBtn = null;
+      }
+    }
+    async function pollInstallStatus() {
+      if (!currentInstallComp) return;
+      try {
+        const d = await fetchApi('/install-status/' + currentInstallComp);
+        document.getElementById('installOutput').textContent = d.output || (d.running ? '安装中...' : '');
+        document.getElementById('installOutput').scrollTop = document.getElementById('installOutput').scrollHeight;
+        if (d.done) {
+          if (installPollTimer) { clearInterval(installPollTimer); installPollTimer = null; }
+          if (currentInstallBtn) {
+            currentInstallBtn.disabled = false;
+            currentInstallBtn.textContent = d.success ? '安装完成' : '重试';
+          }
+          currentInstallComp = null;
+          currentInstallBtn = null;
+          if (d.success) runCheck();
+        }
+      } catch (_) {}
     }
 
     async function testConnectivity(typ) {
