@@ -9849,7 +9849,7 @@ const WorkOrdersPage: React.FC = () => {
                     workOrderDetail.capabilities?.revoke?.allowed === true &&
                     (workOrderPerms.canAction?.('revoke') ?? false),
                   render: () => (
-                    <ActionConfirmPopconfirm title={t('app.kuaizhizao.workOrder.modalConfirmRevoke')} description={t('app.kuaizhizao.workOrder.modalRevokeContent', { code: record.code })} onConfirm={() => executeRevoke(workOrderDetail)}>
+                    <ActionConfirmPopconfirm title={t('app.kuaizhizao.workOrder.modalConfirmRevoke')} description={t('app.kuaizhizao.workOrder.modalRevokeContent', { code: workOrderDetail.code })} onConfirm={() => executeRevoke(workOrderDetail)}>
               <Button danger onClick={(e) => e.stopPropagation()}>
                       {t('app.kuaizhizao.workOrder.actionRevoke')}
                     </Button>
@@ -9862,7 +9862,7 @@ const WorkOrdersPage: React.FC = () => {
                     workOrderDetail.capabilities?.withdraw_manual_complete?.allowed === true &&
                     (workOrderPerms.canAction?.('revoke') ?? false),
                   render: () => (
-                    <ActionConfirmPopconfirm title={t('app.kuaizhizao.workOrder.modalConfirmWithdrawManualComplete')} description={t('app.kuaizhizao.workOrder.modalWithdrawManualCompleteContent', { code: record.code })} onConfirm={() => executeWithdrawManualComplete(workOrderDetail)}>
+                    <ActionConfirmPopconfirm title={t('app.kuaizhizao.workOrder.modalConfirmWithdrawManualComplete')} description={t('app.kuaizhizao.workOrder.modalWithdrawManualCompleteContent', { code: workOrderDetail.code })} onConfirm={() => executeWithdrawManualComplete(workOrderDetail)}>
               <Button danger onClick={(e) => e.stopPropagation()}>
                       {t('app.kuaizhizao.workOrder.actionWithdrawManualComplete')}
                     </Button>

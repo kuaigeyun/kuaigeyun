@@ -248,7 +248,10 @@ export const MaterialVariantCombinationsTable: React.FC<MaterialVariantCombinati
     return attrs;
   }, [material]);
 
-  const masterSaved = isEdit && !!masterMaterial?.uuid;
+  const masterSaved =
+    isEdit &&
+    !!masterMaterial?.uuid &&
+    !!(masterMaterial.variantManaged ?? (masterMaterial as any).variant_managed);
   const productName =
     masterMaterial?.name ?? material?.name ?? t('app.master-data.materialForm.materialName', '物料');
 

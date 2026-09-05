@@ -1246,7 +1246,6 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
       const result = await onFinish(submitData as any);
 
       if (
-        !isEdit &&
         restValues.variantManaged &&
         pendingVariantRows.length > 0 &&
         result &&

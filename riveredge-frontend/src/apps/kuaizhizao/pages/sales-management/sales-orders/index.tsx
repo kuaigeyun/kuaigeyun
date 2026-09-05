@@ -276,7 +276,7 @@ import { CustomerFollowUpFormModal, type CustomerFollowUpPreset } from '../../..
 import { buildKuaizhizaoPullCreateMenuItems, resolveKuaizhizaoDocumentAction } from '../../../constants/documentActionRegistry';
 import { setCustomPageTitle, removeCustomPageTitle } from '../../../../../utils/customPageTitle';
 import { useSubmitShortcut } from '../../../../../hooks/useSubmitShortcut';
-import { formatDateTime, formatQuantity, todaySiteDateString } from '../../../../../utils/format';
+import { formatDateTime, formatQuantity, formatAmount, todaySiteDateString } from '../../../../../utils/format';
 import { importInChunksViaPerItemCreate } from '../../../../../utils/chunkedBulkImport';
 import { QuantityWithUnitDisplay } from '../../../../../components/quantity-with-unit';
 import { extractProTableSort } from '../../../../../utils/tableQueryKey';

@@ -1461,7 +1461,7 @@ export const OutsourceOrdersTable: React.FC = () => {
               >
                 {t('common.edit')}
               </Button>
-              <ActionConfirmPopconfirm title={t('app.kuaizhizao.outsourceOrder.confirmDeleteTitle')} description={t('app.kuaizhizao.outsourceOrder.confirmDeleteContent', { code: record.code })} onConfirm={() => executeDeleteFromRecord(outsourceOrderDetail)}>
+              <ActionConfirmPopconfirm title={t('app.kuaizhizao.outsourceOrder.confirmDeleteTitle')} description={t('app.kuaizhizao.outsourceOrder.confirmDeleteContent', { code: outsourceOrderDetail.code })} onConfirm={() => executeDeleteFromRecord(outsourceOrderDetail)}>
               <Button
                 danger
                 icon={<DeleteOutlined />}

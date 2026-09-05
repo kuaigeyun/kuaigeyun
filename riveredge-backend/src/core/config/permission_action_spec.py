@@ -89,6 +89,8 @@ PERMISSION_CODE_DISPLAY_LABELS: dict[str, str] = {
     "haoligo:finance-equipment-payables:submit": "提交财务",
     "haoligo:finance-equipment-payables:execute": "登记付款",
     "system:application-connection:execute": "同步通讯录",
+    "system:document-time-rewrite:read": "查看单据时间修正",
+    "system:document-time-rewrite:execute": "执行单据时间修正",
 }
 
 

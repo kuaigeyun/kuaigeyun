@@ -1831,6 +1831,7 @@ export default {
   'components.uniAction.matchSettlement': '匹配',
   'components.uniAction.transferSettle': '转核',
   'components.uniAction.viewDocChain': '链路',
+  'components.uniAction.viewHistory': '履历',
   'components.uniAction.viewBankFlow': '流水',
   'components.uniAction.noteEndorse': '背书',
   'components.uniAction.noteDiscount': '贴现',
@@ -24823,6 +24824,46 @@ export default {
   'pages.dashboard.updateLogTypeSection.improvement': '优化',
   'pages.dashboard.updateLogTypeSection.fix': '修复',
   'pages.dashboard.updateLogTypeSection.security': '安全',
+  'pages.dashboard.updateLog.entries.material-variant-master-ensure.title':
+    '物料属性组合保存提示主物料不存在',
+  'pages.dashboard.updateLog.entries.material-variant-master-ensure.description':
+    '编辑页开启属性管理后直接新增组合时，后端未认未落库/属性槽为 {} 的主物料；现创建 SKU 时自动提升头物料并认空对象，前端仅在主物料已落库后即时创建，未落库时进待保存并在提交物料时一并写入。',
+  'pages.dashboard.updateLog.entries.kuaiplm-knowledge-base-space-switch-loop.title':
+    '快研发知识库切换目录不停刷新',
+  'pages.dashboard.updateLog.entries.kuaiplm-knowledge-base-space-switch-loop.description':
+    '切空间后仍加载旧文档并用文档 space_id 回拨目录，与列表自动选中形成刷新环；现切目录先清空选中、加载中不清选、仅深链且文档不在当前列表时才对齐空间。',
+  'pages.dashboard.updateLog.entries.demand-computation-analysis-null-code.title':
+    '需求计算结果分析确认误读空对象',
+  'pages.dashboard.updateLog.entries.demand-computation-analysis-null-code.description':
+    '分析弹窗重算确认文案在 analysisRecord 为空时仍读 computation_code，与知识库同类；已改为可选链并在无记录时禁用确认。',
+  'pages.dashboard.updateLog.entries.kuaiplm-knowledge-base-null-title.title':
+    '快研发知识库打开报错',
+  'pages.dashboard.updateLog.entries.kuaiplm-knowledge-base-null-title.description':
+    '未选中文档时删除确认仍读取 activeArticle.title，导致 Cannot read properties of null；已改为可选链并在无文档时禁用确认。',
+  'pages.dashboard.updateLog.entries.structured-cost-format-currency-import.title':
+    '成本结构化展示金额格式化报错',
+  'pages.dashboard.updateLog.entries.structured-cost-format-currency-import.description':
+    'StructuredCostDataView 调用 formatCurrencyAmount 未导入，打开成本明细会 ReferenceError；已补齐导入。',
+  'pages.dashboard.updateLog.entries.sales-order-push-delivery-project.title':
+    '销售订单下推交付项目失败',
+  'pages.dashboard.updateLog.entries.sales-order-push-delivery-project.description':
+    '预览接口误读销售明细 quantity（真源为 order_quantity）导致服务端报错；销售订单页取单列 formatAmount 未导入导致页面崩溃。两处已修复。',
+  'pages.dashboard.updateLog.entries.payment-voucher-handle-confirm-undefined.title':
+    '付款单页面加载报错',
+  'pages.dashboard.updateLog.entries.payment-voucher-handle-confirm-undefined.description':
+    '列表确认已改为 Popconfirm 的 executeConfirm，详情抽屉仍调用已删除的 handleConfirm/handleCancelVoucher；已对齐为 Popconfirm，付款单可正常打开。',
+  'pages.dashboard.updateLog.entries.detail-drawer-popconfirm-record-undefined.title':
+    '工单、外协订单、收货通知详情误用 record 崩溃',
+  'pages.dashboard.updateLog.entries.detail-drawer-popconfirm-record-undefined.description':
+    '详情抽屉确认文案仍引用列表行 record，与采购退货同类；已改为当前详情对象，避免打开详情报 record is not defined。',
+  'pages.dashboard.updateLog.entries.purchase-return-detail-record-undefined.title':
+    '采购退货单打开详情报错',
+  'pages.dashboard.updateLog.entries.purchase-return-detail-record-undefined.description':
+    '详情抽屉确认/撤销确认文案误引用未定义的 record，已改为使用当前详情 returnDetail，点详情可正常打开。',
+  'pages.dashboard.updateLog.entries.document-time-rewrite-api.title':
+    '单据时间修正改为 API，无需开放数据库端口',
+  'pages.dashboard.updateLog.entries.document-time-rewrite-api.description':
+    '新增受限接口 system:document-time-rewrite（查看/执行），造数工具登录后即可按工作时段改写业务日与创建时间；不再要求客户端直连 Postgres。',
   'pages.dashboard.updateLog.entries.data-scope-all-persisted-for-external-roles.title':
     '外部角色数据范围选「全部」不生效',
   'pages.dashboard.updateLog.entries.data-scope-all-persisted-for-external-roles.description':

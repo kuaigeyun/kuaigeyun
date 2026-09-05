@@ -1,6 +1,7 @@
 import React from 'react'
 import { Button, Popconfirm, Tooltip } from 'antd'
 import {
+  HistoryOutlined,
   EyeOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -146,6 +147,9 @@ function defaultIconForRowActionWithKind(
   }
   if (readActionVisualProfile(node) === 'view-doc-chain') {
     return <LinkOutlined />
+  }
+  if (readActionVisualProfile(node) === 'view-history') {
+    return <HistoryOutlined />
   }
   if (readActionVisualProfile(node) === 'view-bank-flow') {
     return <UnorderedListOutlined />

@@ -3355,8 +3355,8 @@ const DemandComputationPage: React.FC = () => {
                   {t('app.kuaizhizao.demandComputation.analysisBackfill')}
                 </Button>,
                 <ActionConfirmPopconfirm title={t('app.kuaizhizao.demandComputation.recomputeTitle')} description={t('app.kuaizhizao.demandComputation.recomputeConfirm', {
-        code: analysisRecord.computation_code,
-      })} onConfirm={() => executeAnalysisRecompute()}>
+        code: analysisRecord?.computation_code || '',
+      })} onConfirm={() => executeAnalysisRecompute()} disabled={!analysisRecord?.id}>
               <Button
                   key="recompute"
                   type="primary"

@@ -45,6 +45,7 @@ export {
   rowActionMatchSettlement,
   rowActionTransferSettle,
   rowActionViewDocChain,
+  rowActionViewHistory,
   rowActionViewBankFlow,
   rowActionNoteEndorse,
   rowActionNoteDiscount,

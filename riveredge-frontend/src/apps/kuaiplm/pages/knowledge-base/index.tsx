@@ -75,6 +75,7 @@ const KnowledgeBasePage: React.FC = () => {
 
   const loadArticles = async (spaceId?: number, keyword?: string) => {
     setArticleLoading(true);
+    setArticles([]);
     try {
       if (keyword?.trim()) {
         const res = await searchKbArticles({
@@ -116,10 +117,14 @@ const KnowledgeBasePage: React.FC = () => {
   }, [articleIdFromQuery]);
 
   useEffect(() => {
+    if (articleLoading) return;
     if (articles.length === 0) {
       setActiveArticle(null);
-      setSelectedArticleId(undefined);
+      if (selectedArticleId != null) {
+        setSelectedArticleId(undefined);
+      }
       setSearchParams((prev) => {
+        if (!prev.get('articleId')) return prev;
         const next = new URLSearchParams(prev);
         next.delete('articleId');
         return next;
@@ -133,53 +138,65 @@ const KnowledgeBasePage: React.FC = () => {
     if (firstId) {
       setSelectedArticleId(firstId);
       setSearchParams((prev) => {
+        if (prev.get('articleId') === String(firstId)) return prev;
         const next = new URLSearchParams(prev);
         next.set('articleId', String(firstId));
         return next;
       });
     }
-  }, [articles, selectedArticleId, setSearchParams]);
+  }, [articles, selectedArticleId, articleLoading, setSearchParams]);
 
   useEffect(() => {
-    if (!selectedArticleId) return;
+    if (!selectedArticleId) {
+      setActiveArticle(null);
+      return;
+    }
+    let cancelled = false;
     setDocLoading(true);
-    getKbArticle(selectedArticleId)
+    void getKbArticle(selectedArticleId)
       .then((article) => {
+        if (cancelled) return;
         setActiveArticle({
           ...article,
           tags: Array.isArray(article.tags) ? article.tags : [],
         });
-        if (article.space_id && article.space_id !== selectedSpaceId) {
-          setSelectedSpaceId(article.space_id);
-        }
+        // 深链：文档不在当前列表时才对齐空间。切目录会先清空选中，不会与列表自动选中互抢。
+        setSelectedSpaceId((prevSpaceId) => {
+          if (article.space_id == null || article.space_id === prevSpaceId) {
+            return prevSpaceId;
+          }
+          if (articles.some((item) => item.id === article.id)) {
+            return prevSpaceId;
+          }
+          return article.space_id;
+        });
       })
       .catch((error: any) => {
+        if (cancelled) return;
         const status = error?.response?.status;
         if (status === 404) {
-          const fallbackId = articles[0]?.id;
-          if (fallbackId && fallbackId !== selectedArticleId) {
-            setSelectedArticleId(fallbackId);
-            setSearchParams((prev) => {
-              const next = new URLSearchParams(prev);
-              next.set('articleId', String(fallbackId));
-              return next;
-            });
-          } else {
-            setSelectedArticleId(undefined);
-            setSearchParams((prev) => {
-              const next = new URLSearchParams(prev);
-              next.delete('articleId');
-              return next;
-            });
-          }
+          setSelectedArticleId(undefined);
+          setSearchParams((prev) => {
+            if (!prev.get('articleId')) return prev;
+            const next = new URLSearchParams(prev);
+            next.delete('articleId');
+            return next;
+          });
           setActiveArticle(null);
           return;
         }
         messageApi.error(error?.message || t('app.kuaiplm.knowledgeBase.messages.loadArticleFailed'));
         setActiveArticle(null);
       })
-      .finally(() => setDocLoading(false));
-  }, [selectedArticleId, selectedSpaceId, messageApi, articles, setSearchParams, t]);
+      .finally(() => {
+        if (!cancelled) setDocLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // 仅随选中文档取数；勿把 selectedSpaceId/articles 放进依赖，否则切目录会与空间回拨形成刷新环
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedArticleId, messageApi, setSearchParams, t]);
 
   const handleCreateArticle = async () => {
     const targetSpaceId = selectedSpaceId ?? spaces[0]?.id;
@@ -339,7 +356,8 @@ const KnowledgeBasePage: React.FC = () => {
   };
 
   const executeDeleteCurrent = async () => {
-    await deleteKbArticle(activeArticle.id!);
+    if (!activeArticle?.id) return;
+    await deleteKbArticle(activeArticle.id);
         messageApi.success(t('common.deleteSuccess'));
         setActiveArticle(null);
         setSelectedArticleId(undefined);
@@ -390,7 +408,17 @@ const KnowledgeBasePage: React.FC = () => {
   const handleSpaceTreeSelect: TreeProps['onSelect'] = (keys) => {
     const key = keys[0];
     const nextSpaceId = key ? Number(key) : undefined;
-    setSelectedSpaceId(Number.isFinite(nextSpaceId) ? nextSpaceId : undefined);
+    const next = Number.isFinite(nextSpaceId) ? nextSpaceId : undefined;
+    if (next === selectedSpaceId) return;
+    setSelectedSpaceId(next);
+    setSelectedArticleId(undefined);
+    setActiveArticle(null);
+    setSearchParams((prev) => {
+      if (!prev.get('articleId')) return prev;
+      const nextParams = new URLSearchParams(prev);
+      nextParams.delete('articleId');
+      return nextParams;
+    });
   };
 
   return (
@@ -579,7 +607,12 @@ const KnowledgeBasePage: React.FC = () => {
             ),
             right: (
               <>
-                <ActionConfirmPopconfirm title={t('app.kuaiplm.knowledgeBase.modal.deleteArticleTitle')} description={activeArticle.title || String(activeArticle.id)} onConfirm={() => executeDeleteCurrent()}>
+                <ActionConfirmPopconfirm
+                  title={t('app.kuaiplm.knowledgeBase.modal.deleteArticleTitle')}
+                  description={activeArticle?.title || (activeArticle?.id != null ? String(activeArticle.id) : unnamedDocument)}
+                  onConfirm={() => executeDeleteCurrent()}
+                  disabled={!activeArticle?.id}
+                >
               <Button
                   danger
                   icon={<DeleteOutlined />}

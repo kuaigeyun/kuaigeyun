@@ -39,6 +39,41 @@ def test_acceptance_uploaded_at_not_set_when_still_empty():
     assert row.acceptance_uploaded_at is None
 
 
+def test_submitted_payable_locked_contract_field_unchanged_same_values():
+    from apps.haoligo.services.finance_equipment_payable import (
+        submitted_payable_locked_contract_field_changed,
+    )
+
+    row = SimpleNamespace(
+        manufacturer_id=12,
+        contract_no="HT-001",
+        equipment_name="折弯机",
+        tax_inclusive_amount=Decimal("100.10"),
+    )
+    assert not submitted_payable_locked_contract_field_changed(row, "manufacturer_id", 12)
+    assert not submitted_payable_locked_contract_field_changed(row, "contract_no", " HT-001 ")
+    assert not submitted_payable_locked_contract_field_changed(row, "equipment_name", "折弯机")
+    assert not submitted_payable_locked_contract_field_changed(row, "tax_inclusive_amount", "100.10")
+    assert not submitted_payable_locked_contract_field_changed(row, "tax_inclusive_amount", 100.1)
+
+
+def test_submitted_payable_locked_contract_field_changed_detects_real_edit():
+    from apps.haoligo.services.finance_equipment_payable import (
+        submitted_payable_locked_contract_field_changed,
+    )
+
+    row = SimpleNamespace(
+        manufacturer_id=12,
+        contract_no="HT-001",
+        equipment_name="折弯机",
+        tax_inclusive_amount=Decimal("100.10"),
+    )
+    assert submitted_payable_locked_contract_field_changed(row, "manufacturer_id", 13)
+    assert submitted_payable_locked_contract_field_changed(row, "contract_no", "HT-002")
+    assert submitted_payable_locked_contract_field_changed(row, "equipment_name", "冲床")
+    assert submitted_payable_locked_contract_field_changed(row, "tax_inclusive_amount", "100.11")
+
+
 def test_match_equipment_payable_balance_status():
     from apps.haoligo.services.finance_equipment_payable import (
         match_equipment_payable_balance_status,

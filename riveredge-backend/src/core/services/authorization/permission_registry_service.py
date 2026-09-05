@@ -169,6 +169,8 @@ class PermissionRegistryService:
         "system:user-message:update",
         "system:user-task:read",
         "system:user-task:update",
+        "system:document-time-rewrite:read",
+        "system:document-time-rewrite:execute",
     )
 
     @classmethod

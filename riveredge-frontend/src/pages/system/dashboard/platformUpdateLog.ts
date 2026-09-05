@@ -36,6 +36,85 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'material-variant-master-ensure',
+    date: '2026-09-04',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.material-variant-master-ensure.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.material-variant-master-ensure.description',
+  },
+  {
+    id: 'kuaiplm-knowledge-base-space-switch-loop',
+    date: '2026-09-04',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaiplm-knowledge-base-space-switch-loop.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaiplm-knowledge-base-space-switch-loop.description',
+  },
+  {
+    id: 'demand-computation-analysis-null-code',
+    date: '2026-09-04',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.demand-computation-analysis-null-code.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.demand-computation-analysis-null-code.description',
+  },
+  {
+    id: 'kuaiplm-knowledge-base-null-title',
+    date: '2026-09-04',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaiplm-knowledge-base-null-title.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaiplm-knowledge-base-null-title.description',
+  },
+  {
+    id: 'structured-cost-format-currency-import',
+    date: '2026-09-04',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.structured-cost-format-currency-import.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.structured-cost-format-currency-import.description',
+  },
+  {
+    id: 'sales-order-push-delivery-project',
+    date: '2026-09-04',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-order-push-delivery-project.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-order-push-delivery-project.description',
+  },
+  {
+    id: 'payment-voucher-handle-confirm-undefined',
+    date: '2026-09-04',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.payment-voucher-handle-confirm-undefined.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.payment-voucher-handle-confirm-undefined.description',
+  },
+  {
+    id: 'detail-drawer-popconfirm-record-undefined',
+    date: '2026-09-04',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.detail-drawer-popconfirm-record-undefined.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.detail-drawer-popconfirm-record-undefined.description',
+  },
+  {
+    id: 'purchase-return-detail-record-undefined',
+    date: '2026-09-04',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.purchase-return-detail-record-undefined.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.purchase-return-detail-record-undefined.description',
+  },
+  {
+    id: 'document-time-rewrite-api',
+    date: '2026-09-04',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.document-time-rewrite-api.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.document-time-rewrite-api.description',
+  },
+  {
     id: 'data-scope-all-persisted-for-external-roles',
     date: '2026-09-04',
     type: 'fix',

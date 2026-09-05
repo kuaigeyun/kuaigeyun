@@ -48,8 +48,10 @@ const STATUS_SEMANTIC_ALIASES: Record<string, DocumentStatusSemantic> = {
   DRAFT: 'draft',
   draft: 'draft',
   计划中: 'draft',
+  待启用: 'draft',
 
   // —— pending（待办 / 待审）——
+  待用: 'pending',
   待审核: 'pending',
   已提交: 'pending',
   PENDING_REVIEW: 'pending',
@@ -64,6 +66,7 @@ const STATUS_SEMANTIC_ALIASES: Record<string, DocumentStatusSemantic> = {
   待处理: 'pending',
   暂停: 'pending',
   paused: 'pending',
+  pending_trial: 'pending',
   待检验: 'pending',
   待点检: 'pending',
   待退料: 'pending',
@@ -72,6 +75,10 @@ const STATUS_SEMANTIC_ALIASES: Record<string, DocumentStatusSemantic> = {
   待接单: 'pending',
   待验收: 'pending',
   待回访: 'pending',
+  已登记: 'pending',
+  registered: 'pending',
+  assigned: 'pending',
+  待核对: 'pending',
   部分转单: 'pending',
   PARTIAL_CONVERTED: 'pending',
   partial_converted: 'pending',
@@ -98,6 +105,13 @@ const STATUS_SEMANTIC_ALIASES: Record<string, DocumentStatusSemantic> = {
   配料中: 'active',
   领用中: 'active',
   维修中: 'active',
+  维修: 'active',
+  保养: 'active',
+  外协维修: 'active',
+  repair: 'active',
+  upkeep: 'active',
+  commissioning: 'active',
+  trial_recording: 'active',
   已下达: 'active',
   RELEASED: 'active',
   released: 'active',
@@ -171,6 +185,11 @@ const STATUS_SEMANTIC_ALIASES: Record<string, DocumentStatusSemantic> = {
   processed: 'success',
   signed: 'success',
   idle: 'success',
+  running: 'success',
+  运行: 'success',
+  accepted: 'success',
+  已治理: 'success',
+  已验收: 'success',
 
   // —— danger ——
   已驳回: 'danger',
@@ -188,6 +207,7 @@ const STATUS_SEMANTIC_ALIASES: Record<string, DocumentStatusSemantic> = {
   报废: 'danger',
   overdue: 'danger',
   逾期: 'danger',
+  已拒收: 'danger',
 
   // —— muted ——
   已关闭: 'muted',
@@ -199,6 +219,10 @@ const STATUS_SEMANTIC_ALIASES: Record<string, DocumentStatusSemantic> = {
   not_started: 'muted',
   未开始: 'muted',
   disabled: 'muted',
+  shutdown: 'muted',
+  停机: 'muted',
+  standby: 'pending',
+  待机: 'pending',
 };
 
 /** 审核相位 → 语义（与待审核 / 已通过 / 已驳回同色） */

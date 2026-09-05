@@ -2430,7 +2430,7 @@ const PurchaseReturnsPage: React.FC = () => {
                       purchaseReturnPerms.canAction?.('submit') ?? false,
                     ),
                     render: () => (
-                      <ActionConfirmPopconfirm title={t('app.kuaizhizao.purchaseReturn.confirmTitle')} description={t('app.kuaizhizao.purchaseReturn.confirmContent', { code: record.return_code })} onConfirm={() => executeConfirm(returnDetail)}>
+                      <ActionConfirmPopconfirm title={t('app.kuaizhizao.purchaseReturn.confirmTitle')} description={t('app.kuaizhizao.purchaseReturn.confirmContent', { code: returnDetail.return_code })} onConfirm={() => executeConfirm(returnDetail)}>
               <Button
                         {...rowActionKind('submit')}
                         {...rowActionLabelKeep()}
@@ -2448,7 +2448,7 @@ const PurchaseReturnsPage: React.FC = () => {
                       returnDetail.capabilities?.withdraw?.allowed === true &&
                       (purchaseReturnPerms.canAction?.('revoke') ?? false),
                     render: () => (
-                      <ActionConfirmPopconfirm title={t('app.kuaizhizao.purchaseReturn.withdrawTitle')} description={t('app.kuaizhizao.purchaseReturn.withdrawContent', { code: record.return_code })} onConfirm={() => executeWithdraw(returnDetail)}>
+                      <ActionConfirmPopconfirm title={t('app.kuaizhizao.purchaseReturn.withdrawTitle')} description={t('app.kuaizhizao.purchaseReturn.withdrawContent', { code: returnDetail.return_code })} onConfirm={() => executeWithdraw(returnDetail)}>
               <Button {...rowActionKind('revoke')} onClick={(e) => e.stopPropagation()}>
                         {t('app.kuaizhizao.purchaseReturn.withdrawConfirm')}
                       </Button>

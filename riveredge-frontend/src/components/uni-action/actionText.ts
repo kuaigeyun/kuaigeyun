@@ -65,6 +65,7 @@ export type RowActionVisualProfile =
   | 'match-settlement'
   | 'transfer-settle'
   | 'view-doc-chain'
+  | 'view-history'
   | 'view-bank-flow'
   | 'note-endorse'
   | 'note-discount'
@@ -290,6 +291,19 @@ export function rowActionTransferSettle(
   }
 }
 
+/** 资产台账：行内双字「履历」；RBAC 默认 read */
+export function rowActionViewHistory(
+  permission: 'skip' | 'read' = 'read',
+): {
+  [ROW_ACTION_KIND_ATTR]: RowActionPermissionKind
+  [ROW_ACTION_VISUAL_PROFILE_ATTR]: RowActionVisualProfile
+} {
+  return {
+    [ROW_ACTION_KIND_ATTR]: permission,
+    [ROW_ACTION_VISUAL_PROFILE_ATTR]: 'view-history',
+  }
+}
+
 /** 单据对账：行内双字「链路」；RBAC 默认 read */
 export function rowActionViewDocChain(
   permission: 'skip' | 'read' = 'read',
@@ -426,6 +440,7 @@ export function readActionVisualProfile(node: React.ReactNode): RowActionVisualP
     raw === 'match-settlement' ||
     raw === 'transfer-settle' ||
     raw === 'view-doc-chain' ||
+    raw === 'view-history' ||
     raw === 'view-bank-flow' ||
     raw === 'note-endorse' ||
     raw === 'note-discount' ||

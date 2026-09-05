@@ -788,7 +788,7 @@ const PaymentsPage: React.FC = () => {
         return acts;
       },
     },
-  ], [t, supplierOptions, paymentPerms, paymentRefundPerms, navigate, openDetail, handleConfirm, handleCancelVoucher, paymentSettlementTypeOptions]);
+  ], [t, supplierOptions, paymentPerms, paymentRefundPerms, navigate, openDetail, executeConfirm, executeCancelVoucher, paymentSettlementTypeOptions]);
 
 
 
@@ -1136,9 +1136,15 @@ const PaymentsPage: React.FC = () => {
                   key: 'confirm',
                   visible: detailRecord.status === 'Draft' && Boolean(paymentPerms.canAction?.('audit')),
                   render: (
-                    <Button {...rowActionKind('audit')} onClick={() => void handleConfirm(detailRecord)}>
-                      {t('common.confirm')}
-                    </Button>
+                    <ActionConfirmPopconfirm
+                      title={t(`${P}.confirmTitle`)}
+                      description={t(`${P}.confirmContent`, { code: detailRecord.payment_code })}
+                      onConfirm={() => executeConfirm(detailRecord)}
+                    >
+                      <Button {...rowActionKind('audit')} onClick={(e) => e.stopPropagation()}>
+                        {t('common.confirm')}
+                      </Button>
+                    </ActionConfirmPopconfirm>
                   ),
                 },
                 {
@@ -1165,9 +1171,15 @@ const PaymentsPage: React.FC = () => {
                     && detailRecord.settled_amount === 0
                     && Boolean(paymentPerms.canAction?.('revoke')),
                   render: (
-                    <Button {...rowActionKind('revoke')} onClick={() => void handleCancelVoucher(detailRecord)}>
-                      {t('app.kuaicaiwu.common.void')}
-                    </Button>
+                    <ActionConfirmPopconfirm
+                      title={t(`${P}.voidTitle`)}
+                      description={t(`${P}.voidContent`, { code: detailRecord.payment_code })}
+                      onConfirm={() => executeCancelVoucher(detailRecord)}
+                    >
+                      <Button {...rowActionKind('revoke')} onClick={(e) => e.stopPropagation()}>
+                        {t('app.kuaicaiwu.common.void')}
+                      </Button>
+                    </ActionConfirmPopconfirm>
                   ),
                 },
               ]}

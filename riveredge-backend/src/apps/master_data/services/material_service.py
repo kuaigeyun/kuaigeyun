@@ -444,9 +444,77 @@ async def _resolve_variant_material_code(
     raise ValidationError("无法生成唯一的属性物料编码，请检查属性组合或联系管理员")
 
 
+def _is_blank_variant_attributes(variant_attributes: Any) -> bool:
+    """主物料属性槽为空：SQL null 或空对象 {}（历史脏数据与前端 empty 判定对齐）。"""
+    if variant_attributes is None:
+        return True
+    if isinstance(variant_attributes, dict) and len(variant_attributes) == 0:
+        return True
+    return False
+
+
 def _is_material_tree_master_row(variant_attributes: Any) -> bool:
     """树形列表主行：variant_attributes 为空（属性 SKU 挂 children）。"""
-    return variant_attributes is None
+    return _is_blank_variant_attributes(variant_attributes)
+
+
+def _master_variant_attributes_q():
+    """主物料属性条件：null 或 {}。"""
+    from tortoise.expressions import Q
+
+    return Q(variant_attributes__isnull=True) | Q(variant_attributes={})
+
+
+async def _find_variant_master_material(
+    tenant_id: int,
+    main_code: str,
+    *,
+    ensure: bool = False,
+) -> Optional[Material]:
+    """
+    按主编码查找属性管理主物料。
+
+    ensure=True 时：若仅有普通头物料（code=main_code 且属性槽为空），自动开启
+    variant_managed 并规范化 variant_attributes=null，便于编辑页先加组合再整单保存的路径。
+    """
+    code = (main_code or "").strip()
+    if not code:
+        return None
+
+    managed = await Material.filter(
+        tenant_id=tenant_id,
+        main_code=code,
+        variant_managed=True,
+        deleted_at__isnull=True,
+    ).filter(_master_variant_attributes_q()).first()
+    if managed:
+        if managed.variant_attributes is not None:
+            managed.variant_attributes = None
+            await managed.save(update_fields=["variant_attributes", "updated_at"])
+        return managed
+
+    if not ensure:
+        return None
+
+    head = await Material.filter(
+        tenant_id=tenant_id,
+        main_code=code,
+        code=code,
+        deleted_at__isnull=True,
+    ).first()
+    if head is None:
+        head = await Material.filter(
+            tenant_id=tenant_id,
+            main_code=code,
+            deleted_at__isnull=True,
+        ).filter(_master_variant_attributes_q()).first()
+    if head is None or not _is_blank_variant_attributes(head.variant_attributes):
+        return None
+
+    head.variant_managed = True
+    head.variant_attributes = None
+    await head.save(update_fields=["variant_managed", "variant_attributes", "updated_at"])
+    return head
 
 
 def _count_material_tree_roots_in_scope(
@@ -480,7 +548,7 @@ async def _material_tree_root_queryset(query):
     """
     master_codes = {
         code
-        for code in await query.filter(variant_attributes__isnull=True).values_list(
+        for code in await query.filter(_master_variant_attributes_q()).values_list(
             "main_code", flat=True
         )
         if code
@@ -488,7 +556,7 @@ async def _material_tree_root_queryset(query):
     if not master_codes:
         return query
     return query.filter(
-        Q(variant_attributes__isnull=True)
+        _master_variant_attributes_q()
         | (Q(variant_attributes__isnull=False) & ~Q(main_code__in=list(master_codes)))
     )
 
@@ -1057,15 +1125,12 @@ class MaterialService:
         # 属性管理相关验证
         master_material = None
         if data.variant_managed and data.variant_attributes:
-            # 如果是属性物料，需要找到主物料
-            # 主物料：variant_managed=True, variant_attributes=null
-            master_material = await Material.filter(
-                tenant_id=tenant_id,
-                main_code=data.main_code,
-                variant_managed=True,
-                variant_attributes__isnull=True,  # 主物料的variant_attributes为null
-                deleted_at__isnull=True
-            ).first()
+            # 如果是属性物料，需要找到主物料（null/{}；必要时将头物料提升为主物料）
+            master_material = await _find_variant_master_material(
+                tenant_id,
+                data.main_code,
+                ensure=True,
+            )
             
             if not master_material:
                 raise ValidationError(
@@ -1110,7 +1175,7 @@ class MaterialService:
             if existing:
                 # 如果已存在的物料是主物料（variant_managed=True, variant_attributes=null）
                 # 则允许创建属性物料，但当前逻辑不允许创建非属性物料
-                if existing.variant_managed and existing.variant_attributes is None:
+                if existing.variant_managed and _is_blank_variant_attributes(existing.variant_attributes):
                     raise ValidationError(
                         f"主编码 {data.main_code} 已存在主物料。"
                         f"如需创建属性物料，请设置 variant_managed=True 并提供 variant_attributes"
@@ -1762,14 +1827,8 @@ class MaterialService:
                 deleted_at__isnull=True
             ).first()
         elif main_code:
-            # 通过主编码查找主物料（variant_managed=True, variant_attributes=null）
-            master_material = await Material.filter(
-                tenant_id=tenant_id,
-                main_code=main_code,
-                variant_managed=True,
-                variant_attributes__isnull=True,
-                deleted_at__isnull=True
-            ).first()
+            # 通过主编码查找主物料（variant_managed=True, variant_attributes 为空）
+            master_material = await _find_variant_master_material(tenant_id, main_code, ensure=False)
         else:
             raise ValidationError("必须提供 master_material_id、master_material_uuid 或 main_code 之一")
         
@@ -1854,17 +1913,13 @@ class MaterialService:
                 deleted_at__isnull=True,
             ).first()
         elif main_code:
-            master_material = await Material.filter(
-                tenant_id=tenant_id,
-                main_code=main_code,
-                variant_managed=True,
-                variant_attributes__isnull=True,
-                deleted_at__isnull=True,
-            ).first()
+            master_material = await _find_variant_master_material(tenant_id, main_code, ensure=False)
         if not master_material:
             identifier = master_material_uuid or main_code
             raise NotFoundError(f"主物料不存在: {identifier}")
-        if not master_material.variant_managed or master_material.variant_attributes is not None:
+        if not master_material.variant_managed or not _is_blank_variant_attributes(
+            master_material.variant_attributes
+        ):
             raise ValidationError("目标物料不是属性管理主物料（须 variant_managed=true 且无属性值）")
         return master_material
 
@@ -2673,10 +2728,21 @@ class MaterialService:
                 if k in patch:
                     update_data[k] = patch[k]
         
-        # 处理属性：确保JSON键顺序一致（用于数据库唯一性索引）
-        if "variant_attributes" in update_data and update_data["variant_attributes"]:
-            sorted_attrs = dict(sorted(update_data["variant_attributes"].items()))
-            update_data["variant_attributes"] = sorted_attrs
+        # 处理属性：空对象规范为 null；非空则固定键序
+        if "variant_attributes" in update_data:
+            attrs = update_data["variant_attributes"]
+            if _is_blank_variant_attributes(attrs):
+                update_data["variant_attributes"] = None
+            elif attrs:
+                update_data["variant_attributes"] = dict(sorted(attrs.items()))
+
+        # 开启属性管理且未带 SKU 属性：主物料属性槽落 null（清理历史 {}）
+        if (
+            update_data.get("variant_managed") is True
+            and "variant_attributes" not in update_data
+            and _is_blank_variant_attributes(material.variant_attributes)
+        ):
+            update_data["variant_attributes"] = None
 
         _normalize_material_logistics_fields(update_data, for_create=False)
         _apply_canonical_material_source_type(update_data)

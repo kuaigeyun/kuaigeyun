@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Table, Empty, Typography, Descriptions, Collapse } from 'antd';
+import { formatCurrencyAmount } from '../../utils/format';
 
 const STRUCTURED_COST_MAX_DEPTH = 4;
 

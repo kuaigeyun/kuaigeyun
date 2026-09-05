@@ -1916,7 +1916,7 @@ const ReceiptNoticesPage: React.FC = () => {
                   key: 'withdraw',
                   visible: noticeDetail.capabilities?.withdraw?.allowed === true,
                   render: () => (
-                    <ActionConfirmPopconfirm title={t('app.kuaizhizao.shipmentNotice.withdrawNotify')} description={t('app.kuaizhizao.receiptNotice.withdrawConfirmContent', { code: record.notice_code })} onConfirm={() => executeWithdraw(noticeDetail)}>
+                    <ActionConfirmPopconfirm title={t('app.kuaizhizao.shipmentNotice.withdrawNotify')} description={t('app.kuaizhizao.receiptNotice.withdrawConfirmContent', { code: noticeDetail.notice_code })} onConfirm={() => executeWithdraw(noticeDetail)}>
               <Button {...rowActionKind('revoke')} onClick={(e) => e.stopPropagation()}>
                       {t('app.kuaizhizao.shipmentNotice.withdrawNotify')}
                     </Button>
@@ -1942,7 +1942,7 @@ const ReceiptNoticesPage: React.FC = () => {
                   key: 'delete',
                   visible: noticeDetail.capabilities?.delete?.allowed === true,
                   render: () => (
-                    <ActionConfirmPopconfirm title={t('app.kuaizhizao.receiptNotice.deleteModalTitle')} description={t('app.kuaizhizao.shipmentNotice.deleteConfirmContent', { code: record.notice_code })} onConfirm={() => executeDelete(noticeDetail)}>
+                    <ActionConfirmPopconfirm title={t('app.kuaizhizao.receiptNotice.deleteModalTitle')} description={t('app.kuaizhizao.shipmentNotice.deleteConfirmContent', { code: noticeDetail.notice_code })} onConfirm={() => executeDelete(noticeDetail)}>
               <Button {...rowActionKind('delete')} onClick={(e) => e.stopPropagation()}>
                       {t('common.delete')}
                     </Button>

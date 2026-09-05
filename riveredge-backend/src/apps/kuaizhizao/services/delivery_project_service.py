@@ -1376,7 +1376,7 @@ class DeliveryProjectService(AppBaseService[DeliveryProject]):
                 "material_code": it.material_code,
                 "material_name": it.material_name,
                 "material_spec": it.material_spec,
-                "quantity": str(it.quantity),
+                "quantity": str(it.order_quantity),
             }
             for it in items
         ]
