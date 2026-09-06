@@ -43,6 +43,8 @@ export async function fetchAllListItems<T>(
     LIST_API_MAX_LIMIT,
   );
   const maxPages = options?.maxPages ?? 200;
+  if (!Number.isInteger(maxPages) || maxPages < 1) throw new Error('分页上限必须为正整数');
+  let expectedTotal: number | undefined;
   const all: T[] = [];
   let skip = 0;
 
@@ -50,13 +52,20 @@ export async function fetchAllListItems<T>(
     const res = await fetchPage({ skip, limit: pageSize });
     const items = extractItems(res);
     all.push(...items);
-    if (items.length < pageSize) break;
     const total = extractTotal(res);
-    if (typeof total === 'number' && all.length >= total) break;
-    skip += pageSize;
+    if (total !== undefined) expectedTotal = total;
+    if (expectedTotal !== undefined) {
+      if (all.length >= expectedTotal) return all;
+      if (items.length === 0) throw new Error(`列表未取完：已读取 ${all.length} 条，总数为 ${expectedTotal} 条`);
+    } else if (items.length < pageSize) {
+      return all;
+    }
+    skip += items.length;
   }
 
-  return all;
+  // 无总数且末页恰好填满时，额外探测一条以确认结束。
+  if (expectedTotal === undefined && extractItems(await fetchPage({ skip, limit: 1 })).length === 0) return all;
+  throw new Error(`列表未取完：已达到 ${maxPages} 页上限，请缩小范围或分批导出`);
 }
 
 /**
@@ -71,6 +80,8 @@ export async function fetchAllCurrentPageItems<T>(
     REPORT_API_MAX_PAGE_SIZE,
   );
   const maxPages = options?.maxPages ?? 200;
+  if (!Number.isInteger(maxPages) || maxPages < 1) throw new Error('分页上限必须为正整数');
+  let expectedTotal: number | undefined;
   const all: T[] = [];
   let current = 1;
 
@@ -78,11 +89,18 @@ export async function fetchAllCurrentPageItems<T>(
     const res = await fetchPage({ current, page_size: pageSize });
     const items = extractItems(res);
     all.push(...items);
-    if (items.length < pageSize) break;
     const total = extractTotal(res);
-    if (typeof total === 'number' && all.length >= total) break;
+    if (total !== undefined) expectedTotal = total;
+    if (expectedTotal !== undefined) {
+      if (all.length >= expectedTotal) return all;
+      if (items.length === 0) throw new Error(`列表未取完：已读取 ${all.length} 条，总数为 ${expectedTotal} 条`);
+    } else if (items.length < pageSize) {
+      return all;
+    }
     current += 1;
   }
 
-  return all;
+  // current/page_size 共同确定偏移，探测不能改变 page_size。
+  if (expectedTotal === undefined && extractItems(await fetchPage({ current, page_size: pageSize })).length === 0) return all;
+  throw new Error(`列表未取完：已达到 ${maxPages} 页上限，请缩小范围或分批导出`);
 }
