@@ -19,6 +19,11 @@ from core.utils.timezone_utils import resolve_business_datetime
 
 router = APIRouter(prefix="/data-backups", tags=["Core - Data Backups"])
 
+def _require_backup_administrator(user: User) -> None:
+    if not (user.is_infra_admin_user() or user.is_organization_admin()):
+        raise HTTPException(status_code=403, detail="仅组织管理员或平台管理员可上传或恢复备份")
+
+
 
 class BackupWorkerHealthResponse(BaseModel):
     status: str
@@ -173,10 +178,19 @@ async def upload_backup(
     
     支持上传 .zip 格式的备份文件，上传后可直接用于恢复。
     """
+    _require_backup_administrator(current_user)
     if not file.filename or not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="仅支持上传 .zip 格式的备份文件")
     backup_name = (name or file.filename or "uploaded_backup").strip() or "uploaded_backup"
-    backup = await DataBackupService.upload_backup_file(current_user.tenant_id, file, backup_name)
+    try:
+        backup = await DataBackupService.upload_backup_file(
+            current_user.tenant_id, file, backup_name,
+            allow_global_backup=current_user.is_infra_admin_user(),
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     return DataBackupService.to_response(backup)
 
 
@@ -308,6 +322,7 @@ async def restore_backup(
     
     若 create_pre_restore_backup=True（默认），恢复前会自动创建当前状态的备份，便于误覆盖时撤回。
     """
+    _require_backup_administrator(current_user)
     if not data.confirm:
         raise HTTPException(status_code=400, detail="确认恢复标记必须为 true")
 
@@ -317,6 +332,7 @@ async def restore_backup(
             uuid,
             create_pre_restore_backup=data.create_pre_restore_backup,
             source_tenant_id=data.source_tenant_id,
+            allow_global_restore=current_user.is_infra_admin_user(),
         )
         if success:
             return RestoreBackupResponse(
@@ -330,5 +346,7 @@ async def restore_backup(
             restore_status=backup.restore_status,
             error=backup.restore_error_message or "恢复任务提交失败",
         )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

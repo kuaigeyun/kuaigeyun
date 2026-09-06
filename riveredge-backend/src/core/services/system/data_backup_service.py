@@ -194,7 +194,7 @@ class DataBackupService:
         return backup
 
     @staticmethod
-    async def upload_backup_file(tenant_id: int, file, backup_name: str) -> DataBackup:
+    async def upload_backup_file(tenant_id: int, file, backup_name: str, *, allow_global_backup: bool = False) -> DataBackup:
         """
         上传备份文件并创建备份记录
         """
@@ -212,6 +212,10 @@ class DataBackupService:
 
             metadata = read_backup_metadata(file_path)
             backup_scope = metadata.get("backup_scope", "all")
+            if backup_scope not in ("tenant", "all", "table"):
+                raise ValueError("无效的备份范围")
+            if backup_scope != "tenant" and not allow_global_backup:
+                raise PermissionError("仅平台管理员可上传全局范围备份")
             include_files = metadata.get("include_files")
             if include_files is None:
                 include_files = zip_has_upload_entries(file_path)
@@ -265,6 +269,8 @@ class DataBackupService:
         uuid: str,
         create_pre_restore_backup: bool = True,
         source_tenant_id: Optional[int] = None,
+        *,
+        allow_global_restore: bool = False,
     ) -> bool:
         """
         触发恢复备份任务
@@ -289,6 +295,10 @@ class DataBackupService:
 
         metadata = read_backup_metadata(resolved_path)
         backup_scope = metadata.get("backup_scope", backup.backup_scope)
+        if backup_scope not in ("tenant", "all", "table"):
+            raise ValueError("无效的备份范围")
+        if backup_scope != "tenant" and not allow_global_restore:
+            raise PermissionError("仅平台管理员可恢复全局范围备份")
         meta_src = metadata.get("source_tenant_id")
         inferred = infer_source_tenant_id_from_zip(resolved_path)
         src = resolve_restore_source_tenant_id(
@@ -316,6 +326,7 @@ class DataBackupService:
                         "create_pre_restore_backup": create_pre_restore_backup,
                         "backup_scope": backup_scope,
                         "record_backup_scope": backup.backup_scope,
+                        "allow_global_restore": allow_global_restore,
                     },
                     id=f"restore-{backup.uuid}",
                 )

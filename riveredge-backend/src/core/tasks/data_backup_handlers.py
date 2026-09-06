@@ -165,6 +165,14 @@ async def handle_database_restore_requested(ctx: TaskContext, step: TaskStep) ->
         record_scope=event_data.get("record_backup_scope"),
         event_scope=event_data.get("backup_scope"),
     )
+    # Queue payload is server-authored; archive metadata alone cannot grant scope.
+    if backup_scope != "tenant" and event_data.get("allow_global_restore") is not True:
+        await _mark_restore_status(
+            backup_uuid, status="failed",
+            error_message="全局范围恢复缺少平台管理员授权，请重新提交恢复任务",
+            mark_completed=True,
+        )
+        return
     logger.info(f"恢复范围: backup_scope={backup_scope}")
 
     if create_pre_restore:
