@@ -15,9 +15,7 @@ from infra.api.deps.deps import (
     oauth2_scheme,
 )
 from infra.models.user import User
-from infra.domain.tenant_context import get_current_tenant_id as get_tenant_id_from_context, set_current_tenant_id
-from infra.domain.security.infra_superadmin_security import get_infra_superadmin_token_payload
-from infra.domain.security.security import get_token_payload
+from infra.domain.tenant_context import set_current_tenant_id
 
 
 async def get_current_user(
@@ -45,83 +43,45 @@ async def get_current_user(
 
 async def get_current_tenant(
     x_tenant_id: Optional[str] = Header(None, alias="X-Tenant-ID"),
-    token: Optional[str] = Depends(oauth2_scheme)
+    current_user: User = Depends(get_current_user),
 ) -> int:
-    """
-    获取当前组织ID
-    
-    从请求头或上下文中获取当前组织ID，并设置到上下文中。
-    ⚠️ 关键修复：支持平台超级管理员 Token（允许全局访问，tenant_id 可为 None 或从请求头获取）
+    """Resolve a tenant only after validating the active user/session.
 
-    Args:
-        x_tenant_id: 从请求头获取的组织ID
-        token: JWT Token（用于检查是否为平台超级管理员）
-    
-    Returns:
-        int: 当前组织ID
-        
-    Raises:
-        HTTPException: 当组织上下文未设置时抛出（平台超级管理员除外）
+    Ordinary users are bound to their authenticated organization. Platform
+    superadmins must explicitly select a tenant; ambient context is not identity.
     """
-    # ⚠️ 关键修复：检查是否为平台超级管理员 Token
-    is_infra_superadmin = False
-    if token:
-        infra_superadmin_payload = get_infra_superadmin_token_payload(token)
-        if infra_superadmin_payload:
-            is_infra_superadmin = True
-    
+    is_infra_superadmin = bool(getattr(current_user, "_is_infra_superadmin", False))
     tenant_id = None
-    token_tenant_id: Optional[int] = None
-
-    if token and not is_infra_superadmin:
-        payload = get_token_payload(token)
-        if payload and payload.get("tenant_id") is not None:
-            try:
-                token_tenant_id = int(payload.get("tenant_id"))
-            except (TypeError, ValueError):
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token中的组织信息无效",
-                )
-
-    # 优先从请求头获取
-    if x_tenant_id:
+    if x_tenant_id is not None:
         try:
             tenant_id = int(x_tenant_id)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="无效的组织ID"
-            )
+            if tenant_id <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="无效的组织ID")
 
-        # 非平台超级管理员必须保证 Header 与 JWT 租户一致
-        if token_tenant_id is not None and tenant_id != token_tenant_id:
+    if is_infra_superadmin:
+        if tenant_id is None:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="租户上下文不匹配，禁止跨租户访问",
-            )
-
-    # 如果请求头没有，则从上下文获取
-    if tenant_id is None:
-        tenant_id = get_tenant_id_from_context()
-
-    # 平台超级管理员访问租户资源：必须显式提供 X-Tenant-ID
-    if tenant_id is None:
-        if is_infra_superadmin:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail="平台超级管理员访问租户资源时，必须通过 X-Tenant-ID 指定租户ID",
             )
-        else:
-            # 普通用户必须有 tenant_id
+    else:
+        try:
+            authenticated_tenant_id = int(current_user.tenant_id)
+            if authenticated_tenant_id <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="组织上下文未设置"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="会话组织信息无效，请重新登录",
+                headers={"WWW-Authenticate": "Bearer"},
             )
+        if tenant_id is not None and tenant_id != authenticated_tenant_id:
+            raise HTTPException(status_code=403, detail="租户上下文不匹配，禁止跨租户访问")
+        tenant_id = authenticated_tenant_id
 
-    # 设置到上下文（确保后续操作都能获取到）
     set_current_tenant_id(tenant_id)
-    
     return tenant_id
 
 
