@@ -20,7 +20,26 @@ from infra.api.deps.deps import get_current_user as soil_get_current_user
 from infra.models.user import User
 from infra.exceptions.exceptions import NotFoundError, ValidationError
 
-router = APIRouter(prefix="/scripts", tags=["Core - Scripts"])
+async def require_script_platform_administrator(
+    current_user: User = Depends(soil_get_current_user),
+) -> User:
+    # 脚本以服务器权限执行，租户内的管理员或角色权限不能授予宿主机代码执行权。
+    if not (
+        current_user.is_active
+        and current_user.is_infra_admin
+        and current_user.tenant_id is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="自定义脚本管理与执行仅限平台管理员",
+        )
+    return current_user
+
+
+router = APIRouter(
+    prefix="/scripts", tags=["Core - Scripts"],
+    dependencies=[Depends(require_script_platform_administrator)],
+)
 
 
 @router.post("", response_model=ScriptResponse, status_code=status.HTTP_201_CREATED)
@@ -228,4 +247,3 @@ async def execute_script(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(e)
         )
-
