@@ -582,7 +582,7 @@ const MessageConfigListPage: React.FC = () => {
         showExportButton={true}
         onExport={async (type, keys, pageData) => {
           try {
-            let items = await fetchAllListItems((p) => getMessageConfigList(p));
+            let items = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) => getMessageConfigList(p)));
             if (type === 'currentPage' && pageData?.length) {
               items = pageData;
             } else if (type === 'selected' && keys?.length) {

@@ -5196,13 +5196,13 @@ const SalesOrdersPage: React.FC = () => {
                 }
                 return flatRows;
               };
-              const orders = await fetchAllListItems((p) =>
+              const orders = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) =>
                 listSalesOrders({
                   ...p,
                   include_items: true,
                   list_scope: listScopeFilter,
                 }),
-              );
+              ));
               const flatRows = flattenOrders(orders);
               let toExport = flatRows;
               if (type === 'currentPage' && pageData?.length) {

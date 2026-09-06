@@ -3624,12 +3624,12 @@ const PurchaseOrdersPage: React.FC = () => {
                 return flatRows;
               };
 
-              let orders = await fetchAllListItems((p) =>
+              let orders = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) =>
                 listPurchaseOrders({
                   ...p,
                   include_items: true,
                 }),
-              );
+              ));
               let toExport: Array<Record<string, unknown>>;
               if (type === 'currentPage' && pageData?.length) {
                 toExport = pageData as Array<Record<string, unknown>>;

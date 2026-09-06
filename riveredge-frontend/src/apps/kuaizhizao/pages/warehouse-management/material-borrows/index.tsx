@@ -677,7 +677,7 @@ const MaterialBorrowsPage: React.FC = () => {
           showExportButton
           onExport={async (type, keys, pageData) => {
             try {
-              let items = await fetchAllListItems((p) => warehouseApi.materialBorrow.list(p));
+              let items = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) => warehouseApi.materialBorrow.list(p)));
               if (type === 'currentPage' && pageData?.length) {
                 items = pageData;
               } else if (type === 'selected' && keys?.length) {

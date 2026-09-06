@@ -1066,7 +1066,7 @@ const DemandManagementPage: React.FC = () => {
           showExportButton
           onExport={async (type, keys, pageData) => {
             try {
-              let items = await fetchAllListItems((p) => listDemands({ ...p, demand_type: 'demand_plan' }));
+              let items = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) => listDemands({ ...p, demand_type: 'demand_plan' })));
               if (type === 'currentPage' && pageData?.length) {
                 items = pageData;
               } else if (type === 'selected' && keys?.length) {

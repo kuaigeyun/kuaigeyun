@@ -2580,7 +2580,7 @@ const SalesContractsPage: React.FC = () => {
 
         onExport={async (type, keys, pageData) => {
           try {
-            let items = await fetchAllListItems((p) => salesContractApi.list(p));
+            let items = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) => salesContractApi.list(p)));
             if (type === 'currentPage' && pageData?.length) {
               items = pageData as SalesContract[];
             } else if (type === 'selected' && keys?.length) {

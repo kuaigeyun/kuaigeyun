@@ -1657,7 +1657,7 @@ const ApplicationListPage: React.FC = () => {
           showExportButton={true}
           onExport={async (type, keys, pageData) => {
             try {
-              const allData = await fetchAllListItems((p) => getApplicationList(p));
+              const allData = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) => getApplicationList(p)));
               let items = allData || [];
               if (type === 'currentPage' && pageData?.length) {
                 items = pageData;

@@ -430,7 +430,7 @@ const MoldListPage: React.FC = () => {
           showExportButton={true}
           onExport={async (type, keys, pageData) => {
             try {
-              let items = await fetchAllListItems((p) => getMoldList(p));
+              let items = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) => getMoldList(p)));
               if (type === 'currentPage' && pageData?.length) {
                 items = pageData;
               } else if (type === 'selected' && keys?.length) {

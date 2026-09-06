@@ -445,7 +445,7 @@ const ScriptListPage: React.FC = () => {
           deleteButtonText={t('common.batchDelete')}
           showExportButton
           onExport={async (type, keys, pageData) => {
-            const allData = await fetchAllListItems((p) => getScriptList(p));
+            const allData = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) => getScriptList(p)));
             let items = type === 'currentPage' && pageData?.length ? pageData : allData;
             if (type === 'selected' && keys?.length) {
               items = allData.filter((d) => keys.includes(d.uuid));

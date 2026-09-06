@@ -585,7 +585,7 @@ const ApprovalInstanceListPage: React.FC = () => {
           showExportButton={true}
           onExport={async (type, keys, pageData) => {
             try {
-              let toExport = await fetchAllListItems((p) => getApprovalInstanceList(p));
+              let toExport = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) => getApprovalInstanceList(p)));
               if (type === 'currentPage' && pageData?.length) {
                 toExport = pageData;
               } else if (type === 'selected' && keys?.length) {

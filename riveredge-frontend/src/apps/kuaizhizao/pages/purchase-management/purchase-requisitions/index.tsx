@@ -2371,7 +2371,7 @@ const PurchaseRequisitionsPage: React.FC = () => {
           showExportButton
           onExport={async (type, keys, pageData) => {
             try {
-              let items = await fetchAllListItems((p) => listPurchaseRequisitions(p));
+              let items = (type === 'currentPage' ? (pageData ?? []) : await fetchAllListItems((p) => listPurchaseRequisitions(p)));
               if (type === 'currentPage' && pageData?.length) {
                 items = pageData;
               } else if (type === 'selected' && keys?.length) {
