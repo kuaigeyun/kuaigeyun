@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from uuid import uuid4
 from typing import Any, Iterable
 
 from core.config.field_permission_resource_registry import (
@@ -29,6 +30,22 @@ from core.utils.timezone_utils import now_utc
 from infra.infrastructure.database.database import get_db_connection
 from infra.exceptions.exceptions import ValidationError
 from tortoise.transactions import in_transaction
+from tortoise.exceptions import IntegrityError
+from tortoise import connections
+
+
+async def _create_policy_row(model, **values):
+    """隔离可恢复的唯一键冲突，保证外层事务仍可查询并复用已有策略。"""
+    conn = connections.get("default")
+    savepoint = f"policy_insert_{uuid4().hex}"
+    await conn.execute_query(f"SAVEPOINT {savepoint}")
+    try:
+        return await model.create(**values)
+    except BaseException:
+        await conn.execute_query(f"ROLLBACK TO SAVEPOINT {savepoint}")
+        raise
+    finally:
+        await conn.execute_query(f"RELEASE SAVEPOINT {savepoint}")
 
 
 class PermissionPolicyService:
@@ -418,7 +435,8 @@ class PermissionPolicyService:
                     existing_by_key[key] = row
                     continue
                 try:
-                    created = await DataPermissionPolicy.create(
+                    created = await _create_policy_row(
+                        DataPermissionPolicy,
                         tenant_id=tenant_id,
                         role_uuid=role_uuid,
                         resource=key,
@@ -623,7 +641,8 @@ class PermissionPolicyService:
             return
 
         try:
-            created = await FieldPermissionPolicy.create(
+            created = await _create_policy_row(
+                FieldPermissionPolicy,
                 tenant_id=tenant_id,
                 role_uuid=role_uuid,
                 resource=item.resource,
