@@ -54,7 +54,7 @@ from apps.kuaizhizao.services.document_action_policy.enricher import (
 )
 from infra.exceptions.exceptions import NotFoundError, ValidationError, BusinessLogicError
 from infra.services.user_service import UserService
-from core.utils.timezone_utils import resolve_business_datetime, to_site_date, today_site_str, to_api_isoformat
+from core.utils.timezone_utils import resolve_business_datetime, to_site_date, today_site_str, to_api_isoformat, site_day_bounds_utc
 
 
 class SalesForecastService(AppBaseService[SalesForecast]):
@@ -518,18 +518,17 @@ class SalesForecastService(AppBaseService[SalesForecast]):
             ).exclude(status__in=cancelled).count()
         except Exception as e:
             logger.warning(f"sales-forecast-statistics pending_review_count: {e}")
-            pending_review_count = 0
+            raise
 
         try:
-            today_start = datetime.combine(today, datetime.min.time()).replace(tzinfo=tz)
-            today_end = today_start + timedelta(days=1)
+            today_start, today_end = site_day_bounds_utc(today)
             today_new_count = await base.filter(
                 created_at__gte=today_start,
                 created_at__lt=today_end,
             ).count()
         except Exception as e:
             logger.warning(f"sales-forecast-statistics today_new_count: {e}")
-            today_new_count = 0
+            raise
 
         try:
             in_progress_count = await base.filter(
@@ -537,7 +536,7 @@ class SalesForecastService(AppBaseService[SalesForecast]):
             ).exclude(review_status__in=rejected_review).exclude(status__in=cancelled + completed).count()
         except Exception as e:
             logger.warning(f"sales-forecast-statistics in_progress_count: {e}")
-            in_progress_count = 0
+            raise
 
         try:
             overdue_count = await base.filter(
@@ -545,7 +544,7 @@ class SalesForecastService(AppBaseService[SalesForecast]):
             ).exclude(status__in=cancelled + completed).count()
         except Exception as e:
             logger.warning(f"sales-forecast-statistics overdue_count: {e}")
-            overdue_count = 0
+            raise
 
         total_amount = 0.0
         trend_today_new: List[Dict[str, Any]] = []
@@ -556,25 +555,18 @@ class SalesForecastService(AppBaseService[SalesForecast]):
             for i in range(6, -1, -1):
                 day = today - timedelta(days=i)
                 date_str = day.strftime("%Y-%m-%d")
-                day_start = datetime.combine(day, datetime.min.time()).replace(tzinfo=tz)
-                day_end = day_start + timedelta(days=1)
+                day_start, day_end = site_day_bounds_utc(day)
                 cnt = await base.filter(created_at__gte=day_start, created_at__lt=day_end).count()
                 trend_today_new.append({"date": date_str, "value": cnt})
                 trend_today_amount.append({"date": date_str, "value": 0})
-                try:
-                    pr_cnt = await base.filter(
-                        review_status__in=pending_review_vals,
-                        created_at__lte=day_end,
-                    ).exclude(status__in=cancelled).count()
-                except Exception:
-                    pr_cnt = pending_review_count if day == today else 0
+                pr_cnt = await base.filter(
+                    review_status__in=pending_review_vals,
+                    created_at__lt=day_end,
+                ).exclude(status__in=cancelled).count()
                 trend_pending_review.append({"date": date_str, "value": pr_cnt})
         except Exception as e:
             logger.warning(f"sales-forecast-statistics trends: {e}")
-            fallback_dates = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
-            trend_today_new = [{"date": d, "value": 0} for d in fallback_dates]
-            trend_today_amount = [{"date": d, "value": 0} for d in fallback_dates]
-            trend_pending_review = [{"date": d, "value": 0} for d in fallback_dates]
+            raise
 
         yesterday_today_new = trend_today_new[-2]["value"] if len(trend_today_new) > 1 else 0
         yesterday_pending_review = (
