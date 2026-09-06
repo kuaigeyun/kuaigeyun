@@ -594,8 +594,8 @@ export interface UniTableProps<T extends Record<string, any> = Record<string, an
    */
   showFuzzySearch?: boolean
   /**
-   * 为 true 时不在前端对「全字母关键词」做拼音首字母二次过滤（适用于已在 request 内把 `keyword` 交给后端全表搜索的列表）。
-   * 默认 false：保留拼音首字母与当前页数据组合的旧行为。
+   * 为 true 时关闭本地数据的拼音首字母过滤。
+   * 使用 request 的列表始终由请求方负责搜索，保留其返回行和分页总数。
    */
   skipFuzzyPinyinClientFilter?: boolean
   /** 模糊搜索框占位文案（传给 UniSearch） */
@@ -2497,9 +2497,10 @@ export function UniTable<T extends Record<string, any> = Record<string, any>>({
         result = await runRequest()
       }
 
-      // 拼音搜索：关键词为拼音首字母时在前端对返回数据二次过滤
+      // 请求方掌握完整数据集；不能用当前页过滤结果覆盖服务端搜索及总数。
       const keyword = searchFormValues?.keyword
       if (
+        typeof requestRef.current !== 'function' &&
         !liveSkipFuzzyPinyinClientFilter &&
         keyword &&
         isPinyinKeyword(keyword) &&
