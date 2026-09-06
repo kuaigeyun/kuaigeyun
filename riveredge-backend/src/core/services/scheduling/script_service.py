@@ -7,6 +7,7 @@
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
+import asyncio
 import subprocess
 import json
 import time
@@ -23,6 +24,18 @@ from core.schemas.script import (
 from infra.exceptions.exceptions import NotFoundError, ValidationError
 from infra.config.infra_config import infra_settings as settings
 from core.utils.timezone_utils import resolve_business_datetime
+
+
+async def _run_script_command(*args, **kwargs):
+    """等待进程时释放事件循环；请求取消也不能提前解除脚本运行标记。"""
+    worker = asyncio.create_task(asyncio.to_thread(subprocess.run, *args, **kwargs))
+    try:
+        return await asyncio.shield(worker)
+    except asyncio.CancelledError:
+        try:
+            await worker
+        finally:
+            raise
 
 
 class ScriptService:
@@ -227,7 +240,7 @@ class ScriptService:
         try:
             if script.type == "python":
                 # 执行 Python 脚本
-                result = subprocess.run(
+                result = await _run_script_command(
                     ["python", "-c", script.content],
                     capture_output=True,
                     text=True,
@@ -239,7 +252,7 @@ class ScriptService:
                 success = result.returncode == 0
             elif script.type == "shell":
                 # 执行 Shell 脚本
-                result = subprocess.run(
+                result = await _run_script_command(
                     script.content,
                     shell=True,
                     capture_output=True,
@@ -278,4 +291,3 @@ class ScriptService:
             "error": error,
             "execution_time": execution_time
         }
-
