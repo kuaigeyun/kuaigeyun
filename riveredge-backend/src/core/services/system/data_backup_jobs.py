@@ -1360,8 +1360,7 @@ def _run_tenant_restore_transaction(
     导入前临时 DROP 导入表上的外键（无需 superuser），COPY 完成后清理孤儿行并重建外键。
     """
     tenant_ids_to_clear = {int(target_tenant_id)}
-    if int(source_tenant_id) != int(target_tenant_id):
-        tenant_ids_to_clear.add(int(source_tenant_id))
+    # 源编号只用于导入映射；目标数据库中的同编号租户不属于本次恢复授权范围。
     import_tables = set(import_plan.keys())
 
     with tempfile.TemporaryDirectory(prefix="tenant_restore_") as tmpdir:
