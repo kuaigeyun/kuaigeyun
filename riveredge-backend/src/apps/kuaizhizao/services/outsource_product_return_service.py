@@ -263,7 +263,7 @@ class OutsourceProductReturnService(AppBaseService[OutsourceProductReturn]):
                 movement_type="other_outbound",
                 from_warehouse_id=int(receipt.warehouse_id),
                 operator_id=created_by,
-                operator_name=created_by_name,
+                operator_name=user_info["name"],
             )
 
             logger.info(f"创建委外退货单成功: {code}")
