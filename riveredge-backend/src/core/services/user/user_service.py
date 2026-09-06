@@ -21,6 +21,7 @@ from core.models.user_role import UserRole
 from core.schemas.user import UserCreate, UserUpdate
 from core.services.authorization.permission_version_service import PermissionVersionService
 from core.services.user.user_import_reference_service import UserImportReferenceService
+from core.services.user.user_administrator_guard import authorize_administrator_management
 from infra.services.tenant_service import TenantService
 from infra.exceptions.exceptions import NotFoundError, ValidationError, AuthorizationError
 from core.utils.timezone_utils import resolve_business_datetime, to_api_isoformat
@@ -47,7 +48,9 @@ class UserService:
     async def create_user(
         tenant_id: int,
         data: UserCreate,
-        current_user_id: int
+        current_user_id: int,
+        *,
+        current_user: Optional[User] = None,
     ) -> User:
         """
         创建用户
@@ -64,8 +67,9 @@ class UserService:
             ValidationError: 当用户名已存在或关联数据无效时抛出
             PermissionDeniedError: 当用户无权限时抛出
         """
-        # 验证权限（需要组织管理员或超级用户）
-        # TODO: 实现权限验证逻辑
+        await authorize_administrator_management(
+            tenant_id, data, current_user_id, current_user=current_user,
+        )
         
         # 检查用户名是否已存在
         existing_user = await User.filter(
@@ -346,7 +350,9 @@ class UserService:
         tenant_id: int,
         user_uuid: str,
         data: UserUpdate,
-        current_user_id: int
+        current_user_id: int,
+        *,
+        current_user: Optional[User] = None,
     ) -> User:
         """
         更新用户
@@ -374,6 +380,10 @@ class UserService:
         if not user:
             raise NotFoundError(f"用户不存在: {user_uuid}")
         
+        await authorize_administrator_management(
+            tenant_id, data, current_user_id, current_user=current_user, target_user=user,
+        )
+
         if data.username is not None and data.username != user.username:
             from infra.domain.security.reserved_username import assert_tenant_user_username_mutation_allowed
 

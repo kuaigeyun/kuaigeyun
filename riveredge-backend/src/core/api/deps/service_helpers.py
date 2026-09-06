@@ -43,8 +43,8 @@ def get_user_service_with_fallback() -> Any:
     # 创建一个适配器对象，将静态方法调用转换为实例方法调用
     class UserServiceAdapter:
         """UserService 适配器，将静态方法适配为实例方法"""
-        async def create_user(self, tenant_id: int, data: Any, current_user_id: int):
-            return await UserService.create_user(tenant_id, data, current_user_id)
+        async def create_user(self, tenant_id: int, data: Any, current_user_id: int, *, current_user=None):
+            return await UserService.create_user(tenant_id, data, current_user_id, current_user=current_user)
         
         async def get_user_by_uuid(self, tenant_id: int, uuid: str):
             return await UserService.get_user_by_uuid(tenant_id, uuid)

@@ -268,7 +268,9 @@ class UserServiceInterface(ServiceInterface):
         self,
         tenant_id: int,
         data: Any,  # UserCreate
-        current_user_id: int
+        current_user_id: int,
+        *,
+        current_user: Optional[Any] = None,
     ) -> Any:  # User
         """
         创建用户

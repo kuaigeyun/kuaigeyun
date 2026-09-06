@@ -323,7 +323,8 @@ async def create_user(
         user = await user_service.create_user(
             tenant_id=tenant_id,
             data=user_create_data,
-            current_user_id=current_user.id
+            current_user_id=current_user.id,
+            current_user=current_user,
         )
         
         # 重新加载关联数据
@@ -597,9 +598,12 @@ async def update_user(
             tenant_id=tenant_id,
             user_uuid=user_uuid,
             data=data,
-            current_user_id=current_user.id
+            current_user_id=current_user.id,
+            current_user=current_user,
         )
         return await _user_to_response(user)
+    except AuthorizationError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

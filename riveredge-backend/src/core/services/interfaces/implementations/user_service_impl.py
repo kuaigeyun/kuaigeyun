@@ -39,13 +39,16 @@ class UserServiceImpl(UserServiceInterface):
         self,
         tenant_id: int,
         data: Any,
-        current_user_id: int
+        current_user_id: int,
+        *,
+        current_user: Optional[Any] = None,
     ) -> Any:
         """创建用户"""
         return await UserService.create_user(
             tenant_id=tenant_id,
             data=data,
-            current_user_id=current_user_id
+            current_user_id=current_user_id,
+            current_user=current_user,
         )
     
     async def get_user_by_uuid(
