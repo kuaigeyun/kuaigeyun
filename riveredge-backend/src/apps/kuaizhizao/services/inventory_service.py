@@ -28,6 +28,7 @@ from apps.kuaizhizao.models.material_stock_movement import (
 from apps.kuaizhizao.utils.inventory_helper import get_material_inventory_info
 from apps.master_data.constants.batch_quality_status import QUALIFIED
 from infra.services.business_config_service import BusinessConfigService
+from infra.exceptions.exceptions import BusinessLogicError
 
 
 class InventoryService:
