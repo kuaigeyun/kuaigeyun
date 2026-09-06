@@ -2537,6 +2537,8 @@ class SalesOrderService:
             upd = sales_order_data.model_dump(
                 exclude_unset=True, exclude=_SALES_ORDER_PERSIST_EXCLUDE
             )
+            if "price_type" in upd and not upd["price_type"]:
+                upd["price_type"] = order.price_type or DEFAULT_SALES_PRICE_TYPE
             if "term_group_id" in sales_order_data.model_fields_set or sales_order_data.contract_terms is not None:
                 term_group_id, term_group_name, contract_terms = await terms_svc.resolve_order_terms(
                     tenant_id,
@@ -2567,7 +2569,7 @@ class SalesOrderService:
                 )
                 update_price_type = (
                     getattr(sales_order_data, "price_type", None)
-                    or getattr(existing, "price_type", None)
+                    or getattr(order, "price_type", None)
                     or DEFAULT_SALES_PRICE_TYPE
                 )
                 for item_data in sales_order_data.items:
