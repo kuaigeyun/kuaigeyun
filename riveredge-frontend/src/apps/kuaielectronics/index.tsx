@@ -11,7 +11,6 @@ const withPageSuspense = (LazyComponent: React.LazyExoticComponent<React.Compone
   </Suspense>
 );
 
-const HomePage = lazy(() => import('./pages/home/index'));
 const EsdHubPage = lazy(() => import('./pages/esd/index'));
 const EsdInspectionPage = lazy(() => import('./pages/esd/inspection'));
 const EsdDashboardPage = lazy(() => import('./pages/esd/dashboard'));
@@ -20,12 +19,12 @@ const LabelOemPage = lazy(() => import('./pages/label-oem/index'));
 export default function KuaiElectronicsApp() {
   return (
     <Routes>
-      <Route index element={withPageSuspense(HomePage)} />
+      <Route index element={<Navigate to="esd/dashboard" replace />} />
       <Route path="esd" element={withPageSuspense(EsdHubPage)} />
       <Route path="esd/inspection" element={withPageSuspense(EsdInspectionPage)} />
       <Route path="esd/dashboard" element={withPageSuspense(EsdDashboardPage)} />
       <Route path="label-oem" element={withPageSuspense(LabelOemPage)} />
-      <Route path="*" element={<Navigate to="." replace />} />
+      <Route path="*" element={<Navigate to="esd/dashboard" replace />} />
     </Routes>
   );
 }

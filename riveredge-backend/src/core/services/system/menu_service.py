@@ -409,6 +409,18 @@ class MenuService:
             code = (app.get("code") or "").strip()
             if not code:
                 continue
+            from core.config.industry_pack import is_industry_pack_shell_code
+
+            if is_industry_pack_shell_code(code):
+                from core.services.application.industry_pack_menu_service import (
+                    IndustryPackMenuService,
+                )
+
+                children = await IndustryPackMenuService._collect_module_menu_items(tenant_id)
+                menu_config = IndustryPackMenuService._build_pack_menu_config(children)
+                indexes[app_uuid] = MenuService._build_manifest_menu_sort_index(menu_config)
+                continue
+
             manifest = ApplicationService._get_manifest_by_code(code)
             if not manifest:
                 continue

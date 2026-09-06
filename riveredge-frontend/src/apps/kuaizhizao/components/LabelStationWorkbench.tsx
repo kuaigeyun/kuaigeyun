@@ -49,11 +49,9 @@ const { Text, Paragraph } = Typography;
 export type LabelStationWorkbenchProps = {
   /** 追加到作业/配置之后的 Tab（如 OEM 签样包） */
   extraTabItems?: TabsProps['items'];
-  /** 页头覆盖（OEM 替代页等） */
-  title?: React.ReactNode;
 };
 
-export function LabelStationWorkbench({ extraTabItems, title }: LabelStationWorkbenchProps) {
+export function LabelStationWorkbench({ extraTabItems }: LabelStationWorkbenchProps) {
   const { t } = useTranslation();
   const { message, modal } = App.useApp();
   const stationPerms = useResourcePermissions('kuaizhizao:label-station');
@@ -520,7 +518,6 @@ export function LabelStationWorkbench({ extraTabItems, title }: LabelStationWork
       <MultiTabListPageTemplate
         activeTabKey={activeTabKey}
         onTabChange={setActiveTabKey}
-        header={title}
         tabs={(tabItems || []).map((item) => ({
           key: String(item.key),
           label: item.label,

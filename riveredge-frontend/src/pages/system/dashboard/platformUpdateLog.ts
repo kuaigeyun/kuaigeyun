@@ -36,6 +36,41 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'industry-pack-app-folder-title',
+    date: '2026-09-07',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.industry-pack-app-folder-title.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.industry-pack-app-folder-title.description',
+  },
+  {
+    id: 'electronics-menu-ia',
+    date: '2026-09-06',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.electronics-menu-ia.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.electronics-menu-ia.description',
+  },
+  {
+    id: 'industry-pack-menu-path-collision',
+    date: '2026-09-06',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.industry-pack-menu-path-collision.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.industry-pack-menu-path-collision.description',
+  },
+  {
+    id: 'equipment-dashboard-kpi-ticker',
+    date: '2026-09-06',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.equipment-dashboard-kpi-ticker.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.equipment-dashboard-kpi-ticker.description',
+  },
+  {
+    id: 'page-shell-no-duplicate-title',
+    date: '2026-09-06',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.page-shell-no-duplicate-title.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.page-shell-no-duplicate-title.description',
+  },
+  {
     id: 'kuaiiot-menu-two-groups',
     date: '2026-09-06',
     type: 'improvement',

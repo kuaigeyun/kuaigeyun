@@ -340,9 +340,16 @@ export function useUnifiedMenuData(
           };
           const firstPath = findFirstAppPath(visibleChildren);
           const code = firstPath ? extractAppCodeFromPath(firstPath) : null;
+          // 行业包容器：分组标题固定用 industry-pack 显示名，勿用子模块 code 顶替（子模块名在下一级「电子制造」等）
+          const isIndustryPackRoot =
+            String(appMenu.path || '') === '/apps/industry-pack' ||
+            extractAppCodeFromPath(String(appMenu.path || '')) === 'industry-pack';
+          const groupCode = isIndustryPackRoot ? 'industry-pack' : code;
           const appName = (appMenu.meta as any)?.custom_layout_virtual
             ? appMenu.name
-            : (code ? resolveAppMenuGroupDisplayName(code, appMenu.name, t) : appMenu.name);
+            : (groupCode
+                ? resolveAppMenuGroupDisplayName(groupCode, appMenu.name, t)
+                : appMenu.name);
           // ProLayout 需带 children；占位子项由 CSS 隐藏。
           // label 带 data-app-menu-group，供 CSS :has / MutationObserver 识别（ProLayout 不透传 group className）。
           // PRO 徽标走 BasicLayout.menuTextRender。
@@ -351,13 +358,13 @@ export function useUnifiedMenuData(
             label: createElement(
               'span',
               {
-                'data-app-menu-group': code || '1',
+                'data-app-menu-group': groupCode || '1',
                 className: 'menu-group-title-app-inner',
               },
               appName,
             ),
-            key: code ? `app-group-code-${code}` : `app-group-${appMenu.uuid}`,
-            path: code ? `#app-group-${code}` : undefined,
+            key: groupCode ? `app-group-code-${groupCode}` : `app-group-${appMenu.uuid}`,
+            path: groupCode ? `#app-group-${groupCode}` : undefined,
             type: 'group',
             className: 'menu-group-title-app app-menu-container-start',
             children: [

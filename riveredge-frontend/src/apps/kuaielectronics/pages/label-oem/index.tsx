@@ -156,9 +156,6 @@ export default function KuaiElectronicsLabelOemPage() {
   }
 
   return (
-    <LabelStationWorkbench
-      title={t('app.kuaielectronics.menu.labelOem')}
-      extraTabItems={[packTab]}
-    />
+    <LabelStationWorkbench extraTabItems={[packTab]} />
   );
 }

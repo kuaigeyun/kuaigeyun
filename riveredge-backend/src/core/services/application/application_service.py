@@ -849,7 +849,9 @@ class ApplicationService:
             )
 
             await IndustryPackMenuService.sync_after_industry_module_lifecycle(
-                tenant_id, activate_shell=True
+                tenant_id,
+                activate_shell=True,
+                grant_module_code=app_code,
             )
             await IndustryExtensionRuntimeService.on_module_activated(tenant_id, app_code)
         elif is_industry_pack_shell_code(app_code):

@@ -422,7 +422,9 @@ export const ManufacturingIcons = {
   electronics: getLucideIcon('Cpu'),
   microchip: getLucideIcon('Cpu'),
   cpu: getLucideIcon('Cpu'),
-  
+  chip: getLucideIcon('Cpu'),
+  barcode: getLucideIcon('Barcode'),
+
   // 安全和质量
   safety: getLucideIcon('HardHat'),
   hardHat: getLucideIcon('HardHat'),

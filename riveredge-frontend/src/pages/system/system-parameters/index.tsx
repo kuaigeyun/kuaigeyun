@@ -60,26 +60,23 @@ const SystemParametersPage: React.FC = () => {
   };
 
   const headerContent = (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <h2 style={{ margin: 0 }}>{t('pages.system.parameters.title', '系统参数配置')}</h2>
-      <Space>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={loadData}
-          loading={loading}
-        >
-          {t('common.refresh', '刷新')}
-        </Button>
-        <Button
-          type="primary"
-          icon={<SaveOutlined />}
-          onClick={handleSave}
-          loading={saving}
-        >
-          {t('common.save', '保存')}
-        </Button>
-      </Space>
-    </div>
+    <Space>
+      <Button
+        icon={<ReloadOutlined />}
+        onClick={loadData}
+        loading={loading}
+      >
+        {t('common.refresh', '刷新')}
+      </Button>
+      <Button
+        type="primary"
+        icon={<SaveOutlined />}
+        onClick={handleSave}
+        loading={saving}
+      >
+        {t('common.save', '保存')}
+      </Button>
+    </Space>
   );
 
   const securityContent = (
@@ -248,7 +245,7 @@ const SystemParametersPage: React.FC = () => {
       layout="vertical"
     >
       <MultiTabListPageTemplate
-        header={headerContent}
+        tabBarExtraContent={headerContent}
         activeTabKey={activeTabKey}
         onTabChange={setActiveTabKey}
         tabs={[

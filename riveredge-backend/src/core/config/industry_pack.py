@@ -116,6 +116,9 @@ def manifest_to_industry_pack_menu_item(manifest: Dict[str, Any]) -> Optional[Di
     从 manifest 解析行业模块在行业包下的菜单节点。
 
     结构：行业包 → 应用名（一级）→ 原应用菜单（二级及以下）
+
+    有子菜单时，应用名节点不设 path（纯分组）。否则会与子项「概览」等同 path
+   （如 /apps/kuaielectronics）在按 path 同步时互相覆盖，产生 parent_id 自引用，侧栏看不到子菜单。
     """
     code = str(manifest.get("code") or "").strip()
     if not code:
@@ -126,10 +129,12 @@ def manifest_to_industry_pack_menu_item(manifest: Dict[str, Any]) -> Optional[Di
         return None
 
     route_path = str(manifest.get("route_path") or "").strip()
+    # 有 children 时禁止与叶子共用 path，避免 MenuService 按 path upsert 打坏树
+    group_path = None if children else (route_path or None)
     return {
         "title": _app_menu_title_key(code),
-        "icon": manifest.get("icon"),
-        "path": route_path or None,
+        "icon": manifest.get("icon") or "cpu",
+        "path": group_path,
         "permission": f"{code}:entry:read",
         "sort_order": int(manifest.get("sort_order") or 999),
         "children": children,

@@ -161,6 +161,8 @@ function isAppNameKeyMisassignedToNonRootPath(
 ): boolean {
   const m = name.match(/^app\.([a-z0-9-]+)\.name$/i);
   if (!m) return false;
+  // 无 path 的应用名分组合法（行业包 → 电子制造）：不得用子孙 path 误判为「错挂到非根路径」
+  if (!path) return false;
   const appCode = m[1];
   const effectivePath = path || findFirstMenuPathDeep(children) || undefined;
   if (!effectivePath) return false;

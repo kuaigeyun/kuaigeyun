@@ -84,7 +84,7 @@ const MaintenancePlanCalendarPage: React.FC = () => {
 
   return (
     <ListPageTemplate>
-      <Card title={t(`${P}.title`)} loading={loading}>
+      <Card loading={loading}>
         <div
           style={{
             display: 'flex',

@@ -48,7 +48,7 @@ import {
 } from '../../../components/module-center';
 import type { ModuleKpiDef, ModuleShortcutDef } from '../../../components/module-center';
 import type { ModuleFeedItem } from '../../../components/module-center';
-import { StatusTag } from '../../../../../constants/statusBadges';
+import { StatusTag, MarkerTag } from '../../../../../constants/statusBadges';
 
 const { Text } = Typography;
 
@@ -83,6 +83,16 @@ const ALERT_KIND_COLOR: Record<string, string> = {
   spot_incomplete: 'default',
   repair_arrival_overdue: 'error',
 };
+
+function stripLeadingAlertLabel(label: string, text: string): string {
+  const trimmed = text.trim();
+  if (!label || !trimmed) return trimmed;
+  if (trimmed === label) return '';
+  if (trimmed.startsWith(label)) {
+    return trimmed.slice(label.length).replace(/^[\s:：\-—|/]+/, '').trim();
+  }
+  return trimmed;
+}
 
 function unwrapList(res: unknown): Record<string, unknown>[] {
   if (Array.isArray(res)) return res as Record<string, unknown>[];
@@ -314,29 +324,46 @@ const EquipmentDashboard: React.FC = () => {
 
   const alertFeedItems: ModuleFeedItem[] = useMemo(
     () =>
-      alerts.slice(0, 12).map((row, idx) => ({
-        id: `${row.kind}-${row.document_no ?? row.equipment_code ?? idx}`,
-        title: row.title,
-        subtitle: row.detail,
-        tag: {
-          label: alertKindLabel(row.kind),
-          color: ALERT_KIND_COLOR[row.kind] || 'default',
-        },
-        onClick: row.link_path
-          ? () => navigate(row.link_path as string)
-          : undefined,
-      })),
+      alerts.slice(0, 12).map((row, idx) => {
+        const kindLabel = alertKindLabel(row.kind);
+        const title =
+          stripLeadingAlertLabel(kindLabel, row.title || '') || row.title || kindLabel;
+        return {
+          id: `${row.kind}-${row.document_no ?? row.equipment_code ?? idx}`,
+          title,
+          subtitle: row.detail,
+          tag: {
+            label: kindLabel,
+            color: ALERT_KIND_COLOR[row.kind] || 'default',
+          },
+          onClick: row.link_path
+            ? () => navigate(row.link_path as string)
+            : undefined,
+        };
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- t via alertKindLabel
     [alerts, navigate, t],
   );
 
-  const tickerText = useMemo(() => {
-    if (!alerts.length) return '';
-    return alerts
-      .slice(0, 20)
-      .map((a) => `${alertKindLabel(a.kind)} ${a.title}${a.detail ? ` ${a.detail}` : ''}`)
-      .join('    |    ');
+  const tickerItems = useMemo(() => {
+    if (!alerts.length) return [];
+    return alerts.slice(0, 20).map((a, idx) => {
+      const kindLabel = alertKindLabel(a.kind);
+      const primary = stripLeadingAlertLabel(kindLabel, a.title || '') || a.title || kindLabel;
+      const secondary = (a.detail || '').trim();
+      return {
+        id: `${a.kind}-${a.document_no ?? a.equipment_code ?? idx}`,
+        kind: a.kind,
+        kindLabel,
+        primary,
+        secondary,
+        linkPath: a.link_path as string | undefined,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t via alertKindLabel
   }, [alerts, t]);
+
+  const tickerDurationSec = Math.max(36, tickerItems.length * 5);
 
   const faultColumns = useMemo(
     () => [
@@ -550,37 +577,105 @@ const EquipmentDashboard: React.FC = () => {
               description={t('app.kuaizhizao.equipmentDashboard.visitBannerDesc')}
             />
           ) : null}
-          {tickerText ? (
+          {tickerItems.length > 0 ? (
             <div
+              className="kz-equipment-alert-ticker"
               style={{
                 overflow: 'hidden',
                 border: `1px solid ${token.colorBorderSecondary}`,
                 borderRadius: 6,
                 background: token.colorFillAlter,
-                padding: '6px 0',
+                padding: '8px 0',
               }}
             >
               <div
+                className="kz-equipment-alert-ticker__track"
                 style={{
-                  display: 'inline-block',
-                  whiteSpace: 'nowrap',
-                  paddingLeft: '100%',
-                  animation: 'kz-equipment-alert-marquee 40s linear infinite',
-                  fontSize: 12,
-                  color: token.colorTextSecondary,
+                  display: 'flex',
+                  width: 'max-content',
+                  gap: 10,
+                  animation: `kz-equipment-alert-marquee ${tickerDurationSec}s linear infinite`,
                 }}
               >
-                {tickerText}
+                {[...tickerItems, ...tickerItems].map((item, idx) => (
+                  <div
+                    key={`${item.id}-${idx}`}
+                    role={item.linkPath ? 'button' : undefined}
+                    tabIndex={item.linkPath ? 0 : undefined}
+                    onClick={
+                      item.linkPath
+                        ? () => navigate(item.linkPath as string)
+                        : undefined
+                    }
+                    onKeyDown={
+                      item.linkPath
+                        ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              navigate(item.linkPath as string);
+                            }
+                          }
+                        : undefined
+                    }
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      flexShrink: 0,
+                      maxWidth: 420,
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: `1px solid ${token.colorBorderSecondary}`,
+                      background: token.colorBgContainer,
+                      cursor: item.linkPath ? 'pointer' : 'default',
+                    }}
+                  >
+                    <MarkerTag
+                      color={ALERT_KIND_COLOR[item.kind] || 'default'}
+                      style={{ margin: 0, flexShrink: 0 }}
+                    >
+                      {item.kindLabel}
+                    </MarkerTag>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: token.colorText,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {item.primary}
+                    </span>
+                    {item.secondary ? (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: token.colorTextSecondary,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: 220,
+                        }}
+                      >
+                        {item.secondary}
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
               </div>
               <style>{`
                 @keyframes kz-equipment-alert-marquee {
                   0% { transform: translateX(0); }
-                  100% { transform: translateX(-100%); }
+                  100% { transform: translateX(-50%); }
+                }
+                .kz-equipment-alert-ticker:hover .kz-equipment-alert-ticker__track {
+                  animation-play-state: paused;
                 }
               `}</style>
             </div>
           ) : null}
-          <ModuleKpiRow items={kpis} />
+          <ModuleKpiRow items={kpis} colProps={{ xs: 24, sm: 12, lg: 6 }} />
         </Space>
       }
       shortcutRow={<ModuleShortcutGrid items={shortcuts} />}

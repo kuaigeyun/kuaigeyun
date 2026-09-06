@@ -10,7 +10,7 @@ export default function KuaiElectronicsHomePage() {
   const { t } = useTranslation();
   return (
     <ListPageTemplate>
-      <Card title={t('app.kuaielectronics.name')}>
+      <Card>
         <Paragraph>{t('app.kuaielectronics.home.intro')}</Paragraph>
         <Alert
           type="info"

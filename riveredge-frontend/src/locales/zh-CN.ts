@@ -2699,6 +2699,7 @@ export default {
   'app.kuaioa.name': '轻办公',
   'app.spoke-wheel.name': '辐条轮毂',
   'app.kuaielectronics.name': '电子制造',
+  'app.kuaielectronics.short': '电子',
   'app.kuaielectronics.menu.home': '概览',
   'app.kuaielectronics.menu.esd': 'ESD 管理',
   'app.kuaielectronics.menu.esdInspection': 'ESD 点检',
@@ -26120,6 +26121,22 @@ export default {
   'pages.dashboard.updateLogTypeSection.improvement': '优化',
   'pages.dashboard.updateLogTypeSection.fix': '修复',
   'pages.dashboard.updateLogTypeSection.security': '安全',
+  'pages.dashboard.updateLog.entries.industry-pack-app-folder-title.title':
+    '行业包应用分组标题误显示为子菜单名',
+  'pages.dashboard.updateLog.entries.industry-pack-app-folder-title.description':
+    '无 path 的应用名分组（如「电子制造」）不再被误判为错挂到非根路径，侧栏恢复显示应用名，而不是第一个子菜单「ESD 管理」。',
+  'pages.dashboard.updateLog.entries.electronics-menu-ia.title':
+    '电子制造侧栏菜单与图标优化',
+  'pages.dashboard.updateLog.entries.electronics-menu-ia.description':
+    '电子制造子菜单保留在「行业包 → 电子制造」下（不展平）；去掉无用「概览」（根路径改跳 ESD 看板）；ESD 看板置顶，并补齐看板/点检/管理/签样图标。',
+  'pages.dashboard.updateLog.entries.industry-pack-menu-path-collision.title':
+    '行业包菜单树修复',
+  'pages.dashboard.updateLog.entries.industry-pack-menu-path-collision.description':
+    '行业模块分组不再与「概览」共用同一 path，避免菜单同步自引用导致侧栏看不到电子制造等子菜单；启用模块时向已持有行业包入口权限的角色自动授予该模块权限。',
+  'pages.dashboard.updateLog.entries.page-shell-no-duplicate-title.title':
+    '列表页去掉与菜单重复的页头标题',
+  'pages.dashboard.updateLog.entries.page-shell-no-duplicate-title.description':
+    '标签工位（含 OEM 替代页）、电子行业首页、保养计划日历、系统参数等不再在内容区重复渲染与顶栏标签同名的标题；系统参数刷新/保存改到标签栏右侧。',
   'pages.dashboard.updateLog.entries.label-station-multitab-shell.title':
     '标签工位改为多标签页直出',
   'pages.dashboard.updateLog.entries.label-station-multitab-shell.description':
@@ -26160,6 +26177,10 @@ export default {
     '快数采一级菜单压为两组',
   'pages.dashboard.updateLog.entries.kuaiiot-menu-two-groups.description':
     '侧栏由监控中心/设备模型/接入管理/告警运维四组改为「监控运维」「模型接入」两组；叶子路由与权限不变，需菜单同步或恢复默认后生效。',
+  'pages.dashboard.updateLog.entries.equipment-dashboard-kpi-ticker.title':
+    '设备看板指标一行与跑马灯可读性',
+  'pages.dashboard.updateLog.entries.equipment-dashboard-kpi-ticker.description':
+    '设备总览四张 KPI 改为一行四列；滚动异常改为徽章+单号/设备分栏卡片滚动，去掉类型文案重复拼接。',
   'pages.dashboard.updateLog.entries.unitable-empty-operation-column-width.title':
     '空列表操作列过宽修复',
   'pages.dashboard.updateLog.entries.unitable-empty-operation-column-width.description':

@@ -140,12 +140,87 @@ class IndustryPackMenuService:
         tenant_id: int,
         *,
         activate_shell: bool = False,
+        grant_module_code: Optional[str] = None,
     ) -> int:
         if activate_shell:
             await IndustryPackMenuService.ensure_shell_active(tenant_id)
         else:
             await IndustryPackMenuService.ensure_shell_installed(tenant_id)
-        return await IndustryPackMenuService.rebuild_pack_menus(tenant_id)
+        count = await IndustryPackMenuService.rebuild_pack_menus(tenant_id)
+        if activate_shell and grant_module_code:
+            await IndustryPackMenuService.grant_module_permissions_to_pack_roles(
+                tenant_id, grant_module_code
+            )
+        return count
+
+    @staticmethod
+    async def grant_module_permissions_to_pack_roles(tenant_id: int, app_code: str) -> int:
+        """将行业模块权限授予已持有 industry-pack:entry:read 的角色。
+
+        否则侧栏「行业包」有壳无子项会被当成空导航壳整组隐藏，启用模块后仍看不到菜单。
+        """
+        if not is_industry_module_app_code(app_code):
+            return 0
+        manifest = ApplicationService._get_manifest_by_code(app_code) or {}
+        codes = [
+            str(c).strip()
+            for c in (manifest.get("permissions") or [])
+            if isinstance(c, str) and str(c).strip()
+        ]
+        if not codes:
+            codes = [f"{app_code}:entry:read"]
+        conn = await get_db_connection()
+        try:
+            granted = 0
+            for code in codes:
+                row = await conn.fetchrow(
+                    """
+                    SELECT id FROM core_permissions
+                    WHERE tenant_id = $1 AND code = $2 AND deleted_at IS NULL
+                    LIMIT 1
+                    """,
+                    tenant_id,
+                    code,
+                )
+                if not row:
+                    continue
+                perm_id = int(row["id"])
+                result = await conn.execute(
+                    """
+                    INSERT INTO core_role_permissions (role_id, permission_id, created_at)
+                    SELECT r.id, $2, NOW()
+                    FROM core_roles r
+                    WHERE r.tenant_id = $1
+                      AND r.deleted_at IS NULL
+                      AND EXISTS (
+                        SELECT 1
+                        FROM core_role_permissions rp
+                        JOIN core_permissions p ON p.id = rp.permission_id
+                        WHERE rp.role_id = r.id
+                          AND p.tenant_id = $1
+                          AND p.code = 'industry-pack:entry:read'
+                          AND p.deleted_at IS NULL
+                      )
+                      AND NOT EXISTS (
+                        SELECT 1 FROM core_role_permissions rp2
+                        WHERE rp2.role_id = r.id AND rp2.permission_id = $2
+                      )
+                    """,
+                    tenant_id,
+                    perm_id,
+                )
+                # asyncpg returns e.g. "INSERT 0 3"
+                try:
+                    granted += int(str(result).split()[-1])
+                except Exception:
+                    pass
+            if granted:
+                logger.info(
+                    f"租户 {tenant_id} 行业模块 {app_code} 已向持有行业包入口权限的角色授予 {granted} 条权限"
+                )
+            return granted
+        finally:
+            await conn.close()
 
     @staticmethod
     async def _collect_module_menu_items(tenant_id: int) -> List[Dict[str, Any]]:

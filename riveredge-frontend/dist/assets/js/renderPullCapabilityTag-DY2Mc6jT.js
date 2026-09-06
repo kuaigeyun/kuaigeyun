@@ -1,0 +1,1 @@
+import{j as r}from"./vendor-CC_RGxZu.js";import{M as o}from"./statusBadges-30XwrE6e.js";function t(e,i,n){return e?r.jsx(o,{color:"success",children:i}):r.jsx(o,{color:"warning",children:n})}export{t as r};
