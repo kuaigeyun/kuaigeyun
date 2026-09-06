@@ -9,10 +9,14 @@ from core.services.scheduling import script_service as module
 
 
 def setup(monkeypatch, kind="python"):
-    script = SimpleNamespace(is_active=True, is_running=False, type=kind,
+    script = SimpleNamespace(uuid="fixture", is_active=True, is_running=False, type=kind,
         content="fixture", config={}, save=AsyncMock())
     monkeypatch.setattr(module.settings, "ENABLE_SCRIPT_EXECUTION", True)
     monkeypatch.setattr(module.ScriptService, "get_script_by_uuid", AsyncMock(return_value=script))
+    # 隔离数据库执行权更新，使调度用例专注于进程等待、超时和取消行为。
+    query = MagicMock()
+    query.update = AsyncMock(return_value=1)
+    monkeypatch.setattr(module.Script, "filter", MagicMock(return_value=query))
     return script, SimpleNamespace(async_execution=False, parameters={})
 
 
