@@ -14,12 +14,13 @@ Author: RiverEdge Team
 Date: 2026-02-28
 """
 
+from apps.kuaizhizao.utils.stock_posting import atomic_stock_change, idempotent_stock_change
+
 from decimal import Decimal
 from typing import Optional, Dict, Any
 from datetime import date
 from loguru import logger
-from tortoise.exceptions import IntegrityError
-from tortoise.transactions import atomic, in_transaction
+from tortoise.transactions import in_transaction
 
 from apps.kuaizhizao.models.material_stock_movement import (
     MaterialStockMovement,
@@ -143,7 +144,7 @@ class InventoryService:
         remark: Optional[str] = None,
         idempotency_key: Optional[str] = None,
     ) -> None:
-        """余额变更后追加流水；幂等键冲突时跳过（视为已过账）。"""
+        """追加库存流水；写入失败必须回滚余额，由事务入口统一处理幂等。"""
         from infra.exceptions.exceptions import ValidationError
         from apps.master_data.models.material import Material
 
@@ -166,13 +167,6 @@ class InventoryService:
                 f"单据库存过账必须指定操作人: source={source_type}/{source_doc_id} "
                 f"doc={source_doc_code or ''}"
             )
-
-        if idempotency_key:
-            exists = await MaterialStockMovement.filter(
-                tenant_id=tenant_id, idempotency_key=idempotency_key
-            ).exists()
-            if exists:
-                return
 
         mat = await Material.get_or_none(
             tenant_id=tenant_id, id=material_id, deleted_at__isnull=True
@@ -201,39 +195,33 @@ class InventoryService:
                 to_warehouse_id
             )
 
-        try:
-            await MaterialStockMovement.create(
-                tenant_id=tenant_id,
-                material_id=material_id,
-                material_code=material_code,
-                material_name=material_name,
-                batch_no=batch_no,
-                movement_type=mt,
-                quantity=Decimal(str(quantity)),
-                qty_before=qty_before,
-                qty_after=qty_after,
-                from_warehouse_id=from_warehouse_id,
-                from_warehouse_name=from_warehouse_name,
-                to_warehouse_id=to_warehouse_id,
-                to_warehouse_name=to_warehouse_name,
-                balance_warehouse_id=balance_warehouse_id,
-                source_doc_type=source_type,
-                source_doc_id=source_doc_id,
-                source_doc_code=source_doc_code,
-                work_order_id=work_order_id,
-                work_order_code=work_order_code,
-                operator_id=operator_id,
-                operator_name=operator_name,
-                remark=remark,
-                idempotency_key=idempotency_key,
-                created_by=operator_id,
-                created_by_name=operator_name,
-            )
-        except IntegrityError:
-            logger.info(
-                f"MaterialStockMovement idempotent skip key={idempotency_key} "
-                f"tenant={tenant_id}"
-            )
+        await MaterialStockMovement.create(
+            tenant_id=tenant_id,
+            material_id=material_id,
+            material_code=material_code,
+            material_name=material_name,
+            batch_no=batch_no,
+            movement_type=mt,
+            quantity=Decimal(str(quantity)),
+            qty_before=qty_before,
+            qty_after=qty_after,
+            from_warehouse_id=from_warehouse_id,
+            from_warehouse_name=from_warehouse_name,
+            to_warehouse_id=to_warehouse_id,
+            to_warehouse_name=to_warehouse_name,
+            balance_warehouse_id=balance_warehouse_id,
+            source_doc_type=source_type,
+            source_doc_id=source_doc_id,
+            source_doc_code=source_doc_code,
+            work_order_id=work_order_id,
+            work_order_code=work_order_code,
+            operator_id=operator_id,
+            operator_name=operator_name,
+            remark=remark,
+            idempotency_key=idempotency_key,
+            created_by=operator_id,
+            created_by_name=operator_name,
+        )
 
     @staticmethod
     def _material_batch_no_lookup_q(batch_no: Optional[str]):
@@ -584,6 +572,7 @@ class InventoryService:
             await batch.save()
 
     @staticmethod
+    @idempotent_stock_change
     async def _increase_stock_no_atomic(
         tenant_id: int,
         material_id: int,
@@ -858,7 +847,7 @@ class InventoryService:
             raise
 
     @staticmethod
-    @atomic()
+    @atomic_stock_change
     async def increase_stock(
         tenant_id: int,
         material_id: int,
@@ -949,6 +938,7 @@ class InventoryService:
             await existing.save()
 
     @staticmethod
+    @idempotent_stock_change
     async def _decrease_stock_no_atomic(
         tenant_id: int,
         material_id: int,
@@ -1562,7 +1552,7 @@ class InventoryService:
             raise
 
     @staticmethod
-    @atomic()
+    @atomic_stock_change
     async def decrease_stock(
         tenant_id: int,
         material_id: int,
@@ -1642,7 +1632,7 @@ class InventoryService:
         return Decimal(str(info["available_quantity"]))
 
     @staticmethod
-    @atomic()
+    @atomic_stock_change
     async def adjust_inventory(
         tenant_id: int,
         material_id: int,

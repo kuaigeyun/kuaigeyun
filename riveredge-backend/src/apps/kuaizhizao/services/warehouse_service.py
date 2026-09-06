@@ -7,6 +7,7 @@ Author: Luigi Lu
 Date: 2025-12-30
 """
 
+from apps.kuaizhizao.utils.stock_posting import serialize_stock_document
 from typing import List, Optional, Dict, Any, Tuple, Iterable
 from datetime import datetime, date, timedelta
 from decimal import Decimal
@@ -2137,6 +2138,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
             flow_revoke=_do_revoke,
         )
 
+    @serialize_stock_document("production_picking", "picking_id")
     async def confirm_picking(
         self,
         tenant_id: int,
@@ -2390,6 +2392,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                     )
             return updated_picking
 
+    @serialize_stock_document("production_picking", "picking_id")
     async def withdraw_picking_confirmation(
         self,
         tenant_id: int,
@@ -3752,6 +3755,7 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
         )
         return True
 
+    @serialize_stock_document("production_return", "return_id")
     async def confirm_return(
         self,
         tenant_id: int,
@@ -3901,6 +3905,7 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
                 await ProductionReturn.get(tenant_id=tenant_id, id=return_id)
             )
 
+    @serialize_stock_document("production_return", "return_id")
     async def withdraw_return_confirmation(
         self,
         tenant_id: int,
@@ -4279,6 +4284,7 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
         )
         return await enrich_production_receipts_with_customer(tenant_id, receipts, responses)
 
+    @serialize_stock_document("finished_goods_receipt", "receipt_id")
     async def confirm_receipt(
         self,
         tenant_id: int,
@@ -4478,6 +4484,7 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
             updated_receipt = await self.get_finished_goods_receipt_by_id(tenant_id, receipt_id)
             return updated_receipt
 
+    @serialize_stock_document("finished_goods_receipt", "receipt_id")
     async def withdraw_receipt_confirmation(
         self,
         tenant_id: int,
@@ -6076,6 +6083,7 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
             flow_revoke=_do_revoke,
         )
 
+    @serialize_stock_document("sales_delivery", "delivery_id")
     async def withdraw_delivery_confirmation(
         self,
         tenant_id: int,
@@ -7262,6 +7270,7 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
                 await oi.save()
                 qty -= take
 
+    @serialize_stock_document("sales_delivery", "delivery_id")
     async def confirm_delivery(
         self,
         tenant_id: int,
@@ -8890,6 +8899,7 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
             receipts, out, "purchase", item_counts=item_counts, item_previews=item_previews
         )
 
+    @serialize_stock_document("purchase_receipt", "receipt_id")
     async def confirm_receipt(
         self,
         tenant_id: int,
@@ -9306,6 +9316,7 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         # #endregion
         return updated_receipt
 
+    @serialize_stock_document("purchase_receipt", "receipt_id")
     async def withdraw_receipt_confirmation(
         self,
         tenant_id: int,

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from apps.kuaizhizao.utils.stock_posting import serialize_stock_document
 import json
 import uuid
 from datetime import datetime
@@ -245,6 +246,7 @@ class SemiFinishedGoodsReceiptService(AppBaseService[SemiFinishedGoodsReceipt]):
 
         return await enrich_production_receipts_with_customer(tenant_id, receipts, responses)
 
+    @serialize_stock_document("semi_finished_goods_receipt", "receipt_id")
     async def confirm_receipt(
         self,
         tenant_id: int,
@@ -421,6 +423,7 @@ class SemiFinishedGoodsReceiptService(AppBaseService[SemiFinishedGoodsReceipt]):
 
             return await self.get_semi_finished_goods_receipt_by_id(tenant_id, receipt_id)
 
+    @serialize_stock_document("semi_finished_goods_receipt", "receipt_id")
     async def withdraw_receipt_confirmation(
         self,
         tenant_id: int,
