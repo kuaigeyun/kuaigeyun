@@ -208,6 +208,13 @@ async def handle_database_restore_requested(ctx: TaskContext, step: TaskStep) ->
             logger.info(f"已创建恢复前备份: {pre_backup.uuid} -> {final_zip_path}")
         except Exception as e:
             logger.exception(f"创建恢复前备份失败: {e}")
+            await _mark_restore_status(
+                backup_uuid,
+                status="failed",
+                error_message=f"恢复前备份失败，已终止恢复: {e}",
+                mark_completed=True,
+            )
+            return
         finally:
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir, ignore_errors=True)
