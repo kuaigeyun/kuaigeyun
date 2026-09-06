@@ -28,7 +28,7 @@ import {
 } from '../../../../../components/layout-templates';
 import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions';
 import { getApiErrorMessage } from '../../../../../utils/errorHandler';
-import { formatDateTimeBySiteSetting } from '../../../../../utils/format';
+import { formatDateTimeBySiteSetting, todaySiteDateString } from '../../../../../utils/format';
 import { downloadRecordsAsXlsx, type ExportXlsxColumn } from '../../../../../utils/exportRecordsXlsx';
 import { fetchAllListItems } from '../../../../../utils/fetchAllListPages';
 import { renderDocumentStatusTag } from '../../../../../utils/documentLifecycleStatusTag';
@@ -431,7 +431,7 @@ const QualityComplaintsPage: React.FC = () => {
             downloadRecordsAsXlsx(
               rows,
               EXPORT_COLUMNS,
-              `quality-complaints-${new Date().toISOString().slice(0, 10)}`,
+              `quality-complaints-${todaySiteDateString()}`,
             );
           } catch (e) {
             messageApi.error(getApiErrorMessage(e, t('common.exportFailed')));

@@ -378,7 +378,9 @@ const PositionListPage: React.FC = () => {
           deleteButtonText={t('common.batchDelete')}
           deleteConfirmTitle={t('field.position.batchDeleteTitle')}
           deleteConfirmDescription={(c) => t('field.position.batchDeleteDescription', { count: c })}
-          rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
+          enableRowSelection
+          selectedRowKeys={selectedRowKeys}
+          onRowSelectionChange={setSelectedRowKeys}
           showImportButton={true}
           onImport={handleImport}
           // 过渡：columns 自动生成模板；后续可改为 buildFactoryImportTemplate 显式模板

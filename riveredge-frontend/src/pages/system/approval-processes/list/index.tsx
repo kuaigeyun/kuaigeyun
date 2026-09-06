@@ -433,10 +433,6 @@ const ApprovalProcessListPage: React.FC = () => {
           }
         }}
         rowKey="uuid"
-        rowSelection={{
-          selectedRowKeys,
-          onChange: setSelectedRowKeys,
-        }}
         showAdvancedSearch={true}
         showCreateButton
         createButtonText={t('pages.system.approvalProcesses.createButton')}
@@ -444,6 +440,9 @@ const ApprovalProcessListPage: React.FC = () => {
         showDeleteButton
         onDelete={handleBatchDelete}
         deleteButtonText={t('common.batchDelete')}
+        enableRowSelection
+        selectedRowKeys={selectedRowKeys}
+        onRowSelectionChange={setSelectedRowKeys}
         toolBarRender={() => []}
         showExportButton
         onExport={async (type, keys, pageData) => {

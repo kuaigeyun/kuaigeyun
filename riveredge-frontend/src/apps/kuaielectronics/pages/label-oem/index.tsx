@@ -43,7 +43,7 @@ export default function KuaiElectronicsLabelOemPage() {
       key: 'oem-packs',
       label: t('app.kuaielectronics.labelOem.tabPacks'),
       children: (
-        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="medium">
           <Alert
             type="info"
             showIcon

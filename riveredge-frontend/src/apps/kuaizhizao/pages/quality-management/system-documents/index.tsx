@@ -40,6 +40,7 @@ const SystemDocumentsPage: React.FC = () => {
   const { message: messageApi } = App.useApp();
   const actionRef = useRef<ActionType>(null);
   const formRef = useRef<any>(null);
+  const tableRowsRef = useRef<QmsSystemDocument[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<QmsSystemDocument | null>(null);
   const [zone, setZone] = useState<CatalogZone>('formal');
@@ -362,6 +363,26 @@ const SystemDocumentsPage: React.FC = () => {
                 ]
               : []
           }
+          enableRowSelection={canDelete}
+          showDeleteButton={canDelete}
+          onTableDataChange={(rows) => {
+            tableRowsRef.current = rows;
+          }}
+          onDelete={async (keys) => {
+            const keySet = new Set(keys.map((k) => Number(k)));
+            const deletable = tableRowsRef.current.filter(
+              (row) => keySet.has(row.id) && row.status !== 'effective',
+            );
+            if (deletable.length === 0) {
+              messageApi.warning(t('app.kuaizhizao.quality.qms.messages.batchDeleteEmpty'));
+              return;
+            }
+            await Promise.all(
+              deletable.map((row) => qualityQmsApi.systemDocuments.delete(row.id)),
+            );
+            messageApi.success(t('common.batchDeleteSuccess', { count: deletable.length }));
+            actionRef.current?.reload();
+          }}
           request={async (params) => {
             const pageSize = params.pageSize || 20;
             const skip = ((params.current || 1) - 1) * pageSize;

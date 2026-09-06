@@ -121,6 +121,7 @@ const DataBackupsPage: React.FC = () => {
   const [allBackups, setAllBackups] = useState<DataBackup[]>([]); // 用于统计
   const [workerHealth, setWorkerHealth] = useState<BackupWorkerHealth | null>(null);
   const [workerHealthLoading, setWorkerHealthLoading] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const loadWorkerHealth = React.useCallback(async (silent: boolean = true) => {
     if (!silent) {
@@ -301,6 +302,20 @@ const DataBackupsPage: React.FC = () => {
       loadWorkerHealth(true);
     } catch (error: any) {
       messageApi.error(error.message || t('pages.system.dataBackups.deleteFailed'));
+    }
+  };
+
+  const handleBatchDelete = async (keys: React.Key[]) => {
+    if (keys.length === 0) return;
+    try {
+      await Promise.all(keys.map((key) => deleteBackup(String(key))));
+      messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+      loadWorkerHealth(true);
+    } catch (error: any) {
+      messageApi.error(error?.message || t('pages.system.dataBackups.deleteFailed'));
+      actionRef.current?.reload();
     }
   };
 
@@ -816,6 +831,16 @@ const DataBackupsPage: React.FC = () => {
           showCreateButton
           createButtonText={t('pages.system.dataBackups.createButton')}
           onCreate={() => setCreateModalVisible(true)}
+          showDeleteButton
+          onDelete={handleBatchDelete}
+          deleteButtonText={t('common.batchDelete')}
+          deleteConfirmTitle={t('pages.system.dataBackups.batchDeleteTitle')}
+          deleteConfirmDescription={(c) =>
+            t('pages.system.dataBackups.batchDeleteDescription', { count: c })
+          }
+          enableRowSelection
+          selectedRowKeys={selectedRowKeys}
+          onRowSelectionChange={setSelectedRowKeys}
           toolBarRender={() => [
             <Space key="worker-status" size="medium">
               <Tooltip

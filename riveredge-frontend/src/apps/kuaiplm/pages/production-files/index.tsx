@@ -1,5 +1,5 @@
 /**
- * 生产文件中心（R-06）
+ * 生产文件（R-06）
  * PE：工序→型号，生产方仅最新生产版；研发：项目→发布日，保留历史。
  * 不替代产品固件（R-15）与 R-16 扫码打印。
  */
@@ -16,14 +16,14 @@ import {
   ProFormTextArea,
   ProFormUploadDragger,
 } from '@ant-design/pro-components';
-import { App, Button, Descriptions, Input, Modal, Result, Table, Tabs } from 'antd';
+import { App, Button, Descriptions, Input, Modal, Result, Table } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { UniTable } from '../../../../components/uni-table';
 import { rowActionKind } from '../../../../components/uni-action';
 import {
   DetailDrawerTemplate,
   FormModalTemplate,
-  ListPageTemplate,
+  MultiTabListPageTemplate,
   detailDrawerBasicColumn,
 } from '../../../../components/layout-templates';
 import { detailDrawerDescriptionItems } from '../../../../components/layout-templates/detailDrawerDescriptionItems';
@@ -513,75 +513,79 @@ const ProductionFilesPage: React.FC = () => {
     return keys.map((k) => ({ label: typeLabel(k), value: k }));
   }, [isPe, typeLabel]);
 
+  const renderCatalogTable = (kind: ProductionFileCatalogKind) => (
+    <UniTable<ProductionFile>
+      key={kind}
+      actionRef={actionRef}
+      rowKey="id"
+      columns={columns}
+      permissionResource={RESOURCE}
+      columnPersistenceId={`apps.kuaiplm.pages.production-files.${kind}.v2`}
+      enableRowSelection
+      selectedRowKeys={selectedRowKeys}
+      onSelectedRowKeysChange={setSelectedRowKeys}
+      onTableDataChange={(rows) => {
+        tableRowsRef.current = rows;
+      }}
+      showCreateButton={perms.canCreate}
+      createButtonText={t('app.kuaiplm.productionFile.createButton')}
+      onCreate={openCreate}
+      showExportButton={perms.canAction?.('export')}
+      onExport={async () => {
+        const items = await fetchAllListItems((skip, limit) =>
+          productionFileApi.list({ skip, limit, catalog_kind: kind }),
+        );
+        if (!items.length) {
+          messageApi.warning(t('app.kuaiplm.productionFile.messages.noExportData'));
+          return;
+        }
+        await downloadRecordsAsXlsx(
+          items.map((r) => ({
+            ...r,
+            catalog_kind_label: catalogLabel(r.catalog_kind),
+            file_type_label: typeLabel(r.file_type),
+            status_label: statusLabel(r.status),
+          })),
+          EXPORT_COLUMNS,
+          `production-files-${kind}-${todaySiteDateString()}.xlsx`,
+        );
+      }}
+      toolBarRender={() => []}
+      headerTitle={t('app.kuaiplm.productionFile.title')}
+      request={async (params) => {
+        const res = await productionFileApi.list({
+          skip: ((params.current || 1) - 1) * (params.pageSize || 20),
+          limit: params.pageSize || 20,
+          keyword: params.keyword as string | undefined,
+          status: params.status as string | undefined,
+          catalog_kind: kind,
+        });
+        return { data: res.items, success: true, total: res.total };
+      }}
+      search={{ labelWidth: 'auto' }}
+    />
+  );
+
   return (
-    <ListPageTemplate>
-      <Tabs
-        activeKey={catalogKind}
-        onChange={(key) => {
+    <>
+      <MultiTabListPageTemplate
+        activeTabKey={catalogKind}
+        onTabChange={(key) => {
           setCatalogKind(key as ProductionFileCatalogKind);
           setSelectedRowKeys([]);
         }}
-        items={[
+        tabs={[
           {
             key: 'pe_production',
             label: catalogLabel('pe_production'),
+            children: renderCatalogTable('pe_production'),
           },
           {
             key: 'rd_tool',
             label: catalogLabel('rd_tool'),
+            children: renderCatalogTable('rd_tool'),
           },
         ]}
-        style={{ marginBottom: 8 }}
-      />
-      <UniTable<ProductionFile>
-        key={catalogKind}
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        permissionResource={RESOURCE}
-        columnPersistenceId={`apps.kuaiplm.pages.production-files.${catalogKind}.v1`}
-        enableRowSelection
-        selectedRowKeys={selectedRowKeys}
-        onSelectedRowKeysChange={setSelectedRowKeys}
-        onTableDataChange={(rows) => {
-          tableRowsRef.current = rows;
-        }}
-        showCreateButton={perms.canCreate}
-        createButtonText={t('app.kuaiplm.productionFile.createButton')}
-        onCreate={openCreate}
-        showExportButton={perms.canAction?.('export')}
-        onExport={async () => {
-          const items = await fetchAllListItems((skip, limit) =>
-            productionFileApi.list({ skip, limit, catalog_kind: catalogKind }),
-          );
-          if (!items.length) {
-            messageApi.warning(t('app.kuaiplm.productionFile.messages.noExportData'));
-            return;
-          }
-          await downloadRecordsAsXlsx(
-            items.map((r) => ({
-              ...r,
-              catalog_kind_label: catalogLabel(r.catalog_kind),
-              file_type_label: typeLabel(r.file_type),
-              status_label: statusLabel(r.status),
-            })),
-            EXPORT_COLUMNS,
-            `production-files-${catalogKind}-${todaySiteDateString()}.xlsx`,
-          );
-        }}
-        toolBarRender={() => []}
-        headerTitle={t('app.kuaiplm.productionFile.title')}
-        request={async (params) => {
-          const res = await productionFileApi.list({
-            skip: ((params.current || 1) - 1) * (params.pageSize || 20),
-            limit: params.pageSize || 20,
-            keyword: params.keyword as string | undefined,
-            status: params.status as string | undefined,
-            catalog_kind: catalogKind,
-          });
-          return { data: res.items, success: true, total: res.total };
-        }}
-        search={{ labelWidth: 'auto' }}
       />
 
       <FormModalTemplate
@@ -945,7 +949,7 @@ const ProductionFilesPage: React.FC = () => {
           placeholder={t('app.kuaiplm.productionFile.fields.receiversPlaceholder')}
         />
       </Modal>
-    </ListPageTemplate>
+    </>
   );
 };
 

@@ -692,6 +692,9 @@ const DepartmentListPage: React.FC = () => {
         deleteButtonText={t('common.batchDelete')}
         deleteConfirmTitle={t('field.department.batchDeleteTitle')}
         deleteConfirmDescription={(c) => t('field.department.batchDeleteDescription', { count: c })}
+        enableRowSelection
+        selectedRowKeys={selectedRowKeys}
+        onRowSelectionChange={setSelectedRowKeys}
         toolBarRender={() => [
           trialRunMode && (
           <Button {...rowActionKind('import')}
@@ -759,7 +762,6 @@ const DepartmentListPage: React.FC = () => {
           expandedRowKeys,
           onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as React.Key[]),
         }}
-        rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys) }}
         search={{ labelWidth: 'auto' }}
         showQuickJumper={false}
         showDatasetConfigButton

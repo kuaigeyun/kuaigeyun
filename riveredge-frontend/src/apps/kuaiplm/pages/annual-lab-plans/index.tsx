@@ -110,6 +110,24 @@ const AnnualLabPlansPage: React.FC = () => {
     void loadDetail(record.id);
   };
 
+  const handleBatchDelete = async (keys: React.Key[]) => {
+    const deletable = tableRowsRef.current.filter(
+      (r) =>
+        keys.includes(r.id as React.Key) &&
+        (r.status === 'draft' || r.status === 'rejected') &&
+        r.id != null,
+    );
+    if (!deletable.length) {
+      messageApi.warning(t('app.kuaiplm.annualLabPlan.deleteOnlyDraft'));
+      return;
+    }
+    for (const row of deletable) {
+      await annualLabPlanApi.delete(row.id!);
+    }
+    messageApi.success(t('common.batchDeleteSuccess', { count: deletable.length }));
+    actionRef.current?.reload();
+  };
+
   const openCreate = () => {
     setEditing(null);
     setModalOpen(true);
@@ -499,6 +517,11 @@ const AnnualLabPlansPage: React.FC = () => {
           perms.canCreate ? t('app.kuaiplm.annualLabPlan.createButton') : undefined
         }
         onCreate={perms.canCreate ? openCreate : undefined}
+        enableRowSelection={perms.canDelete}
+        showDeleteButton={perms.canDelete}
+        deleteConfirmTitle={t('common.batchDeleteTitle')}
+        deleteConfirmDescription={(count) => t('common.batchDeleteContent', { count })}
+        onDelete={handleBatchDelete}
         onTableDataChange={(rows) => {
           tableRowsRef.current = rows;
         }}

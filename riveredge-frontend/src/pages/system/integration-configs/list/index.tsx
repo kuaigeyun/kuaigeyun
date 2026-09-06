@@ -713,6 +713,9 @@ const IntegrationConfigListPage: React.FC = () => {
           deleteButtonText={t('common.batchDelete')}
           deleteConfirmTitle={t('pages.system.integrationConfigs.batchDeleteTitle')}
           deleteConfirmDescription={(c) => t('pages.system.integrationConfigs.batchDeleteDescription', { count: c })}
+          enableRowSelection
+          selectedRowKeys={selectedRowKeys}
+          onRowSelectionChange={setSelectedRowKeys}
           toolBarRender={() => [
             <Button key="wizard" icon={<ThunderboltOutlined />} onClick={() => setWizardVisible(true)}>
               {t('pages.system.integrationConfigs.createByWizard')}
@@ -737,10 +740,6 @@ const IntegrationConfigListPage: React.FC = () => {
               `integration-configs-${todaySiteDateString()}.xlsx`,
             );
             messageApi.success(t('pages.system.integrationConfigs.exportSuccess'));
-          }}
-          rowSelection={{
-            selectedRowKeys,
-            onChange: setSelectedRowKeys,
           }}
           viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('system.integrationConfigs')}

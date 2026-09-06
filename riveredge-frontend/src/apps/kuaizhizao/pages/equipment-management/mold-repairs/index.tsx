@@ -567,8 +567,11 @@ const MoldRepairsPage: React.FC = () => {
           showCreateButton={perms.canCreate}
           createButtonText={withSingleNewShortcutHint(t(`${P}.create`))}
           onCreate={handleCreate}
-          showDeleteButton={false}
-          enableRowSelection={false}
+          showDeleteButton={perms.canDelete}
+          deleteConfirmTitle={t('common.batchDeleteTitle')}
+          deleteConfirmDescription={(count) => t('common.batchDeleteContent', { count })}
+          onDelete={executeDelete}
+          enableRowSelection={perms.canDelete}
         />
       </ListPageTemplate>
 

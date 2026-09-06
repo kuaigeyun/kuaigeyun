@@ -3948,15 +3948,21 @@ const QuotationsPage: React.FC = () => {
             >
               {t('app.kuaizhizao.quotation.saveAsRevision')}
             </Button>,
-            <Button
-              key="toolbar-print-direct"
-              icon={<PrinterOutlined />}
-              disabled={!quotationPerms.canPrint}
-              onClick={() => void handleToolbarPrint(selectedRowKeys)}
-            >
-              {t('app.kuaizhizao.quotation.formalPrint')}
-            </Button>,
           ]}
+          rightToolBarActionsBeforeExport={
+            quotationPerms.canPrint
+              ? [
+                  <Button
+                    key="toolbar-print-direct"
+                    icon={<PrinterOutlined />}
+                    disabled={!quotationPerms.canPrint}
+                    onClick={() => void handleToolbarPrint(selectedRowKeys)}
+                  >
+                    {t('components.uniAction.print')}
+                  </Button>,
+                ]
+              : undefined
+          }
           showImportButton={true}
           onImport={handleListImport}
           importHeaders={quotationImportTemplate.importHeaders}
@@ -4186,7 +4192,7 @@ const QuotationsPage: React.FC = () => {
                 title={
                   detailCapabilityGates.printFormal.disabled
                     ? detailCapabilityGates.printFormal.title || t('app.kuaizhizao.quotation.formalPrintDenied')
-                    : t('app.kuaizhizao.quotation.formalPrint')
+                    : t('components.uniAction.print')
                 }
               >
                 <Button
@@ -4196,7 +4202,7 @@ const QuotationsPage: React.FC = () => {
                     !detailCapabilityGates.printFormal.disabled && handlePrint(quotationDetail)
                   }
                 >
-                  {t('app.kuaizhizao.quotation.formalPrint')}
+                  {t('components.uniAction.print')}
                 </Button>
               </Tooltip>
             </Space>

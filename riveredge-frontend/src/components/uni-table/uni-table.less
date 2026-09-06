@@ -203,24 +203,41 @@
   border-bottom-color: rgba(0, 0, 0, 0.12) !important;
 }
 
+/*
+ * rc-table 测宽行：th 内仍放表头文案供测宽（勿 visibility:hidden，否则 ResizeObserver
+ * 的 isVisible 门控会跳过测宽）。空表时若仍绘制，会与真正表头叠成「标题重复」。
+ */
 .uni-table-container .ant-table-tbody > tr.ant-table-measure-row {
   height: 0 !important;
+  max-height: 0 !important;
   line-height: 0 !important;
-  visibility: collapse;
+  border: none !important;
+  pointer-events: none !important;
 }
 
 .uni-table-container .ant-table-tbody > tr.ant-table-measure-row > .ant-table-measure-cell {
   height: 0 !important;
+  max-height: 0 !important;
   padding: 0 !important;
   border: none !important;
   line-height: 0 !important;
-  font-size: 0 !important;
   overflow: hidden !important;
+  /* 覆盖 antd tbody>tr>th 的表头色/字重，避免测宽文案透出 */
+  color: transparent !important;
+  background: transparent !important;
+  font-weight: normal !important;
 }
 
 .uni-table-container .ant-table-tbody > tr.ant-table-measure-row .ant-table-measure-cell-content {
   height: 0 !important;
+  max-height: 0 !important;
   overflow: hidden !important;
+  opacity: 0 !important;
+  color: transparent !important;
+  pointer-events: none !important;
+  white-space: nowrap !important;
+  /* 裁剪绘制，不改 layout，横向测宽仍可用文案 intrinsic width */
+  clip-path: inset(50%);
 }
 
 .uni-table-container .ant-table-tbody > tr > td:not(.uni-table-operation-cell):not(.uni-table-lifecycle-cell),
@@ -415,8 +432,7 @@
   overflow-x: hidden !important;
 }
 
-.uni-table-container.uni-table-natural-height.uni-table-empty.uni-table-empty-has-fixed .ant-table-wrapper .ant-table-content::-webkit-scrollbar:horizontal,
-.uni-table-container.uni-table-natural-height.uni-table-empty.uni-table-empty-has-fixed .ant-table-wrapper .ant-table-body::-webkit-scrollbar:horizontal,
+/* 无固定列的空表：不需要假横滚。有固定列的空表已取消钉列但保留完整 scroll.x，须露出横滚条，否则列被挤扁表头叠字。 */
 .uni-table-container.uni-table-natural-height.uni-table-empty:not(.uni-table-empty-has-fixed) .ant-table-wrapper .ant-table-content::-webkit-scrollbar:horizontal,
 .uni-table-container.uni-table-natural-height.uni-table-empty:not(.uni-table-empty-has-fixed) .ant-table-wrapper .ant-table-body::-webkit-scrollbar:horizontal {
   height: 0 !important;

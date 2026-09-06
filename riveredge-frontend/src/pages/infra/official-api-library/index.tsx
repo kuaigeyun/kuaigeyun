@@ -216,6 +216,19 @@ const OfficialApiLibraryPage: React.FC = () => {
         }
   };
 
+  const handleBatchDelete = async (keys: React.Key[]) => {
+    if (keys.length === 0) return;
+    try {
+      await Promise.all(keys.map((key) => deleteOfficialApiLibraryAdminPack(String(key))));
+      messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+      actionRef.current?.reload();
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      messageApi.error(err?.message || t('pages.infra.officialApiLibrary.deleteFailed'));
+      actionRef.current?.reload();
+    }
+  };
+
 
 
   const columns: ProColumns<OfficialApiLibraryPack>[] = useMemo(
@@ -461,6 +474,20 @@ const OfficialApiLibraryPage: React.FC = () => {
         showImportButton={false}
 
         showExportButton={false}
+
+        showDeleteButton
+
+        onDelete={handleBatchDelete}
+
+        deleteButtonText={t('common.batchDelete')}
+
+        deleteConfirmTitle={t('pages.infra.officialApiLibrary.batchDeleteTitle')}
+
+        deleteConfirmDescription={(c) =>
+          t('pages.infra.officialApiLibrary.batchDeleteDescription', { count: c })
+        }
+
+        enableRowSelection
 
         columnPersistenceId="infra-official-api-library-v3"
 

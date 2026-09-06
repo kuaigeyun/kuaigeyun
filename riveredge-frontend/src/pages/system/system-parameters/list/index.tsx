@@ -663,11 +663,16 @@ const SystemParameterListPage: React.FC = () => {
           showCreateButton
           createButtonText={t('field.systemParameter.createButton')}
           onCreate={handleCreate}
-          showDeleteButtondeleteConfirmTitle={t('field.systemParameter.batchDeleteTitle')}
-          deleteConfirmDescription={(count) => t('field.systemParameter.batchDeleteConfirm', { count: selectedRowKeys.length })}
-          
+          showDeleteButton
+          deleteConfirmTitle={t('field.systemParameter.batchDeleteTitle')}
+          deleteConfirmDescription={(count) =>
+            t('field.systemParameter.batchDeleteConfirm', { count })
+          }
           onDelete={handleBatchDelete}
           deleteButtonText={t('common.batchDelete')}
+          enableRowSelection
+          selectedRowKeys={selectedRowKeys}
+          onRowSelectionChange={setSelectedRowKeys}
           showExportButton
           onExport={async (type, keys, pageData) => {
             const res = await getSystemParameterList({ page: 1, page_size: 10000 });
@@ -684,10 +689,6 @@ const SystemParameterListPage: React.FC = () => {
               `system-parameters-${todaySiteDateString()}.xlsx`,
             );
             messageApi.success(t('field.systemParameter.exportSuccess'));
-          }}
-          rowSelection={{
-            selectedRowKeys,
-            onChange: setSelectedRowKeys,
           }}
           viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('system.systemParameters')}

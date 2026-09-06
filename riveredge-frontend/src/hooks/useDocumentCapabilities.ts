@@ -55,7 +55,7 @@ export const QUOTATION_CAPABILITY_REASON_MESSAGES: Record<string, string> = {
   'quotation.revoke_push.not_allowed': '仅已转订单且下游销售订单已删除时可撤回下推',
   'quotation.reopen.not_rejected': '仅已驳回的报价单可重新编辑',
   'quotation.revision.not_allowed': '仅非草稿的最新系列版本可新建修订版',
-  'quotation.print.not_allowed': '正式报价 PDF 须在审核通过、客户确认或已转单后生成',
+  'quotation.print.not_allowed': '须审核通过、客户确认或已转订单后方可打印',
 };
 
 export function quotationCapabilityReasonMessage(

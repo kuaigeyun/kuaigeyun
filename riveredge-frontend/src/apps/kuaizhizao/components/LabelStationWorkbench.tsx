@@ -18,7 +18,6 @@ import {
   Space,
   Switch,
   Table,
-  Tabs,
   Tag,
   Typography,
 } from 'antd';
@@ -33,8 +32,8 @@ import {
 } from '@ant-design/pro-components';
 import {
   FormModalTemplate,
-  ListPageTemplate,
   MODAL_CONFIG,
+  MultiTabListPageTemplate,
 } from '../../../components/layout-templates';
 import { useResourcePermissions } from '../../../hooks/useResourcePermissions';
 import { getApiErrorMessage } from '../../../utils/errorHandler';
@@ -50,7 +49,7 @@ const { Text, Paragraph } = Typography;
 export type LabelStationWorkbenchProps = {
   /** 追加到作业/配置之后的 Tab（如 OEM 签样包） */
   extraTabItems?: TabsProps['items'];
-  /** 卡片标题覆盖 */
+  /** 页头覆盖（OEM 替代页等） */
   title?: React.ReactNode;
 };
 
@@ -62,6 +61,7 @@ export function LabelStationWorkbench({ extraTabItems, title }: LabelStationWork
   const canOpenSession = Boolean(stationPerms.canAction?.('execute'));
   const canScan = Boolean(bindPerms.canAction?.('execute'));
 
+  const [activeTabKey, setActiveTabKey] = useState('work');
   const [stations, setStations] = useState<LabelStation[]>([]);
   const [models, setModels] = useState<LabelModelConfig[]>([]);
   const [stationId, setStationId] = useState<number>();
@@ -209,7 +209,7 @@ export function LabelStationWorkbench({ extraTabItems, title }: LabelStationWork
       key: 'work',
       label: t('app.kuaizhizao.labelStation.tabWork'),
       children: (
-        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="medium">
           {!sessionId ? (
             <Row gutter={16}>
               <Col span={8}>
@@ -516,10 +516,17 @@ export function LabelStationWorkbench({ extraTabItems, title }: LabelStationWork
   ];
 
   return (
-    <ListPageTemplate>
-      <Card title={title ?? t('app.kuaizhizao.labelStation.title')}>
-        <Tabs items={tabItems} />
-      </Card>
+    <>
+      <MultiTabListPageTemplate
+        activeTabKey={activeTabKey}
+        onTabChange={setActiveTabKey}
+        header={title}
+        tabs={(tabItems || []).map((item) => ({
+          key: String(item.key),
+          label: item.label,
+          children: item.children,
+        }))}
+      />
 
       <FormModalTemplate
         open={modelModalOpen}
@@ -675,7 +682,7 @@ export function LabelStationWorkbench({ extraTabItems, title }: LabelStationWork
           </Col>
         </Row>
       </FormModalTemplate>
-    </ListPageTemplate>
+    </>
   );
 }
 

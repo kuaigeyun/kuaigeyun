@@ -85,6 +85,8 @@ const SuperAdminTenantList: React.FC = () => {
   const [defaultTenantLoadingId, setDefaultTenantLoadingId] = useState<number | null>(null);
   const [appCenterPermTenant, setAppCenterPermTenant] = useState<Tenant | null>(null);
   const [appCenterPermOpen, setAppCenterPermOpen] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const tableRowsRef = useRef<Tenant[]>([]);
 
   const loadDefaultTenantId = useCallback(async () => {
     try {
@@ -884,6 +886,29 @@ const SuperAdminTenantList: React.FC = () => {
     }
   };
 
+  const handleBatchDelete = async (keys: React.Key[]) => {
+    if (keys.length === 0) return;
+    const keySet = new Set(keys.map((k) => Number(k)));
+    const deletable = tableRowsRef.current.filter(
+      (row) => keySet.has(row.id) && row.status === TenantStatus.SUSPENDED,
+    );
+    if (deletable.length === 0) {
+      message.warning(t('pages.infra.tenant.batchDeleteEmpty'));
+      return;
+    }
+    try {
+      await Promise.all(deletable.map((row) => deleteTenantBySuperAdmin(row.id)));
+      message.success(t('pages.infra.tenant.deleteSuccessContent', { count: deletable.length }));
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error?.message || error?.detail || t('pages.infra.tenant.deleteOpFailed', {
+        message: error?.message || t('common.operationFailed'),
+      }));
+      actionRef.current?.reload();
+    }
+  };
+
   /**
    * 关闭 Modal
    */
@@ -1318,6 +1343,22 @@ const SuperAdminTenantList: React.FC = () => {
       showCreateButton={true}
       createButtonText={t('pages.infra.tenant.createButton')}
       onCreate={handleCreate}
+      showDeleteButton
+      onDelete={handleBatchDelete}
+      deleteButtonText={t('common.batchDelete')}
+      deleteConfirmTitle={t('pages.infra.tenant.batchDeleteTitle')}
+      deleteConfirmDescription={(c) => t('pages.infra.tenant.batchDeleteDescription', { count: c })}
+      enableRowSelection
+      selectedRowKeys={selectedRowKeys}
+      onRowSelectionChange={setSelectedRowKeys}
+      onTableDataChange={(rows) => {
+        const flatten = (list: Tenant[]): Tenant[] =>
+          list.flatMap((row) => {
+            const children = (row as Tenant & { children?: Tenant[] }).children;
+            return children?.length ? [row, ...flatten(children)] : [row];
+          });
+        tableRowsRef.current = flatten(rows);
+      }}
       showImportButton={true}
       onImport={handleImport}
       importHeaders={[t('pages.infra.tenant.importHeaderName'), t('pages.infra.tenant.importHeaderDomain'), t('pages.infra.tenant.importHeaderPlan'), t('common.status'), t('pages.infra.tenant.importHeaderMaxUsers'), t('pages.infra.tenant.importHeaderMaxStorage'), t('pages.infra.tenant.importHeaderExpiresAt')]}

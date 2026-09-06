@@ -1,5 +1,5 @@
 /**
- * 生产文件中心 API（R-06）
+ * 生产文件 API（R-06）
  */
 
 import { api } from '../../../services/api';

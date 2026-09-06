@@ -297,6 +297,14 @@ export const SalesContractTermsManageModal: React.FC<SalesContractTermsManageMod
                     setEditingItem(null);
                     setItemFormOpen(true);
                   }}
+                  enableRowSelection
+                  showDeleteButton
+                  onDelete={async (keys) => {
+                    await Promise.all(keys.map((key) => salesContractTermApi.deleteItem(Number(key))));
+                    message.success(t('common.batchDeleteSuccess', { count: keys.length }));
+                    itemActionRef.current?.reload();
+                    loadAllItems();
+                  }}
                   pagination={{ pageSize: 10 }}
                   allowCustomScrollY
                   scroll={{ y: 360 }}
@@ -332,6 +340,13 @@ export const SalesContractTermsManageModal: React.FC<SalesContractTermsManageMod
                     setSelectedItemIds([]);
                     setGroupFormOpen(true);
                     loadAllItems();
+                  }}
+                  enableRowSelection
+                  showDeleteButton
+                  onDelete={async (keys) => {
+                    await Promise.all(keys.map((key) => salesContractTermApi.deleteGroup(Number(key))));
+                    message.success(t('common.batchDeleteSuccess', { count: keys.length }));
+                    groupActionRef.current?.reload();
                   }}
                   pagination={{ pageSize: 10 }}
                   allowCustomScrollY

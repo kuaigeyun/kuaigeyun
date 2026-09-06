@@ -556,28 +556,7 @@
             "permission": "kuaizhizao:production-execution-reporting:read"
           },
           {
-            "title": "app.kuaizhizao.menu.production-execution.production-daily-reports",
-            "path": "/apps/kuaizhizao/production-execution/production-daily-reports",
-            "sort_order": 3.2,
-            "meta": {
-              "module": "production",
-              "node": "production_daily"
-            },
-            "permission": "kuaizhizao:production-daily:read"
-          },
-          {
-            "title": "app.kuaizhizao.menu.production-execution.production-daily-templates",
-            "path": "/apps/kuaizhizao/production-execution/production-daily-templates",
-            "sort_order": 3.3,
-            "meta": {
-              "module": "production",
-              "node": "production_daily_template"
-            },
-            "permission": "kuaizhizao:production-daily-template:read"
-          },
-          {
-            "title": "app.kuaizhizao.menu.production-execution.rework-orders",
-            "path": "/apps/kuaizhizao/production-execution/rework-orders",
+            "title": "app.kuaizhizao.menu.production-execution.rework-orders",            "path": "/apps/kuaizhizao/production-execution/rework-orders",
             "sort_order": 4,
             "meta": {
               "module": "production",
@@ -608,7 +587,7 @@
           {
             "title": "app.kuaizhizao.menu.production-execution.packing-binding",
             "path": "/apps/kuaizhizao/production-execution/packing-binding",
-            "sort_order": 6,
+            "sort_order": 6.5,
             "meta": {
               "module": "production",
               "node": "work_order"
@@ -618,12 +597,32 @@
           {
             "title": "app.kuaizhizao.menu.production-execution.label-station",
             "path": "/apps/kuaizhizao/production-execution/label-station",
-            "sort_order": 6.5,
+            "sort_order": 6,
             "meta": {
               "module": "production",
               "node": "label_station"
             },
             "permission": "kuaizhizao:label-station:read"
+          },
+          {
+            "title": "app.kuaizhizao.menu.production-execution.production-daily-templates",
+            "path": "/apps/kuaizhizao/production-execution/production-daily-templates",
+            "sort_order": 7,
+            "meta": {
+              "module": "production",
+              "node": "production_daily_template"
+            },
+            "permission": "kuaizhizao:production-daily-template:read"
+          },
+          {
+            "title": "app.kuaizhizao.menu.production-execution.production-daily-reports",
+            "path": "/apps/kuaizhizao/production-execution/production-daily-reports",
+            "sort_order": 7.5,
+            "meta": {
+              "module": "production",
+              "node": "production_daily"
+            },
+            "permission": "kuaizhizao:production-daily:read"
           },
           {
             "title": "app.kuaizhizao.menu.production-execution.reporting.statistics",
@@ -6361,6 +6360,13 @@
                 "icon": "check",
                 "route": "/equipment/spot-checks",
                 "permission": "kuaizhizao:equipment-spot-check:read"
+              },
+              {
+                "key": "line-rebinds",
+                "label": "换线绑定",
+                "icon": "link",
+                "route": "/equipment/line-rebinds",
+                "permission": "kuaizhizao:equipment-line-rebind:read"
               },
               {
                 "key": "route-patrols",

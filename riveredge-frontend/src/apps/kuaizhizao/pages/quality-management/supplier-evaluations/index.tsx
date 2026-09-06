@@ -2499,7 +2499,7 @@ const SupplierEvaluationsPage: React.FC = () => {
 
                       EVAL_EXPORT_COLUMNS,
 
-                      `supplier-evaluations-${new Date().toISOString().slice(0, 10)}`,
+                      `supplier-evaluations-${todaySiteDateString()}`,
 
                     );
 

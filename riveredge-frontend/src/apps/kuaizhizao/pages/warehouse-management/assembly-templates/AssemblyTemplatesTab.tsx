@@ -547,6 +547,13 @@ export const AssemblyTemplatesTab: React.FC = () => {
         showCreateButton={canCreate}
         createButtonText={t('app.kuaizhizao.assemblyTemplate.createButton')}
         onCreate={openCreateModal}
+        enableRowSelection={canDelete}
+        showDeleteButton={canDelete}
+        onDelete={async (keys) => {
+          await Promise.all(keys.map((key) => assemblyTemplateApi.delete(String(key))));
+          messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+          actionRef.current?.reload();
+        }}
         request={async (params) => {
           const result = await assemblyTemplateApi.list({
             skip: (params.current! - 1) * params.pageSize!,

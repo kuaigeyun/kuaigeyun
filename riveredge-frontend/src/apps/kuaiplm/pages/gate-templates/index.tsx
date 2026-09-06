@@ -32,6 +32,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import { ListPageTemplate, TwoColumnLayout } from '../../../../components/layout-templates';
 import { useResourcePermissions } from '../../../../hooks/useResourcePermissions';
+import { useNewShortcut } from '../../../../hooks/useNewShortcut';
+import { withSingleNewShortcutHint } from '../../../../utils/globalNewShortcut';
 import {
   createGateTemplate,
   deleteGateTemplate,
@@ -169,6 +171,8 @@ const GateTemplateTabPanel: React.FC<GateTemplateTabPanelProps> = ({ projectType
       },
     });
   };
+
+  useNewShortcut(perms.canCreate ? handleCreateTemplate : undefined);
 
   const handleCopyTemplate = async (tpl: GateTemplateSummary) => {
     try {
@@ -364,7 +368,7 @@ const GateTemplateTabPanel: React.FC<GateTemplateTabPanelProps> = ({ projectType
       <Space style={{ marginBottom: 12, flexShrink: 0 }} wrap>
         {perms.canCreate ? (
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateTemplate}>
-            {t('app.kuaiplm.gateTemplates.actions.create')}
+            {withSingleNewShortcutHint(t('app.kuaiplm.gateTemplates.actions.create'))}
           </Button>
         ) : null}
         <Button icon={<ReloadOutlined />} onClick={() => void loadTemplates()}>

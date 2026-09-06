@@ -572,6 +572,14 @@ const UserTasksPage: React.FC = () => {
           showAdvancedSearch={true}
           showImportButton={false}
           showExportButton={true}
+          showDeleteButton
+          enableRowSelection
+          onDelete={async (keys) => {
+            await Promise.all(keys.map((key) => deleteUserTask(String(key))));
+            messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+            loadStats();
+            actionRef.current?.reload();
+          }}
           onExport={async (type, keys, pageData) => {
             try {
               const statusFilter = taskType === 'pending' ? 'pending' : (taskType === 'processed' ? 'approved,rejected' : undefined);

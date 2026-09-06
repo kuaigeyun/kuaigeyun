@@ -76,8 +76,8 @@
         ]
       },
       {
-        "title": "app.kuaioa.menu.group.hr",
-        "icon": "users",
+        "title": "app.kuaioa.menu.group.training",
+        "icon": "book",
         "sort_order": 3,
         "children": [
           {
@@ -115,12 +115,6 @@
             "path": "/apps/kuaioa/hr/training-templates",
             "permission": "kuaioa:training-template:read",
             "sort_order": 5
-          },
-          {
-            "title": "app.kuaioa.menu.leave",
-            "path": "/apps/kuaioa/hr/leave",
-            "permission": "kuaioa:leave:read",
-            "sort_order": 6
           }
         ]
       },
@@ -161,6 +155,12 @@
         "icon": "building",
         "sort_order": 6,
         "children": [
+          {
+            "title": "app.kuaioa.menu.leave",
+            "path": "/apps/kuaioa/hr/leave",
+            "permission": "kuaioa:leave:read",
+            "sort_order": 0
+          },
           {
             "title": "app.kuaioa.menu.announcements",
             "path": "/apps/kuaioa/admin/announcements",

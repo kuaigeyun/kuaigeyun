@@ -13,6 +13,7 @@ import {
 import { Alert, App, Button, Descriptions, Modal, Popconfirm } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { withSingleNewShortcutHint } from '../../../../../utils/globalNewShortcut';
 import { useSearchParams } from 'react-router-dom';
 import {
   DetailDrawerTemplate,
@@ -29,6 +30,7 @@ import {
 import { MarkerTag } from '../../../../../constants/statusBadges';
 import { apiRequest } from '../../../../../services/api';
 import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions';
+import { useNewShortcut } from '../../../../../hooks/useNewShortcut';
 import { getApiErrorMessage } from '../../../../../utils/errorHandler';
 import { formDateRangeFormItemProps } from '../../../../../utils/formDate';
 import { alignProColumns, SALES_DOC_LIST_FIELD_RANK } from '../../../../kuaizhizao/pages/sales-management/shared/documentFieldAlignment';
@@ -77,6 +79,12 @@ const FinanceNotesPage: React.FC<Props> = ({ direction, resource, columnPersiste
   const [detail, setDetail] = useState<FinanceNote | null>(null);
   const [actionModal, setActionModal] = useState<{ note: FinanceNote; action: string } | null>(null);
   const [partnerOptions, setPartnerOptions] = useState<{ label: string; value: number }[]>([]);
+
+  const openCreate = useCallback(() => {
+    setEditing(null);
+    setModalOpen(true);
+  }, []);
+  useNewShortcut(perms.canCreate ? openCreate : undefined);
 
   const isReceivable = direction === 'receivable';
   const partnerLabel = isReceivable
@@ -383,12 +391,9 @@ const FinanceNotesPage: React.FC<Props> = ({ direction, resource, columnPersiste
                   key="create"
                   type="primary"
                   icon={<PlusOutlined />}
-                  onClick={() => {
-                    setEditing(null);
-                    setModalOpen(true);
-                  }}
+                  onClick={openCreate}
                 >
-                  {t(`${NS}.create`)}
+                  {withSingleNewShortcutHint(t(`${NS}.create`))}
                 </Button>,
               ]
             : []

@@ -352,8 +352,9 @@ const DrawingDistributionsPage: React.FC = () => {
           tableRowsRef.current = rows;
         }}
         columns={alignProColumns(columns, GLOBAL_DOC_LIST_FIELD_RANK)}
-        columnPersistenceId="apps.master-data.pages.process.drawing-distributions.v2"
+        columnPersistenceId="apps.master-data.pages.process.drawing-distributions.v3"
         showCreateButton={perms.canCreate}
+        createButtonText={t('app.master-data.drawingDistributions.create')}
         onCreate={openCreate}
         showDeleteButton={perms.canDelete}
         onDelete={async (keys) => {
@@ -415,7 +416,11 @@ const DrawingDistributionsPage: React.FC = () => {
 
       <FormModalTemplate
         key={editing?.uuid ?? 'create'}
-        title={editing ? t('common.edit') : t('common.create')}
+        title={
+          editing
+            ? t('app.master-data.drawingDistributions.editTitle')
+            : t('app.master-data.drawingDistributions.createTitle')
+        }
         open={modalOpen}
         onClose={() => {
           setModalOpen(false);
@@ -453,9 +458,6 @@ const DrawingDistributionsPage: React.FC = () => {
               rules={[{ required: true, message: t('app.master-data.drawingDistributions.nameRequired') }]}
             />
           </Col>
-          <Col span={12}>
-            <ProFormTextArea name="remark" label={t('common.remark')} fieldProps={{ rows: 1 }} />
-          </Col>
         </Row>
         <UniTableDetail
           name="lines"
@@ -483,6 +485,11 @@ const DrawingDistributionsPage: React.FC = () => {
           ]}
           tableProps={{ size: 'small', style: { width: '100%', margin: 0 } }}
         />
+        <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col span={24}>
+            <ProFormTextArea name="remark" label={t('common.remark')} fieldProps={{ rows: 2 }} />
+          </Col>
+        </Row>
       </FormModalTemplate>
 
       <DetailDrawerTemplate

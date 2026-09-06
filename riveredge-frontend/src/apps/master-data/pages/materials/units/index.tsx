@@ -72,6 +72,8 @@ const UnitsPage: React.FC = () => {
   const perms = useResourcePermissions('master-data:material-unit');
   const unitActionRef = useRef<ActionType>(null);
   const convActionRef = useRef<ActionType>(null);
+  const unitRowsRef = useRef<MaterialUnit[]>([]);
+  const convRowsRef = useRef<MaterialUnitConversion[]>([]);
   const unitFormRef = useRef<ProFormInstance>(null);
   const convFormRef = useRef<ProFormInstance>(null);
   const lastUnitListParamsRef = useRef<Record<string, string | number | boolean | undefined>>({});
@@ -143,6 +145,36 @@ const UnitsPage: React.FC = () => {
     if (activeTabKey === 'units') openCreateUnit();
     else void openCreateConversion();
   });
+
+  const handleBatchDeleteUnits = useCallback(
+    async (keys: React.Key[]) => {
+      const deletable = unitRowsRef.current.filter(
+        (r) => keys.includes(r.uuid) && !r.is_system,
+      );
+      if (!deletable.length) {
+        messageApi.warning(t('app.master-data.units.systemCannotDelete'));
+        return;
+      }
+      for (const row of deletable) {
+        await materialUnitApi.delete(row.uuid);
+      }
+      refreshMaterialUnitCaches();
+      messageApi.success(t('common.batchDeleteSuccess', { count: deletable.length }));
+      unitActionRef.current?.reload();
+    },
+    [messageApi, t, refreshMaterialUnitCaches],
+  );
+
+  const handleBatchDeleteConversions = useCallback(
+    async (keys: React.Key[]) => {
+      for (const uuid of keys) {
+        await materialUnitApi.deleteConversion(String(uuid));
+      }
+      messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+      convActionRef.current?.reload();
+    },
+    [messageApi, t],
+  );
 
   const unitImportTemplate = useMemo(
     () =>
@@ -896,6 +928,14 @@ const UnitsPage: React.FC = () => {
                 showCreateButton={perms.canCreate}
                 createButtonText={withSingleNewShortcutHint(t('app.master-data.units.createTitle'))}
                 onCreate={openCreateUnit}
+                enableRowSelection={perms.canDelete}
+                showDeleteButton={perms.canDelete}
+                deleteConfirmTitle={t('common.batchDeleteTitle')}
+                deleteConfirmDescription={(count) => t('common.batchDeleteContent', { count })}
+                onDelete={handleBatchDeleteUnits}
+                onTableDataChange={(rows) => {
+                  unitRowsRef.current = rows;
+                }}
                 showImportButton
                 onImport={handleUnitImport}
                 importHeaders={unitImportTemplate.importHeaders}
@@ -973,6 +1013,14 @@ const UnitsPage: React.FC = () => {
                   t('app.master-data.units.createConversionTitle'),
                 )}
                 onCreate={() => void openCreateConversion()}
+                enableRowSelection={perms.canDelete}
+                showDeleteButton={perms.canDelete}
+                deleteConfirmTitle={t('common.batchDeleteTitle')}
+                deleteConfirmDescription={(count) => t('common.batchDeleteContent', { count })}
+                onDelete={handleBatchDeleteConversions}
+                onTableDataChange={(rows) => {
+                  convRowsRef.current = rows;
+                }}
                 showImportButton
                 onImport={handleConversionImport}
                 importHeaders={conversionImportTemplate.importHeaders}

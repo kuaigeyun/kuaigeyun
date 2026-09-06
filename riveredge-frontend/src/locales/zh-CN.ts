@@ -2468,10 +2468,8 @@ export default {
   // 应用名称翻译（统一规范）
   'app.kuaizhizao.name': '快制造',
   'app.kuaiiot.name': '快数采',
-  'app.kuaiiot.menu.group.monitoring': '监控中心',
-  'app.kuaiiot.menu.group.modelDevice': '设备模型',
-  'app.kuaiiot.menu.group.access': '接入管理',
-  'app.kuaiiot.menu.group.alertOps': '告警运维',
+  'app.kuaiiot.menu.group.monitorOps': '监控运维',
+  'app.kuaiiot.menu.group.modelAccess': '模型接入',
   'app.kuaiiot.menu.dashboard': '数采中心',
   'app.kuaiiot.menu.products': '产品模型',
   'app.kuaiiot.menu.connections': '接入配置',
@@ -2867,6 +2865,7 @@ export default {
   'app.kuaizhizao.menu.reports.fifo-exception-audit': 'FIFO异常稽核',
   'app.master-data.menu.materials.market-prices': '原料行情',
   'app.kuaioa.menu.group.hr': '人事管理',
+  'app.kuaioa.menu.group.training': '培训管理',
   'app.kuaioa.menu.group.compliance': '合规证照',
   'app.kuaioa.menu.group.assets': '固定资产',
   'app.kuaioa.menu.group.admin': '行政办公',
@@ -3128,7 +3127,7 @@ export default {
   'app.kuaiplm.menu.gate-templates': '阶段管理',
   'app.kuaiplm.menu.pending-inbox': '跨项目待办',
   'app.kuaiplm.menu.product-firmwares': '产品固件',
-  'app.kuaiplm.menu.production-files': '生产文件中心',
+  'app.kuaiplm.menu.production-files': '生产文件',
   'app.kuaiplm.menu.sample-process': '样品加工',
   'app.kuaiplm.menu.material-reviews': '物料评审',
   'app.kuaiplm.menu.bom-collaborations': 'BOM协同',
@@ -3189,6 +3188,7 @@ export default {
   'app.kuaiplm.annualLabPlan.closeSuccess': '已关闭',
   'app.kuaiplm.annualLabPlan.deleteConfirm': '确认删除该年度计划？',
   'app.kuaiplm.annualLabPlan.deleteSuccess': '已删除',
+  'app.kuaiplm.annualLabPlan.deleteOnlyDraft': '仅草稿或已驳回可删除，请重新勾选',
   'app.kuaiplm.annualLabPlan.loadFailed': '加载年度计划失败',
   'app.kuaiplm.annualLabPlan.issueSubmitSuccess': '领料已提交审批',
   'app.kuaiplm.annualLabPlan.issueApproveSuccess': '领料审批已推进',
@@ -3544,7 +3544,7 @@ export default {
   'app.kuaiplm.productFirmware.messages.noExportData': '暂无可导出的产品固件',
   'app.kuaiplm.productFirmware.messages.releaseSuccess': '已发布，可供生产下载',
   'app.kuaiplm.productFirmware.messages.deleteOnlyDraft': '仅草稿可删除，请重新勾选',
-  'app.kuaiplm.productionFile.title': '生产文件中心',
+  'app.kuaiplm.productionFile.title': '生产文件',
   'app.kuaiplm.productionFile.createButton': '新建生产文件',
   'app.kuaiplm.productionFile.createTitle': '新建生产文件',
   'app.kuaiplm.productionFile.editTitle': '编辑生产文件',
@@ -7050,8 +7050,8 @@ export default {
   'app.kuaizhizao.quotation.saveAsRevision': '创建新版',
   'app.kuaizhizao.quotation.saveAsRevisionHint':
     '将基于当前系列最新版复制为新的草稿修订，可在新版中调整明细与价格。是否继续？',
-  'app.kuaizhizao.quotation.formalPrint': '生成PDF',
-  'app.kuaizhizao.quotation.formalPrintDenied': '须审核通过、客户确认或已转订单后方可生成',
+  'app.kuaizhizao.quotation.formalPrint': '打印',
+  'app.kuaizhizao.quotation.formalPrintDenied': '须审核通过、客户确认或已转订单后方可打印',
   'app.kuaizhizao.quotation.saveDraft': '保存为草稿',
   'app.kuaizhizao.quotation.savedDraft': '报价单已保存为草稿',
   'app.kuaizhizao.quotation.completeRequired': '请完善必填项后再保存',
@@ -23037,6 +23037,8 @@ export default {
   'pages.system.dataBackups.restoreFailed': '备份恢复失败',
   'pages.system.dataBackups.deleteSuccess': '备份删除成功',
   'pages.system.dataBackups.deleteFailed': '删除备份失败',
+  'pages.system.dataBackups.batchDeleteTitle': '确定要批量删除选中的备份吗？',
+  'pages.system.dataBackups.batchDeleteDescription': '将删除 {{count}} 条备份记录，删除后无法恢复，请谨慎操作。',
   'pages.system.dataBackups.downloadStarted': '浏览器已开始下载',
   'pages.system.dataBackups.downloadFailed': '下载备份失败',
   'pages.system.dataBackups.fileNotOnServer':
@@ -25733,6 +25735,7 @@ export default {
   'pages.system.menus.batchDeleteDescription': '将删除 {{count}} 个菜单，删除后无法恢复，请谨慎操作。',
   'pages.system.menus.batchDeleteSuccess': '批量删除成功',
   'pages.system.menus.batchDeleteFailed': '批量删除失败',
+  'pages.system.menus.batchDeleteEmpty': '所选菜单不可删除（应用菜单或仍有子菜单）',
   'pages.system.menus.getDetailFailed': '获取菜单详情失败',
   'pages.system.menus.menuName': '菜单名称',
   'pages.system.menus.path': '路径',
@@ -26117,6 +26120,54 @@ export default {
   'pages.dashboard.updateLogTypeSection.improvement': '优化',
   'pages.dashboard.updateLogTypeSection.fix': '修复',
   'pages.dashboard.updateLogTypeSection.security': '安全',
+  'pages.dashboard.updateLog.entries.label-station-multitab-shell.title':
+    '标签工位改为多标签页直出',
+  'pages.dashboard.updateLog.entries.label-station-multitab-shell.description':
+    '去掉「标签工位」外层标题卡片，作业/配置等直接用 MultiTabListPageTemplate 展示，与生产文件等页一致。',
+  'pages.dashboard.updateLog.entries.print-label-unify.title':
+    '列表与详情打印文案统一',
+  'pages.dashboard.updateLog.entries.print-label-unify.description':
+    '报价单等原「生成PDF」按钮与提示统一为「打印」，与全站 UniAction 打印用语一致。',
+  'pages.dashboard.updateLog.entries.toolbar-print-right-slot.title':
+    '列表工具栏打印改到右侧',
+  'pages.dashboard.updateLog.entries.toolbar-print-right-slot.description':
+    '订单评审、报价单工具栏「打印」从左侧批量区移到右侧，与导入/导出/同步/指标卡同侧，符合 UniTable 数据操作区规范。',
+  'pages.dashboard.updateLog.entries.create-button-alt-n-hint.title':
+    '新建按钮补齐 Alt+N 提示',
+  'pages.dashboard.updateLog.entries.create-button-alt-n-hint.description':
+    '框架合同等自定义工具栏新建补上「(Alt+N)」文案；UniTable 在传入 onCreate 时即注册快捷键（含 showCreateButton=false），手机端新建按钮同步提示。票据与阶段门模板同类缺口一并补齐。',
+  'pages.dashboard.updateLog.entries.equipment-docs-batch-row-selection.title':
+    '设备模具工装单据补齐批量删除',
+  'pages.dashboard.updateLog.entries.equipment-docs-batch-row-selection.description':
+    '验收、报废、模具/工装维修保养与报废申请等列表开启多选，并接上工具栏批量删除（与领用单一致）。',
+  'pages.dashboard.updateLog.entries.system-infra-list-batch-row-selection.title':
+    '系统与平台列表多选批量删除接通',
+  'pages.dashboard.updateLog.entries.system-infra-list-batch-row-selection.description':
+    '部门/岗位/打印模板/系统参数/集成配置/审批流程改为 enableRowSelection 受控选中；菜单、数据备份、组织、官方接口库、工作时间段与个人任务补齐多选与批量删除；快数采连接/点位/边缘配置、质量内审/管评/体系文件、工作日历加班与停工、装配模板与合同条款管理同步接通；修复系统参数删除按钮属性粘连。',
+  'pages.dashboard.updateLog.entries.plm-master-gl-list-batch-delete.title':
+    '研发主数据科目等列表补齐批量删除',
+  'pages.dashboard.updateLog.entries.plm-master-gl-list-batch-delete.description':
+    '判定规则、年度实验室计划、计量单位与换算、工艺图纸、会计科目列表开启多选并接上工具栏批量删除。',
+  'pages.dashboard.updateLog.entries.kuaiai-showcase-scrollbar-gutter.title':
+    'KU-AI 页面加载左移修复',
+  'pages.dashboard.updateLog.entries.kuaiai-showcase-scrollbar-gutter.description':
+    'Showcase 不再自建可见纵滚层，并由 UniTabs 页壳随内容增高，避免加载左移与能力矩阵等内容溢出白底被裁切。',
+  'pages.dashboard.updateLog.entries.kuaiiot-menu-icon-depth-contract.title':
+    '快数采菜单图标层级规范',
+  'pages.dashboard.updateLog.entries.kuaiiot-menu-icon-depth-contract.description':
+    '快数采 manifest 仅保留 APP 与一级分组图标；数采中心、产品模型等下级菜单不再声明 icon，同步后侧栏与菜单管理一致。',
+  'pages.dashboard.updateLog.entries.kuaiiot-menu-two-groups.title':
+    '快数采一级菜单压为两组',
+  'pages.dashboard.updateLog.entries.kuaiiot-menu-two-groups.description':
+    '侧栏由监控中心/设备模型/接入管理/告警运维四组改为「监控运维」「模型接入」两组；叶子路由与权限不变，需菜单同步或恢复默认后生效。',
+  'pages.dashboard.updateLog.entries.unitable-empty-operation-column-width.title':
+    '空列表操作列过宽修复',
+  'pages.dashboard.updateLog.entries.unitable-empty-operation-column-width.description':
+    '无数据时操作列不再按三槽最坏预算撑到约 374px，避免销售变更单等页右固定组看起来不够靠右。',
+  'pages.dashboard.updateLog.entries.unitable-empty-measure-header-ghost.title':
+    '空列表表头叠字修复',
+  'pages.dashboard.updateLog.entries.unitable-empty-measure-header-ghost.description':
+    '无数据且含固定列时不再把 scroll.x 压成视口宽，避免客户池等页表头被挤扁叠字；并加强测宽行文案隐藏。',
   'pages.dashboard.updateLog.entries.kuaiplm-lab-judgment-rules-detail-props.title':
     '判定规则列表打开修复',
   'pages.dashboard.updateLog.entries.kuaiplm-lab-judgment-rules-detail-props.description':
@@ -26201,6 +26252,34 @@ export default {
     '体系文件正式目录与版本履历',
   'pages.dashboard.updateLog.entries.qms-document-inf05-zones.description':
     '质量管理体系文件区分正式目录与待审区；版本履历按 INF-05 可见性策略过滤；现行文件可升版进入待审后再发布。',
+  'pages.dashboard.updateLog.entries.kuaioa-hr-training-menu-group.title':
+    '人事管理改为培训管理',
+  'pages.dashboard.updateLog.entries.kuaioa-hr-training-menu-group.description':
+    '轻办公原「人事管理」改为「培训管理」；培训相关菜单直接挂其下。请假出差挪至「行政办公」，与公告、用章并列。',
+  'pages.dashboard.updateLog.entries.kuaiplm-production-file-multitab-rename.title':
+    '生产文件改名并改用多标签页',
+  'pages.dashboard.updateLog.entries.kuaiplm-production-file-multitab-rename.description':
+    '快研发菜单与页面标题由「生产文件中心」改为「生产文件」；列表改为 MultiTabListPageTemplate，PE 生产软件与研发工具产测分标签展示。',
+  'pages.dashboard.updateLog.entries.production-daily-menu-order.title':
+    '生产执行菜单调整日报位置',
+  'pages.dashboard.updateLog.entries.production-daily-menu-order.description':
+    '「日报模板」「生产日报」调整到装箱绑定之后、报工统计之前，与标签工位装箱作业区段相邻。',
+  'pages.dashboard.updateLog.entries.equipment-line-rebind-menu-mount.title':
+    '设备换线绑定菜单补挂',
+  'pages.dashboard.updateLog.entries.equipment-line-rebind-menu-mount.description':
+    '前端快制造 manifest 补齐设备换线绑定导航与权限码，并与后端 mobile_workbench 同步挂上换线绑定入口，避免有页无菜单。',
+  'pages.dashboard.updateLog.entries.timezone-export-filename-site-day.title':
+    '导出文件名改用站点业务日',
+  'pages.dashboard.updateLog.entries.timezone-export-filename-site-day.description':
+    '质量投诉、供应商评价导出文件名与分析中心另存报表编码中的日期，改为站点时区业务日，不再用 UTC 的 toISOString 截日。',
+  'pages.dashboard.updateLog.entries.inf08-drawing-distribution-shell.title':
+    '图档发放试点页壳契约补齐',
+  'pages.dashboard.updateLog.entries.inf08-drawing-distribution-shell.description':
+    'INF-08 试点图档发放：新建文案改为「新建图档发放」，表单竖序调整为表头、明细、备注；列持久化升至 v3。移动扫码试点定为设备点检新建页，与 PC 同权限资源。',
+  'pages.dashboard.updateLog.entries.kuaiplm-firmware-inf05.title':
+    '产品固件版本可见性对齐 INF-05',
+  'pages.dashboard.updateLog.entries.kuaiplm-firmware-inf05.description':
+    '快研产品固件列表与详情按 INF-05 受众过滤：使用方仅见项目最新已发布版，制定方可见本人草稿履历，管理/总查看可见全历史；生产下载上下文仅最新生产生效版。发布时自动作废同项目先前已发布版，保证生产侧唯一现行固件。',
   'pages.dashboard.updateLog.entries.kuaielectronics-label-oem-pack.title':
     '电子制造 OEM 标签签样包',
   'pages.dashboard.updateLog.entries.kuaielectronics-label-oem-pack.description':
@@ -28297,6 +28376,8 @@ export default {
     '确定删除「{{name}}」（{{packId}}）？删除后各部署将无法再从官方库安装该包。',
   'pages.infra.officialApiLibrary.deleteSuccess': '接口包已删除',
   'pages.infra.officialApiLibrary.deleteFailed': '删除接口包失败',
+  'pages.infra.officialApiLibrary.batchDeleteTitle': '确定要批量删除选中的官方接口包吗？',
+  'pages.infra.officialApiLibrary.batchDeleteDescription': '将删除 {{count}} 个接口包，删除后无法恢复，请谨慎操作。',
   'pages.infra.admin.pageTitle': '平台管理员信息',
   'pages.infra.admin.editModalTitle': '编辑平台超级管理员',
   'pages.infra.admin.id': 'ID',
@@ -28552,6 +28633,9 @@ export default {
   'pages.infra.tenant.deleteConfirmContent': '确定要删除该组织吗？仅停用且无业务单据的组织可删除；删除后组织将被暂停（软删除）。',
   'pages.infra.tenant.deleteRowConfirmTitle': '确认删除组织',
   'pages.infra.tenant.deleteRowConfirmContent': '仅已暂停且无业务单据的组织可删除，确定继续吗？',
+  'pages.infra.tenant.batchDeleteTitle': '确定要批量删除选中的组织吗？',
+  'pages.infra.tenant.batchDeleteDescription': '仅已暂停且无业务单据的组织可删除。将尝试删除 {{count}} 条记录。',
+  'pages.infra.tenant.batchDeleteEmpty': '所选记录中没有可删除的已暂停组织',
   'pages.infra.tenant.deleteConfirmOk': '确认删除',
   'pages.infra.tenant.deleting': '正在删除组织',
   'pages.infra.tenant.deletePreparing': '准备删除 {{count}} 个组织...',
@@ -31171,6 +31255,7 @@ export default {
   'app.kuaizhizao.quality.qms.messages.obsoleteSuccess': '文件已作废',
   'app.kuaizhizao.quality.qms.messages.publishSuccess': '文件已发布',
   'app.kuaizhizao.quality.qms.messages.rejectSuccess': '已驳回，驳回版本不进正式目录',
+  'app.kuaizhizao.quality.qms.messages.batchDeleteEmpty': '所选记录中没有可删除的文件（生效中不可删）',
   'app.kuaizhizao.quality.qms.nextReviewAt': '下次评审日期',
   'app.kuaizhizao.quality.qms.noPermission': '暂无查看权限',
   'app.kuaizhizao.quality.qms.outputsSummary': '评审输出',
@@ -31452,6 +31537,9 @@ export default {
   'app.master-data.drawingDistributions.linesRequired': '请至少添加一行发放明细',
   'app.master-data.drawingDistributions.name': '发放单名称',
   'app.master-data.drawingDistributions.nameRequired': '请输入发放单名称',
+  'app.master-data.drawingDistributions.create': '新建图档发放',
+  'app.master-data.drawingDistributions.createTitle': '新建图档发放',
+  'app.master-data.drawingDistributions.editTitle': '编辑图档发放',
   'app.master-data.drawingDistributions.policyLabel': '启用发放策略',
   'app.master-data.drawingDistributions.policyUpdated': '发放策略已更新',
   'app.master-data.drawingDistributions.recall': '撤回发放',

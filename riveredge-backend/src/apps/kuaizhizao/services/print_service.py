@@ -375,7 +375,7 @@ async def _html_to_pdf_bytes(html_string: str, *, tenant_id: Optional[int] = Non
     except Exception as e:
         logger.exception("打印 PDF 子进程失败")
         raise BusinessLogicError(
-            f"无法生成 PDF：{type(e).__name__}: {e}"
+            f"打印失败：{type(e).__name__}: {e}"
         ) from e
     return pdf, "playwright"
 

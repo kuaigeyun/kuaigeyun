@@ -719,6 +719,30 @@ ${data.previewUrl ? `<img src="${escapeHtml(data.previewUrl)}" alt="${escapeHtml
     [messageApi, t, selectedRowUuid, detail?.uuid],
   );
 
+  const drawingRowsRef = useRef<EngineeringDrawing[]>([]);
+
+  const handleBatchDeleteDrawings = useCallback(
+    async (keys: React.Key[]) => {
+      const rows = drawingRowsRef.current.filter((r) => keys.includes(r.uuid));
+      if (!rows.length) return;
+      for (const record of rows) {
+        await drawingApi.delete(record.uuid);
+        if (record.uuid === selectedRowUuid) {
+          setSelectedRowUuid(null);
+          setInlinePreviewFile(null);
+          setSelectedDrawing(null);
+        }
+        if (detail?.uuid === record.uuid) {
+          setDrawerVisible(false);
+          setDetail(null);
+        }
+      }
+      messageApi.success(t('common.batchDeleteSuccess', { count: rows.length }));
+      actionRef.current?.reload();
+    },
+    [messageApi, t, selectedRowUuid, detail?.uuid],
+  );
+
   useEffect(() => {
     const deepLinkUuid = searchParams.get('uuid');
     if (!deepLinkUuid) return;
@@ -1317,6 +1341,14 @@ ${data.previewUrl ? `<img src="${escapeHtml(data.previewUrl)}" alt="${escapeHtml
           showCreateButton
           createButtonText={t('app.master-data.drawings.createTitle')}
           onCreate={handleCreate}
+          enableRowSelection={canDelete}
+          showDeleteButton={canDelete}
+          deleteConfirmTitle={t('common.batchDeleteTitle')}
+          deleteConfirmDescription={(count) => t('common.batchDeleteContent', { count })}
+          onDelete={handleBatchDeleteDrawings}
+          onTableDataChange={(rows) => {
+            drawingRowsRef.current = rows;
+          }}
           request={async (params, meta?: UniTableRequestMeta) => {
             try {
               const tf = treeFilterRef.current;

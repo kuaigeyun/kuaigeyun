@@ -99,6 +99,16 @@ export const UNI_TABLE_OPERATION_MIN_WIDTH = resolveUniTableOperationWidthForSlo
   resolveRowActionInlineSlots(),
 );
 
+/**
+ * 空表操作列宽：无动作条可测，不得用三槽+更多最坏预算（约 374px），
+ * 否则表头「操作」右侧大块留白，看起来像右固定列不够靠右。
+ * 仅覆盖表头文案；有数据后仍走实测 / 槽位首帧预算。
+ */
+export function resolveUniTableEmptyOperationColumnWidth(): number {
+  // slots=0 → 仅「更多」钮量级 + 内边距，约 86px，与状态徽章列同量级
+  return resolveUniTableOperationWidthForSlots(0);
+}
+
 /** 勾选列宽度（空表 scroll.x 求和） */
 export const UNI_TABLE_SELECTION_COL_WIDTH = 48;
 

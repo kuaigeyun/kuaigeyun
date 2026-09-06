@@ -1,33 +1,95 @@
 {
   "antd": "^6.4.4",
-  "scanned_files": 2448,
-  "pattern_types": 1,
-  "total_hits": 1,
+  "scanned_files": 2488,
+  "pattern_types": 3,
+  "total_hits": 5,
   "by_severity": {
+    "low": {
+      "hits": 2,
+      "patterns": 1
+    },
     "high": {
+      "hits": 2,
+      "patterns": 1
+    },
+    "med": {
       "hits": 1,
       "patterns": 1
     }
   },
   "rows": [
     {
-      "api": "onDropdownVisibleChange → onOpenChange",
-      "component": "Select",
+      "api": "DetailDrawer width= (prefer size)",
+      "component": "Drawer",
+      "severity": "low",
+      "hits": 2,
+      "files": 2,
+      "samples": [
+        {
+          "file": "src/apps/kuaizhizao/pages/quality-management/quality-complaints/index.tsx",
+          "line": 556,
+          "snippet": "<DetailDrawerTemplate"
+        },
+        {
+          "file": "src/apps/kuaizhizao/pages/quality-management/supplier-evaluations/index.tsx",
+          "line": 3736,
+          "snippet": "<DetailDrawerTemplate"
+        }
+      ]
+    },
+    {
+      "api": "size=\"middle\" → \"medium\"",
+      "component": "size enum",
       "severity": "high",
+      "hits": 2,
+      "files": 2,
+      "samples": [
+        {
+          "file": "src/apps/kuaielectronics/pages/label-oem/index.tsx",
+          "line": 46,
+          "snippet": "<Space orientation=\"vertical\" style={{ width: '100%' }} size=\"middle\">"
+        },
+        {
+          "file": "src/apps/kuaizhizao/components/LabelStationWorkbench.tsx",
+          "line": 212,
+          "snippet": "<Space orientation=\"vertical\" style={{ width: '100%' }} size=\"middle\">"
+        }
+      ]
+    },
+    {
+      "api": "addonBefore/After → Space.Compact",
+      "component": "InputNumber",
+      "severity": "med",
       "hits": 1,
       "files": 1,
       "samples": [
         {
-          "file": "src/apps/kuaiplm/pages/material-reviews/index.tsx",
-          "line": 178,
-          "snippet": "onDropdownVisibleChange={(open) => {"
+          "file": "src/apps/kuaizhizao/pages/equipment-management/route-patrols/index.tsx",
+          "line": 383,
+          "snippet": "addonAfter={row.unit || undefined}"
         }
       ]
     }
   ],
   "top_files": [
     {
-      "file": "src/apps/kuaiplm/pages/material-reviews/index.tsx",
+      "file": "src/apps/kuaielectronics/pages/label-oem/index.tsx",
+      "approx_hits": 1
+    },
+    {
+      "file": "src/apps/kuaizhizao/components/LabelStationWorkbench.tsx",
+      "approx_hits": 1
+    },
+    {
+      "file": "src/apps/kuaizhizao/pages/equipment-management/route-patrols/index.tsx",
+      "approx_hits": 1
+    },
+    {
+      "file": "src/apps/kuaizhizao/pages/quality-management/quality-complaints/index.tsx",
+      "approx_hits": 1
+    },
+    {
+      "file": "src/apps/kuaizhizao/pages/quality-management/supplier-evaluations/index.tsx",
       "approx_hits": 1
     }
   ],

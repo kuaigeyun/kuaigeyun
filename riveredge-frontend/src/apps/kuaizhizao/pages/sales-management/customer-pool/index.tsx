@@ -482,8 +482,9 @@ const CustomerPoolPage: React.FC = () => {
       },
       {
         title: t('field.customer.nameCode'),
+        key: 'name_code',
         dataIndex: 'code',
-        // RemainderFlex：只挂宽桶 flag，身份仍用 dataIndex=code（rank 10），禁止另起 key 抢列序
+        // RemainderFlex：宽桶 flag；key=name_code（rank 10）与搜索列 dataIndex=code 分离，避免 columnsState 共槽叠头
         minWidth: 200,
         uniTablePrimaryFlex: true,
         uniTableRemainderFlex: true,
@@ -1182,7 +1183,7 @@ const CustomerPoolPage: React.FC = () => {
           headerTitle={t('app.kuaizhizao.menu.sales-management.customer-pool')}
           showAdvancedSearch
           skipFuzzyPinyinClientFilter
-          columnPersistenceId="apps.kuaizhizao.pages.sales-management.customer-pool-width-v2"
+          columnPersistenceId="apps.kuaizhizao.pages.sales-management.customer-pool-width-v3"
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('kuaizhizao.customerPool')}
           params={{ scope }}

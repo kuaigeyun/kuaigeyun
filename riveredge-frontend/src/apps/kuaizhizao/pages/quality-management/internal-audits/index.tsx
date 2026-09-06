@@ -206,6 +206,13 @@ const InternalAuditsPage: React.FC = () => {
                 ]
               : []
           }
+          enableRowSelection={canDelete}
+          showDeleteButton={canDelete}
+          onDelete={async (keys) => {
+            await Promise.all(keys.map((key) => qualityQmsApi.internalAudits.delete(Number(key))));
+            messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+            actionRef.current?.reload();
+          }}
           request={async (params) => {
             const pageSize = params.pageSize || 20;
             const skip = ((params.current || 1) - 1) * pageSize;

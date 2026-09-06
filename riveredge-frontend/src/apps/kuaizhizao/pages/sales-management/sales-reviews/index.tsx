@@ -1187,7 +1187,9 @@ const SalesReviewsPage: React.FC = () => {
             >
               {t('app.kuaizhizao.salesReview.batchReject')}
             </UniBatchButton>,
-            ...(perms.canPrint
+          ]}
+          rightToolBarActionsBeforeExport={
+            perms.canPrint
               ? [
                   <Button
                     key="toolbar-print"
@@ -1202,8 +1204,8 @@ const SalesReviewsPage: React.FC = () => {
                     {t('components.uniAction.print')}
                   </Button>,
                 ]
-              : []),
-          ]}
+              : undefined
+          }
           showExportButton={perms.canExport}
           onExport={async (type, keys, pageData) => {
             try {

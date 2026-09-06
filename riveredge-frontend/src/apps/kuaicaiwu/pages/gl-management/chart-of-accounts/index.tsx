@@ -69,6 +69,14 @@ const ChartOfAccountsPage: React.FC = () => {
   const typeLabel = (type: string) =>
     accountTypeOptions.find((o) => o.value === type)?.label || type;
 
+  const handleBatchDelete = async (keys: React.Key[]) => {
+    for (const id of keys) {
+      await glService.deleteAccount(Number(id));
+    }
+    messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+    actionRef.current?.reload();
+  };
+
   const columns: ProColumns<GlAccount>[] = useMemo(
     () =>
       alignProColumns(
@@ -348,6 +356,11 @@ const ChartOfAccountsPage: React.FC = () => {
           setEditing(null);
           setModalOpen(true);
         }}
+        enableRowSelection
+        showDeleteButton
+        deleteConfirmTitle={t('common.batchDeleteTitle')}
+        deleteConfirmDescription={(count) => t('common.batchDeleteContent', { count })}
+        onDelete={handleBatchDelete}
         showImportButton={false}
         showExportButton={false}
         rightToolBarActionsBeforeExport={[

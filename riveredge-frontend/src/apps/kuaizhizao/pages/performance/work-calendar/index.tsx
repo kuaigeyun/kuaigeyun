@@ -532,6 +532,13 @@ const WorkCalendarPage: React.FC = () => {
                     }
                   }}
                   pagination={{ defaultPageSize: 20, showSizeChanger: true }}
+                  enableRowSelection={overtimePerms.canDelete}
+                  showDeleteButton={overtimePerms.canDelete}
+                  onDelete={async (keys) => {
+                    await Promise.all(keys.map((key) => overtimeApi.delete(String(key))));
+                    messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+                    actionRef.current?.reload();
+                  }}
                 />
               </>
             ),
@@ -567,6 +574,13 @@ const WorkCalendarPage: React.FC = () => {
                     }
                   }}
                   pagination={{ defaultPageSize: 20, showSizeChanger: true }}
+                  enableRowSelection={calendarPerms.canDelete}
+                  showDeleteButton={calendarPerms.canDelete}
+                  onDelete={async (keys) => {
+                    await Promise.all(keys.map((key) => stationUnavailableApi.delete(String(key))));
+                    messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+                    downtimeActionRef.current?.reload();
+                  }}
                 />
               </>
             ),

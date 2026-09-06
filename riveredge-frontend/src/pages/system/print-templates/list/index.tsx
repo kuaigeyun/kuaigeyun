@@ -736,6 +736,9 @@ const PrintTemplateListPage: React.FC = () => {
           showDeleteButton
           onDelete={handleBatchDelete}
           deleteButtonText={t('common.batchDelete')}
+          enableRowSelection
+          selectedRowKeys={selectedRowKeys}
+          onRowSelectionChange={setSelectedRowKeys}
           toolBarRender={() => [
             <Button {...rowActionKind('import')} key="loadPreset" onClick={handleLoadPreset} loading={presetLoading}>
               {t('pages.system.printTemplates.loadPresetButton')}
@@ -760,10 +763,6 @@ const PrintTemplateListPage: React.FC = () => {
               `print-templates-${todaySiteDateString()}.xlsx`,
             );
             messageApi.success(t('pages.system.printTemplates.exportSuccess'));
-          }}
-          rowSelection={{
-            selectedRowKeys,
-            onChange: setSelectedRowKeys,
           }}
           viewTypes={['table', 'card', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('system.printTemplates')}

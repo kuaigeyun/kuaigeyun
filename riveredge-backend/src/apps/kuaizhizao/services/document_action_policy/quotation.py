@@ -339,7 +339,7 @@ def quotation_capabilities_to_suggestions(
     if caps.convert_to_sales_review.allowed:
         suggestions.append("转订单评审（下推）")
     if caps.print_formal.allowed and (audit_required or caps.confirm_customer.allowed):
-        suggestions.append("生成正式报价 PDF")
+        suggestions.append("打印")
     if caps.revoke_approval.allowed:
         suggestions.append(
             "撤销审核（回到待审核）" if audit_required else "撤销审核（回到草稿）"

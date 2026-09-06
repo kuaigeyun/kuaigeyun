@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Card, Typography } from 'antd';
-import { ListPageTemplate } from '../../../components/layout-templates';
+import { ListPageTemplate } from '../../../../components/layout-templates';
 
 const { Paragraph } = Typography;
 

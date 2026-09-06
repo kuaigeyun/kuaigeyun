@@ -71,6 +71,14 @@ const LabJudgmentRulesPage: React.FC = () => {
     setModalOpen(true);
   };
 
+  const handleBatchDelete = async (keys: React.Key[]) => {
+    for (const id of keys) {
+      await labJudgmentRuleApi.delete(Number(id));
+    }
+    messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+    actionRef.current?.reload();
+  };
+
   const loadDetail = async (id: number) => {
     setDetailLoading(true);
     setDetailError(null);
@@ -323,6 +331,11 @@ const LabJudgmentRulesPage: React.FC = () => {
           perms.canCreate ? t('app.kuaiplm.labJudgmentRule.createButton') : undefined
         }
         onCreate={perms.canCreate ? openCreate : undefined}
+        enableRowSelection={perms.canDelete}
+        showDeleteButton={perms.canDelete}
+        deleteConfirmTitle={t('common.batchDeleteTitle')}
+        deleteConfirmDescription={(count) => t('common.batchDeleteContent', { count })}
+        onDelete={handleBatchDelete}
         onTableDataChange={(rows) => {
           tableRowsRef.current = rows;
         }}

@@ -195,6 +195,7 @@ import {
   resolveUniTableMarkerBadgeColumnWidth,
   resolveUniTableProgressColumnWidth,
   resolveUniTableOperationColumnWidth,
+  resolveUniTableEmptyOperationColumnWidth,
   resolveUniTableOperationWidthFromContent,
   resolveUniTablePrimaryFlexWidthFromContent,
   UNI_TABLE_OPERATION_MIN_WIDTH,
@@ -1302,8 +1303,8 @@ export function UniTable<T extends Record<string, any> = Record<string, any>>({
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md && screens.xs // 手机端判定：小于 768px 且有 xs
 
-  // 全局 Alt+N：当前页有新建按钮时，按 Alt+N 触发新建（与点击新建按钮一致）
-  useNewShortcut(gatedShowCreateButton && onCreate ? onCreate : undefined);
+  // 全局 Alt+N：只要传入 onCreate 即注册（含 showCreateButton=false、自定义工具栏新建）
+  useNewShortcut(onCreate);
 
   // 计算最终配置（优先使用 Props，其次使用用户偏好，最后使用全局配置）
   // 分页大小优先级：Props > User Preference > Config Store > Default(20)
@@ -1785,12 +1786,15 @@ export function UniTable<T extends Record<string, any> = Record<string, any>>({
         // 稳定 key：避免无 dataIndex 时用列下标，columnsState / sticky 右固定错位
         const operationColumnKey = String(rest.key ?? 'option')
         // 宽度真源是实测内容宽；页面自写的 pageWidth 已在此丢弃（禁止第二真源）
+        // 空表无动作条：用紧凑表头宽，禁止三槽最坏预算把右固定组撑出大块留白
         const resolvedWidth =
           measuredOperationWidths[operationColumnKey] ??
-          resolveUniTableOperationColumnWidth({
-            fixed: rest.fixed,
-            uniActionRenderOptions,
-          })
+          (tableData.length === 0
+            ? resolveUniTableEmptyOperationColumnWidth()
+            : resolveUniTableOperationColumnWidth({
+                fixed: rest.fixed,
+                uniActionRenderOptions,
+              }))
         return {
           ...rest,
           key: operationColumnKey,
@@ -1855,6 +1859,7 @@ export function UniTable<T extends Record<string, any> = Record<string, any>>({
     permissionGates,
     measuredOperationWidths,
     measuredPrimaryFlexWidths,
+    tableData.length,
   ])
 
   // 全项目统一策略：结构化列保留页面 width；主文本列由布局引擎分配 primary flex；
@@ -3165,11 +3170,12 @@ export function UniTable<T extends Record<string, any> = Record<string, any>>({
     })
   }, [effectiveTableColumns, layoutPlan.columns, isEmptyTable])
   const computedTableScrollX = layoutPlan.scrollX
-  /** 空表已取消钉列：scroll.x 贴视口，避免假横滚把中间列滚出首屏 */
-  const emptySafeTableScrollX =
-    emptyTableHasFixedColumns && containerLayoutWidth > 0
-      ? Math.min(computedTableScrollX, containerLayoutWidth)
-      : computedTableScrollX
+  /**
+   * 空表已取消钉列：仍用布局引擎 scroll.x。
+   * 若压成视口宽，KeepWidth/主列会被挤扁，表头 nowrap 文案叠在一起（客户池等有右固定操作列的页尤甚）。
+   * 空表允许真实横滚，优于假挤扁叠字。
+   */
+  const emptySafeTableScrollX = computedTableScrollX
 
   const rowClickSelectionEnabled =
     !disableRowClickSelection && tableHasRowSelection && !!memoizedRowSelection
@@ -3476,7 +3482,12 @@ export function UniTable<T extends Record<string, any> = Record<string, any>>({
         if (!(width > 0)) return
         operationWidths[colKey] = Math.max(operationWidths[colKey] ?? 0, width)
       })
-      commit(operationWidths, setMeasuredOperationWidths)
+      // 空表：清掉上一页实测，否则会一直占着三动作级宽
+      if (tableData.length === 0) {
+        setMeasuredOperationWidths((prev) => (Object.keys(prev).length === 0 ? prev : {}))
+      } else {
+        commit(operationWidths, setMeasuredOperationWidths)
+      }
 
       const primaryFlexWidths: Record<string, number> = {}
       root.querySelectorAll<HTMLElement>('td[data-uni-flex-col]').forEach((cell) => {
@@ -3648,7 +3659,7 @@ export function UniTable<T extends Record<string, any> = Record<string, any>>({
                   size={effectiveToolbarButtonSize}
                   style={{ flexShrink: 0 }}
                 >
-                  {createButtonText ?? t('common.create')}
+                  {withSingleNewShortcutHint(createButtonText ?? t('common.create'))}
                 </Button>
               ) : null}
             </>

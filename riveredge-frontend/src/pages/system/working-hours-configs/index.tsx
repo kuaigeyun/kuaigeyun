@@ -382,6 +382,17 @@ const WorkingHoursConfigsPage: React.FC = () => {
         showCreateButton
         createButtonText={t('pages.system.workingHoursConfigs.createButton')}
         onCreate={handleCreate}
+        showDeleteButton
+        onDelete={async (keys) => {
+          await Promise.all(
+            keys.map((key) =>
+              apiRequest(`/core/working-hours-configs/${key}`, { method: 'DELETE' }),
+            ),
+          );
+          messageApi.success(t('common.batchDeleteSuccess', { count: keys.length }));
+          actionRef.current?.reload();
+        }}
+        enableRowSelection
         showAdvancedSearch={true}
         showImportButton={false}
         showExportButton={true}

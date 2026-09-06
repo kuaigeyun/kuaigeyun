@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { useNumericPrecisionPlaces } from '../../../../../hooks/useNumericPrecision';
 import { setCustomPageTitle, removeCustomPageTitle } from '../../../../../utils/customPageTitle';
 import { useSubmitShortcut } from '../../../../../hooks/useSubmitShortcut';
+import { withSingleNewShortcutHint } from '../../../../../utils/globalNewShortcut';
 import { useInvalidateMenuBadgeCounts } from '../../../../../hooks/useInvalidateMenuBadgeCounts';
 import { normalizeFormListItems } from '../../../../../utils/formListItems';
 import { buildFutureDateShortcutFieldProps } from '../../../../../utils/futureDatePickerShortcuts';
@@ -1791,7 +1792,7 @@ const SalesContractsPage: React.FC = () => {
   const salesContractToolbarRenderItems = useMemo(
     () => [
       <Button key="create-sales-contract" type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-        {t('app.kuaizhizao.salesContract.create')}
+        {withSingleNewShortcutHint(t('app.kuaizhizao.salesContract.create'))}
       </Button>,
       <UniPushToolbarButton
         key={`sales-contract-push-toolbar-${selectedRowKeys.join('-') || 'none'}`}

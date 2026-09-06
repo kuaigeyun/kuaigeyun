@@ -23,7 +23,7 @@ async def upgrade(db: BaseDBAsyncClient) -> str:
             ALTER COLUMN "response_minutes" SET DEFAULT 60;
         UPDATE "apps_kuaizhizao_equipment_faults" f
             SET "equipment_code" = e."code"
-            FROM "apps_kuaizhizao_equipments" e
+            FROM "apps_kuaizhizao_equipment" e
             WHERE f."equipment_id" = e."id"
               AND (f."equipment_code" IS NULL OR f."equipment_code" = '');
         UPDATE "apps_kuaizhizao_equipment_faults"

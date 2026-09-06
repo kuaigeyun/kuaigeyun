@@ -15,6 +15,7 @@ from apps.kuaiplm.schemas.product_firmware import (
 from apps.kuaiplm.services.product_firmware_service import ProductFirmwareService
 from core.api.deps.access import require_access
 from core.api.deps.deps import get_current_tenant
+from core.services.authorization.user_permission_service import UserPermissionService
 from infra.api.deps.deps import get_current_user
 from infra.exceptions.exceptions import BusinessLogicError, NotFoundError, ValidationError
 from infra.models.user import User
@@ -31,6 +32,15 @@ def _http(exc: Exception) -> HTTPException:
     return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
 
+async def _permission_codes(user: User, tenant_id: int) -> list[str]:
+    return sorted(
+        await UserPermissionService.get_user_permissions(
+            user_id=user.id,
+            tenant_id=tenant_id,
+        )
+    )
+
+
 @router.get("", response_model=ProductFirmwareListResponse, summary="List product firmwares")
 async def list_product_firmwares(
     skip: int = Query(0, ge=0),
@@ -39,8 +49,9 @@ async def list_product_firmwares(
     status_filter: Optional[str] = Query(None, alias="status"),
     project_id: Optional[int] = Query(None),
     production_download_only: bool = Query(
-        False, description="生产下载：仅已发布版本"
+        False, description="生产下载：仅已发布版本（INF-05 PRODUCTION）"
     ),
+    current_user: User = Depends(get_current_user),
     _auth=Depends(
         require_access(
             "kuaiplm.product-firmware",
@@ -51,6 +62,7 @@ async def list_product_firmwares(
     tenant_id: int = Depends(get_current_tenant),
 ):
     try:
+        codes = await _permission_codes(current_user, tenant_id)
         return await service.list(
             tenant_id,
             keyword=keyword,
@@ -59,6 +71,8 @@ async def list_product_firmwares(
             skip=skip,
             limit=limit,
             production_download_only=production_download_only,
+            current_user_id=current_user.id,
+            permission_codes=codes,
         )
     except Exception as e:
         raise _http(e)
@@ -91,6 +105,8 @@ async def create_product_firmware(
 @router.get("/{firmware_id}", response_model=ProductFirmwareResponse, summary="Get product firmware")
 async def get_product_firmware(
     firmware_id: int,
+    production_view: bool = Query(False, description="生产上下文可见性"),
+    current_user: User = Depends(get_current_user),
     _auth=Depends(
         require_access(
             "kuaiplm.product-firmware",
@@ -101,7 +117,14 @@ async def get_product_firmware(
     tenant_id: int = Depends(get_current_tenant),
 ):
     try:
-        return await service.get(tenant_id, firmware_id)
+        codes = await _permission_codes(current_user, tenant_id)
+        return await service.get(
+            tenant_id,
+            firmware_id,
+            current_user_id=current_user.id,
+            permission_codes=codes,
+            production_view=production_view,
+        )
     except Exception as e:
         raise _http(e)
 

@@ -237,6 +237,7 @@ const MenuListPage: React.FC = () => {
 
   // 展开/收起状态
   const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [restoreDefaultLoading, setRestoreDefaultLoading] = useState(false);
   // 缓存扁平化数据
   const [allMenus, setAllMenus] = useState<Menu[]>([]);
@@ -572,6 +573,33 @@ const MenuListPage: React.FC = () => {
       messageApi.error(error.message || t('common.deleteFailed'));
     }
   }, [messageApi, refreshLayoutMenus, t]);
+
+  const handleBatchDelete = useCallback(async (keys: React.Key[]) => {
+    if (keys.length === 0) return;
+    const deletable: string[] = [];
+    for (const key of keys) {
+      const uuid = String(key);
+      const item = findMenuInTree(uuid, menuTreeData);
+      if (!item) continue;
+      if (item.application_uuid) continue;
+      if (item.children && item.children.length > 0) continue;
+      deletable.push(uuid);
+    }
+    if (deletable.length === 0) {
+      messageApi.warning(t('pages.system.menus.batchDeleteEmpty'));
+      return;
+    }
+    try {
+      await Promise.all(deletable.map((uuid) => deleteMenu(uuid)));
+      messageApi.success(t('pages.system.menus.batchDeleteSuccess'));
+      setSelectedRowKeys([]);
+      refreshLayoutMenus();
+      actionRef.current?.reload();
+    } catch (error: any) {
+      messageApi.error(error?.message || t('pages.system.menus.batchDeleteFailed'));
+      actionRef.current?.reload();
+    }
+  }, [menuTreeData, messageApi, refreshLayoutMenus, t]);
 
   const handleRestoreDefault = useCallback(async () => {
     setRestoreDefaultLoading(true);
@@ -917,6 +945,14 @@ const MenuListPage: React.FC = () => {
             showCreateButton
             createButtonText={t('pages.system.menus.createMenu')}
             onCreate={() => handleCreate()}
+            showDeleteButton
+            onDelete={handleBatchDelete}
+            deleteButtonText={t('common.batchDelete')}
+            deleteConfirmTitle={t('pages.system.menus.batchDeleteTitle')}
+            deleteConfirmDescription={(c) => t('pages.system.menus.batchDeleteDescription', { count: c })}
+            enableRowSelection
+            selectedRowKeys={selectedRowKeys}
+            onRowSelectionChange={setSelectedRowKeys}
             showImportButton={false}
             showExportButton={true}
             onExport={async (type, keys, pageData) => {
