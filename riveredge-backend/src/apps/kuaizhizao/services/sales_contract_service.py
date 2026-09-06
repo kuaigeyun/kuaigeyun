@@ -353,6 +353,7 @@ class SalesContractService(AppBaseService[SalesContract]):
         )
 
     async def _generate_change_code(self, tenant_id: int) -> str:
+        from core.config.code_rule_pages import CODE_RULE_PAGES
         from core.services.business.code_generation_service import CodeGenerationService
 
         rule_code = next(
