@@ -5,6 +5,7 @@
 """
 
 import os
+from uuid import uuid4
 import shutil
 import asyncio
 from typing import List, Tuple, Optional
@@ -201,10 +202,12 @@ class DataBackupService:
         backup_dir = resolve_data_backup_dir()
         ts = resolve_business_datetime().strftime("%Y%m%d%H%M%S")
         safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in backup_name)[:100]
-        filename = f"{safe_name}_{ts}.zip"
+        filename = f"{safe_name}_{ts}_{uuid4().hex}.zip"
         file_path = os.path.join(backup_dir, filename)
+        created_file = False
         try:
-            with open(file_path, "wb") as f:
+            with open(file_path, "xb") as f:
+                created_file = True
                 content = await file.read()
                 f.write(content)
             file_size = os.path.getsize(file_path)
@@ -236,7 +239,7 @@ class DataBackupService:
             logger.info(f"已上传备份文件: {backup.uuid} -> {file_path}")
             return backup
         except Exception as e:
-            if os.path.exists(file_path):
+            if created_file and os.path.exists(file_path):
                 try:
                     os.remove(file_path)
                 except OSError:
