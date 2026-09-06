@@ -168,7 +168,8 @@ class ScriptService:
         for key, value in update_data.items():
             setattr(script, key, value)
         
-        await script.save()
+        # 编辑时读到的运行标志可能已经过期，不能覆盖其他请求刚取得的执行权。
+        await script.save(update_fields=[*update_data, "updated_at"])
         return script
     
     @staticmethod
@@ -188,7 +189,7 @@ class ScriptService:
         """
         script = await ScriptService.get_script_by_uuid(tenant_id, uuid)
         script.deleted_at = resolve_business_datetime()
-        await script.save()
+        await script.save(update_fields=["deleted_at", "updated_at"])
     
     @staticmethod
     async def execute_script(
@@ -228,9 +229,17 @@ class ScriptService:
             # TODO: 集成 Taskiq 异步执行
             raise ValidationError("异步执行功能待实现")
         
-        # 同步执行脚本
+        # 数据库原子争用执行权，跨 Web 进程也只能有一个请求从空闲变成运行中。
+        claimed = await Script.filter(
+            tenant_id=tenant_id,
+            uuid=script.uuid,
+            deleted_at__isnull=True,
+            is_active=True,
+            is_running=False,
+        ).update(is_running=True, updated_at=resolve_business_datetime())
+        if claimed != 1:
+            raise ValidationError("脚本正在运行中，或已被禁用、删除，请刷新后重试")
         script.is_running = True
-        await script.save()
         
         start_time = time.time()
         output = None
@@ -283,7 +292,10 @@ class ScriptService:
             script.last_run_at = resolve_business_datetime()
             script.last_run_status = "success" if success else "failed"
             script.last_error = error
-            await script.save()
+            # 只由取得执行权的请求释放标志；保留运行期间的编辑与软删除。
+            await script.save(update_fields=[
+                "is_running", "last_run_at", "last_run_status", "last_error", "updated_at",
+            ])
         
         return {
             "success": success,
