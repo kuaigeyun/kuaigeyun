@@ -4,6 +4,9 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
+from apps.kuaioa.constants.general_signoff_business_types import (
+    list_general_signoff_business_types,
+)
 from apps.kuaioa.schemas.forms import (
     FormRequestCreate,
     FormRequestUpdate,
@@ -14,7 +17,7 @@ from apps.kuaioa.services.form_service import FormRequestService, FormTemplateSe
 from core.api.deps.access import require_access
 from core.api.deps.deps import get_current_tenant
 from infra.api.deps.deps import get_current_user
-from infra.exceptions.exceptions import BusinessLogicError, NotFoundError
+from infra.exceptions.exceptions import BusinessLogicError, NotFoundError, ValidationError
 from infra.models.user import User
 
 router = APIRouter(prefix="/forms", tags=["App - Kuaioa - Forms"])
@@ -22,16 +25,35 @@ template_service = FormTemplateService()
 request_service = FormRequestService()
 
 
+@router.get("/business-types", summary="List general signoff business types")
+async def list_form_business_types(
+    _auth=Depends(
+        require_access(
+            "kuaioa.form-template",
+            "read",
+            required_permissions=["kuaioa:form-template:read"],
+        )
+    ),
+):
+    rows = list_general_signoff_business_types()
+    return {"data": rows, "total": len(rows), "success": True}
+
+
 @router.get("/templates", summary="List form templates")
 async def list_form_templates(
     keyword: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
+    business_type: Optional[str] = Query(None),
     is_active: Optional[bool] = Query(None),
     _auth=Depends(require_access("kuaioa.form-template", "read", required_permissions=["kuaioa:form-template:read"])),
     tenant_id: int = Depends(get_current_tenant),
 ):
     rows = await template_service.list_templates(
-        tenant_id, keyword=keyword, category=category, is_active=is_active
+        tenant_id,
+        keyword=keyword,
+        category=category,
+        business_type=business_type,
+        is_active=is_active,
     )
     return {"data": rows, "total": len(rows), "success": True}
 
@@ -46,6 +68,8 @@ async def create_form_template(
     try:
         row = await template_service.create_template(tenant_id, data, current_user)
         return {"data": row, "success": True}
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"message": str(e)})
     except BusinessLogicError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"message": str(e)})
 
@@ -87,6 +111,8 @@ async def update_form_template(
     try:
         row = await template_service.update_template(tenant_id, template_id, data, current_user)
         return {"data": row, "success": True}
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"message": str(e)})
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"message": str(e)})
 
@@ -110,11 +136,16 @@ async def list_form_requests(
     keyword: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
     template_id: Optional[int] = Query(None),
+    business_type: Optional[str] = Query(None),
     _auth=Depends(require_access("kuaioa.form-request", "read", required_permissions=["kuaioa:form-request:read"])),
     tenant_id: int = Depends(get_current_tenant),
 ):
     rows = await request_service.list_requests(
-        tenant_id, keyword=keyword, status=status_filter, template_id=template_id
+        tenant_id,
+        keyword=keyword,
+        status=status_filter,
+        template_id=template_id,
+        business_type=business_type,
     )
     return {"data": rows, "total": len(rows), "success": True}
 

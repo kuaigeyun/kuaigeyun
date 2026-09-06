@@ -208,6 +208,7 @@ async def create_equipment_calibration_record(
         create_data = EquipmentCalibrationCreate(
             calibration_date=data.calibration_date,
             result=data.result,
+            plan_type=data.plan_type,
             certificate_no=data.certificate_no,
             expiry_date=data.expiry_date,
             attachment_uuid=data.attachment_uuid,
@@ -227,6 +228,8 @@ async def create_equipment_calibration_record(
         return resp
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get(
@@ -390,6 +393,27 @@ async def print_equipment_card(
     if response_format == "html":
         return HTMLResponse(content=result.get("content", ""), status_code=200)
     return JSONResponse(content=result, status_code=200)
+
+
+@router.get(
+    "/resolve-scan",
+    response_model=EquipmentResponse,
+    summary="Resolve equipment by scan content",
+    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-management-equipment:read"))],
+)
+async def resolve_equipment_by_scan(
+    q: str = Query(..., min_length=1, description="扫码原文或手输内容"),
+    current_user: User = Depends(soil_get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """解析系统 EQ 码、设备编码或手工绑定码。"""
+    try:
+        equipment = await EquipmentService.resolve_by_scan(tenant_id, q)
+        return EquipmentResponse.model_validate(equipment)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
 
 
 @router.get("/{uuid}", response_model=EquipmentResponse)
@@ -646,6 +670,11 @@ async def get_equipment_trace(
                     "repair_cost": float(repair.repair_cost) if repair.repair_cost else None,
                     "status": repair.status,
                     "repair_result": repair.repair_result,
+                    "arrival_at": to_api_isoformat(repair.arrival_at) if repair.arrival_at else None,
+                    "arrival_by_name": repair.arrival_by_name,
+                    "fault_cause": repair.fault_cause,
+                    "repair_content": repair.repair_content,
+                    "completed_at": to_api_isoformat(repair.completed_at) if repair.completed_at else None,
                     "created_at": to_api_isoformat(repair.created_at),
                 }
                 for repair in equipment_repairs
@@ -746,6 +775,8 @@ async def create_equipment_calibration(
         return resp
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ========== 设备OEE统计相关端点 ==========

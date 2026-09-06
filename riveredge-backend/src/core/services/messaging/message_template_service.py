@@ -392,6 +392,101 @@ class MessageTemplateService:
             "is_active": True,
         },
         {
+            "name": "质量投诉时效到期",
+            "code": "KZ_QUALITY_COMPLAINT_DUE_OVERDUE",
+            "type": "internal",
+            "description": "质量投诉到达工作日时效截止时刻仍未关闭",
+            "subject": "【投诉时效】{complaint_code} 已到期",
+            "content": (
+                "质量投诉 {complaint_code}（{title}）已到达要求完成时间 {due_at}，"
+                "当前状态 {status}，物料：{material_name}。请尽快处理。"
+            ),
+            "variables": {
+                "complaint_code": "投诉单号",
+                "title": "标题",
+                "business_type": "业务类型",
+                "material_name": "物料",
+                "due_at": "要求完成时间",
+                "status": "状态",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "库存验证未开单",
+            "code": "KZ_INVENTORY_VERIFY_OPEN_OVERDUE",
+            "type": "internal",
+            "description": "每月 10 日前仍未开具库存验证返工单",
+            "subject": "【库存验证】{verify_month} 未开单",
+            "content": (
+                "验证月份 {verify_month} 已到开单窗口，系统仍未发现库存验证返工单。"
+                "请 OQC 尽快开具返工单进行验证。"
+            ),
+            "variables": {
+                "verify_month": "验证月份",
+                "rework_code": "返工单号",
+                "product_name": "产品",
+                "status": "状态",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "库存验证月末未完成",
+            "code": "KZ_INVENTORY_VERIFY_MONTH_END",
+            "type": "internal",
+            "description": "库存验证返工单到达月末仍未关闭",
+            "subject": "【库存验证】{rework_code} 月末未完成",
+            "content": (
+                "库存验证返工单 {rework_code}（月份 {verify_month}）已到月末截止时刻，"
+                "当前状态 {status}，产品：{product_name}。请尽快完成并关闭。"
+            ),
+            "variables": {
+                "verify_month": "验证月份",
+                "rework_code": "返工单号",
+                "product_name": "产品",
+                "status": "状态",
+                "due_at": "截止时间",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "库存验证PQC已核对",
+            "code": "KZ_INVENTORY_VERIFY_PQC_CHECKED",
+            "type": "internal",
+            "description": "PQC 主管核对库存验证质量记录汇总后通知 OQC",
+            "subject": "【库存验证】{rework_code} PQC已核对",
+            "content": (
+                "库存验证返工单 {rework_code}（月份 {verify_month}）PQC 已核对汇总。"
+                "核对人：{pqc_checked_by_name}。请 OQC 查看结果并通知相关人员。"
+            ),
+            "variables": {
+                "verify_month": "验证月份",
+                "rework_code": "返工单号",
+                "product_name": "产品",
+                "pqc_checked_by_name": "核对人",
+                "pqc_summary": "汇总摘要",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "库存验证OQC结果通知",
+            "code": "KZ_INVENTORY_VERIFY_OQC_NOTIFIED",
+            "type": "internal",
+            "description": "OQC 勾选相关人员发送库存验证结果通知",
+            "subject": "【库存验证结果】{rework_code}",
+            "content": (
+                "库存验证返工单 {rework_code}（月份 {verify_month}）结果通知。"
+                "产品：{product_name}。汇总：{pqc_summary}"
+            ),
+            "variables": {
+                "verify_month": "验证月份",
+                "rework_code": "返工单号",
+                "product_name": "产品",
+                "pqc_summary": "汇总摘要",
+                "pqc_checked_by_name": "核对人",
+            },
+            "is_active": True,
+        },
+        {
             "name": "设备故障报修",
             "code": "KZ_EQUIPMENT_FAULT_REPORTED",
             "type": "internal",
@@ -405,6 +500,260 @@ class MessageTemplateService:
                 "fault_type": "类型",
                 "fault_description": "描述",
                 "reporter_name": "报告人",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "设备外校到期前提醒",
+            "code": "KZ_EQUIPMENT_CALIBRATION_DUE_SOON",
+            "type": "internal",
+            "description": "外校计量到期前一个月提醒（站内；邮件/短信请配置对应渠道模板或同码）",
+            "subject": "【外校到期】{equipment_code} 将于 {due_date} 到期",
+            "content": (
+                "设备 {equipment_code} {equipment_name} 外校计量将于 {due_date} 到期"
+                "（{reminder_kind}）。请安排送校。"
+            ),
+            "variables": {
+                "equipment_code": "设备编码",
+                "equipment_name": "设备名称",
+                "due_date": "计量到期日",
+                "reminder_kind": "提醒类型",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "设备外校过期提醒",
+            "code": "KZ_EQUIPMENT_CALIBRATION_DUE_OVERDUE",
+            "type": "internal",
+            "description": "外校计量过期一天提醒",
+            "subject": "【外校过期】{equipment_code} 已过期",
+            "content": (
+                "设备 {equipment_code} {equipment_name} 外校计量已于 {due_date} 到期"
+                "（{reminder_kind}）。请尽快处理。"
+            ),
+            "variables": {
+                "equipment_code": "设备编码",
+                "equipment_name": "设备名称",
+                "due_date": "计量到期日",
+                "reminder_kind": "提醒类型",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "设备外校到期前提醒邮件",
+            "code": "KZ_EQUIPMENT_CALIBRATION_DUE_SOON_EMAIL",
+            "type": "email",
+            "description": "外校计量到期前一个月邮件",
+            "subject": "【外校到期】{equipment_code} 将于 {due_date} 到期",
+            "content": (
+                "<p>设备 <b>{equipment_code}</b> {equipment_name} 外校计量将于 "
+                "<b>{due_date}</b> 到期（{reminder_kind}）。请安排送校。</p>"
+            ),
+            "variables": {
+                "equipment_code": "设备编码",
+                "equipment_name": "设备名称",
+                "due_date": "计量到期日",
+                "reminder_kind": "提醒类型",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "设备外校过期提醒邮件",
+            "code": "KZ_EQUIPMENT_CALIBRATION_DUE_OVERDUE_EMAIL",
+            "type": "email",
+            "description": "外校计量过期一天邮件",
+            "subject": "【外校过期】{equipment_code} 已过期",
+            "content": (
+                "<p>设备 <b>{equipment_code}</b> {equipment_name} 外校计量已于 "
+                "<b>{due_date}</b> 到期（{reminder_kind}）。请尽快处理。</p>"
+            ),
+            "variables": {
+                "equipment_code": "设备编码",
+                "equipment_name": "设备名称",
+                "due_date": "计量到期日",
+                "reminder_kind": "提醒类型",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "设备外校到期前提醒短信",
+            "code": "KZ_EQUIPMENT_CALIBRATION_DUE_SOON_SMS",
+            "type": "sms",
+            "description": "外校计量到期前一个月短信（R-09）",
+            "subject": "外校到期提醒",
+            "content": "设备{equipment_code}外校将于{due_date}到期，请安排送校。",
+            "variables": {
+                "equipment_code": "设备编码",
+                "due_date": "计量到期日",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "设备外校过期提醒短信",
+            "code": "KZ_EQUIPMENT_CALIBRATION_DUE_OVERDUE_SMS",
+            "type": "sms",
+            "description": "外校计量过期一天短信（R-09）",
+            "subject": "外校过期提醒",
+            "content": "设备{equipment_code}外校已于{due_date}过期，请尽快处理。",
+            "variables": {
+                "equipment_code": "设备编码",
+                "due_date": "计量到期日",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "模具供应商回签到期前提醒",
+            "code": "KZ_MOLD_SIGNBACK_DUE_SOON",
+            "type": "internal",
+            "description": "模具供应商半年回签到期前十四天提醒（R-10）",
+            "subject": "【模具回签到期】{mold_code} 将于 {due_date} 到期",
+            "content": (
+                "模具 {mold_code} {mold_name}（供应商 {supplier}）回签将于 {due_date} 到期"
+                "（{reminder_kind}）。请督促供应商回签并上传扫描件。"
+            ),
+            "variables": {
+                "mold_code": "模具编码",
+                "mold_name": "模具名称",
+                "supplier": "供应商",
+                "due_date": "回签到期日",
+                "reminder_kind": "提醒类型",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "模具供应商回签过期未执行提醒",
+            "code": "KZ_MOLD_SIGNBACK_DUE_OVERDUE",
+            "type": "internal",
+            "description": "模具供应商半年回签过期一天未执行提醒（R-10）",
+            "subject": "【模具回签过期】{mold_code} 已过期未执行",
+            "content": (
+                "模具 {mold_code} {mold_name}（供应商 {supplier}）回签已于 {due_date} 到期"
+                "（{reminder_kind}）。请尽快登记回签扫描件。"
+            ),
+            "variables": {
+                "mold_code": "模具编码",
+                "mold_name": "模具名称",
+                "supplier": "供应商",
+                "due_date": "回签到期日",
+                "reminder_kind": "提醒类型",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "设备点检待审核",
+            "code": "KZ_SPOT_CHECK_SUBMITTED",
+            "type": "internal",
+            "description": "点检提交后通知指定负责人审核（R-10）",
+            "subject": "【点检待审核】{equipment_code} {document_no}",
+            "content": (
+                "设备 {equipment_code} {equipment_name} 点检单 {document_no}"
+                "（点检日 {check_date}，点检人 {inspector_name}）待审核，请尽快确认。"
+            ),
+            "variables": {
+                "document_no": "点检单号",
+                "equipment_code": "设备编码",
+                "equipment_name": "设备名称",
+                "check_date": "点检日期",
+                "inspector_name": "点检人",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "设备点检未点检或未审核超时",
+            "code": "KZ_SPOT_CHECK_DUE_OVERDUE",
+            "type": "internal",
+            "description": "周期内未点检或提交后未审核超时报警（R-10）",
+            "subject": "【点检超时】{equipment_code} {reminder_kind}",
+            "content": (
+                "设备 {equipment_code} {equipment_name} 点检超时（{reminder_kind}）。"
+                "点检日 {check_date}，单据 {document_no}。请尽快完成点检或审核。"
+            ),
+            "variables": {
+                "document_no": "点检单号",
+                "equipment_code": "设备编码",
+                "equipment_name": "设备名称",
+                "check_date": "点检日期",
+                "reminder_kind": "提醒类型",
+                "scheme_name": "点检方案",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "设备换线后未初检超时",
+            "code": "KZ_LINE_REBIND_FORCE_SPOT_OVERDUE",
+            "type": "internal",
+            "description": "换线完成后未在时限内完成强制初检（R-10）",
+            "subject": "【换线未初检】{equipment_code} {production_line_name}",
+            "content": (
+                "设备 {equipment_code} {equipment_name} 已换线至 {production_line_name}"
+                "（单号 {document_no}），超过时限仍未完成强制初检，请尽快点检。"
+            ),
+            "variables": {
+                "document_no": "换线单号",
+                "equipment_code": "设备编码",
+                "equipment_name": "设备名称",
+                "production_line_code": "产线编码",
+                "production_line_name": "产线名称",
+                "force_spot_check_due_at": "初检时限",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "设备维修到场超时",
+            "code": "KZ_EQUIPMENT_FAULT_ARRIVAL_OVERDUE",
+            "type": "internal",
+            "description": "报障后未在规定时限内到场签到（R-10）",
+            "subject": "【到场超时】{equipment_code} {fault_no}",
+            "content": (
+                "设备 {equipment_code} {equipment_name} 故障单 {fault_no}"
+                "超过规定到场时限（{response_minutes} 分钟，截止 {response_due_at}）仍未签到，请尽快到场。"
+            ),
+            "variables": {
+                "fault_no": "故障单号",
+                "equipment_code": "设备编码",
+                "equipment_name": "设备名称",
+                "response_minutes": "到场时限分钟",
+                "response_due_at": "到场截止时刻",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "供应商环保资料到期前提醒",
+            "code": "KZ_SUPPLIER_ENV_DUE_SOON",
+            "type": "internal",
+            "description": "供应商环保资料到期前一个月提醒（R-03）",
+            "subject": "【环保资料到期】{supplier_code} {doc_title}",
+            "content": (
+                "供应商 {supplier_code} {supplier_name} 的环保资料「{doc_title}」"
+                "将于 {due_date} 到期（{reminder_kind}）。请及时更新。"
+            ),
+            "variables": {
+                "supplier_code": "供应商编码",
+                "supplier_name": "供应商名称",
+                "doc_title": "资料标题",
+                "doc_type": "资料类型",
+                "due_date": "有效期至",
+                "reminder_kind": "提醒类型",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "供应商环保资料过期提醒",
+            "code": "KZ_SUPPLIER_ENV_DUE_OVERDUE",
+            "type": "internal",
+            "description": "供应商环保资料过期提醒（R-03）",
+            "subject": "【环保资料过期】{supplier_code} {doc_title}",
+            "content": (
+                "供应商 {supplier_code} {supplier_name} 的环保资料「{doc_title}」"
+                "已于 {due_date} 到期（{reminder_kind}）。请尽快处理。"
+            ),
+            "variables": {
+                "supplier_code": "供应商编码",
+                "supplier_name": "供应商名称",
+                "doc_title": "资料标题",
+                "doc_type": "资料类型",
+                "due_date": "有效期至",
+                "reminder_kind": "提醒类型",
             },
             "is_active": True,
         },
@@ -659,6 +1008,233 @@ class MessageTemplateService:
                 "device_name": "设备名称",
                 "tag_key": "点位",
                 "message": "告警详情",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "试流待审超时",
+            "code": "PLM_TRIAL_APPROVAL_OVERDUE",
+            "type": "internal",
+            "description": "试流单提交后超过约定时长仍未审核",
+            "subject": "【试流待审】{trial_code} 已超过 {delay_hours} 小时",
+            "content": (
+                "试流单 {trial_code}（{title}）项目 {project_name}（{project_code}）"
+                "已超过 {delay_hours} 小时未审核，请尽快处理。"
+            ),
+            "variables": {
+                "trial_code": "试流单号",
+                "title": "标题",
+                "project_code": "项目代号",
+                "project_name": "项目名称",
+                "business_type": "业务类型",
+                "delay_hours": "超时小时数",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "试流工序超时",
+            "code": "PLM_TRIAL_STEP_OVERDUE",
+            "type": "internal",
+            "description": "试流执行中当前工序超过约定时长未填报",
+            "subject": "【试流工序】{trial_code} 工序 {step_key} 已超过 {delay_hours} 小时",
+            "content": (
+                "试流单 {trial_code}（{title}）当前工序 {step_key} 已超过 {delay_hours} 小时"
+                "未填报，请责任部门尽快处理。"
+            ),
+            "variables": {
+                "trial_code": "试流单号",
+                "title": "标题",
+                "project_code": "项目代号",
+                "project_name": "项目名称",
+                "step_key": "工序",
+                "delay_hours": "超时小时数",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "实验报告待批准",
+            "code": "PLM_LAB_REPORT_SUBMITTED",
+            "type": "internal",
+            "description": "实验委托报告提交审批后通知批准人",
+            "subject": "【实验报告待批准】{lab_code} {report_title}",
+            "content": (
+                "实验委托 {lab_code}（{title}）报告「{report_title}」已提交审批，请尽快批准。"
+            ),
+            "variables": {
+                "lab_code": "委托单号",
+                "title": "试验名称",
+                "report_title": "报告标题",
+                "detail_path": "详情路径",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "实验报告已批准",
+            "code": "PLM_LAB_REPORT_APPROVED",
+            "type": "internal",
+            "description": "实验委托报告批准后通知创建人与提交人",
+            "subject": "【实验报告已批准】{lab_code} {report_title}",
+            "content": (
+                "实验委托 {lab_code}（{title}）报告「{report_title}」已批准。"
+            ),
+            "variables": {
+                "lab_code": "委托单号",
+                "title": "试验名称",
+                "report_title": "报告标题",
+                "detail_path": "详情路径",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "实验报告已驳回",
+            "code": "PLM_LAB_REPORT_REJECTED",
+            "type": "internal",
+            "description": "实验委托报告驳回后通知创建人与提交人",
+            "subject": "【实验报告已驳回】{lab_code} {report_title}",
+            "content": (
+                "实验委托 {lab_code}（{title}）报告「{report_title}」已驳回。"
+                "原因：{reject_reason}"
+            ),
+            "variables": {
+                "lab_code": "委托单号",
+                "title": "试验名称",
+                "report_title": "报告标题",
+                "reject_reason": "驳回原因",
+                "detail_path": "详情路径",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "部门培训申请窗口提醒",
+            "code": "OA_TRAINING_DEPT_APPLICATION_WINDOW",
+            "type": "internal",
+            "description": "每年 11 月部门培训申请窗口提醒",
+            "subject": "【部门培训申请】{plan_year} 年度申请窗口",
+            "content": (
+                "{plan_year} 年度部门培训申请窗口提醒。"
+                "待提交草稿数：{open_draft_count}。"
+                "请各部门填写培训内容并提交。入口：{detail_path}"
+            ),
+            "variables": {
+                "plan_year": "计划年度",
+                "open_draft_count": "待提交草稿数",
+                "detail_path": "详情路径",
+                "due_at": "提醒时间",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "年度培训计划窗口提醒",
+            "code": "OA_TRAINING_ANNUAL_PLAN_WINDOW",
+            "type": "internal",
+            "description": "每年 12 月年度培训计划编制窗口提醒",
+            "subject": "【年度培训计划】{plan_year} 年度编制提醒",
+            "content": (
+                "请人力资源部依据部门申请编制 {plan_year} 年度培训计划并提交审批。"
+                "入口：{detail_path}"
+            ),
+            "variables": {
+                "plan_year": "计划年度",
+                "detail_path": "详情路径",
+                "due_at": "提醒时间",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "培训内容记录逾期提醒",
+            "code": "OA_TRAINING_CONTENT_DUE",
+            "type": "internal",
+            "description": "培训内容记录未完成或未确认提醒",
+            "subject": "【培训内容】{training_name} 待完成",
+            "content": (
+                "培训记录 {record_code}（{training_name}）要求完成期限 {due_date}，"
+                "请上传培训内容并由人力资源确认。入口：{detail_path}"
+            ),
+            "variables": {
+                "record_code": "记录编号",
+                "training_name": "培训名称",
+                "due_date": "要求完成期限",
+                "detail_path": "详情路径",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "特殊作业资格确认窗口提醒",
+            "code": "OA_TRAINING_SPECIAL_WORK_WINDOW",
+            "type": "internal",
+            "description": "每年 6 月特殊作业资格确认窗口提醒",
+            "subject": "【特殊作业资格】{qualification_year} 年度确认提醒",
+            "content": (
+                "请完成 {qualification_year} 年度特殊作业人员资格鉴定确认并提交审批。"
+                "入口：{detail_path}"
+            ),
+            "variables": {
+                "qualification_year": "认定年度",
+                "detail_path": "详情路径",
+                "due_at": "提醒时间",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "上岗证到期提醒",
+            "code": "OA_TRAINING_LICENSE_EXPIRING",
+            "type": "internal",
+            "description": "上岗证到期前提醒",
+            "subject": "【上岗证到期】{license_name}",
+            "content": (
+                "上岗证 {license_code}（{license_name}）持有人 {holder_name} "
+                "将于 {expiry_date} 到期，请及时处理。入口：{detail_path}"
+            ),
+            "variables": {
+                "license_code": "证书编号",
+                "license_name": "证书名称",
+                "holder_name": "持有人",
+                "expiry_date": "到期日期",
+                "detail_path": "详情路径",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "证照协议到期前提醒",
+            "code": "OA_COMPLIANCE_LICENSE_DUE_SOON",
+            "type": "internal",
+            "description": "证照或协议到期前提醒（渠道可在规则中勾选邮件/短信）",
+            "subject": "【证照到期提醒】{license_name}",
+            "content": (
+                "证照 {license_code}（{license_name}，类型 {license_type}）"
+                "持有主体 {holder_name} 将于 {expiry_date} 到期（{reminder_kind}）。"
+                "入口：{detail_path}"
+            ),
+            "variables": {
+                "license_code": "证照编号",
+                "license_name": "证照名称",
+                "license_type": "证照类型",
+                "holder_name": "持有主体",
+                "expiry_date": "到期日期",
+                "reminder_kind": "提醒类型",
+                "detail_path": "详情路径",
+            },
+            "is_active": True,
+        },
+        {
+            "name": "证照协议已到期提醒",
+            "code": "OA_COMPLIANCE_LICENSE_DUE_OVERDUE",
+            "type": "internal",
+            "description": "证照或协议到期日提醒（渠道可在规则中勾选邮件/短信）",
+            "subject": "【证照已到期】{license_name}",
+            "content": (
+                "证照 {license_code}（{license_name}，类型 {license_type}）"
+                "持有主体 {holder_name} 已于 {expiry_date} 到期（{reminder_kind}）。"
+                "入口：{detail_path}"
+            ),
+            "variables": {
+                "license_code": "证照编号",
+                "license_name": "证照名称",
+                "license_type": "证照类型",
+                "holder_name": "持有主体",
+                "expiry_date": "到期日期",
+                "reminder_kind": "提醒类型",
+                "detail_path": "详情路径",
             },
             "is_active": True,
         },

@@ -206,3 +206,60 @@ class TestDepartmentManagerResolution:
                     1, ["dept-uuid-1"]
                 )
         assert ids == [88]
+
+
+class TestResolveNodeApproversFailClosed:
+    @pytest.mark.asyncio
+    async def test_user_type_without_ids_raises(self):
+        from infra.exceptions.exceptions import ValidationError
+
+        instance = MagicMock()
+        instance.tenant_id = 1
+        instance.submitter_id = 99
+        instance.data = {}
+        node = {"id": "n1", "data": {"approverType": "user", "approverIds": []}}
+
+        with patch.object(
+            ApprovalInstanceService,
+            "_resolve_approver_ids_from_identifiers",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            with pytest.raises(ValidationError, match="未配置有效指定人员"):
+                await ApprovalInstanceService._resolve_node_approvers(node, instance)
+
+    @pytest.mark.asyncio
+    async def test_form_select_uses_snapshot(self):
+        instance = MagicMock()
+        instance.tenant_id = 1
+        instance.submitter_id = 99
+        instance.data = {"selected_approver_user_ids": [7, 8]}
+        node = {"id": "n1", "data": {"approverType": "form_select"}}
+
+        with patch.object(
+            ApprovalInstanceService,
+            "_resolve_approver_ids_from_identifiers",
+            new_callable=AsyncMock,
+            return_value=[7, 8],
+        ), patch.object(
+            ApprovalInstanceService,
+            "_filter_active_user_ids",
+            new_callable=AsyncMock,
+            return_value=[7, 8],
+        ):
+            ids = await ApprovalInstanceService._resolve_node_approvers(node, instance)
+        assert ids == [7, 8]
+
+    @pytest.mark.asyncio
+    async def test_unknown_approver_type_raises(self):
+        from infra.exceptions.exceptions import ValidationError
+
+        instance = MagicMock()
+        instance.tenant_id = 1
+        instance.submitter_id = 99
+        instance.data = {}
+        node = {"id": "n1", "data": {"approverType": "optional"}}
+
+        with pytest.raises(ValidationError, match="不支持的审批人类型"):
+            await ApprovalInstanceService._resolve_node_approvers(node, instance)
+

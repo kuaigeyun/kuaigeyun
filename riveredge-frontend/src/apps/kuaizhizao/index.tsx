@@ -44,6 +44,9 @@ const SOPViewerKioskPage = lazy(() => import('./pages/production-execution/sop-v
 const DrawingViewerKioskPage = lazy(() => import('./pages/production-execution/drawing-viewer/kiosk'));
 const ProgramViewerKioskPage = lazy(() => import('./pages/production-execution/program-viewer/kiosk'));
 const ReworkOrdersPage = lazy(() => import('./pages/production-execution/rework-orders'));
+const ReworkPositionPlanTemplatesPage = lazy(
+  () => import('./pages/production-execution/rework-position-plan-templates'),
+);
 const OutsourceManagementPage = lazy(() => import('./pages/production-execution/outsource-management'));
 
 // 采购管理页面
@@ -99,6 +102,8 @@ const InspectionPlansPage = lazy(() => import('./pages/quality-management/inspec
 const NonconformingLedgerPage = lazy(() => import('./pages/quality-management/nonconforming-ledger'));
 const EightDReportsPage = lazy(() => import('./pages/quality-management/eight-d-reports'));
 const EightDWorkbenchPage = lazy(() => import('./pages/quality-management/eight-d-reports/workbench/EightDWorkbench'));
+const QualityComplaintsPage = lazy(() => import('./pages/quality-management/quality-complaints'));
+const SupplierEvaluationsPage = lazy(() => import('./pages/quality-management/supplier-evaluations'));
 const OQCInspectionPage = lazy(() => import('./pages/quality-management/oqc-inspection'));
 const SPCMonitorPage = lazy(() => import('./pages/quality-management/spc-monitor'));
 const SystemDocumentsPage = lazy(() => import('./pages/quality-management/system-documents'));
@@ -160,6 +165,8 @@ const MaintenancePlanCalendarPage = lazy(() => import('./pages/equipment-managem
 const MaintenanceExecutionsPage = lazy(() => import('./pages/equipment-management/maintenance-executions'));
 const EquipmentRepairsPage = lazy(() => import('./pages/equipment-management/equipment-repairs'));
 const EquipmentCalibrationsPage = lazy(() => import('./pages/equipment-management/equipment-calibrations'));
+const EquipmentAcceptancesPage = lazy(() => import('./pages/equipment-management/equipment-acceptances'));
+const EquipmentLineRebindsPage = lazy(() => import('./pages/equipment-management/equipment-line-rebinds'));
 
 // 仓储管理页面
 const WarehouseDashboard = lazy(() => import('./pages/warehouse-management/dashboard'));
@@ -206,6 +213,7 @@ const MaterialCallsPage = lazy(() => import('./pages/warehouse-management/materi
 const DisassemblyOrdersPage = lazy(() => import('./pages/warehouse-management/disassembly-orders'));
 const InventoryAlertPage = lazy(() => import('./pages/warehouse-management/inventory-alert'));
 const PackingBindingPage = lazy(() => import('./pages/production-execution/packing-binding'));
+const LabelStationPage = lazy(() => import('./pages/production-execution/label-station'));
 const InstallExecutionPage = lazy(() => import('./pages/after-sales-service/install-execution'));
 
 // 售后服务模块
@@ -283,6 +291,9 @@ const OutsourceMaterialReconciliationPage = lazy(() => import('./pages/productio
 const ScrapDefectAnalysisPage = lazy(() => import('./pages/production-execution/reports/ScrapDefectAnalysis'));
 const FirstPassYieldAnalysisPage = lazy(() => import('./pages/production-execution/reports/FirstPassYieldAnalysis'));
 const ProductionDelayWarningPage = lazy(() => import('./pages/production-execution/reports/ProductionDelayWarning'));
+const ProductionDailySummaryPage = lazy(() => import('./pages/production-execution/reports/ProductionDaily'));
+const ProductionDailyReportsPage = lazy(() => import('./pages/production-execution/production-daily-reports/index'));
+const ProductionDailyTemplatesPage = lazy(() => import('./pages/production-execution/production-daily-templates/index'));
 
 // 质量管理报表
 const IncomingInspectionReportPage = lazy(() => import('./pages/quality-management/reports/IncomingInspectionReport'));
@@ -291,6 +302,9 @@ const FinishedInspectionReportPage = lazy(() => import('./pages/quality-manageme
 const QualityExceptionTrackingPage = lazy(() => import('./pages/quality-management/reports/QualityExceptionTracking'));
 const NonconformingSummaryPage = lazy(() => import('./pages/quality-management/reports/NonconformingSummary'));
 const QualityRateTrendPage = lazy(() => import('./pages/quality-management/reports/QualityRateTrend'));
+const QualityComplaintAnalysisPage = lazy(
+  () => import('./pages/quality-management/reports/QualityComplaintAnalysis'),
+);
 
 // 设备管理报表
 const EquipmentMaintenanceDetailPage = lazy(() => import('./pages/equipment-management/reports/EquipmentMaintenanceDetail'));
@@ -377,12 +391,17 @@ const KuaizhizaoApp: React.FC = () => {
       <Route path="production-execution/drawing-viewer/kiosk" element={withPageSuspense(DrawingViewerKioskPage)} />
       <Route path="production-execution/program-viewer/kiosk" element={withPageSuspense(ProgramViewerKioskPage)} />
       <Route path="production-execution/rework-orders" element={withPageSuspense(ReworkOrdersPage)} />
+      <Route
+        path="production-execution/rework-position-plan-templates"
+        element={withPageSuspense(ReworkPositionPlanTemplatesPage)}
+      />
       <Route path="production-execution/outsource-management" element={withPageSuspense(OutsourceManagementPage)} />
       <Route
         path="production-execution/outsource-work-orders"
         element={<RedirectOutsourceWorkOrdersToManagement />}
       />
       <Route path="production-execution/packing-binding" element={withPageSuspense(PackingBindingPage)} />
+      <Route path="production-execution/label-station" element={withPageSuspense(LabelStationPage)} />
       <Route path="production-execution/material-shortage-exceptions" element={withPageSuspense(MaterialShortageExceptionsPage)} />
       <Route path="production-execution/delivery-delay-exceptions" element={withPageSuspense(DeliveryDelayExceptionsPage)} />
       <Route path="production-execution/quality-exceptions" element={withPageSuspense(QualityExceptionsPage)} />
@@ -423,6 +442,8 @@ const KuaizhizaoApp: React.FC = () => {
       <Route path="quality-management/nonconforming-ledger" element={withPageSuspense(NonconformingLedgerPage)} />
       <Route path="quality-management/eight-d-reports" element={withPageSuspense(EightDReportsPage)} />
       <Route path="quality-management/eight-d-reports/:id" element={withPageSuspense(EightDWorkbenchPage)} />
+      <Route path="quality-management/quality-complaints" element={withPageSuspense(QualityComplaintsPage)} />
+      <Route path="quality-management/supplier-evaluations" element={withPageSuspense(SupplierEvaluationsPage)} />
       <Route path="quality-management/oqc-inspection" element={withPageSuspense(OQCInspectionPage)} />
       <Route path="quality-management/spc-monitor" element={withPageSuspense(SPCMonitorPage)} />
       <Route path="quality-management/iso-clauses" element={withPageSuspense(IsoClausesPage)} />
@@ -442,6 +463,8 @@ const KuaizhizaoApp: React.FC = () => {
       <Route path="equipment-management/maintenance-executions" element={withPageSuspense(MaintenanceExecutionsPage)} />
       <Route path="equipment-management/equipment-repairs" element={withPageSuspense(EquipmentRepairsPage)} />
       <Route path="equipment-management/equipment-calibrations" element={withPageSuspense(EquipmentCalibrationsPage)} />
+      <Route path="equipment-management/equipment-acceptances" element={withPageSuspense(EquipmentAcceptancesPage)} />
+      <Route path="equipment-management/equipment-line-rebinds" element={withPageSuspense(EquipmentLineRebindsPage)} />
       <Route path="equipment-management/molds/:uuid" element={withPageSuspense(MoldDetailPage)} />
       <Route path="equipment-management/molds" element={withPageSuspense(MoldsPage)} />
       <Route path="equipment-management/tool-ledger/:uuid" element={withPageSuspense(ToolLedgerDetailPage)} />
@@ -629,6 +652,9 @@ const KuaizhizaoApp: React.FC = () => {
       <Route path="production-execution/reports/scrap-defect-analysis" element={withPageSuspense(ScrapDefectAnalysisPage)} />
       <Route path="production-execution/reports/first-pass-yield" element={withPageSuspense(FirstPassYieldAnalysisPage)} />
       <Route path="production-execution/reports/production-delay-warning" element={withPageSuspense(ProductionDelayWarningPage)} />
+      <Route path="production-execution/reports/production-daily" element={withPageSuspense(ProductionDailySummaryPage)} />
+      <Route path="production-execution/production-daily-reports" element={withPageSuspense(ProductionDailyReportsPage)} />
+      <Route path="production-execution/production-daily-templates" element={withPageSuspense(ProductionDailyTemplatesPage)} />
 
       {/* 质量管理报表 */}
       <Route path="quality-management/reports/incoming-inspection-report" element={withPageSuspense(IncomingInspectionReportPage)} />
@@ -637,6 +663,10 @@ const KuaizhizaoApp: React.FC = () => {
       <Route path="quality-management/reports/quality-exception-tracking" element={withPageSuspense(QualityExceptionTrackingPage)} />
       <Route path="quality-management/reports/nonconforming-summary" element={withPageSuspense(NonconformingSummaryPage)} />
       <Route path="quality-management/reports/quality-rate-trend" element={withPageSuspense(QualityRateTrendPage)} />
+      <Route
+        path="quality-management/reports/quality-complaint-analysis"
+        element={withPageSuspense(QualityComplaintAnalysisPage)}
+      />
 
       {/* 设备管理报表 */}
       <Route path="equipment-management/reports/equipment-maintenance-detail" element={withPageSuspense(EquipmentMaintenanceDetailPage)} />

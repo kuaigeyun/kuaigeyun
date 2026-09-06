@@ -79,6 +79,45 @@ class QmsSystemDocumentListResponse(BaseSchema):
     total: int
 
 
+class QmsSystemDocumentVersionResponse(BaseSchema):
+    id: int
+    document_id: int
+    document_code: str
+    version: str
+    status: str
+    is_effective: bool = False
+    title: str
+    content: Optional[str] = None
+    file_uuid: Optional[str] = None
+    file_url: Optional[str] = None
+    change_summary: Optional[str] = None
+    effective_at: Optional[datetime] = None
+    obsolete_at: Optional[datetime] = None
+    created_by: Optional[int] = None
+    created_by_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class QmsSystemDocumentVersionListResponse(BaseSchema):
+    items: List[QmsSystemDocumentVersionResponse]
+    total: int
+    audience: str
+    can_view_history: bool = False
+
+
+class QmsSystemDocumentReviseRequest(BaseSchema):
+    version: Optional[str] = Field(None, description="新版本号；空则自动递增")
+    change_summary: Optional[str] = Field(None, description="升版说明")
+
+
+class QmsSystemDocumentRejectRequest(BaseSchema):
+    reason: Optional[str] = Field(None, description="驳回原因")
+
+
 class QmsInternalAuditBase(BaseSchema):
     audit_code: Optional[str] = None
     title: str

@@ -1,0 +1,9 @@
+{
+  "code": "kuaielectronics",
+  "name": "电子制造",
+  "version": "0.4.0",
+  "description": "电子制造 / EMS-OEM 行业包：样品/BOM 扩展、ESD、OEM 标签签样包",
+  "icon": "chip",
+  "entry_point": "./index.tsx",
+  "route_path": "/apps/kuaielectronics"
+}

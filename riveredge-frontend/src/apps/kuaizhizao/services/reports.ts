@@ -32,6 +32,7 @@ export interface ReportParams {
   order_code?: string;
   product_name?: string;
   supplier_name?: string;
+  supplier_id?: number;
   work_order_code?: string;
   demand_type?: string;
   column_filters?: string;
@@ -277,6 +278,7 @@ function buildReportQueryParams(
   if (params.order_code) query.order_code = params.order_code;
   if (params.product_name) query.product_name = params.product_name;
   if (params.supplier_name) query.supplier_name = params.supplier_name;
+  if (params.supplier_id != null) query.supplier_id = params.supplier_id;
   if (params.work_order_code) query.work_order_code = params.work_order_code;
   if (params.demand_type) query.demand_type = params.demand_type;
   if (params.period_basis) query.period_basis = params.period_basis;

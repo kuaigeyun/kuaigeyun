@@ -1,4 +1,4 @@
-import { kuaioaDelete, kuaioaList, kuaioaPost, kuaioaPut } from './kuaioaApi';
+import { kuaioaDelete, kuaioaGet, kuaioaList, kuaioaPost, kuaioaPut } from './kuaioaApi';
 
 const BASE = '/apps/kuaioa/licenses';
 
@@ -10,6 +10,10 @@ export interface ComplianceLicense {
   holder_name?: string | null;
   expiry_date?: string | null;
   status: string;
+  reminder_days?: number;
+  notify_user_ids?: number[];
+  notify_channels?: string[];
+  notify_enabled?: boolean;
   days_until_expiry?: number;
 }
 
@@ -18,6 +22,9 @@ export const listComplianceLicenses = (params?: Record<string, unknown>) =>
 
 export const listExpiringLicenses = (withinDays = 30) =>
   kuaioaList<ComplianceLicense>(`${BASE}/expiring`, { within_days: withinDays });
+
+export const listLicenseTypes = () =>
+  kuaioaList<{ code: string; label: string }>(`${BASE}/types`);
 
 export const createComplianceLicense = (data: Partial<ComplianceLicense>) =>
   kuaioaPost<ComplianceLicense>(BASE, data);

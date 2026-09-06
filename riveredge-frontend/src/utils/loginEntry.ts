@@ -1,5 +1,5 @@
 /**
- * 登录入口快照：登录时写入本地，退出时回到同一入口（含二级域名、路径前缀、查询参数）。
+ * 登录入口快照：登录时写入本地，退出时回到同一入口（含路径前缀、查询参数）。
  */
 
 import { navigateTo } from './navigation';
@@ -23,7 +23,7 @@ export type LoginEntrySnapshot = {
 export type PostLogoutLoginTarget = {
   /** 同 origin 时用 SPA 路由 */
   path: string;
-  /** 跨 origin（如二级域名登录）时整页跳转 */
+  /** 跨 origin 时整页跳转 */
   fullUrl?: string;
 };
 

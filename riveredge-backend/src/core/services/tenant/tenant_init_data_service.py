@@ -306,6 +306,24 @@ class TenantInitDataService:
                 count += int(kz_rules.get("created") or 0) + int(
                     kz_rules.get("templates_created") or 0
                 )
+            if "kuaiplm" in installed:
+                from apps.kuaiplm.services.kuaiplm_notification_rule_presets import (
+                    load_kuaiplm_notification_rule_presets,
+                )
+
+                plm_rules = await load_kuaiplm_notification_rule_presets(tenant_id)
+                count += int(plm_rules.get("created") or 0) + int(
+                    plm_rules.get("templates_created") or 0
+                )
+            if "kuaioa" in installed:
+                from apps.kuaioa.services.kuaioa_training_notification_presets import (
+                    load_kuaioa_training_notification_rule_presets,
+                )
+
+                oa_rules = await load_kuaioa_training_notification_rule_presets(tenant_id)
+                count += int(oa_rules.get("rules_created") or 0) + int(
+                    oa_rules.get("templates_created") or 0
+                )
             if "haoligo" in installed:
                 from apps.haoligo.services.haoligo_message_template_registry import (
                     load_haoligo_message_template_presets,

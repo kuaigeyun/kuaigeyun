@@ -10,6 +10,11 @@ class KuaioaFormRequest(BaseModel):
     request_code = fields.CharField(max_length=50, description="申请单号")
     template_id = fields.IntField(null=True, description="模板ID")
     template_code = fields.CharField(max_length=50, null=True, description="模板编码")
+    business_type = fields.CharField(
+        max_length=50,
+        null=True,
+        description="业务类型快照（来自模板）",
+    )
     title = fields.CharField(max_length=200, description="标题")
     form_data = fields.JSONField(default=dict, description="表单数据")
     status = fields.CharField(max_length=30, default="draft", description="状态")
@@ -27,6 +32,7 @@ class KuaioaFormRequest(BaseModel):
         indexes = [
             ("tenant_id", "status"),
             ("tenant_id", "template_id"),
+            ("tenant_id", "business_type"),
             ("tenant_id", "applicant_id"),
         ]
 

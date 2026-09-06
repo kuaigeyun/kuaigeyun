@@ -12,6 +12,7 @@ import {
   ProFormDigit,
   ProFormGroup,
   ProFormSelect,
+  ProFormText,
   ProFormTextArea,
 } from '@ant-design/pro-components';
 import { useTranslation } from 'react-i18next';
@@ -183,6 +184,16 @@ const ReworkOrderCreateModal: React.FC<ReworkOrderCreateModalProps> = ({
         fieldProps={{ loading: reworkTypeLoading }}
         colProps={{ span: 12 }}
       />
+      <ProFormSelect
+        name="business_type"
+        label={t('app.kuaizhizao.reworkOrder.colBusinessType')}
+        rules={[{ required: true, message: t('app.kuaizhizao.reworkOrder.formBusinessTypeRequired') }]}
+        options={[
+          { value: 'simple_exec', label: t('app.kuaizhizao.reworkOrder.businessType.simple_exec') },
+          { value: 'multi_signoff', label: t('app.kuaizhizao.reworkOrder.businessType.multi_signoff') },
+        ]}
+        colProps={{ span: 12 }}
+      />
       <ProFormDigit
         name="quantity"
         label={t('app.kuaizhizao.reworkOrder.colQuantity')}
@@ -208,6 +219,12 @@ const ReworkOrderCreateModal: React.FC<ReworkOrderCreateModalProps> = ({
         min={0.01}
         max={reworkableQuantity > 0 ? reworkableQuantity : undefined}
         fieldProps={{ precision: 2 }}
+        colProps={{ span: 12 }}
+      />
+      <ProFormText
+        name="product_line_code"
+        label={t('app.kuaizhizao.reworkOrder.colProductLine')}
+        placeholder={t('app.kuaizhizao.reworkOrder.formProductLinePlaceholder')}
         colProps={{ span: 12 }}
       />
       <ProFormSelect

@@ -1502,7 +1502,7 @@ export default function UniTabs({ menuConfig, children, isFullscreen = false, on
         /* 激活标签背景色与内容区一致，仿 Chrome 浏览器样式 - 使用主题背景色 */
         /* 参考：https://juejin.cn/post/6986827061461516324 */
         .uni-tabs-container .ant-tabs-nav-list > .ant-tabs-tab.ant-tabs-tab-active {
-          --uni-tab-line: var(--uni-tabs-rail, var(--ant-colorBorder, var(--ant-color-border, #d9d9d9)));
+          --uni-tab-line: var(--uni-tabs-rail);
           --uni-tab-fill: ${tabFillColor};
           background: var(--uni-tab-fill) !important;
           border-color: var(--uni-tab-line) !important;
@@ -1639,9 +1639,10 @@ export default function UniTabs({ menuConfig, children, isFullscreen = false, on
           flex-direction: column;
           overflow: visible !important;
         }
-        /* 标签栏总背景：唯一着色层（支持半透明）；底轨由 ::after 绘制，与侧栏搜索条同一几何 */
+        /* 标签栏总背景：唯一着色层（支持半透明）。
+         * 底轨与布局主框线统一为 inset 投影；激活标签 box-shadow: 0 1px 0 fill 盖住底轨。 */
         .uni-tabs-header {
-          --uni-tabs-rail: var(--riveredge-layout-frame-color, var(--ant-colorBorder, var(--ant-color-border, #d9d9d9)));
+          --uni-tabs-rail: var(--riveredge-layout-frame-color);
           background: ${tabsBgColor} !important;
           flex-shrink: 0;
           height: var(--riveredge-chrome-strip-height, 40px);
@@ -1656,19 +1657,11 @@ export default function UniTabs({ menuConfig, children, isFullscreen = false, on
           z-index: 10;
           overflow: hidden !important;
           border-bottom: none !important;
+          box-shadow: inset 0 -1px 0 var(--uni-tabs-rail) !important;
         }
         .uni-tabs-header::after {
-          content: '';
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          height: var(--riveredge-layout-rail-size, 1px);
-          background: var(--uni-tabs-rail);
-          pointer-events: none;
-          /* 须在标签栏内容之下，激活标签用 box-shadow 盖住底轨 */
-          z-index: 0;
-          transform: translateZ(0);
+          content: none !important;
+          display: none !important;
         }
         div.uni-tabs-header {
           background: ${tabsBgColor} !important;
@@ -2048,34 +2041,17 @@ export default function UniTabs({ menuConfig, children, isFullscreen = false, on
           position: absolute;
           right: 0;
           top: 0;
-          overflow: hidden; /* 与标签栏同高，底线由 ::after 重绘 */
+          overflow: hidden;
           flex-shrink: 0; /* 防止被压缩 */
           z-index: 3;
           background: ${tabsBgColor} !important;
+          /* 左竖线 + 底轨：与布局主框线同一套 inset 投影 */
+          box-shadow: inset 1px 0 0 var(--uni-tabs-rail), inset 0 -1px 0 var(--uni-tabs-rail) !important;
         }
-        .uni-tabs-fullscreen-button-wrapper::after {
-          content: '';
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          height: var(--riveredge-layout-rail-size, 1px);
-          background: var(--uni-tabs-rail, var(--ant-colorBorder, var(--ant-color-border, #d9d9d9)));
-          pointer-events: none;
-          z-index: 2;
-          transform: translateZ(0);
-        }
-        /* 全屏按钮左侧分割线 - 与标签页分割线样式一致，止于底边框线之上 */
+        .uni-tabs-fullscreen-button-wrapper::after,
         .uni-tabs-fullscreen-button-wrapper::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 0;
-          bottom: 1px; /* 留给底边框线 */
-          width: 1px;
-          background: var(--uni-tabs-rail, var(--ant-colorBorder, var(--ant-color-border, #d9d9d9))) !important;
-          z-index: 1;
-          opacity: 1 !important;
+          content: none !important;
+          display: none !important;
         }
         /* 全屏按钮样式 - 单独设置，保持左右padding为13px（与左右按钮不同），根据标签栏背景色自动适配 */
         .uni-tabs-header-wrapper .uni-tabs-fullscreen-button,

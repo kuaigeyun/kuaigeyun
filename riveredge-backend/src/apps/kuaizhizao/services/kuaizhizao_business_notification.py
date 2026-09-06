@@ -6,7 +6,10 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-from core.services.business.business_notification_service import BusinessNotificationService
+from core.services.business.business_notification_service import (
+    BusinessNotificationService,
+    register_notification_scope_resolver,
+)
 
 # 与配置中心 trigger_document / trigger_action 一致
 DOC_SALES_ORDER = "sales_order"
@@ -16,7 +19,14 @@ DOC_PURCHASE_ORDER_CHANGE = "purchase_order_change"
 DOC_WORK_ORDER = "work_order"
 DOC_QUALITY_EXCEPTION = "quality_exception"
 DOC_QUALITY_INSPECTION = "quality_inspection"
+DOC_QUALITY_COMPLAINT = "quality_complaint"
+DOC_REWORK_ORDER = "rework_order"
+DOC_EQUIPMENT_CALIBRATION = "equipment_calibration"
 DOC_EQUIPMENT_FAULT = "equipment_fault"
+DOC_SUPPLIER_ENV = "supplier_env_document"
+DOC_MOLD_SIGNBACK = "mold_signback"
+DOC_EQUIPMENT_SPOT_CHECK = "equipment_spot_check"
+DOC_EQUIPMENT_LINE_REBIND = "equipment_line_rebind"
 DOC_INVENTORY_ALERT = "inventory_alert"
 DOC_SHIPMENT_NOTICE = "shipment_notice"
 
@@ -39,6 +49,12 @@ ACTION_ASSIGNED = "assigned"
 ACTION_RESOLVED = "resolved"
 ACTION_TRIGGERED = "triggered"
 ACTION_ARRIVAL_OVERDUE = "arrival_overdue"
+ACTION_DUE_OVERDUE = "due_overdue"
+ACTION_DUE_SOON = "due_soon"
+ACTION_OPEN_OVERDUE = "open_overdue"
+ACTION_MONTH_END_OVERDUE = "month_end_overdue"
+ACTION_PQC_CHECKED = "pqc_checked"
+ACTION_OQC_NOTIFIED = "oqc_notified"
 ACTION_CONFIRMED = "confirmed"
 
 
@@ -367,3 +383,42 @@ async def notify_delivery_node_milestone_overdue(
         content=content,
         detail_path=_delivery_workbench_path(project_id),
     )
+
+
+async def _scope_pending_approvers(_tenant_id: int, context: Dict[str, Any]) -> List[int]:
+    """优先用 context 待审人快照，否则按实体查询。"""
+    from core.services.approval.approval_data_scope import (
+        list_pending_approver_user_ids_for_entity,
+    )
+
+    explicit = context.get("pending_approver_user_ids")
+    if isinstance(explicit, list) and explicit:
+        out: List[int] = []
+        seen: set[int] = set()
+        for item in explicit:
+            try:
+                uid = int(item)
+            except (TypeError, ValueError):
+                continue
+            if uid > 0 and uid not in seen:
+                seen.add(uid)
+                out.append(uid)
+        if out:
+            return out
+    entity_type = str(context.get("entity_type") or "").strip()
+    try:
+        entity_id = int(context.get("entity_id"))
+    except (TypeError, ValueError):
+        return []
+    if not entity_type or entity_id < 1:
+        return []
+    return await list_pending_approver_user_ids_for_entity(
+        _tenant_id, entity_type, entity_id
+    )
+
+
+def ensure_kuaizhizao_notification_scope_resolvers() -> None:
+    register_notification_scope_resolver("pending_approvers", _scope_pending_approvers)
+
+
+ensure_kuaizhizao_notification_scope_resolvers()

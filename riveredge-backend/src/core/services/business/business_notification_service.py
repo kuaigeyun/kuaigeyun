@@ -135,6 +135,9 @@ def _normalize_rules(raw: Any) -> List[dict]:
 
 
 class BusinessNotificationService:
+    BUILTIN_INTERNAL_CHANNEL = "__builtin_internal_channel__"
+    IN_APP_CHANNEL_CODE = "internal"
+
     @staticmethod
     async def dispatch(
         tenant_id: int,
@@ -145,8 +148,9 @@ class BusinessNotificationService:
         context: Optional[Dict[str, Any]] = None,
     ) -> int:
         """
-        按业务配置规则发送站内信。返回成功发送条数（按接收人×规则计）。
-        无匹配规则或未配置接收人时返回 0，不抛错。
+        按业务配置规则多渠道派发（站内信/邮件/短信/推送）。
+        返回成功发送条数（按 接收人×渠道×规则 计）。
+        无匹配规则或未配置接收人时返回 0；渠道失败记日志，不吞成成功。
         """
         doc = (trigger_document or "").strip()
         action = (trigger_action or "").strip()
@@ -159,6 +163,14 @@ class BusinessNotificationService:
         vars_payload = {k: str(v) for k, v in (variables or {}).items()}
         vars_payload["trigger_document"] = doc
         vars_payload["trigger_action"] = action
+
+        entity_type = ctx.get("entity_type")
+        entity_id = ctx.get("entity_id")
+        entity_uuid = ctx.get("entity_uuid")
+        try:
+            entity_id_int = int(entity_id) if entity_id is not None else None
+        except (TypeError, ValueError):
+            entity_id_int = None
 
         sent = 0
         for rule in rules:
@@ -187,51 +199,182 @@ class BusinessNotificationService:
             if not recipient_ids:
                 continue
 
-            # 一期仅站内信；忽略规则中的 email/sms 等 channel_uuids
             if "message_category" not in vars_payload:
                 vars_payload["message_category"] = "process"
 
+            channels = await BusinessNotificationService._resolve_channels(tenant_id, rule)
+            if not channels:
+                channels = [{"type": "internal", "config_uuid": None}]
+            preferred = ctx.get("preferred_channels")
+            if isinstance(preferred, list) and preferred:
+                preferred_set = {
+                    str(c).strip().lower() for c in preferred if str(c).strip()
+                }
+                filtered = [c for c in channels if c.get("type") in preferred_set]
+                if filtered:
+                    channels = filtered
+
+            contact_map = await BusinessNotificationService._load_user_contacts(
+                tenant_id, recipient_ids
+            )
+
             for uid in recipient_ids:
-                try:
-                    req_kwargs: Dict[str, Any] = dict(
-                        type="internal",
-                        recipient=str(uid),
-                        variables=vars_payload,
-                        content="",
-                    )
-                    if template_ref:
-                        try:
-                            req_kwargs["template_uuid"] = UUID(template_ref)
-                        except (TypeError, ValueError):
-                            if template_code:
-                                req_kwargs["template_code"] = template_code
-                            else:
-                                req_kwargs["template_code"] = template_ref
-                    elif template_code:
-                        req_kwargs["template_code"] = template_code
-                    req = SendMessageRequest(**req_kwargs)
-                    result = await MessageService.send_message(tenant_id, req)
-                    if result.success:
-                        sent += 1
-                    else:
+                for channel in channels:
+                    channel_type = channel["type"]
+                    try:
+                        recipient = BusinessNotificationService._recipient_for_channel(
+                            channel_type, uid, contact_map
+                        )
+                        if not recipient:
+                            logger.error(
+                                "业务消息提醒缺少收件地址 tenant={} doc={} action={} user={} channel={}",
+                                tenant_id,
+                                doc,
+                                action,
+                                uid,
+                                channel_type,
+                            )
+                            continue
+
+                        req_kwargs: Dict[str, Any] = dict(
+                            type=channel_type,
+                            recipient=recipient,
+                            variables=vars_payload,
+                            content="",
+                            business_document=doc,
+                            business_action=action,
+                            entity_type=str(entity_type) if entity_type else None,
+                            entity_id=entity_id_int,
+                            entity_uuid=str(entity_uuid) if entity_uuid else None,
+                        )
+                        if channel.get("config_uuid"):
+                            req_kwargs["config_uuid"] = UUID(str(channel["config_uuid"]))
+                        if template_ref:
+                            try:
+                                req_kwargs["template_uuid"] = UUID(template_ref)
+                            except (TypeError, ValueError):
+                                if template_code:
+                                    req_kwargs["template_code"] = template_code
+                                else:
+                                    req_kwargs["template_code"] = template_ref
+                        elif template_code:
+                            req_kwargs["template_code"] = template_code
+                        req = SendMessageRequest(**req_kwargs)
+                        result = await MessageService.send_message(tenant_id, req)
+                        if result.success:
+                            sent += 1
+                        else:
+                            logger.error(
+                                "业务消息提醒发送失败 tenant={} doc={} action={} user={} channel={} err={}",
+                                tenant_id,
+                                doc,
+                                action,
+                                uid,
+                                channel_type,
+                                result.error,
+                            )
+                    except Exception as e:
                         logger.error(
-                            "业务消息提醒发送失败 tenant={} doc={} action={} user={} err={}",
+                            "业务消息提醒发送异常 tenant={} doc={} action={} user={} channel={}: {}",
                             tenant_id,
                             doc,
                             action,
                             uid,
-                            result.error,
+                            channel_type,
+                            e,
                         )
-                except Exception as e:
-                    logger.error(
-                        "业务消息提醒发送异常 tenant={} doc={} action={} user={}: {}",
-                        tenant_id,
-                        doc,
-                        action,
-                        uid,
-                        e,
-                    )
         return sent
+
+    @staticmethod
+    async def _resolve_channels(tenant_id: int, rule: dict) -> List[Dict[str, Any]]:
+        from core.models.message_config import MessageConfig
+
+        refs = rule.get("channel_uuids")
+        if not isinstance(refs, list):
+            refs = rule.get("channels")
+        if not isinstance(refs, list) or not refs:
+            return [{"type": "internal", "config_uuid": None}]
+
+        out: List[Dict[str, Any]] = []
+        seen: Set[str] = set()
+        uuid_refs: List[str] = []
+        for raw in refs:
+            key = str(raw or "").strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            if key in {
+                BusinessNotificationService.BUILTIN_INTERNAL_CHANNEL,
+                BusinessNotificationService.IN_APP_CHANNEL_CODE,
+            }:
+                out.append({"type": "internal", "config_uuid": None})
+                continue
+            uuid_refs.append(key)
+
+        if uuid_refs:
+            rows = await MessageConfig.filter(
+                tenant_id=tenant_id,
+                uuid__in=uuid_refs,
+                is_active=True,
+                deleted_at__isnull=True,
+            ).all()
+            by_uuid = {str(r.uuid): r for r in rows}
+            for key in uuid_refs:
+                cfg = by_uuid.get(key)
+                if not cfg:
+                    logger.error(
+                        "业务消息提醒渠道配置不存在或已停用 tenant={} config_uuid={}",
+                        tenant_id,
+                        key,
+                    )
+                    continue
+                channel_type = str(cfg.type or "").strip().lower()
+                if channel_type not in {"internal", "email", "sms", "push"}:
+                    logger.error(
+                        "业务消息提醒不支持的渠道类型 tenant={} config_uuid={} type={}",
+                        tenant_id,
+                        key,
+                        channel_type,
+                    )
+                    continue
+                out.append({"type": channel_type, "config_uuid": str(cfg.uuid)})
+        return out
+
+    @staticmethod
+    async def _load_user_contacts(
+        tenant_id: int, user_ids: List[int]
+    ) -> Dict[int, Dict[str, Optional[str]]]:
+        from infra.models.user import User
+
+        if not user_ids:
+            return {}
+        rows = await User.filter(
+            tenant_id=tenant_id,
+            id__in=user_ids,
+            deleted_at__isnull=True,
+        ).values("id", "email", "phone")
+        out: Dict[int, Dict[str, Optional[str]]] = {}
+        for row in rows:
+            out[int(row["id"])] = {
+                "email": (row.get("email") or "").strip() or None,
+                "phone": (row.get("phone") or "").strip() or None,
+            }
+        return out
+
+    @staticmethod
+    def _recipient_for_channel(
+        channel_type: str,
+        user_id: int,
+        contact_map: Dict[int, Dict[str, Optional[str]]],
+    ) -> Optional[str]:
+        if channel_type in {"internal", "push"}:
+            return str(user_id)
+        contacts = contact_map.get(user_id) or {}
+        if channel_type == "email":
+            return contacts.get("email")
+        if channel_type == "sms":
+            return contacts.get("phone")
+        return None
 
     @staticmethod
     async def _resolve_recipient_ids(

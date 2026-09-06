@@ -12,22 +12,35 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 
 from apps.kuaizhizao.models.equipment_fault import EquipmentFault, EquipmentRepair
 from apps.kuaizhizao.schemas.equipment_fault import (
+    EquipmentFaultArriveRequest,
     EquipmentFaultCreate,
     EquipmentFaultUpdate,
     EquipmentFaultResponse,
     EquipmentFaultListResponse,
+    EquipmentRepairCompleteRequest,
     EquipmentRepairCreate,
     EquipmentRepairUpdate,
     EquipmentRepairResponse,
     EquipmentRepairListResponse,
 )
 from apps.kuaizhizao.services.equipment_fault_service import EquipmentFaultService, EquipmentRepairService
+from apps.kuaizhizao.services.equipment_fault_reminder_service import (
+    fault_has_arrival,
+    is_fault_response_overdue,
+)
 from core.api.deps.deps import get_current_tenant
 from infra.api.deps.deps import get_current_user as soil_get_current_user
 from infra.models.user import User
 from infra.exceptions.exceptions import NotFoundError, ValidationError
 
 router = APIRouter(prefix="/equipment-faults", tags=["App - Kuaige Zhizao - Equipment Faults"])
+
+
+async def _fault_response(tenant_id: int, fault) -> EquipmentFaultResponse:
+    resp = EquipmentFaultResponse.model_validate(fault)
+    has_arrival = await fault_has_arrival(tenant_id, fault.id)
+    resp.response_overdue = is_fault_response_overdue(fault, has_arrival=has_arrival)
+    return resp
 
 
 # ========== 设备故障记录相关端点 ==========
@@ -49,7 +62,7 @@ async def create_equipment_fault(
             data=data,
             created_by=current_user.id
         )
-        return EquipmentFaultResponse.model_validate(fault)
+        return await _fault_response(tenant_id, fault)
     except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -97,7 +110,7 @@ async def list_equipment_faults(
         uuid=uuid,
     )
     
-    items = [EquipmentFaultResponse.model_validate(fault) for fault in faults]
+    items = [await _fault_response(tenant_id, fault) for fault in faults]
     
     return EquipmentFaultListResponse(
         items=items,
@@ -183,6 +196,31 @@ async def list_equipment_repairs(
     )
 
 
+@router.post(
+    "/repairs/{uuid}/complete",
+    response_model=EquipmentRepairResponse,
+)
+async def complete_equipment_repair(
+    uuid: str,
+    data: EquipmentRepairCompleteRequest,
+    current_user: User = Depends(soil_get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """完工填报：故障原因 + 维修内容。"""
+    try:
+        repair = await EquipmentRepairService.complete_equipment_repair(
+            tenant_id=tenant_id,
+            uuid=uuid,
+            data=data,
+            operator=current_user,
+        )
+        return EquipmentRepairResponse.model_validate(repair)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+
 @router.get("/repairs/{uuid}", response_model=EquipmentRepairResponse)
 async def get_equipment_repair(
     uuid: str,
@@ -228,6 +266,11 @@ async def update_equipment_repair(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
 
 
 @router.delete("/repairs/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
@@ -250,6 +293,28 @@ async def delete_equipment_repair(
         )
 
 
+@router.post("/{uuid}/arrive", response_model=EquipmentRepairResponse)
+async def arrive_equipment_fault(
+    uuid: str,
+    data: EquipmentFaultArriveRequest,
+    current_user: User = Depends(soil_get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """到场扫码签到。"""
+    try:
+        repair = await EquipmentFaultService.arrive_at_fault(
+            tenant_id=tenant_id,
+            fault_uuid=uuid,
+            data=data,
+            operator=current_user,
+        )
+        return EquipmentRepairResponse.model_validate(repair)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+
 @router.get("/{uuid}", response_model=EquipmentFaultResponse)
 async def get_equipment_fault(
     uuid: str,
@@ -263,7 +328,7 @@ async def get_equipment_fault(
     """
     try:
         fault = await EquipmentFaultService.get_equipment_fault_by_uuid(tenant_id, uuid)
-        return EquipmentFaultResponse.model_validate(fault)
+        return await _fault_response(tenant_id, fault)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -289,7 +354,7 @@ async def update_equipment_fault(
             uuid=uuid,
             data=data
         )
-        return EquipmentFaultResponse.model_validate(fault)
+        return await _fault_response(tenant_id, fault)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ChangeDeskItem(BaseModel):
     id: int = Field(..., description="内部主键，供 uni-audit 使用")
-    category: str = Field(..., description="bom | process_route | drawing")
+    category: str = Field(..., description="bom | process_route | drawing | ecn")
     change_type: str = Field(..., description="业务变更类型，如 item_modify / operation_change")
     uuid: str
     status: str
@@ -46,22 +46,22 @@ class ChangeCreateRequest(BaseModel):
 
 
 class ChangeApproveRequest(BaseModel):
-    change_type: str = Field(..., description="bom | process_route | drawing")
+    change_type: str = Field(..., description="bom | process_route | drawing | ecn")
     approved: bool = True
     approval_comment: Optional[str] = None
 
 
 class ChangeExecuteRequest(BaseModel):
-    change_type: str = Field(..., description="bom | process_route | drawing")
+    change_type: str = Field(..., description="bom | process_route | drawing | ecn")
 
 
 class ChangeSubmitRequest(BaseModel):
-    change_type: str = Field(..., description="bom | process_route | drawing")
+    change_type: str = Field(..., description="bom | process_route | drawing | ecn")
 
 
 class ChangeBatchItem(BaseModel):
     change_uuid: str = Field(..., description="变更UUID")
-    change_type: str = Field(..., description="bom | process_route | drawing")
+    change_type: str = Field(..., description="bom | process_route | drawing | ecn")
 
 
 class ChangeBatchApproveRequest(BaseModel):
@@ -100,6 +100,7 @@ class DashboardSummaryResponse(BaseModel):
     requirement_total: int = 0
     design_review_pending: int = 0
     fmea_total: int = 0
+    pending_wave1_docs: int = 0
     recent_projects: List[Dict[str, Any]] = Field(default_factory=list)
     project_gantt: List[Dict[str, Any]] = Field(default_factory=list)
     my_tasks: List[Dict[str, Any]] = Field(default_factory=list)

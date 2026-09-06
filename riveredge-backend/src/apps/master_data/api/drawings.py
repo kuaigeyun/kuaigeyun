@@ -26,6 +26,7 @@ from apps.master_data.services.drawing_service import DrawingService
 from apps.master_data.services.drawing_step_bom_service import DrawingStepBomService
 from apps.master_data.api._master_data_route_access import require_master_data_module_access
 from core.api.deps.deps import get_current_tenant, get_current_user
+from core.services.authorization.user_permission_service import UserPermissionService
 from core.services.business.code_generation_service import CodeGenerationService
 from infra.exceptions.exceptions import AuthorizationError, NotFoundError, ValidationError
 from infra.models.user import User
@@ -130,10 +131,24 @@ async def list_drawing_revisions(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     try:
-        code, revisions = await DrawingService.list_revisions(
-            tenant_id, drawing_uuid, current_user=current_user
+        permission_codes = sorted(
+            await UserPermissionService.get_user_permissions(
+                user_id=current_user.id,
+                tenant_id=tenant_id,
+            )
         )
-        return EngineeringDrawingRevisionsResponse(code=code, revisions=revisions)
+        code, revisions, audience, can_view_history = await DrawingService.list_revisions(
+            tenant_id,
+            drawing_uuid,
+            current_user=current_user,
+            permission_codes=permission_codes,
+        )
+        return EngineeringDrawingRevisionsResponse(
+            code=code,
+            revisions=revisions,
+            audience=audience,
+            can_view_history=can_view_history,
+        )
     except AuthorizationError as e:
         raise _http_exception(status.HTTP_403_FORBIDDEN, str(e))
     except NotFoundError as e:

@@ -92,6 +92,12 @@ class MessageService:
             content=content,
             variables=request.variables,
             status="pending",
+            retry_count=0,
+            business_document=request.business_document,
+            business_action=request.business_action,
+            entity_type=request.entity_type,
+            entity_id=request.entity_id,
+            entity_uuid=request.entity_uuid,
         )
 
         # 站内信无需外部通道，同步标记成功即可（不依赖 Taskiq worker）

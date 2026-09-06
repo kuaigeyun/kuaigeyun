@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionType, ProColumns, ProFormSelect, ProFormText, ProFormDatePicker, ProDescriptionsItemProps } from '@ant-design/pro-components';
+import { ActionType, ProColumns, ProFormSelect, ProFormText, ProFormDatePicker, ProFormDependency, ProDescriptionsItemProps } from '@ant-design/pro-components';
 import { App, Button, Descriptions, Typography } from 'antd';
 import { MarkerTag } from '../../../../../constants/statusBadges';
 import { EQUIPMENT_DATE_FIELD_PROPS } from '../../../utils/equipmentFormFieldProps';
@@ -44,6 +44,7 @@ interface EquipmentCalibration {
   equipment_uuid?: string;
   equipment_code?: string;
   equipment_name?: string;
+  plan_type?: string;
   calibration_date?: string;
   result?: string;
   certificate_no?: string;
@@ -55,6 +56,11 @@ interface EquipmentCalibration {
   created_by_name?: string;
   updated_by_name?: string;
 }
+
+const PLAN_TYPE_LABEL_KEYS: Record<string, string> = {
+  internal: `${P}.planTypeInternal`,
+  external: `${P}.planTypeExternal`,
+};
 
 const CALIBRATION_RESULT_LABEL_KEYS: Record<string, string> = {
   合格: `${P}.resultPass`,
@@ -83,7 +89,7 @@ const EquipmentCalibrationsPage: React.FC = () => {
   const handleCreate = () => {
     setModalVisible(true);
     formRef.current?.resetFields();
-    formRef.current?.setFieldsValue({ calibration_date: dayjs(), result: '合格' });
+    formRef.current?.setFieldsValue({ calibration_date: dayjs(), result: '合格', plan_type: 'internal' });
   };
 
   useNewShortcut(handleCreate);
@@ -100,6 +106,7 @@ const EquipmentCalibrationsPage: React.FC = () => {
     try {
       await equipmentApi.createCalibrationRecord({
         equipment_uuid: values.equipment_uuid,
+        plan_type: values.plan_type || 'internal',
         calibration_date: values.calibration_date?.format?.('YYYY-MM-DD') || values.calibration_date,
         result: values.result,
         certificate_no: values.certificate_no,
@@ -116,6 +123,14 @@ const EquipmentCalibrationsPage: React.FC = () => {
     }
   };
 
+  const planTypeOptions = useMemo(
+    () => [
+      { label: t(`${P}.planTypeInternal`), value: 'internal' },
+      { label: t(`${P}.planTypeExternal`), value: 'external' },
+    ],
+    [t],
+  );
+
   const resultOptions = useMemo(
     () => [
       { label: t(`${P}.resultPass`), value: '合格' },
@@ -129,6 +144,14 @@ const EquipmentCalibrationsPage: React.FC = () => {
     () => [
       { title: t(`${P}.colEquipmentCode`), dataIndex: 'equipment_code' },
       { title: t(`${P}.colEquipmentName`), dataIndex: 'equipment_name' },
+      {
+        title: t(`${P}.colPlanType`),
+        dataIndex: 'plan_type',
+        render: (_, r) => {
+          const key = r.plan_type ? PLAN_TYPE_LABEL_KEYS[r.plan_type] : undefined;
+          return key ? t(key) : r.plan_type || '-';
+        },
+      },
       {
         title: t(`${P}.colCalibrationDate`),
         dataIndex: 'calibration_date',
@@ -204,6 +227,24 @@ const EquipmentCalibrationsPage: React.FC = () => {
         sorter: true,
         hideInSearch: true,
         render: (_, r) => (r.calibration_date ? formatDateTime(r.calibration_date, 'YYYY-MM-DD') : '-'),
+      },
+      {
+        title: t(`${P}.colPlanType`),
+        dataIndex: 'plan_type',
+        width: 88,
+        minWidth: 88,
+        uniTableKeepWidth: true,
+        resizable: false,
+        hideInSearch: true,
+        render: (_, r) => {
+          const key = r.plan_type ? PLAN_TYPE_LABEL_KEYS[r.plan_type] : undefined;
+          const label = key ? t(key) : r.plan_type || '-';
+          return (
+            <MarkerTag color={r.plan_type === 'external' ? 'processing' : 'default'}>
+              {label}
+            </MarkerTag>
+          );
+        },
       },
       {
         title: t(`${P}.colResult`),
@@ -290,7 +331,7 @@ const EquipmentCalibrationsPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.equipmentCalibrations)}
         headerTitle={t(`${P}.title`)}
-        columnPersistenceId="apps.kuaizhizao.pages.equipment-management.equipment-calibrations-width-v2"
+        columnPersistenceId="apps.kuaizhizao.pages.equipment-management.equipment-calibrations-width-v3"
         actionRef={actionRef}
         enableRowSelection
         selectedRowKeys={selectedRowKeys}
@@ -348,10 +389,29 @@ const EquipmentCalibrationsPage: React.FC = () => {
           showSearch
           rules={[{ required: true, message: t(`${P}.formEquipmentPlaceholder`) }]}
         />
+        <ProFormSelect
+          name="plan_type"
+          label={t(`${P}.formPlanType`)}
+          options={planTypeOptions}
+          rules={[{ required: true, message: t(`${P}.formPlanTypeRequired`) }]}
+        />
         <ProFormDatePicker name="calibration_date" label={t(`${P}.formCalibrationDate`)} {...EQUIPMENT_DATE_FIELD_PROPS} rules={[{ required: true }]} />
         <ProFormSelect name="result" label={t(`${P}.formResult`)} options={resultOptions} rules={[{ required: true }]} />
         <ProFormText name="certificate_no" label={t(`${P}.formCertificateNo`)} />
-        <ProFormDatePicker name="expiry_date" label={t(`${P}.formExpiryDate`)} {...EQUIPMENT_DATE_FIELD_PROPS} />
+        <ProFormDependency name={['plan_type']}>
+          {({ plan_type }) => (
+            <ProFormDatePicker
+              name="expiry_date"
+              label={t(`${P}.formExpiryDate`)}
+              {...EQUIPMENT_DATE_FIELD_PROPS}
+              rules={
+                plan_type === 'external'
+                  ? [{ required: true, message: t(`${P}.formExpiryDateRequiredExternal`) }]
+                  : undefined
+              }
+            />
+          )}
+        </ProFormDependency>
         <DocumentAttachmentsField category="equipment_calibration_attachments" />
         <ProFormText name="remark" label={t('common.remark')} />
       </FormModalTemplate>

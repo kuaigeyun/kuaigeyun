@@ -5510,6 +5510,8 @@ const WorkOrdersPage: React.FC = () => {
       const submitData = {
         rework_reason: values.rework_reason,
         rework_type: values.rework_type,
+        business_type: values.business_type || 'simple_exec',
+        product_line_code: values.product_line_code || undefined,
         routing_mode: values.routing_mode || 'DYNAMIC',
         verification_required: Boolean(values.verification_required),
         quantity: qty,

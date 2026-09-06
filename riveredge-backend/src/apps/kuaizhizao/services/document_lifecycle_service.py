@@ -983,10 +983,12 @@ def get_sales_forecast_lifecycle(
 
 
 # ---------------------------------------------------------------------------
-# 返工单生命周期（草稿→已下达→执行中→待复检→质量放行→已关闭）
+# 返工单生命周期（草稿→待审→已审→已下达→执行中→待复检→质量放行→已关闭）
 # ---------------------------------------------------------------------------
 REWORK_ORDER_MAIN_STAGES = [
     {"key": "draft", "label": "草稿"},
+    {"key": "pending", "label": "待审核"},
+    {"key": "approved", "label": "已审核"},
     {"key": "released", "label": "已下达"},
     {"key": "in_progress", "label": "执行中"},
     {"key": "pending_verification", "label": "待复检"},
@@ -996,6 +998,8 @@ REWORK_ORDER_MAIN_STAGES = [
 
 REWORK_ORDER_FLOW_LABELS = {
     "draft": "草稿",
+    "pending": "待审核",
+    "approved": "已审核",
     "released": "已下达",
     "in_progress": "执行中",
     "pending_verification": "待复检",
@@ -1043,21 +1047,34 @@ def get_rework_order_lifecycle(
         main_stages.append({"key": stage["key"], "label": stage["label"], "status": st})
 
     suggestions_map = {
-        "draft": ["下达"],
+        "draft": ["提交审核", "下达"],
+        "pending": ["审核"],
+        "approved": ["下达"],
         "released": ["报工"],
         "in_progress": ["报工", "下一工序", "申请完修"],
         "pending_verification": ["复检", "质量放行"],
         "quality_released": ["关闭"],
         "closed": [],
     }
+    next_steps = list(suggestions_map.get(visual_key, []))
+    if visual_key == "quality_released":
+        bt = str(getattr(rework_order, "business_type", None) or "simple_exec").strip().lower()
+        if bt == "multi_signoff" and not getattr(rework_order, "finance_signed_at", None):
+            next_steps = ["财务会签", "关闭"]
     return {
         "status_class": status_raw,
         "flow_class": visual_key,
         "current_stage_key": visual_key,
         "current_stage_name": stage_name,
-        "status": "success" if visual_key == "closed" else "active" if visual_key in ("in_progress", "released") else "normal",
+        "status": (
+            "success"
+            if visual_key in ("closed", "approved", "quality_released")
+            else "active"
+            if visual_key in ("in_progress", "released", "pending")
+            else "normal"
+        ),
         "main_stages": main_stages,
-        "next_step_suggestions": suggestions_map.get(visual_key, []),
+        "next_step_suggestions": next_steps,
         "milestones": milestones or [],
     }
 

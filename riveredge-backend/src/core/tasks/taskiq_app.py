@@ -217,6 +217,14 @@ async def work_order_score_recalc_tick() -> dict:
 
 
 @task(schedule=[{"cron": "* * * * *"}])
+async def reminder_event_dispatch_tick() -> dict:
+    """每分钟扫描到期提醒事件并派发（INF-03）。"""
+    from core.services.business.reminder_dispatch_service import ReminderDispatchService
+
+    return await ReminderDispatchService.process_all_due()
+
+
+@task(schedule=[{"cron": "* * * * *"}])
 async def kuaiiot_offline_check_tick() -> dict:
     """每分钟检测快数采设备离线。"""
     from apps.kuaiiot.workflows.functions.device_lifecycle_workflow import run_kuaiiot_offline_check

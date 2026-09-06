@@ -69,6 +69,7 @@ class Equipment(BaseModel):
             ("workstation_id",),
             ("work_center_id",),
             ("status",),
+            ("qr_bind_code",),
         ]
         unique_together = [("tenant_id", "code")]
     
@@ -145,7 +146,23 @@ class Equipment(BaseModel):
         description="设备照片（core_files.uuid）",
     )
     attachments = fields.JSONField(null=True, description="附件列表")
-    
+    # 手工绑定二维码内容（物理贴纸原文）；空则打印/展示走系统 EQ JSON 码
+    qr_bind_code = fields.CharField(
+        max_length=200,
+        null=True,
+        description="手工绑定二维码内容（租户内唯一）",
+    )
+
+    # 换线强制初检闸门（R-10 WP-10.7）
+    force_spot_check_required = fields.BooleanField(
+        default=False, description="换线后是否须完成强制初检"
+    )
+    force_spot_check_due_at = fields.DatetimeField(
+        null=True, description="强制初检超时时刻"
+    )
+    line_rebind_at = fields.DatetimeField(null=True, description="最近换线完成时刻")
+    line_rebind_id = fields.IntField(null=True, description="最近换线单ID")
+
     # 软删除字段
     deleted_at = fields.DatetimeField(null=True, description="删除时间（软删除）")
     
@@ -161,15 +178,20 @@ class EquipmentCalibration(BaseModel):
     class Meta:
         table = "apps_kuaizhizao_equipment_calibrations"
         table_description = "快格轻制造 - 设备校准记录"
-        indexes = [("tenant_id",), ("equipment_id",), ("calibration_date",)]
+        indexes = [("tenant_id",), ("equipment_id",), ("calibration_date",), ("plan_type",)]
 
     id = fields.IntField(pk=True)
     equipment_id = fields.IntField()
     equipment_uuid = fields.CharField(max_length=36)
+    plan_type = fields.CharField(
+        max_length=20,
+        default="internal",
+        description="计划类型：internal 内校 / external 外校",
+    )
     calibration_date = fields.DateField(description="校验日期")
     result = fields.CharField(max_length=50, description="校验结果（合格、不合格、限制使用）")
     certificate_no = fields.CharField(max_length=100, null=True, description="证书编号")
-    expiry_date = fields.DateField(null=True, description="有效期至")
+    expiry_date = fields.DateField(null=True, description="计量到期日（有效期至）")
     attachment_uuid = fields.CharField(max_length=36, null=True, description="报告附件ID")
     remark = fields.TextField(null=True)
     attachments = fields.JSONField(null=True, description="附件列表")

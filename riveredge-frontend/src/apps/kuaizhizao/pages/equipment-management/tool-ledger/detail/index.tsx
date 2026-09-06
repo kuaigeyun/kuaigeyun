@@ -198,6 +198,10 @@ const ToolLedgerDetailPage: React.FC = () => {
       { title: t('app.kuaizhizao.toolLedger.colSpec'), dataIndex: 'spec' },
       { title: t('app.kuaizhizao.toolLedger.colManufacturer'), dataIndex: 'manufacturer' },
       { title: t('app.kuaizhizao.toolLedger.colSupplier'), dataIndex: 'supplier' },
+      { title: t('app.kuaizhizao.toolLedger.colProductModel'), dataIndex: 'product_model' },
+      { title: t('app.kuaizhizao.toolLedger.colQuantity'), dataIndex: 'quantity' },
+      { title: t('app.kuaizhizao.toolLedger.colCustodian'), dataIndex: 'custodian_name' },
+      { title: t('app.kuaizhizao.toolLedger.colInboundDate'), dataIndex: 'inbound_date', valueType: 'date' },
       { title: t('app.kuaizhizao.toolLedger.colPurchaseDate'), dataIndex: 'purchase_date', valueType: 'date' },
       { title: t('app.kuaizhizao.toolLedger.colWarrantyExpiry'), dataIndex: 'warranty_expiry', valueType: 'date' },
       {
@@ -208,6 +212,18 @@ const ToolLedgerDetailPage: React.FC = () => {
           return <MarkerTag color={mapped.color}>{mapped.text}</MarkerTag>;
         },
       },
+      { title: t('app.kuaizhizao.toolLedger.colCurrentBorrower'), dataIndex: 'current_borrower_name' },
+      {
+        title: t('app.kuaizhizao.toolLedger.colCurrentBorrowAt'),
+        dataIndex: 'current_borrow_at',
+        valueType: 'dateTime',
+      },
+      {
+        title: t('app.kuaizhizao.toolLedger.colLastReturnAt'),
+        dataIndex: 'last_return_at',
+        valueType: 'dateTime',
+      },
+      { title: t('app.kuaizhizao.toolLedger.colLastReturnBy'), dataIndex: 'last_return_by_name' },
       { title: t('app.kuaizhizao.toolLedger.colTotalUsageCount'), dataIndex: 'total_usage_count' },
       { title: t('common.remark'), dataIndex: 'description', span: 2 },
       { title: t('common.createdAt'), dataIndex: 'created_at', valueType: 'dateTime' },

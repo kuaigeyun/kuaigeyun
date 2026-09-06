@@ -68,6 +68,11 @@ class SendMessageRequest(BaseModel):
     subject: Optional[str] = Field(None, max_length=200, description="主题")
     content: Optional[str] = Field(None, description="消息内容（如果使用了模板，则可选）")
     variables: Optional[Dict[str, Any]] = Field(None, description="模板变量值（JSON格式）")
+    business_document: Optional[str] = Field(None, max_length=100, description="业务单据编码")
+    business_action: Optional[str] = Field(None, max_length=50, description="业务触发动作")
+    entity_type: Optional[str] = Field(None, max_length=100, description="业务实体类型")
+    entity_id: Optional[int] = Field(None, description="业务实体ID")
+    entity_uuid: Optional[str] = Field(None, max_length=36, description="业务实体UUID")
 
 
 class SendMessageResponse(BaseModel):

@@ -2430,12 +2430,14 @@ code {
   --dashboard-card-shadow: var(--ant-box-shadow-tertiary);
 }
 
-/* ProLayout 主框线：顶栏底 / 侧栏右 — 与标签底轨、搜索底、配置钮顶同色 */
+/* ProLayout 主框线：顶栏底 inset 投影；侧栏右 border（真源：--riveredge-layout-frame-*） */
 .ant-pro-layout .ant-layout-header.ant-pro-layout-header {
-  border-block-end: 1px solid var(--riveredge-layout-frame-color, var(--ant-colorBorder, var(--ant-color-border, #d9d9d9))) !important;
+  border-block-end: none !important;
+  box-shadow: var(--riveredge-layout-frame-inset-bottom) !important;
 }
 .ant-pro-layout .ant-pro-sider .ant-layout-sider-children {
-  border-inline-end: 1px solid var(--riveredge-layout-frame-color, var(--ant-colorBorder, var(--ant-color-border, #d9d9d9))) !important;
+  box-shadow: none !important;
+  border-inline-end: 1px solid var(--riveredge-layout-frame-color) !important;
 }
 
 .dashboard-section__card.ant-card,

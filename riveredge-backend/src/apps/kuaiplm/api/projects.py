@@ -17,8 +17,11 @@ from apps.kuaiplm.schemas.rd_project import (
     SpawnDeliveryProjectResponse,
     RdProjectCreate,
     RdProjectDeliverableCreate,
+    RdProjectDeliverableRejectRequest,
     RdProjectDeliverableResponse,
+    RdProjectDeliverableReviseRequest,
     RdProjectDeliverableUpdate,
+    RdProjectDeliverableVersionListResponse,
     RdProjectGateResponse,
     RdProjectGateUpdate,
     RdProjectLinkCreate,
@@ -33,10 +36,10 @@ from apps.kuaiplm.schemas.rd_project import (
 from apps.kuaiplm.services.rd_project_service import RdProjectService
 from core.api.deps.access import require_access
 from core.api.deps.deps import get_current_tenant
+from core.services.authorization.user_permission_service import UserPermissionService
 from infra.api.deps.deps import get_current_user
 from infra.exceptions.exceptions import BusinessLogicError, NotFoundError
 from infra.models.user import User
-
 router = APIRouter(prefix="/rd-projects", tags=["App - Kuaiplm - RD Projects"])
 service = RdProjectService()
 
@@ -258,6 +261,8 @@ async def update_deliverable(
         return await service.update_deliverable(tenant_id, project_id, deliverable_id, data, current_user.id)
     except NotFoundError as e:
         raise _err(404, str(e), f"/rd-projects/{project_id}/deliverables/{deliverable_id}", tenant_id)
+    except BusinessLogicError as e:
+        raise _err(400, str(e), f"/rd-projects/{project_id}/deliverables/{deliverable_id}", tenant_id)
 
 
 @router.delete(
@@ -276,6 +281,95 @@ async def delete_deliverable(
         await service.delete_deliverable(tenant_id, project_id, deliverable_id, current_user.id)
     except NotFoundError as e:
         raise _err(404, str(e), f"/rd-projects/{project_id}/deliverables/{deliverable_id}", tenant_id)
+
+
+@router.get(
+    "/{project_id}/deliverables/{deliverable_id}/versions",
+    response_model=RdProjectDeliverableVersionListResponse,
+    summary="List deliverable versions (INF-05 filtered)",
+)
+async def list_deliverable_versions(
+    project_id: int = Path(...),
+    deliverable_id: int = Path(...),
+    current_user: User = Depends(get_current_user),
+    _auth=Depends(require_access("kuaiplm.project", "read", required_permissions=["kuaiplm:project:read"])),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    try:
+        permission_codes = sorted(
+            await UserPermissionService.get_user_permissions(
+                user_id=current_user.id,
+                tenant_id=tenant_id,
+            )
+        )
+        return await service.list_deliverable_versions(
+            tenant_id,
+            project_id,
+            deliverable_id,
+            current_user_id=current_user.id,
+            permission_codes=permission_codes,
+        )
+    except NotFoundError as e:
+        raise _err(
+            404,
+            str(e),
+            f"/rd-projects/{project_id}/deliverables/{deliverable_id}/versions",
+            tenant_id,
+        )
+
+
+@router.post(
+    "/{project_id}/deliverables/{deliverable_id}/revise",
+    response_model=RdProjectDeliverableResponse,
+    summary="Revise approved deliverable to new draft version",
+)
+async def revise_deliverable(
+    data: RdProjectDeliverableReviseRequest,
+    project_id: int = Path(...),
+    deliverable_id: int = Path(...),
+    current_user: User = Depends(get_current_user),
+    _auth=Depends(require_access("kuaiplm.project", "update", required_permissions=["kuaiplm:project:update"])),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    try:
+        return await service.revise_deliverable(
+            tenant_id,
+            project_id,
+            deliverable_id,
+            data,
+            actor_id=current_user.id,
+        )
+    except NotFoundError as e:
+        raise _err(404, str(e), f"/rd-projects/{project_id}/deliverables/{deliverable_id}/revise", tenant_id)
+    except BusinessLogicError as e:
+        raise _err(400, str(e), f"/rd-projects/{project_id}/deliverables/{deliverable_id}/revise", tenant_id)
+
+
+@router.post(
+    "/{project_id}/deliverables/{deliverable_id}/reject",
+    response_model=RdProjectDeliverableResponse,
+    summary="Reject pending deliverable revision",
+)
+async def reject_deliverable(
+    data: RdProjectDeliverableRejectRequest,
+    project_id: int = Path(...),
+    deliverable_id: int = Path(...),
+    current_user: User = Depends(get_current_user),
+    _auth=Depends(require_access("kuaiplm.project", "update", required_permissions=["kuaiplm:project:update"])),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    try:
+        return await service.reject_deliverable(
+            tenant_id,
+            project_id,
+            deliverable_id,
+            data,
+            actor_id=current_user.id,
+        )
+    except NotFoundError as e:
+        raise _err(404, str(e), f"/rd-projects/{project_id}/deliverables/{deliverable_id}/reject", tenant_id)
+    except BusinessLogicError as e:
+        raise _err(400, str(e), f"/rd-projects/{project_id}/deliverables/{deliverable_id}/reject", tenant_id)
 
 
 @router.post("/{project_id}/links", response_model=RdProjectLinkResponse, summary="Create project link")

@@ -42,7 +42,7 @@ def _err(status_code: int, message: str, route: str) -> HTTPException:
 @router.get("", response_model=ChangeDeskListResponse, summary="List BOM and route changes")
 async def list_changes(
     status: Optional[str] = Query(None),
-    change_type: Optional[str] = Query(None, description="bom | process_route | drawing"),
+    change_type: Optional[str] = Query(None, description="bom | process_route | drawing | ecn"),
     keyword: Optional[str] = Query(None),
     change_code: Optional[str] = Query(None),
     target_name: Optional[str] = Query(None),
@@ -90,7 +90,7 @@ async def create_change(
 @router.get("/{change_uuid}", summary="Get one change")
 async def get_change(
     change_uuid: str = Path(...),
-    change_type: str = Query(..., description="bom | process_route | drawing"),
+    change_type: str = Query(..., description="bom | process_route | drawing | ecn"),
     _auth=Depends(require_access("kuaiplm.change", "read", required_permissions=["kuaiplm:change:read"])),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -150,15 +150,20 @@ async def execute_change(
 @router.delete("/{change_uuid}", summary="Delete change")
 async def delete_change(
     change_uuid: str = Path(...),
-    change_type: str = Query(..., description="bom | process_route | drawing"),
+    change_type: str = Query(..., description="bom | process_route | drawing | ecn"),
+    current_user: User = Depends(get_current_user),
     _auth=Depends(require_access("kuaiplm.change", "update", required_permissions=["kuaiplm:change:update"])),
     tenant_id: int = Depends(get_current_tenant),
 ):
     try:
-        await service.delete_change(tenant_id, change_uuid, change_type)
+        await service.delete_change(tenant_id, change_uuid, change_type, user_id=current_user.id)
         return {"success": True}
     except ValueError as e:
         raise _err(400, str(e), f"/changes/{change_uuid}")
+    except ValidationError as e:
+        raise _err(400, str(e), f"/changes/{change_uuid}")
+    except NotFoundError as e:
+        raise _err(404, str(e), f"/changes/{change_uuid}")
 
 
 @router.post("/batch/approve", response_model=ChangeBatchActionResponse, summary="Batch approve changes")
@@ -194,10 +199,12 @@ async def batch_execute_changes(
 @router.post("/batch/delete", response_model=ChangeBatchActionResponse, summary="Batch delete changes")
 async def batch_delete_changes(
     data: ChangeBatchDeleteRequest,
+    current_user: User = Depends(get_current_user),
     _auth=Depends(require_access("kuaiplm.change", "update", required_permissions=["kuaiplm:change:update"])),
     tenant_id: int = Depends(get_current_tenant),
 ):
     return await service.batch_delete_changes(
         tenant_id=tenant_id,
         items=data.items,
+        user_id=current_user.id,
     )

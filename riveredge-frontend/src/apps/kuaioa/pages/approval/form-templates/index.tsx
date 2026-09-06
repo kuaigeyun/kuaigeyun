@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { MODAL_CONFIG } from '../../../../../components/layout-templates';
 import KuaioaCrudListPage from '../../../components/KuaioaCrudListPage';
 import FormTemplateModalBody from '../../../components/FormTemplateModalBody';
+import { GENERAL_SIGNOFF_BUSINESS_TYPES } from '../../../constants/generalSignoffBusinessTypes';
 import {
   createFormTemplate,
   deleteFormTemplate,
@@ -29,6 +30,11 @@ const FormTemplatesPage: React.FC = () => {
     [navigate],
   );
 
+  const businessTypeOptions = GENERAL_SIGNOFF_BUSINESS_TYPES.map((item) => ({
+    label: t(item.labelKey),
+    value: item.code,
+  }));
+
   return (
     <KuaioaCrudListPage
       createButtonKey="app.kuaioa.formTemplate.createButton"
@@ -43,9 +49,16 @@ const FormTemplatesPage: React.FC = () => {
         {
           name: 'category',
           labelKey: 'app.kuaioa.formTemplate.category',
-          width: 120,
+          width: 100,
           type: 'select',
           options: [{ label: t('app.kuaioa.formTemplate.category.general'), value: 'general' }],
+        },
+        {
+          name: 'business_type',
+          labelKey: 'app.kuaioa.formTemplate.businessType',
+          width: 140,
+          type: 'select',
+          options: businessTypeOptions,
         },
         {
           name: 'show_in_menu',
@@ -74,7 +87,7 @@ const FormTemplatesPage: React.FC = () => {
           },
         },
       ]}
-      columnPersistenceId="apps.kuaioa.form-template.list-v4"
+      columnPersistenceId="apps.kuaioa.form-template.list-v5"
       renderModalBody={(form, editing) => (
         <FormTemplateModalBody form={form} editing={editing} />
       )}

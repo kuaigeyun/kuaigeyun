@@ -109,6 +109,31 @@ export interface QmsIsoClauseComplianceSummary {
   compliance_status: 'covered' | 'review_due' | 'gap';
 }
 
+export interface QmsSystemDocumentVersion {
+  id: number;
+  document_id: number;
+  document_code: string;
+  version: string;
+  status: string;
+  is_effective?: boolean;
+  title: string;
+  content?: string | null;
+  file_url?: string | null;
+  change_summary?: string | null;
+  effective_at?: string | null;
+  obsolete_at?: string | null;
+  created_by?: number | null;
+  created_by_name?: string | null;
+  created_at?: string | null;
+}
+
+export interface QmsSystemDocumentVersionList {
+  items: QmsSystemDocumentVersion[];
+  total: number;
+  audience: string;
+  can_view_history: boolean;
+}
+
 type ListEnvelope<T> = { items: T[]; total: number };
 
 export const qualityQmsApi = {
@@ -120,6 +145,10 @@ export const qualityQmsApi = {
       }),
     get: (id: number) =>
       apiRequest<QmsSystemDocument>(`/apps/kuaizhizao/qms/system-documents/${id}`, { method: 'GET' }),
+    versions: (id: number) =>
+      apiRequest<QmsSystemDocumentVersionList>(`/apps/kuaizhizao/qms/system-documents/${id}/versions`, {
+        method: 'GET',
+      }),
     create: (data: Partial<QmsSystemDocument>) =>
       apiRequest<QmsSystemDocument>('/apps/kuaizhizao/qms/system-documents', { method: 'POST', data }),
     update: (id: number, data: Partial<QmsSystemDocument>) =>
@@ -127,7 +156,17 @@ export const qualityQmsApi = {
         method: 'PUT',
         data,
       }),
-    publish: (id: number) =>
+  revise: (id: number, data?: { version?: string; change_summary?: string }) =>
+      apiRequest<QmsSystemDocument>(`/apps/kuaizhizao/qms/system-documents/${id}/revise`, {
+        method: 'POST',
+        data: data ?? {},
+      }),
+  reject: (id: number, data?: { reason?: string }) =>
+      apiRequest<QmsSystemDocument>(`/apps/kuaizhizao/qms/system-documents/${id}/reject`, {
+        method: 'POST',
+        data: data ?? {},
+      }),
+  publish: (id: number) =>
       apiRequest<QmsSystemDocument>(`/apps/kuaizhizao/qms/system-documents/${id}/publish`, {
         method: 'POST',
       }),

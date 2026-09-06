@@ -31,6 +31,13 @@ import {
   AuditOutlined,
   FileSearchOutlined,
   ExperimentOutlined,
+  CloudDownloadOutlined,
+  ToolOutlined,
+  SafetyCertificateOutlined,
+  ApartmentOutlined,
+  FormOutlined,
+  FileProtectOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import {
   ProFormDatePicker,
@@ -62,6 +69,9 @@ import {
   createRdProjectDeliverable,
   updateRdProjectDeliverable,
   deleteRdProjectDeliverable,
+  listRdProjectDeliverableVersions,
+  reviseRdProjectDeliverable,
+  rejectRdProjectDeliverable,
   updateRdProjectGate,
   withdrawRdProject,
   deleteRdProject,
@@ -70,6 +80,7 @@ import {
   type RdProjectTask,
   type RdProjectLink,
   type RdProjectDeliverable,
+  type RdProjectDeliverableVersion,
   type RdProjectMember,
   type ProjectType,
 } from '../../services/rd-project';
@@ -181,6 +192,14 @@ const RdProjectDetailPage: React.FC = () => {
   const [editingTask, setEditingTask] = useState<RdProjectTask | null>(null);
   const [deliverableModalOpen, setDeliverableModalOpen] = useState(false);
   const [editingDeliverable, setEditingDeliverable] = useState<RdProjectDeliverable | null>(null);
+  const [versionModalOpen, setVersionModalOpen] = useState(false);
+  const [versionLoading, setVersionLoading] = useState(false);
+  const [versionRows, setVersionRows] = useState<RdProjectDeliverableVersion[]>([]);
+  const [versionAudience, setVersionAudience] = useState('');
+  const [versionTarget, setVersionTarget] = useState<RdProjectDeliverable | null>(null);
+  const [reviseOpen, setReviseOpen] = useState(false);
+  const [reviseTarget, setReviseTarget] = useState<RdProjectDeliverable | null>(null);
+  const [reviseSummary, setReviseSummary] = useState('');
   const [gateEditOpen, setGateEditOpen] = useState(false);
   const [editingGate, setEditingGate] = useState<RdProjectGate | null>(null);
   const [pushModalOpen, setPushModalOpen] = useState(false);
@@ -632,6 +651,12 @@ const RdProjectDetailPage: React.FC = () => {
               columns={[
                 { title: t('common.name'), dataIndex: 'name', ellipsis: true },
                 {
+                  title: t('app.kuaiplm.rdProjects.detail.deliverable.version'),
+                  dataIndex: 'version',
+                  width: 72,
+                  render: (v: string) => v || 'A0',
+                },
+                {
                   title: t('app.kuaiplm.common.columns.type'),
                   dataIndex: 'deliverable_type',
                   width: 100,
@@ -649,7 +674,7 @@ const RdProjectDetailPage: React.FC = () => {
                 },
                 {
                   title: t('common.actions'),
-                  width: 280,
+                  width: 360,
                   render: (_: unknown, row: RdProjectDeliverable) => {
                     const engineeringLink = resolveDeliverableEngineeringLink(row, project?.material_id);
                     return (
@@ -667,6 +692,26 @@ const RdProjectDetailPage: React.FC = () => {
                       <Button type="link" size="small" onClick={() => openEditDeliverable(row)}>
                         {t('common.edit')}
                       </Button>
+                      <Button
+                        type="link"
+                        size="small"
+                        onClick={async () => {
+                          setVersionTarget(row);
+                          setVersionModalOpen(true);
+                          setVersionLoading(true);
+                          try {
+                            const res = await listRdProjectDeliverableVersions(id!, row.id!);
+                            setVersionRows(res.items || []);
+                            setVersionAudience(res.audience || '');
+                          } catch (error: any) {
+                            messageApi.error(error?.message || t('common.operationFailed'));
+                          } finally {
+                            setVersionLoading(false);
+                          }
+                        }}
+                      >
+                        {t('app.kuaiplm.rdProjects.detail.deliverable.versions')}
+                      </Button>
                       {row.status !== 'SUBMITTED' && row.status !== 'APPROVED' ? (
                         <Button
                           type="link"
@@ -680,7 +725,7 @@ const RdProjectDetailPage: React.FC = () => {
                           {t('app.kuaiplm.common.deliverableStatus.submitted')}
                         </Button>
                       ) : null}
-                      {row.status !== 'APPROVED' ? (
+                      {row.status !== 'APPROVED' && row.status !== 'REJECTED' ? (
                         <Button
                           type="link"
                           size="small"
@@ -691,6 +736,37 @@ const RdProjectDetailPage: React.FC = () => {
                           }}
                         >
                           {t('app.kuaiplm.common.actions.approve')}
+                        </Button>
+                      ) : null}
+                      {row.status === 'APPROVED' ? (
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={() => {
+                            setReviseTarget(row);
+                            setReviseSummary('');
+                            setReviseOpen(true);
+                          }}
+                        >
+                          {t('app.kuaiplm.rdProjects.detail.deliverable.revise')}
+                        </Button>
+                      ) : null}
+                      {row.status === 'PENDING' || row.status === 'SUBMITTED' ? (
+                        <Button
+                          type="link"
+                          size="small"
+                          danger
+                          onClick={async () => {
+                            try {
+                              await rejectRdProjectDeliverable(id!, row.id!, {});
+                              messageApi.success(t('app.kuaiplm.rdProjects.detail.deliverable.rejectSuccess'));
+                              load();
+                            } catch (error: any) {
+                              messageApi.error(error?.message || t('common.operationFailed'));
+                            }
+                          }}
+                        >
+                          {t('app.kuaiplm.common.actions.reject')}
                         </Button>
                       ) : null}
                       <ActionConfirmPopconfirm
@@ -847,6 +923,62 @@ const RdProjectDetailPage: React.FC = () => {
           count: collaboration.fmea_count ?? 0,
           icon: ExperimentOutlined,
           path: `/apps/kuaiplm/phase2/fmea?project_id=${projectId}`,
+        },
+        {
+          key: 'product-firmwares',
+          title: t('app.kuaiplm.rdProjects.detail.shortcut.productFirmware'),
+          count: collaboration.product_firmware_count ?? 0,
+          icon: CloudDownloadOutlined,
+          path: `/apps/kuaiplm/product-firmwares?project_id=${projectId}`,
+        },
+        {
+          key: 'sample-process',
+          title: t('app.kuaiplm.rdProjects.detail.shortcut.sampleProcess'),
+          count: collaboration.sample_process_count ?? 0,
+          icon: ToolOutlined,
+          path: `/apps/kuaiplm/sample-process-applications?project_id=${projectId}`,
+        },
+        {
+          key: 'material-reviews',
+          title: t('app.kuaiplm.rdProjects.detail.shortcut.materialReview'),
+          count: collaboration.material_review_count ?? 0,
+          icon: SafetyCertificateOutlined,
+          path: `/apps/kuaiplm/material-reviews?project_id=${projectId}`,
+        },
+        {
+          key: 'bom-collaborations',
+          title: t('app.kuaiplm.rdProjects.detail.shortcut.bomCollab'),
+          count: collaboration.bom_collab_count ?? 0,
+          icon: ApartmentOutlined,
+          path: `/apps/kuaiplm/bom-collaborations?project_id=${projectId}`,
+        },
+        {
+          key: 'project-proposals',
+          title: t('app.kuaiplm.rdProjects.detail.shortcut.projectProposal'),
+          count: collaboration.project_proposal_count ?? 0,
+          icon: FormOutlined,
+          path: `/apps/kuaiplm/project-proposals?project_id=${projectId}`,
+        },
+        {
+          key: 'mold-sample-orders',
+          title: t('app.kuaiplm.rdProjects.detail.shortcut.moldSample'),
+          count: collaboration.mold_sample_count ?? 0,
+          icon: FileProtectOutlined,
+          path: `/apps/kuaiplm/mold-sample-orders?project_id=${projectId}`,
+        },
+        {
+          key: 'trial-flows',
+          title: t('app.kuaiplm.rdProjects.detail.shortcut.trialFlow'),
+          count: collaboration.trial_flow_count ?? 0,
+          icon: ExperimentOutlined,
+          path: `/apps/kuaiplm/trial-flows?project_id=${projectId}`,
+        },
+        {
+          key: 'engineering-changes',
+          title: t('app.kuaiplm.rdProjects.detail.shortcut.engineeringChange'),
+          count: collaboration.engineering_change_count ?? 0,
+          icon: SwapOutlined,
+          path: `/apps/kuaiplm/engineering-changes?project_id=${projectId}`,
         },
       ]
     : [];
@@ -1227,6 +1359,99 @@ const RdProjectDetailPage: React.FC = () => {
         <ProFormText name="file_name" label={t('app.kuaiplm.rdProjects.detail.deliverable.fileName')} />
         <ProFormTextArea name="description" label={t('common.remark')} />
       </FormModalTemplate>
+
+      <Modal
+        title={`${t('app.kuaiplm.rdProjects.detail.deliverable.versionsTitle')}${
+          versionTarget?.name ? ` - ${versionTarget.name}` : ''
+        }`}
+        open={versionModalOpen}
+        footer={null}
+        onCancel={() => {
+          setVersionModalOpen(false);
+          setVersionTarget(null);
+          setVersionRows([]);
+        }}
+        destroyOnHidden
+        width={720}
+      >
+        {versionAudience ? (
+          <Typography.Paragraph type="secondary">
+            {t('app.kuaiplm.rdProjects.detail.deliverable.audience')}: {versionAudience}
+          </Typography.Paragraph>
+        ) : null}
+        <Spin spinning={versionLoading}>
+          <Table
+            rowKey="id"
+            size="small"
+            pagination={false}
+            dataSource={versionRows}
+            columns={[
+              {
+                title: t('app.kuaiplm.rdProjects.detail.deliverable.version'),
+                dataIndex: 'version',
+                width: 80,
+              },
+              {
+                title: t('common.status'),
+                dataIndex: 'status',
+                width: 100,
+              },
+              {
+                title: t('common.name'),
+                dataIndex: 'name',
+                ellipsis: true,
+              },
+              {
+                title: t('app.kuaiplm.rdProjects.detail.deliverable.changeSummary'),
+                dataIndex: 'change_summary',
+                ellipsis: true,
+                render: (v) => v || '—',
+              },
+              {
+                title: t('common.createdBy'),
+                dataIndex: 'created_by_name',
+                width: 100,
+                render: (v) => v || '—',
+              },
+            ]}
+            locale={{ emptyText: t('common.noData') }}
+          />
+        </Spin>
+      </Modal>
+
+      <Modal
+        title={t('app.kuaiplm.rdProjects.detail.deliverable.reviseTitle')}
+        open={reviseOpen}
+        onCancel={() => {
+          setReviseOpen(false);
+          setReviseTarget(null);
+        }}
+        onOk={async () => {
+          if (!reviseTarget?.id) return;
+          try {
+            await reviseRdProjectDeliverable(id!, reviseTarget.id, {
+              change_summary: reviseSummary || undefined,
+            });
+            messageApi.success(t('app.kuaiplm.rdProjects.detail.deliverable.reviseSuccess'));
+            setReviseOpen(false);
+            setReviseTarget(null);
+            load();
+          } catch (error: any) {
+            messageApi.error(error?.message || t('common.operationFailed'));
+          }
+        }}
+        destroyOnHidden
+      >
+        <Typography.Paragraph type="secondary">
+          {reviseTarget?.name} ({reviseTarget?.version || 'A0'})
+        </Typography.Paragraph>
+        <Input.TextArea
+          rows={3}
+          value={reviseSummary}
+          onChange={(e) => setReviseSummary(e.target.value)}
+          placeholder={t('app.kuaiplm.rdProjects.detail.deliverable.changeSummary')}
+        />
+      </Modal>
 
       <FormModalTemplate
         title={`${t('common.edit')} - ${editingGate?.gate_name ?? ''}`}

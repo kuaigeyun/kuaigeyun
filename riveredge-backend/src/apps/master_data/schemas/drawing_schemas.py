@@ -61,6 +61,8 @@ class EngineeringDrawingRevisionBrief(BaseModel):
 class EngineeringDrawingRevisionsResponse(BaseModel):
     code: str
     revisions: List[EngineeringDrawingRevisionBrief]
+    audience: Optional[str] = None
+    can_view_history: bool = Field(False, alias="canViewHistory")
 
     model_config = ConfigDict(populate_by_name=True)
 

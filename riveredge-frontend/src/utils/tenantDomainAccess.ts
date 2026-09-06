@@ -1,5 +1,8 @@
 /**
- * 组织域名访问解析（路径前缀 / 二级域名 / 查询参数）
+ * 组织域名访问解析（路径前缀 / 查询参数）
+ *
+ * 唯一约定：`example.com/{tenant}` 或 `/login?tenant_domain={tenant}`。
+ * 不解析二级域名（避免内网穿透隧道 ID、临时子域被误判为组织域名）。
  *
  * 总入口（无 URL 租户信号）须展示平台登录页，不得用本地缓存 tenant_domain 推断。
  * 退出登录时可在 URL 无租户前缀的情况下，回退到当前会话的站点配置 tenant_domain。
@@ -23,73 +26,14 @@ export const TENANT_PATH_RESERVED_SEGMENTS = new Set([
   'm',
 ]);
 
-/** 二级域名首段保留字：不作为组织域名 */
-const TENANT_HOSTNAME_RESERVED_LABELS = new Set([
-  'www',
-  'api',
-  'admin',
-  'infra',
-  'mail',
-  'smtp',
-  'ftp',
-  'cdn',
-  'static',
-  'app',
-  'm',
-  'mobile',
-]);
-
 export type TenantLocationParts = {
   pathname?: string;
   search?: string;
-  hostname?: string;
 };
 
 function normalizeTenantDomain(value: string | null | undefined): string | null {
   const normalized = (value || '').trim().toLowerCase();
   return normalized || null;
-}
-
-/** IPv4 / IPv6 主机名不做二级域名租户解析（否则 154.8.214.25 会被误判为 tenant=154） */
-function isIpAddressHostname(host: string): boolean {
-  if (!host) return false;
-  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) {
-    return true;
-  }
-  return host.includes(':');
-}
-
-/**
- * 从 hostname 解析二级域名组织代码。
- * 例：default.localhost、default.example.com
- */
-export function resolveTenantDomainFromHostname(hostname?: string): string | null {
-  const host = normalizeTenantDomain((hostname || '').split(':')[0]);
-  if (!host || host === 'localhost' || host === '127.0.0.1' || isIpAddressHostname(host)) {
-    return null;
-  }
-
-  const labels = host.split('.').filter(Boolean);
-  if (labels.length < 2) {
-    return null;
-  }
-
-  const first = labels[0];
-  if (!first || TENANT_HOSTNAME_RESERVED_LABELS.has(first)) {
-    return null;
-  }
-
-  // 开发：{tenant}.localhost
-  if (labels.length === 2 && labels[1] === 'localhost') {
-    return first;
-  }
-
-  // 生产：{tenant}.example.com（至少 3 段）
-  if (labels.length >= 3) {
-    return first;
-  }
-
-  return null;
 }
 
 export function resolveTenantDomainFromPathname(pathname: string): string | null {
@@ -124,20 +68,13 @@ export function resolveTenantDomainFromSearch(search: string): string | null {
 export function resolveTenantDomainFromUrl(parts: TenantLocationParts = {}): string | null {
   const pathname = parts.pathname ?? window.location.pathname;
   const search = parts.search ?? window.location.search;
-  const hostname = parts.hostname ?? window.location.hostname;
 
   const fromSearch = resolveTenantDomainFromSearch(search);
   if (fromSearch) {
     return fromSearch;
   }
 
-  const host = normalizeTenantDomain(hostname.split(':')[0]);
-  // IP 直连仅支持路径前缀访问（如 /fsll），勿把 IP 段当租户域名
-  if (host && isIpAddressHostname(host)) {
-    return resolveTenantDomainFromPathname(pathname);
-  }
-
-  return resolveTenantDomainFromHostname(hostname) ?? resolveTenantDomainFromPathname(pathname);
+  return resolveTenantDomainFromPathname(pathname);
 }
 
 /** @deprecated 使用 resolveTenantDomainFromUrl；保留别名避免遗漏引用 */

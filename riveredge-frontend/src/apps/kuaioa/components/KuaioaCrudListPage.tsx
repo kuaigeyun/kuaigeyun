@@ -51,6 +51,8 @@ import { materialApi } from '../../master-data/services/material';
 import { searchReferenceDisplay } from '../../../utils/referenceDisplay';
 import OaLookupField from './OaLookupField';
 import OaSingleFileField from './OaSingleFileField';
+import { searchUserDisplay } from '../../../services/user';
+import { formatUserDisplayLabel } from '../../../utils/userDisplay';
 
 export type KuaioaFieldConfig = {
   name: string;
@@ -65,12 +67,15 @@ export type KuaioaFieldConfig = {
     | 'datetime'
     | 'file'
     | 'user'
+    | 'userIds'
     | 'customer'
     | 'material'
     | 'department'
     | 'supplier'
     | 'operation';
   options?: Array<{ label: string; value: string | number | boolean }>;
+  /** select / userIds 多选 */
+  mode?: 'multiple';
   required?: boolean;
   hideInTable?: boolean;
   hideInForm?: boolean;
@@ -161,6 +166,8 @@ const TYPE_MARKER_FIELDS = new Set([
   'asset_category',
   'leave_type',
   'seal_type',
+  'record_kind',
+  'template_kind',
 ]);
 
 const KuaioaCrudListPage: React.FC<Props> = ({
@@ -445,8 +452,16 @@ const KuaioaCrudListPage: React.FC<Props> = ({
         return col;
       }
 
-      if (TYPE_MARKER_FIELDS.has(field.name)) {
-        col.hideInSearch = true;
+      if (TYPE_MARKER_FIELDS.has(field.name) || field.type === 'select') {
+        const hideSearch = TYPE_MARKER_FIELDS.has(field.name) && field.type !== 'select';
+        if (hideSearch) {
+          col.hideInSearch = true;
+        }
+        if (field.options?.length) {
+          col.valueEnum = Object.fromEntries(
+            field.options.map((o) => [String(o.value), { text: o.label }]),
+          );
+        }
         col.render = (_, row) => {
           const raw = row[field.name];
           const text = raw == null || raw === '' ? '' : String(raw);
@@ -666,9 +681,17 @@ const KuaioaCrudListPage: React.FC<Props> = ({
         }
         request={async (params) => {
           const fetchFn = listScope === 'expiring' && expiringListFn ? expiringListFn : listFn;
+          const selectFilters: Record<string, unknown> = {};
+          for (const field of fields) {
+            if (field.type !== 'select') continue;
+            const raw = params[field.name];
+            if (raw == null || raw === '') continue;
+            selectFilters[field.name] = raw;
+          }
           const res = await fetchFn({
             keyword: params.keyword as string | undefined,
             status: params.status as string | undefined,
+            ...selectFilters,
           });
           return { data: res.items, success: true, total: res.total };
         }}
@@ -799,7 +822,34 @@ const KuaioaCrudListPage: React.FC<Props> = ({
                     rules={rules}
                     colProps={colProps}
                     options={field.options}
+                    mode={field.mode}
                     allowClear
+                  />
+                );
+              }
+              if (field.type === 'userIds') {
+                return (
+                  <ProFormSelect
+                    key={field.name}
+                    name={field.name}
+                    label={label}
+                    rules={rules}
+                    colProps={colProps}
+                    mode="multiple"
+                    showSearch
+                    debounceTime={300}
+                    fieldProps={{ filterOption: false }}
+                    request={async ({ keyWords }) => {
+                      const res = await searchUserDisplay({
+                        keyword: keyWords,
+                        host_resource: resource,
+                        page_size: 50,
+                      });
+                      return (res.items || []).map((u) => ({
+                        label: u.label || formatUserDisplayLabel(u),
+                        value: u.id,
+                      }));
+                    }}
                   />
                 );
               }

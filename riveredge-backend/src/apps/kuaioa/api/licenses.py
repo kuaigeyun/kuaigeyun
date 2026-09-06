@@ -30,6 +30,14 @@ async def list_licenses(
     return {"data": rows, "total": len(rows), "success": True}
 
 
+@router.get("/types", summary="List license type presets")
+async def list_license_types(
+    _auth=Depends(require_access("kuaioa.license", "read", required_permissions=["kuaioa:license:read"])),
+):
+    rows = await service.list_license_types()
+    return {"data": rows, "total": len(rows), "success": True}
+
+
 @router.get("/expiring", summary="List expiring licenses")
 async def list_expiring_licenses(
     within_days: int = Query(30, ge=1, le=365),

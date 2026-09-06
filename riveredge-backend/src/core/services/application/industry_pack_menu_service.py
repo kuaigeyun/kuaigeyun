@@ -120,11 +120,19 @@ class IndustryPackMenuService:
 
     @staticmethod
     async def reconcile_for_tenant(tenant_id: int) -> int:
-        """按已安装/已启用的行业模块对齐 industry-pack 容器与侧栏菜单。"""
+        """按已安装/已启用的行业模块对齐 industry-pack 容器与侧栏菜单。
+
+        同时补齐已启用模块仍缺失的替代 profile（包内后增扩展无需停用再启用）。
+        """
+        from core.services.application.industry_extension_runtime_service import (
+            IndustryExtensionRuntimeService,
+        )
+
         shell = await IndustryPackMenuService.get_shell_application(tenant_id)
         if not shell or not shell.get("is_installed"):
             return 0
         await IndustryPackMenuService.ensure_shell_installed(tenant_id)
+        await IndustryExtensionRuntimeService.reconcile_profiles_for_tenant(tenant_id)
         return await IndustryPackMenuService.rebuild_pack_menus(tenant_id)
 
     @staticmethod

@@ -799,6 +799,296 @@ async def _dispatch_drawing_change(
     _unsupported("drawing_change", action)
 
 
+async def _resolve_user_or_raise(user_id: int):
+    from infra.models.user import User
+
+    user = await User.get_or_none(id=user_id)
+    if user is None:
+        raise ValidationError(f"用户不存在: {user_id}")
+    return user
+
+
+async def _dispatch_product_firmware(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaiplm.services.product_firmware_service import ProductFirmwareService
+
+    svc = ProductFirmwareService()
+    user = await _resolve_user_or_raise(user_id)
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("product_firmware", action)
+    _unsupported("product_firmware", action)
+
+
+async def _dispatch_production_file(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaiplm.services.production_file_service import ProductionFileService
+
+    svc = ProductionFileService()
+    user = await _resolve_user_or_raise(user_id)
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("production_file", action)
+    _unsupported("production_file", action)
+
+
+async def _dispatch_trial_flow(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaiplm.services.trial_flow_service import TrialFlowService
+
+    svc = TrialFlowService()
+    user = await _resolve_user_or_raise(user_id)
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("trial_flow", action)
+    _unsupported("trial_flow", action)
+
+
+async def _dispatch_rework_order(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaizhizao.services.rework_order_service import ReworkOrderService
+
+    svc = ReworkOrderService()
+    if action == "submit":
+        return await svc.submit_rework_order(tenant_id, entity_id, user_id)
+    if action == "approve":
+        return await svc.approve_rework_order(tenant_id, entity_id, user_id)
+    if action == "reject":
+        return await svc.reject_rework_order(tenant_id, entity_id, user_id)
+    if action in ("withdraw", "revoke"):
+        _unsupported("rework_order", action)
+    _unsupported("rework_order", action)
+
+
+async def _dispatch_quality_complaint(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaizhizao.services.quality_complaint_service import QualityComplaintService
+    from infra.models.user import User
+
+    user = await User.get_or_none(id=user_id)
+    if not user:
+        raise ValueError(f"用户不存在: {user_id}")
+    svc = QualityComplaintService()
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("quality_complaint", action)
+    _unsupported("quality_complaint", action)
+
+
+async def _dispatch_supplier_evaluation(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaizhizao.services.supplier_evaluation_service import SupplierEvaluationService
+    from infra.models.user import User
+
+    user = await User.get_or_none(id=user_id)
+    if not user:
+        raise ValueError(f"用户不存在: {user_id}")
+    svc = SupplierEvaluationService()
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("supplier_evaluation", action)
+    _unsupported("supplier_evaluation", action)
+
+
+async def _dispatch_engineering_change(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaiplm.services.engineering_change_service import EngineeringChangeService
+
+    svc = EngineeringChangeService()
+    user = await _resolve_user_or_raise(user_id)
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("engineering_change", action)
+    _unsupported("engineering_change", action)
+
+
+async def _dispatch_sample_process(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaiplm.services.sample_process_service import SampleProcessService
+
+    svc = SampleProcessService()
+    user = await _resolve_user_or_raise(user_id)
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("sample_process", action)
+    _unsupported("sample_process", action)
+
+
+async def _dispatch_material_review(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaiplm.services.material_review_service import MaterialReviewService
+
+    svc = MaterialReviewService()
+    user = await _resolve_user_or_raise(user_id)
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("material_review", action)
+    _unsupported("material_review", action)
+
+
+async def _dispatch_bom_collaboration(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaiplm.services.bom_collaboration_service import BomCollaborationService
+
+    svc = BomCollaborationService()
+    user = await _resolve_user_or_raise(user_id)
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("bom_collaboration", action)
+    _unsupported("bom_collaboration", action)
+
+
+async def _dispatch_project_proposal(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaiplm.services.project_proposal_service import ProjectProposalService
+
+    svc = ProjectProposalService()
+    user = await _resolve_user_or_raise(user_id)
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("project_proposal", action)
+    _unsupported("project_proposal", action)
+
+
+async def _dispatch_mold_sample(
+    action: str,
+    *,
+    tenant_id: int,
+    entity_id: int,
+    user_id: int,
+    reason: Optional[str],
+) -> Any:
+    from apps.kuaiplm.services.mold_sample_order_service import MoldSampleOrderService
+
+    svc = MoldSampleOrderService()
+    user = await _resolve_user_or_raise(user_id)
+    if action == "submit":
+        return await svc.submit(tenant_id, entity_id, user)
+    if action == "approve":
+        return await svc.approve(tenant_id, entity_id, user)
+    if action == "reject":
+        return await svc.reject(tenant_id, entity_id, user)
+    if action in ("withdraw", "revoke"):
+        _unsupported("mold_sample", action)
+    _unsupported("mold_sample", action)
+
+
 async def _dispatch_freight_bill(
     action: str,
     *,
@@ -960,6 +1250,36 @@ _dispatch_kuaioa_process_deviation = _make_kuaioa_dispatch(
     decision_import="apps.kuaioa.services.collaboration_service",
     decision_fn="apply_process_deviation_decision",
 )
+_dispatch_kuaioa_dept_training_application = _make_kuaioa_dispatch(
+    entity_key="kuaioa_dept_training_application",
+    service_import="apps.kuaioa.services.training_workflow_service",
+    service_cls="DeptTrainingApplicationService",
+    get_method="get_request",
+    submit_method="submit_request",
+    revoke_method="revoke_request",
+    decision_import="apps.kuaioa.services.training_workflow_service",
+    decision_fn="apply_dept_training_application_decision",
+)
+_dispatch_kuaioa_special_work_qualification = _make_kuaioa_dispatch(
+    entity_key="kuaioa_special_work_qualification",
+    service_import="apps.kuaioa.services.training_workflow_service",
+    service_cls="SpecialWorkQualificationService",
+    get_method="get_request",
+    submit_method="submit_request",
+    revoke_method="revoke_request",
+    decision_import="apps.kuaioa.services.training_workflow_service",
+    decision_fn="apply_special_work_qualification_decision",
+)
+_dispatch_kuaioa_training_plan = _make_kuaioa_dispatch(
+    entity_key="kuaioa_training_plan",
+    service_import="apps.kuaioa.services.training_workflow_service",
+    service_cls="AnnualTrainingPlanService",
+    get_method="get_plan",
+    submit_method="submit_plan",
+    revoke_method="revoke_plan",
+    decision_import="apps.kuaioa.services.training_workflow_service",
+    decision_fn="apply_training_plan_decision",
+)
 
 
 HANDLERS: Dict[str, DispatchFn] = {
@@ -992,6 +1312,18 @@ HANDLERS: Dict[str, DispatchFn] = {
     "bom_change": _dispatch_bom_change,
     "process_route_change": _dispatch_process_route_change,
     "drawing_change": _dispatch_drawing_change,
+    "product_firmware": _dispatch_product_firmware,
+    "production_file": _dispatch_production_file,
+    "trial_flow": _dispatch_trial_flow,
+    "rework_order": _dispatch_rework_order,
+    "quality_complaint": _dispatch_quality_complaint,
+    "supplier_evaluation": _dispatch_supplier_evaluation,
+    "engineering_change": _dispatch_engineering_change,
+    "sample_process": _dispatch_sample_process,
+    "material_review": _dispatch_material_review,
+    "bom_collaboration": _dispatch_bom_collaboration,
+    "project_proposal": _dispatch_project_proposal,
+    "mold_sample": _dispatch_mold_sample,
     "freight_bill": _dispatch_freight_bill,
     "kuaioa_form_request": _dispatch_kuaioa_form_request,
     "kuaioa_asset_purchase": _dispatch_kuaioa_asset_purchase,
@@ -1000,4 +1332,7 @@ HANDLERS: Dict[str, DispatchFn] = {
     "kuaioa_special_price": _dispatch_kuaioa_special_price,
     "kuaioa_concession": _dispatch_kuaioa_concession,
     "kuaioa_process_deviation": _dispatch_kuaioa_process_deviation,
+    "kuaioa_dept_training_application": _dispatch_kuaioa_dept_training_application,
+    "kuaioa_special_work_qualification": _dispatch_kuaioa_special_work_qualification,
+    "kuaioa_training_plan": _dispatch_kuaioa_training_plan,
 }

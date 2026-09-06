@@ -44,6 +44,8 @@ interface InspectionItem {
   code?: string;
   name?: string;
   requirement?: string;
+  method?: string;
+  judgment_standard?: string;
   value_type?: string;
   unit?: string;
   numeric_min?: number;
@@ -147,6 +149,8 @@ const InspectionItemsPage: React.FC = () => {
       { title: t('common.unit'), dataIndex: 'unit' },
       { title: t(`${P}.col.numericMin`), dataIndex: 'numeric_min' },
       { title: t(`${P}.col.numericMax`), dataIndex: 'numeric_max' },
+      { title: t(`${P}.col.method`), dataIndex: 'method', span: 2 },
+      { title: t(`${P}.col.judgmentStandard`), dataIndex: 'judgment_standard', span: 2 },
       { title: t(`${P}.col.requirement`), dataIndex: 'requirement', span: 2 },
       buildIsActiveDescriptionColumn<InspectionItem>(t),
     ],
@@ -276,7 +280,7 @@ const InspectionItemsPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.inspectionItems)}
           headerTitle={t(`${P}.title`)}
-          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.inspection-items-width-v2"
+          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.inspection-items-abc-r10-v1"
           actionRef={actionRef}
           rowKey="id"
           columns={columns}
@@ -366,9 +370,19 @@ const InspectionItemsPage: React.FC = () => {
             <ProFormDigit name="numeric_max" label={t(`${P}.col.numericMax`)} />
           </Col>
           <Col span={24}>
+            <ProFormTextArea name="method" label={t(`${P}.col.method`)} fieldProps={{ rows: 2 }} />
+          </Col>
+          <Col span={24}>
+            <ProFormTextArea
+              name="judgment_standard"
+              label={t(`${P}.col.judgmentStandard`)}
+              fieldProps={{ rows: 2 }}
+            />
+          </Col>
+          <Col span={24}>
             <ProFormTextArea name="requirement" label={t(`${P}.col.requirement`)} />
           </Col>
-          <Col span={12}>
+          <Col span={24}>
             <ProFormSwitch name="is_active" label={t('common.enabled')} />
           </Col>
         </Row>

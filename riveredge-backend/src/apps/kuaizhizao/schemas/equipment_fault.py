@@ -10,32 +10,29 @@ Date: 2025-01-15
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from decimal import Decimal
-from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 class EquipmentFaultBase(BaseModel):
-    """
-    设备故障记录基础 Schema
-    
-    包含设备故障记录的基本字段，用于创建和更新操作。
-    """
+    """设备故障记录基础 Schema。"""
+
     fault_no: Optional[str] = Field(None, max_length=100, description="故障记录编号（可选，创建时自动生成）")
     equipment_uuid: str = Field(..., description="设备UUID")
-    fault_date: datetime = Field(..., description="故障发生日期")
-    fault_type: str = Field(..., max_length=50, description="故障类型（机械故障、电气故障、软件故障、其他）")
+    fault_date: Optional[datetime] = Field(None, description="故障发生时刻（缺省为报障时刻）")
+    response_minutes: Optional[int] = Field(None, ge=1, le=24 * 60, description="规定到场时限（分钟）")
+    fault_type: str = Field(..., max_length=50, description="故障类型")
     fault_description: str = Field(..., description="故障描述")
-    fault_level: str = Field(..., max_length=50, description="故障级别（轻微、一般、严重、紧急）")
-    reporter_id: Optional[int] = Field(None, description="报告人ID（用户ID）")
+    fault_level: str = Field(..., max_length=50, description="故障级别")
+    reporter_id: Optional[int] = Field(None, description="报告人ID")
     reporter_name: Optional[str] = Field(None, max_length=100, description="报告人姓名")
-    status: str = Field(default="待处理", max_length=50, description="故障状态（待处理、处理中、已修复、已关闭）")
+    status: str = Field(default="待处理", max_length=50, description="故障状态")
     repair_required: bool = Field(default=True, description="是否需要维修")
     remark: Optional[str] = Field(None, description="备注")
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
-    source_type: Optional[str] = Field(None, max_length=50, description="来源类型（spot_check/route_patrol 等）")
+    source_type: Optional[str] = Field(None, max_length=50, description="来源类型")
     source_uuid: Optional[str] = Field(None, max_length=36, description="来源单据 UUID")
-    
+
     @field_validator("fault_type")
     @classmethod
     def validate_fault_type(cls, v: str) -> str:
@@ -43,7 +40,7 @@ class EquipmentFaultBase(BaseModel):
         if v not in allowed_types:
             raise ValueError(f"故障类型必须是 {allowed_types} 之一")
         return v
-    
+
     @field_validator("fault_level")
     @classmethod
     def validate_fault_level(cls, v: str) -> str:
@@ -51,7 +48,7 @@ class EquipmentFaultBase(BaseModel):
         if v not in allowed_levels:
             raise ValueError(f"故障级别必须是 {allowed_levels} 之一")
         return v
-    
+
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
@@ -62,20 +59,10 @@ class EquipmentFaultBase(BaseModel):
 
 
 class EquipmentFaultCreate(EquipmentFaultBase):
-    """
-    设备故障记录创建 Schema
-    
-    用于创建新设备故障记录的请求数据。
-    """
     pass
 
 
 class EquipmentFaultUpdate(BaseModel):
-    """
-    设备故障记录更新 Schema
-    
-    用于更新设备故障记录的请求数据，所有字段可选。
-    """
     fault_date: Optional[datetime] = Field(None, description="故障发生日期")
     fault_type: Optional[str] = Field(None, max_length=50, description="故障类型")
     fault_description: Optional[str] = Field(None, description="故障描述")
@@ -84,6 +71,7 @@ class EquipmentFaultUpdate(BaseModel):
     reporter_name: Optional[str] = Field(None, max_length=100, description="报告人姓名")
     status: Optional[str] = Field(None, max_length=50, description="故障状态")
     repair_required: Optional[bool] = Field(None, description="是否需要维修")
+    response_minutes: Optional[int] = Field(None, ge=1, le=24 * 60, description="规定到场时限（分钟）")
     remark: Optional[str] = Field(None, description="备注")
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
     source_type: Optional[str] = Field(None, max_length=50, description="来源类型")
@@ -91,18 +79,17 @@ class EquipmentFaultUpdate(BaseModel):
 
 
 class EquipmentFaultResponse(EquipmentFaultBase):
-    """
-    设备故障记录响应 Schema
-    
-    用于返回设备故障记录信息的响应数据。
-    """
     model_config = ConfigDict(from_attributes=True)
-    
-    uuid: str = Field(..., description="设备故障记录UUID（对外暴露，业务标识）")
-    id: int = Field(..., description="设备故障记录ID（内部使用）")
+
+    uuid: str = Field(..., description="设备故障记录UUID")
+    id: int = Field(..., description="设备故障记录ID")
     tenant_id: int = Field(..., description="组织ID")
     equipment_id: int = Field(..., description="设备ID")
+    equipment_code: Optional[str] = Field(None, description="设备编码")
     equipment_name: str = Field(..., description="设备名称")
+    reported_at: Optional[datetime] = Field(None, description="报障时间")
+    response_due_at: Optional[datetime] = Field(None, description="要求到场截止时刻")
+    response_overdue: bool = Field(default=False, description="是否已超过规定到场时限且未到场")
     created_by: Optional[int] = None
     created_by_name: Optional[str] = None
     updated_by: Optional[int] = None
@@ -110,31 +97,51 @@ class EquipmentFaultResponse(EquipmentFaultBase):
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     lifecycle: Optional[Dict[str, Any]] = Field(None, description="通用生命周期")
-    deleted_at: Optional[datetime] = Field(None, description="删除时间（软删除）")
+    deleted_at: Optional[datetime] = Field(None, description="删除时间")
+
+
+class EquipmentFaultArriveRequest(BaseModel):
+    equipment_uuid: str = Field(..., description="扫码得到的设备 UUID，须与故障设备一致")
+    repair_type: Optional[str] = Field(default="现场维修", max_length=50)
+    repairer_name: Optional[str] = Field(None, max_length=100)
+
+
+class EquipmentRepairCompleteRequest(BaseModel):
+    fault_cause: str = Field(..., min_length=1, description="故障原因")
+    repair_content: str = Field(..., min_length=1, description="维修内容")
+    repair_result: Optional[str] = Field(default="成功", max_length=50)
+    remark: Optional[str] = Field(None, description="备注")
+    attachments: Optional[List[dict]] = Field(None, description="附件列表")
+
+    @field_validator("repair_result")
+    @classmethod
+    def validate_repair_result(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            allowed_results = ["成功", "失败", "部分成功"]
+            if v not in allowed_results:
+                raise ValueError(f"维修结果必须是 {allowed_results} 之一")
+        return v
 
 
 class EquipmentRepairBase(BaseModel):
-    """
-    设备维修记录基础 Schema
-    
-    包含设备维修记录的基本字段，用于创建和更新操作。
-    """
-    repair_no: Optional[str] = Field(None, max_length=100, description="维修记录编号（可选，创建时自动生成）")
-    equipment_fault_uuid: Optional[str] = Field(None, description="设备故障UUID（可选）")
-    equipment_uuid: str = Field(..., description="设备UUID")
-    repair_date: datetime = Field(..., description="维修日期")
-    repair_type: str = Field(..., max_length=50, description="维修类型（现场维修、返厂维修、委外维修）")
-    repair_description: str = Field(..., description="维修描述")
-    repair_cost: Optional[Decimal] = Field(None, description="维修成本")
-    repair_parts: Optional[Dict[str, Any]] = Field(None, description="维修备件（JSON格式）")
-    repairer_id: Optional[int] = Field(None, description="维修人员ID（用户ID）")
-    repairer_name: Optional[str] = Field(None, max_length=100, description="维修人员姓名")
-    repair_duration: Optional[Decimal] = Field(None, description="维修时长（小时）")
-    status: str = Field(default="进行中", max_length=50, description="维修状态（进行中、已完成、已取消）")
-    repair_result: Optional[str] = Field(None, max_length=50, description="维修结果（成功、失败、部分成功）")
-    remark: Optional[str] = Field(None, description="备注")
-    attachments: Optional[List[dict]] = Field(None, description="附件列表")
-    
+    repair_no: Optional[str] = Field(None, max_length=100)
+    equipment_fault_uuid: Optional[str] = Field(None)
+    equipment_uuid: str = Field(...)
+    repair_date: datetime = Field(...)
+    repair_type: str = Field(...)
+    repair_description: str = Field(...)
+    fault_cause: Optional[str] = Field(None)
+    repair_content: Optional[str] = Field(None)
+    repair_cost: Optional[Decimal] = Field(None)
+    repair_parts: Optional[Dict[str, Any]] = Field(None)
+    repairer_id: Optional[int] = Field(None)
+    repairer_name: Optional[str] = Field(None, max_length=100)
+    repair_duration: Optional[Decimal] = Field(None)
+    status: str = Field(default="进行中", max_length=50)
+    repair_result: Optional[str] = Field(None, max_length=50)
+    remark: Optional[str] = Field(None)
+    attachments: Optional[List[dict]] = Field(None)
+
     @field_validator("repair_type")
     @classmethod
     def validate_repair_type(cls, v: str) -> str:
@@ -142,7 +149,7 @@ class EquipmentRepairBase(BaseModel):
         if v not in allowed_types:
             raise ValueError(f"维修类型必须是 {allowed_types} 之一")
         return v
-    
+
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
@@ -150,7 +157,7 @@ class EquipmentRepairBase(BaseModel):
         if v not in allowed_statuses:
             raise ValueError(f"维修状态必须是 {allowed_statuses} 之一")
         return v
-    
+
     @field_validator("repair_result")
     @classmethod
     def validate_repair_result(cls, v: Optional[str]) -> Optional[str]:
@@ -162,81 +169,61 @@ class EquipmentRepairBase(BaseModel):
 
 
 class EquipmentRepairCreate(EquipmentRepairBase):
-    """
-    设备维修记录创建 Schema
-    
-    用于创建新设备维修记录的请求数据。
-    """
     pass
 
 
 class EquipmentRepairUpdate(BaseModel):
-    """
-    设备维修记录更新 Schema
-    
-    用于更新设备维修记录的请求数据，所有字段可选。
-    """
-    repair_date: Optional[datetime] = Field(None, description="维修日期")
-    repair_type: Optional[str] = Field(None, max_length=50, description="维修类型")
-    repair_description: Optional[str] = Field(None, description="维修描述")
-    repair_cost: Optional[Decimal] = Field(None, description="维修成本")
-    repair_parts: Optional[Dict[str, Any]] = Field(None, description="维修备件")
-    repairer_id: Optional[int] = Field(None, description="维修人员ID")
-    repairer_name: Optional[str] = Field(None, max_length=100, description="维修人员姓名")
-    repair_duration: Optional[Decimal] = Field(None, description="维修时长（小时）")
-    status: Optional[str] = Field(None, max_length=50, description="维修状态")
-    repair_result: Optional[str] = Field(None, max_length=50, description="维修结果")
-    remark: Optional[str] = Field(None, description="备注")
-    attachments: Optional[List[dict]] = Field(None, description="附件列表")
+    repair_date: Optional[datetime] = Field(None)
+    repair_type: Optional[str] = Field(None, max_length=50)
+    repair_description: Optional[str] = Field(None)
+    fault_cause: Optional[str] = Field(None)
+    repair_content: Optional[str] = Field(None)
+    repair_cost: Optional[Decimal] = Field(None)
+    repair_parts: Optional[Dict[str, Any]] = Field(None)
+    repairer_id: Optional[int] = Field(None)
+    repairer_name: Optional[str] = Field(None, max_length=100)
+    repair_duration: Optional[Decimal] = Field(None)
+    status: Optional[str] = Field(None, max_length=50)
+    repair_result: Optional[str] = Field(None, max_length=50)
+    remark: Optional[str] = Field(None)
+    attachments: Optional[List[dict]] = Field(None)
 
 
 class EquipmentRepairResponse(EquipmentRepairBase):
-    """
-    设备维修记录响应 Schema
-    
-    用于返回设备维修记录信息的响应数据。
-    """
     model_config = ConfigDict(from_attributes=True)
-    
-    uuid: str = Field(..., description="设备维修记录UUID（对外暴露，业务标识）")
-    id: int = Field(..., description="设备维修记录ID（内部使用）")
-    tenant_id: int = Field(..., description="组织ID")
-    equipment_fault_id: Optional[int] = Field(None, description="设备故障ID")
-    equipment_id: int = Field(..., description="设备ID")
-    equipment_name: str = Field(..., description="设备名称")
-    created_at: datetime = Field(..., description="创建时间")
-    updated_at: datetime = Field(..., description="更新时间")
-    created_by: Optional[int] = Field(None, description="创建人ID")
-    created_by_name: Optional[str] = Field(None, description="创建人姓名")
-    updated_by: Optional[int] = Field(None, description="更新人ID")
-    updated_by_name: Optional[str] = Field(None, description="更新人姓名")
-    deleted_at: Optional[datetime] = Field(None, description="删除时间（软删除）")
+
+    uuid: str
+    id: int
+    tenant_id: int
+    equipment_fault_id: Optional[int] = None
+    equipment_id: int
+    equipment_name: str
+    arrival_at: Optional[datetime] = None
+    arrival_by_id: Optional[int] = None
+    arrival_by_name: Optional[str] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[int] = None
+    created_by_name: Optional[str] = None
+    updated_by: Optional[int] = None
+    updated_by_name: Optional[str] = None
+    deleted_at: Optional[datetime] = None
 
 
 class EquipmentFaultListResponse(BaseModel):
-    """
-    设备故障记录列表响应 Schema
-    
-    用于返回设备故障记录列表的响应数据。
-    """
     model_config = ConfigDict(from_attributes=True)
-    
-    items: list[EquipmentFaultResponse] = Field(..., description="设备故障记录列表")
-    total: int = Field(..., description="总数量")
-    skip: int = Field(..., description="跳过数量")
-    limit: int = Field(..., description="限制数量")
+
+    items: list[EquipmentFaultResponse]
+    total: int
+    skip: int
+    limit: int
 
 
 class EquipmentRepairListResponse(BaseModel):
-    """
-    设备维修记录列表响应 Schema
-    
-    用于返回设备维修记录列表的响应数据。
-    """
     model_config = ConfigDict(from_attributes=True)
-    
-    items: list[EquipmentRepairResponse] = Field(..., description="设备维修记录列表")
-    total: int = Field(..., description="总数量")
-    skip: int = Field(..., description="跳过数量")
-    limit: int = Field(..., description="限制数量")
 
+    items: list[EquipmentRepairResponse]
+    total: int
+    skip: int
+    limit: int

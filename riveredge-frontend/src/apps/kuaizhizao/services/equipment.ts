@@ -36,6 +36,14 @@ export const equipmentApi = {
     return apiRequest(`/apps/kuaizhizao/equipment/${uuid}`, { method: 'GET' });
   },
 
+  /** 扫码解析：系统 EQ JSON / 设备编码 / 手工绑定码 */
+  resolveScan: async (q: string) => {
+    return apiRequest('/apps/kuaizhizao/equipment/resolve-scan', {
+      method: 'GET',
+      params: { q },
+    });
+  },
+
   // 获取设备使用记录追溯
   getTrace: async (uuid: string) => {
     return apiRequest(`/apps/kuaizhizao/equipment/${uuid}/trace`, { method: 'GET' });
@@ -56,6 +64,7 @@ export const equipmentApi = {
     equipment_uuid: string;
     calibration_date: string;
     result: string;
+    plan_type?: string;
     certificate_no?: string;
     expiry_date?: string;
     remark?: string;
@@ -157,6 +166,17 @@ export const equipmentFaultApi = {
     return apiRequest(`/apps/kuaizhizao/equipment-faults/${uuid}`, { method: 'GET' });
   },
 
+  /** 到场扫码签到 */
+  arrive: async (
+    uuid: string,
+    data: { equipment_uuid: string; repair_type?: string; repairer_name?: string },
+  ) => {
+    return apiRequest(`/apps/kuaizhizao/equipment-faults/${uuid}/arrive`, {
+      method: 'POST',
+      data,
+    });
+  },
+
   // 记录设备维修
   createRepair: async (data: any) => {
     return apiRequest('/apps/kuaizhizao/equipment-faults/repairs', { method: 'POST', data });
@@ -172,6 +192,22 @@ export const equipmentFaultApi = {
 
   updateRepair: async (uuid: string, data: unknown) => {
     return apiRequest(`/apps/kuaizhizao/equipment-faults/repairs/${uuid}`, { method: 'PUT', data });
+  },
+
+  completeRepair: async (
+    uuid: string,
+    data: {
+      fault_cause: string;
+      repair_content: string;
+      repair_result?: string;
+      remark?: string;
+      attachments?: unknown[];
+    },
+  ) => {
+    return apiRequest(`/apps/kuaizhizao/equipment-faults/repairs/${uuid}/complete`, {
+      method: 'POST',
+      data,
+    });
   },
 
   deleteRepair: async (uuid: string) => {
@@ -204,6 +240,22 @@ export const moldApi = {
   // 获取模具详情
   get: async (uuid: string) => {
     return apiRequest(`/apps/kuaizhizao/molds/${uuid}`, { method: 'GET' });
+  },
+
+  listSignbacks: async (uuid: string, params?: { skip?: number; limit?: number }) => {
+    return apiRequest(`/apps/kuaizhizao/molds/${uuid}/signbacks`, { method: 'GET', params });
+  },
+
+  createSignback: async (
+    uuid: string,
+    data: {
+      signed_at: string;
+      supplier_name?: string;
+      attachments: Array<{ uid?: string; name?: string; url?: string }>;
+      remark?: string;
+    },
+  ) => {
+    return apiRequest(`/apps/kuaizhizao/molds/${uuid}/signbacks`, { method: 'POST', data });
   },
 
   // 获取模具校验记录列表（mold_uuid 可选，不传则全量）

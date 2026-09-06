@@ -87,6 +87,13 @@ export function hasReviewPermission(user: CurrentUser | undefined, resourcePrefi
   return hasAnyPermission(user, reviewPermissionCodes(resourcePrefix));
 }
 
+/** 全局档案总查看（与后端 system:document-global-view:read 一致） */
+export const DOCUMENT_GLOBAL_VIEW_PERMISSION = 'system:document-global-view:read';
+
+export function hasDocumentGlobalView(user: CurrentUser | undefined): boolean {
+  return hasPermission(user, DOCUMENT_GLOBAL_VIEW_PERMISSION);
+}
+
 const REVIEW_ACTION_LABEL_KEY = 'audit';
 
 /** 完整权限码 → i18n key（与 permission_action_spec.PERMISSION_CODE_DISPLAY_LABELS 对齐） */

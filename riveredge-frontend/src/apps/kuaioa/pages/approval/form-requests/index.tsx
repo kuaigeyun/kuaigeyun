@@ -9,6 +9,7 @@ import {
   serializeDynamicFormValues,
   dynamicFormValuesFromRecord,
 } from '../../../components/OaDynamicFormFields';
+import { GENERAL_SIGNOFF_BUSINESS_TYPES } from '../../../constants/generalSignoffBusinessTypes';
 import {
   createFormRequest,
   deleteFormRequest,
@@ -35,6 +36,11 @@ const FormRequestsPage: React.FC = () => {
     [templates],
   );
 
+  const businessTypeOptions = GENERAL_SIGNOFF_BUSINESS_TYPES.map((item) => ({
+    label: t(item.labelKey),
+    value: item.code,
+  }));
+
   return (
     <KuaioaCrudListPage
       createButtonKey="app.kuaioa.formRequest.createButton"
@@ -57,6 +63,13 @@ const FormRequestsPage: React.FC = () => {
         { name: 'request_code', labelKey: 'app.kuaioa.formRequest.code', width: 150 },
         { name: 'title', labelKey: 'app.kuaioa.formRequest.title', required: true, width: 200 },
         { name: 'template_code', labelKey: 'app.kuaioa.formTemplate.code', width: 120 },
+        {
+          name: 'business_type',
+          labelKey: 'app.kuaioa.formTemplate.businessType',
+          width: 140,
+          type: 'select',
+          options: businessTypeOptions,
+        },
         { name: 'applicant_name', labelKey: 'app.kuaioa.common.applicant', width: 100 },
         { name: 'department_name', labelKey: 'app.kuaioa.common.department', hideInTable: true },
         { name: 'status', labelKey: 'common.status', width: 100 },
@@ -66,6 +79,7 @@ const FormRequestsPage: React.FC = () => {
       createFn={createFormRequest}
       updateFn={updateFormRequest}
       deleteFn={deleteFormRequest}
+      columnPersistenceId="apps.kuaioa.form-request.list-v3"
       mapRecordToFormValues={(record) => {
         const template = templateById.get(Number(record.template_id));
         const schema = normalizeFieldsSchema(template?.fields_schema);

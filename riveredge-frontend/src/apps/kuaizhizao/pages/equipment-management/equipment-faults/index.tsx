@@ -45,6 +45,7 @@ import dayjs from 'dayjs';
 import { DocumentTrackingTimelineBody, useDocumentTracking } from '../../../../../components/document-tracking-panel';
 import { EquipmentTraceBriefPrimaryActions } from '../EquipmentTraceBriefFooter';
 import { formDateRangeFormItemProps, formDateFormItemProps, toApiDateString, coerceFormDate } from '../../../../../utils/formDate';
+import { getApiErrorMessage } from '../../../../../utils/errorHandler';
 import { formatDateTime, formatDateTimeBySiteSetting } from '../../../../../utils/format';
 import { alignProColumns, SALES_DOC_LIST_FIELD_RANK } from '../../sales-management/shared/documentFieldAlignment';
 import { buildDocumentAuditColumns } from '../../shared/documentAuditColumns';
@@ -100,6 +101,10 @@ interface EquipmentFault {
   equipment_code?: string;
   equipment_name?: string;
   fault_date?: string;
+  reported_at?: string;
+  response_minutes?: number;
+  response_due_at?: string;
+  response_overdue?: boolean;
   fault_type?: string;
   fault_level?: string;
   fault_description?: string;
@@ -173,6 +178,15 @@ const EquipmentFaultsPage: React.FC = () => {
         record.status !== '已关闭',
     );
 
+  const canArrive = (record: EquipmentFault) =>
+    Boolean(
+      perms.canUpdate &&
+        record.uuid &&
+        record.equipment_uuid &&
+        record.status !== '已修复' &&
+        record.status !== '已关闭',
+    );
+
   const canStartMaint = (record: EquipmentFault) =>
     Boolean(
       maintPerms.canCreate &&
@@ -180,6 +194,22 @@ const EquipmentFaultsPage: React.FC = () => {
         record.status !== '已关闭' &&
         record.equipment_uuid,
     );
+
+  const handleArrive = async (record: EquipmentFault) => {
+    if (!record.uuid || !record.equipment_uuid) return;
+    try {
+      await equipmentFaultApi.arrive(record.uuid, {
+        equipment_uuid: record.equipment_uuid,
+      });
+      messageApi.success(t(`${P}.arriveSuccess`));
+      actionRef.current?.reload();
+      if (faultDetail?.uuid === record.uuid) {
+        void handleDetail(record);
+      }
+    } catch (error: unknown) {
+      messageApi.error(getApiErrorMessage(error, t(`${P}.arriveFailed`)));
+    }
+  };
 
   const goSourceDocument = (sourceType?: string, sourceUuid?: string) => {
     if (!sourceUuid) return;
@@ -469,6 +499,22 @@ const EquipmentFaultsPage: React.FC = () => {
       valueType: 'date',
     },
     {
+      title: t(`${P}.col.responseDue`),
+      dataIndex: 'response_due_at',
+      render: (_, r) =>
+        r.response_due_at ? formatDateTime(r.response_due_at) : '-',
+    },
+    {
+      title: t(`${P}.col.responseOverdue`),
+      dataIndex: 'response_overdue',
+      render: (_, r) =>
+        r.response_overdue ? (
+          <MarkerTag color="error">{t(`${P}.responseOverdueYes`)}</MarkerTag>
+        ) : (
+          <MarkerTag color="success">{t(`${P}.responseOverdueNo`)}</MarkerTag>
+        ),
+    },
+    {
       title: t(`${P}.col.faultType`),
       dataIndex: 'fault_type',
     },
@@ -703,6 +749,19 @@ const EquipmentFaultsPage: React.FC = () => {
       hideInSearch: true,
     },
     {
+      title: t(`${P}.col.responseOverdue`),
+      dataIndex: 'response_overdue',
+      ...UNI_TABLE_MARKER_BADGE_COLUMN_DEFAULTS,
+      sorter: false,
+      hideInSearch: true,
+      render: (_, r) =>
+        r.response_overdue ? (
+          <MarkerTag color="error">{t(`${P}.responseOverdueYes`)}</MarkerTag>
+        ) : (
+          <MarkerTag color="success">{t(`${P}.responseOverdueNo`)}</MarkerTag>
+        ),
+    },
+    {
       title: t(`${P}.col.faultType`),
       dataIndex: 'fault_type',
       width: 120,
@@ -771,7 +830,7 @@ const EquipmentFaultsPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.equipmentFaults)}
           headerTitle={t(`${P}.title`)}
-          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.equipment-faults-width-v2"
+          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.equipment-faults-width-v3"
           actionRef={actionRef}
           rowKey="uuid"
           columns={columns}
@@ -1077,8 +1136,17 @@ const EquipmentFaultsPage: React.FC = () => {
         extra={
           faultDetail ? (
             <>
+              {canArrive(faultDetail) ? (
+                <Button type="primary" onClick={() => void handleArrive(faultDetail)}>
+                  {t(`${P}.action.arrive`)}
+                </Button>
+              ) : null}
               {canStartRepair(faultDetail) ? (
-                <Button type="primary" onClick={() => handleCreateRepair(faultDetail)}>
+                <Button
+                  type={canArrive(faultDetail) ? 'default' : 'primary'}
+                  style={{ marginLeft: 8 }}
+                  onClick={() => handleCreateRepair(faultDetail)}
+                >
                   {t(`${P}.action.createRepair`)}
                 </Button>
               ) : null}

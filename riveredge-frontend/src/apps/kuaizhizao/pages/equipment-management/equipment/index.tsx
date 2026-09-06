@@ -111,6 +111,7 @@ interface Equipment {
   serial_number?: string;
   manufacturer?: string;
   supplier?: string;
+  qr_bind_code?: string | null;
   purchase_date?: string;
   installation_date?: string;
   warranty_period?: number;
@@ -195,6 +196,11 @@ const EquipmentPage: React.FC = () => {
           aliases: ['供应商', 'supplier'],
         },
         {
+          field: 'qr_bind_code',
+          labelKey: 'app.kuaizhizao.equipment.import.qrBindCode',
+          aliases: ['二维码绑定码', '绑定码', '手工绑定码', 'qr_bind_code'],
+        },
+        {
           field: 'purchase_date',
           labelKey: 'app.kuaizhizao.equipment.import.purchaseDate',
           aliases: ['采购日期', 'purchase_date'],
@@ -264,6 +270,7 @@ const EquipmentPage: React.FC = () => {
         t('app.kuaizhizao.equipment.importExample.serialNumber'),
         t('app.kuaizhizao.equipment.importExample.manufacturer'),
         t('app.kuaizhizao.equipment.importExample.supplier'),
+        t('app.kuaizhizao.equipment.importExample.qrBindCode'),
         t('app.kuaizhizao.equipment.importExample.purchaseDate'),
         t('app.kuaizhizao.equipment.importExample.installationDate'),
         t('app.kuaizhizao.equipment.importExample.warrantyPeriod'),
@@ -383,6 +390,7 @@ const EquipmentPage: React.FC = () => {
         serial_number: detail.serial_number,
         manufacturer: detail.manufacturer,
         supplier: detail.supplier,
+        qr_bind_code: detail.qr_bind_code,
         purchase_date: detail.purchase_date ? dayjs(detail.purchase_date) : null,
         installation_date: detail.installation_date ? dayjs(detail.installation_date) : null,
         warranty_period: detail.warranty_period,
@@ -498,6 +506,10 @@ const EquipmentPage: React.FC = () => {
         responsible_person_name: standardValues.responsible_person_name ?? null,
         photo_file_uuid: uploadListToPhotoUuid(standardValues.photo),
         attachments: normalizeDocumentAttachments(standardValues.attachments),
+        qr_bind_code:
+          typeof standardValues.qr_bind_code === 'string'
+            ? standardValues.qr_bind_code.trim() || null
+            : null,
       };
 
       const editedUuid = isEdit ? currentEquipment?.uuid : undefined;
@@ -833,6 +845,27 @@ const EquipmentPage: React.FC = () => {
       'production_line_name',
       { width: 140, hideInSearch: true },
     ),
+    buildKeepWidthColumn<Equipment>(t('app.kuaizhizao.equipment.colSupplier'), 'supplier', {
+      width: 120,
+      hideInSearch: true,
+    }),
+    {
+      ...buildKeepWidthColumn<Equipment>(
+        t('app.kuaizhizao.equipment.colQrBindCode'),
+        'qr_bind_code',
+        { width: 140, hideInSearch: true },
+      ),
+      render: (_, r) =>
+        r.qr_bind_code ? (
+          <Typography.Text copyable={{ text: String(r.qr_bind_code) }} ellipsis>
+            {r.qr_bind_code}
+          </Typography.Text>
+        ) : (
+          <Typography.Text type="secondary">
+            {t('app.kuaizhizao.equipment.qrBindSystem')}
+          </Typography.Text>
+        ),
+    },
     buildKeepWidthColumn<Equipment>(t('app.kuaizhizao.equipment.colWorkCenter'), 'work_center_name', {
       width: 150,
       hideInSearch: true,
@@ -875,7 +908,7 @@ const EquipmentPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('kuaizhizao.equipmentLedger')}
           headerTitle={t('app.kuaizhizao.equipment.title')}
-          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.equipment-width-v3"
+          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.equipment-qr-bind-r10-v1"
           actionRef={actionRef}
           formRef={searchFormRef}
           rowKey="uuid"
@@ -1072,6 +1105,8 @@ const EquipmentPage: React.FC = () => {
                 { key: 'serial_number', title: t('app.kuaizhizao.equipment.fieldSerialNumber') },
                 { key: 'workshop_name', title: t('app.kuaizhizao.equipment.fieldWorkshop') },
                 { key: 'production_line_name', title: t('app.kuaizhizao.equipment.fieldProductionLine') },
+                { key: 'supplier', title: t('app.kuaizhizao.equipment.fieldSupplier') },
+                { key: 'qr_bind_code', title: t('app.kuaizhizao.equipment.colQrBindCode') },
                 { key: 'work_center_name', title: t('app.kuaizhizao.equipment.fieldWorkCenter') },
                 { key: 'status', title: t('app.kuaizhizao.equipment.fieldStatus') },
                 { key: 'purchase_date', title: t('app.kuaizhizao.equipment.fieldPurchaseDate') },
@@ -1156,6 +1191,30 @@ const EquipmentPage: React.FC = () => {
           </Col>
           <Col span={12}>
             <ProFormText name="supplier" label={t('app.kuaizhizao.equipment.fieldSupplier')} placeholder={t('app.kuaizhizao.equipment.phSupplier')} />
+          </Col>
+          <Col span={24}>
+            <ProFormText
+              name="qr_bind_code"
+              label={t('app.kuaizhizao.equipment.fieldQrBindCode')}
+              placeholder={t('app.kuaizhizao.equipment.phQrBindCode')}
+              extra={t('app.kuaizhizao.equipment.fieldQrBindCodeHint')}
+              fieldProps={{
+                addonAfter: (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      const code = formRef.current?.getFieldValue?.('code');
+                      if (code) {
+                        formRef.current?.setFieldsValue?.({ qr_bind_code: String(code) });
+                      }
+                    }}
+                  >
+                    {t('app.kuaizhizao.equipment.fillQrBindFromCode')}
+                  </Button>
+                ),
+              }}
+            />
           </Col>
           <Col span={12}>
             <ProFormDatePicker

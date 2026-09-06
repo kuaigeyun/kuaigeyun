@@ -17,6 +17,7 @@ import {
   Form,
   Input,
   Modal,
+  QRCode,
   Select,
   Space,
   Spin,
@@ -27,6 +28,7 @@ import {
 } from 'antd';
 import { ArrowLeftOutlined, EditOutlined, QrcodeOutlined, UploadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { MarkerTag } from '../../../../../../constants/statusBadges';
 import { equipmentApi } from '../../../../services/equipment';
 import { inspectionSchemesApi, schemeBindingsApi } from '../../../../services/equipmentOps';
 import {
@@ -92,6 +94,7 @@ interface EquipmentDetail {
   serial_number?: string;
   manufacturer?: string;
   supplier?: string;
+  qr_bind_code?: string | null;
   purchase_date?: string;
   installation_date?: string;
   warranty_period?: number;
@@ -100,6 +103,9 @@ interface EquipmentDetail {
   production_line_id?: number;
   production_line_code?: string;
   production_line_name?: string;
+  force_spot_check_required?: boolean;
+  force_spot_check_due_at?: string;
+  line_rebind_at?: string;
   equipment_nature?: string;
   workstation_id?: number;
   workstation_name?: string;
@@ -212,11 +218,31 @@ const EquipmentDetailPage: React.FC = () => {
       },
       { title: t('app.kuaizhizao.equipment.colManufacturer'), dataIndex: 'manufacturer' },
       { title: t('app.kuaizhizao.equipment.colSupplier'), dataIndex: 'supplier' },
+      {
+        title: t('app.kuaizhizao.equipment.colQrBindCode'),
+        dataIndex: 'qr_bind_code',
+        render: (_, r) =>
+          r.qr_bind_code ? (
+            <Typography.Text copyable={{ text: String(r.qr_bind_code) }}>{r.qr_bind_code}</Typography.Text>
+          ) : (
+            t('app.kuaizhizao.equipment.qrBindSystem')
+          ),
+      },
       { title: t('app.kuaizhizao.equipment.colPurchaseDate'), dataIndex: 'purchase_date', valueType: 'date' },
       { title: t('app.kuaizhizao.equipment.colInstallationDate'), dataIndex: 'installation_date', valueType: 'date' },
       { title: t('app.kuaizhizao.equipment.colWarrantyPeriod'), dataIndex: 'warranty_period' },
       { title: t('app.kuaizhizao.equipment.colWorkshop'), dataIndex: 'workshop_name' },
       { title: t('app.kuaizhizao.equipment.colProductionLine'), dataIndex: 'production_line_name' },
+      {
+        title: t('app.kuaizhizao.equipment.colForceSpot'),
+        dataIndex: 'force_spot_check_required',
+        render: (_, r) =>
+          r.force_spot_check_required ? (
+            <MarkerTag color="warning">{t('app.kuaizhizao.equipment.forceSpotPending')}</MarkerTag>
+          ) : (
+            '-'
+          ),
+      },
       { title: t('app.kuaizhizao.equipment.colWorkstation'), dataIndex: 'workstation_name' },
       { title: t('app.kuaizhizao.equipment.colWorkCenter'), dataIndex: 'work_center_name' },
       { title: t('app.kuaizhizao.equipment.colResponsiblePerson'), dataIndex: 'responsible_person_name' },
@@ -357,19 +383,34 @@ const EquipmentDetailPage: React.FC = () => {
                   }}
                 >
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {t('app.kuaizhizao.equipment.qrcodeCardTitle')}
+                    {equipment.qr_bind_code
+                      ? t('app.kuaizhizao.equipment.qrcodeBindCardTitle')
+                      : t('app.kuaizhizao.equipment.qrcodeCardTitle')}
                   </Typography.Text>
-                  <QRCodeGenerator
-                    qrcodeType="EQ"
-                    data={{
-                      equipment_uuid: equipment.uuid,
-                      equipment_code: equipment.code || '',
-                      equipment_name: equipment.name || '',
-                    }}
-                    autoGenerate
-                    size={6}
-                    noCard
-                  />
+                  {equipment.qr_bind_code ? (
+                    <>
+                      <QRCode value={String(equipment.qr_bind_code)} size={148} errorLevel="M" />
+                      <Typography.Text
+                        type="secondary"
+                        copyable={{ text: String(equipment.qr_bind_code) }}
+                        style={{ fontSize: 12, maxWidth: 160, textAlign: 'center' }}
+                      >
+                        {equipment.qr_bind_code}
+                      </Typography.Text>
+                    </>
+                  ) : (
+                    <QRCodeGenerator
+                      qrcodeType="EQ"
+                      data={{
+                        equipment_uuid: equipment.uuid,
+                        equipment_code: equipment.code || '',
+                        equipment_name: equipment.name || '',
+                      }}
+                      autoGenerate
+                      size={6}
+                      noCard
+                    />
+                  )}
                 </div>
               ) : null}
             </div>

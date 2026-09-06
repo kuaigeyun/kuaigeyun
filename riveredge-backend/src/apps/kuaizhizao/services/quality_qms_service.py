@@ -28,14 +28,27 @@ from apps.kuaizhizao.schemas.quality_qms import (
     QmsSystemDocumentCreate,
     QmsSystemDocumentListResponse,
     QmsSystemDocumentResponse,
+    QmsSystemDocumentReviseRequest,
+    QmsSystemDocumentRejectRequest,
     QmsSystemDocumentUpdate,
+    QmsSystemDocumentVersionListResponse,
+    QmsSystemDocumentVersionResponse,
 )
 from apps.kuaizhizao.services.qms_iso_clause_service import iso_clause_service
+from core.services.file.document_version_policy import (
+    DOCUMENT_GLOBAL_VIEW_PERMISSION,
+    can_view_historical_versions,
+    filter_version_rows,
+    resolve_audience,
+)
+from core.services.authorization.user_permission_service import UserPermissionService
 from core.utils.timezone_utils import resolve_business_datetime
 from infra.exceptions.exceptions import BusinessLogicError, NotFoundError
 from datetime import datetime
+import re
 
-DOC_STATUSES = {"draft", "effective", "obsolete"}
+DOC_STATUSES = {"draft", "effective", "obsolete", "rejected"}
+DOC_ZONES = frozenset({"formal", "pending", "all"})
 AUDIT_STATUSES = {"planned", "in_progress", "completed", "closed"}
 REVIEW_STATUSES = {"draft", "in_progress", "completed", "closed"}
 
@@ -63,6 +76,37 @@ def _normalize_links(value: Any) -> Optional[List[Dict[str, Any]]]:
             }
         )
     return out
+
+
+def _bump_version(current: str) -> str:
+    raw = (current or "A0").strip() or "A0"
+    m = re.match(r"^([A-Za-z]+)(\d+)$", raw)
+    if m:
+        return f"{m.group(1)}{int(m.group(2)) + 1}"
+    return f"{raw}.1"
+
+
+def _version_policy_row(ver: Any) -> Dict[str, Any]:
+    return {
+        "id": getattr(ver, "id", None),
+        "document_id": getattr(ver, "document_id", None),
+        "document_code": getattr(ver, "document_code", None),
+        "version": getattr(ver, "version", None),
+        "status": getattr(ver, "status", None),
+        "is_effective": bool(getattr(ver, "is_effective", False)),
+        "is_latest_effective": bool(getattr(ver, "is_effective", False)),
+        "title": getattr(ver, "title", None),
+        "content": getattr(ver, "content", None),
+        "file_uuid": getattr(ver, "file_uuid", None),
+        "file_url": getattr(ver, "file_url", None),
+        "change_summary": getattr(ver, "change_summary", None),
+        "effective_at": getattr(ver, "effective_at", None),
+        "obsolete_at": getattr(ver, "obsolete_at", None),
+        "created_by": getattr(ver, "created_by", None),
+        "created_by_name": getattr(ver, "created_by_name", None),
+        "created_at": getattr(ver, "created_at", None),
+        "updated_at": getattr(ver, "updated_at", None),
+    }
 
 
 class _QmsCrudMixin:
@@ -100,7 +144,12 @@ class QmsSystemDocumentService(AppBaseService[QmsSystemDocument], _QmsCrudMixin)
         self.model = QmsSystemDocument
 
     async def create_document(
-        self, tenant_id: int, payload: QmsSystemDocumentCreate
+        self,
+        tenant_id: int,
+        payload: QmsSystemDocumentCreate,
+        *,
+        actor_id: Optional[int] = None,
+        actor_name: Optional[str] = None,
     ) -> QmsSystemDocumentResponse:
         data = payload.model_dump(exclude_unset=False)
         self._apply_status_guard(data.get("status"))
@@ -113,7 +162,29 @@ class QmsSystemDocumentService(AppBaseService[QmsSystemDocument], _QmsCrudMixin)
         ).exists()
         if exists:
             raise BusinessLogicError("体系文件编码已存在")
+        if actor_id is not None:
+            data["created_by"] = actor_id
+            data["created_by_name"] = actor_name
+            data["updated_by"] = actor_id
+            data["updated_by_name"] = actor_name
+        from apps.kuaizhizao.models.qms_system_document_version import QmsSystemDocumentVersion
+
         row = await QmsSystemDocument.create(tenant_id=tenant_id, **data)
+        await QmsSystemDocumentVersion.create(
+            tenant_id=tenant_id,
+            document_id=row.id,
+            document_code=row.document_code,
+            version=row.version,
+            status=row.status if row.status in DOC_STATUSES else "draft",
+            is_effective=False,
+            title=row.title,
+            content=row.content,
+            file_url=row.file_url,
+            created_by=getattr(row, "created_by", None),
+            created_by_name=getattr(row, "created_by_name", None),
+            updated_by=getattr(row, "updated_by", None),
+            updated_by_name=getattr(row, "updated_by_name", None),
+        )
         return QmsSystemDocumentResponse.model_validate(row)
 
     async def list_documents(
@@ -123,10 +194,49 @@ class QmsSystemDocumentService(AppBaseService[QmsSystemDocument], _QmsCrudMixin)
         keyword: Optional[str] = None,
         status: Optional[str] = None,
         doc_type: Optional[str] = None,
+        zone: Optional[str] = None,
+        current_user_id: Optional[int] = None,
+        permission_codes: Optional[List[str]] = None,
         skip: int = 0,
         limit: int = 50,
     ) -> QmsSystemDocumentListResponse:
+        zone_key = (zone or "formal").strip().lower()
+        if zone_key not in DOC_ZONES:
+            raise BusinessLogicError("非法目录分区")
+
+        codes = {str(c or "").strip().lower() for c in (permission_codes or []) if str(c or "").strip()}
+        is_global = DOCUMENT_GLOBAL_VIEW_PERMISSION in codes
+        can_manage = any(
+            c.startswith("kuaizhizao:quality-management-system-documents:")
+            and c.split(":")[-1] in {"update", "create", "publish", "obsolete", "reject"}
+            for c in codes
+        )
+
         query = QmsSystemDocument.filter(tenant_id=tenant_id, deleted_at__isnull=True)
+        # 驳回永不进正式目录；头表 rejected 仅制定方/有维护权/全局可见于待审或全部
+        if zone_key == "formal":
+            query = query.filter(status="effective")
+        elif zone_key == "pending":
+            query = query.filter(status__in=["draft", "pending", "rejected"])
+            if not is_global and not can_manage and current_user_id is not None:
+                query = query.filter(created_by=current_user_id)
+        else:
+            # all：使用方仅正式；制定方/有维护权/全局可见全量（含本人驳回）
+            if not is_global and not can_manage:
+                if current_user_id is not None:
+                    from tortoise.expressions import Q
+
+                    query = query.filter(
+                        Q(status="effective")
+                        | Q(
+                            status__in=["draft", "pending", "rejected"],
+                            created_by=current_user_id,
+                        )
+                    )
+                else:
+                    query = query.filter(status="effective")
+            # 无维护权的使用方已在上方排除他人 rejected；有维护权/全局可见全部含 rejected
+
         if keyword:
             query = query.filter(title__icontains=keyword)
         if status:
@@ -142,6 +252,161 @@ class QmsSystemDocumentService(AppBaseService[QmsSystemDocument], _QmsCrudMixin)
 
     async def get_document(self, tenant_id: int, document_id: int) -> QmsSystemDocumentResponse:
         row = await self._get_row(tenant_id, document_id)
+        return QmsSystemDocumentResponse.model_validate(row)
+
+    async def list_versions(
+        self,
+        tenant_id: int,
+        document_id: int,
+        *,
+        current_user_id: Optional[int] = None,
+        permission_codes: Optional[List[str]] = None,
+    ) -> QmsSystemDocumentVersionListResponse:
+        from apps.kuaizhizao.models.qms_system_document_version import QmsSystemDocumentVersion
+
+        row = await self._get_row(tenant_id, document_id)
+        versions = await QmsSystemDocumentVersion.filter(
+            tenant_id=tenant_id,
+            document_id=document_id,
+            deleted_at__isnull=True,
+        ).order_by("-id")
+        policy_rows = [_version_policy_row(v) for v in versions]
+        is_author = bool(
+            current_user_id is not None
+            and getattr(row, "created_by", None) is not None
+            and int(row.created_by) == int(current_user_id)
+        )
+        audience = resolve_audience(
+            permission_codes=permission_codes,
+            is_author=is_author,
+        )
+        visible = filter_version_rows(
+            policy_rows,
+            audience=audience,
+            current_user_id=current_user_id,
+        )
+        items = [QmsSystemDocumentVersionResponse.model_validate(v) for v in visible]
+        return QmsSystemDocumentVersionListResponse(
+            items=items,
+            total=len(items),
+            audience=audience.value,
+            can_view_history=can_view_historical_versions(audience),
+        )
+
+    async def revise_document(
+        self,
+        tenant_id: int,
+        document_id: int,
+        payload: QmsSystemDocumentReviseRequest,
+        *,
+        actor_id: Optional[int] = None,
+        actor_name: Optional[str] = None,
+    ) -> QmsSystemDocumentResponse:
+        from apps.kuaizhizao.models.qms_system_document_version import QmsSystemDocumentVersion
+        from tortoise.transactions import in_transaction
+
+        row = await self._get_row(tenant_id, document_id)
+        if row.status != "effective":
+            raise BusinessLogicError("仅现行有效文件可升版")
+        new_version = (payload.version or "").strip() or _bump_version(row.version)
+        clash = await QmsSystemDocumentVersion.filter(
+            tenant_id=tenant_id,
+            document_id=row.id,
+            version=new_version,
+            deleted_at__isnull=True,
+        ).exists()
+        if clash:
+            raise BusinessLogicError(f"版本号已存在: {new_version}")
+
+        async with in_transaction():
+            await QmsSystemDocumentVersion.create(
+                tenant_id=tenant_id,
+                document_id=row.id,
+                document_code=row.document_code,
+                version=new_version,
+                status="draft",
+                is_effective=False,
+                title=row.title,
+                content=row.content,
+                file_url=row.file_url,
+                change_summary=(payload.change_summary or None),
+                created_by=actor_id or getattr(row, "created_by", None),
+                created_by_name=actor_name or getattr(row, "created_by_name", None),
+                updated_by=actor_id,
+                updated_by_name=actor_name,
+            )
+            row.version = new_version
+            row.status = "draft"
+            if actor_id is not None:
+                row.updated_by = actor_id
+                row.updated_by_name = actor_name
+            await row.save()
+        return QmsSystemDocumentResponse.model_validate(row)
+
+    async def reject_document(
+        self,
+        tenant_id: int,
+        document_id: int,
+        payload: Optional[QmsSystemDocumentRejectRequest] = None,
+        *,
+        actor_id: Optional[int] = None,
+        actor_name: Optional[str] = None,
+    ) -> QmsSystemDocumentResponse:
+        """驳回待审/草稿升版：版本记 rejected；若仍有现行生效版则恢复头表，否则头表保持 rejected。"""
+        from apps.kuaizhizao.models.qms_system_document_version import QmsSystemDocumentVersion
+        from tortoise.transactions import in_transaction
+
+        row = await self._get_row(tenant_id, document_id)
+        if row.status not in ("draft", "pending"):
+            raise BusinessLogicError("仅草稿或待审文件可驳回")
+        reason = (payload.reason if payload else None) or None
+        reason = (reason or "").strip() or None
+
+        async with in_transaction():
+            draft_ver = await QmsSystemDocumentVersion.filter(
+                tenant_id=tenant_id,
+                document_id=row.id,
+                version=row.version,
+                deleted_at__isnull=True,
+            ).first()
+            if draft_ver:
+                draft_ver.status = "rejected"
+                draft_ver.is_effective = False
+                if reason:
+                    prev = (draft_ver.change_summary or "").strip()
+                    draft_ver.change_summary = f"{prev}\n驳回：{reason}".strip() if prev else f"驳回：{reason}"
+                if actor_id is not None:
+                    draft_ver.updated_by = actor_id
+                    draft_ver.updated_by_name = actor_name
+                await draft_ver.save()
+
+            # 升版驳回：恢复仍标记为生效的历史版（升版未发布时旧版仍 is_effective）
+            prev_eff = (
+                await QmsSystemDocumentVersion.filter(
+                    tenant_id=tenant_id,
+                    document_id=row.id,
+                    status="effective",
+                    is_effective=True,
+                    deleted_at__isnull=True,
+                )
+                .exclude(version=row.version)
+                .order_by("-id")
+                .first()
+            )
+            if prev_eff:
+                row.version = prev_eff.version
+                row.title = prev_eff.title
+                row.content = prev_eff.content
+                row.file_url = prev_eff.file_url
+                row.status = "effective"
+                row.effective_at = prev_eff.effective_at or resolve_business_datetime()
+                row.obsolete_at = None
+            else:
+                row.status = "rejected"
+            if actor_id is not None:
+                row.updated_by = actor_id
+                row.updated_by_name = actor_name
+            await row.save()
         return QmsSystemDocumentResponse.model_validate(row)
 
     async def update_document(
@@ -169,22 +434,79 @@ class QmsSystemDocumentService(AppBaseService[QmsSystemDocument], _QmsCrudMixin)
         return QmsSystemDocumentResponse.model_validate(row)
 
     async def publish_document(self, tenant_id: int, document_id: int) -> QmsSystemDocumentResponse:
+        from apps.kuaizhizao.models.qms_system_document_version import QmsSystemDocumentVersion
+        from tortoise.transactions import in_transaction
+
         row = await self._get_row(tenant_id, document_id)
         if row.status == "obsolete":
             raise BusinessLogicError("已作废文件不可再次生效")
-        row.status = "effective"
-        row.effective_at = resolve_business_datetime()
-        row.obsolete_at = None
-        await row.save()
+
+        async with in_transaction():
+            # 旧生效版降为历史
+            await QmsSystemDocumentVersion.filter(
+                tenant_id=tenant_id,
+                document_id=row.id,
+                is_effective=True,
+                deleted_at__isnull=True,
+            ).update(is_effective=False, status="obsolete", obsolete_at=resolve_business_datetime())
+
+            ver = await QmsSystemDocumentVersion.filter(
+                tenant_id=tenant_id,
+                document_id=row.id,
+                version=row.version,
+                deleted_at__isnull=True,
+            ).first()
+            if ver:
+                ver.status = "effective"
+                ver.is_effective = True
+                ver.title = row.title
+                ver.content = row.content
+                ver.file_url = row.file_url
+                ver.effective_at = resolve_business_datetime()
+                ver.obsolete_at = None
+                await ver.save()
+            else:
+                await QmsSystemDocumentVersion.create(
+                    tenant_id=tenant_id,
+                    document_id=row.id,
+                    document_code=row.document_code,
+                    version=row.version,
+                    status="effective",
+                    is_effective=True,
+                    title=row.title,
+                    content=row.content,
+                    file_url=row.file_url,
+                    effective_at=resolve_business_datetime(),
+                    created_by=getattr(row, "updated_by", None) or getattr(row, "created_by", None),
+                    created_by_name=getattr(row, "updated_by_name", None)
+                    or getattr(row, "created_by_name", None),
+                )
+
+            row.status = "effective"
+            row.effective_at = resolve_business_datetime()
+            row.obsolete_at = None
+            await row.save()
         return QmsSystemDocumentResponse.model_validate(row)
 
     async def obsolete_document(self, tenant_id: int, document_id: int) -> QmsSystemDocumentResponse:
+        from apps.kuaizhizao.models.qms_system_document_version import QmsSystemDocumentVersion
+
         row = await self._get_row(tenant_id, document_id)
         if row.status == "draft":
             raise BusinessLogicError("草稿请直接删除，无需作废")
         row.status = "obsolete"
         row.obsolete_at = resolve_business_datetime()
         await row.save()
+        await QmsSystemDocumentVersion.filter(
+            tenant_id=tenant_id,
+            document_id=row.id,
+            is_effective=True,
+            deleted_at__isnull=True,
+        ).update(
+            is_effective=False,
+            status="obsolete",
+            obsolete_at=resolve_business_datetime(),
+        )
         return QmsSystemDocumentResponse.model_validate(row)
 
     async def delete_document(self, tenant_id: int, document_id: int) -> None:

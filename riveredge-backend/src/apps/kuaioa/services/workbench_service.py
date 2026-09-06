@@ -13,6 +13,11 @@ from apps.kuaioa.models.collaboration import (
 from apps.kuaioa.models.form_request import KuaioaFormRequest
 from apps.kuaioa.models.leave import KuaioaLeaveRequest
 from apps.kuaioa.models.seal import KuaioaSealRequest
+from apps.kuaioa.models.training import (
+    KuaioaDeptTrainingApplication,
+    KuaioaSpecialWorkQualification,
+    KuaioaTrainingPlan,
+)
 from apps.kuaioa.services.announcement_service import AnnouncementService
 from apps.kuaioa.services.kuaioa_list_core import model_to_dict
 from apps.kuaioa.services.license_service import LicenseRegistryService
@@ -28,6 +33,9 @@ KUAIOA_ENTITY_TYPES = frozenset(
         "kuaioa_special_price",
         "kuaioa_concession",
         "kuaioa_process_deviation",
+        "kuaioa_dept_training_application",
+        "kuaioa_special_work_qualification",
+        "kuaioa_training_plan",
     }
 )
 
@@ -39,6 +47,9 @@ DOC_MODEL_BY_ENTITY: dict[str, Any] = {
     "kuaioa_special_price": KuaioaSpecialPriceRequest,
     "kuaioa_concession": KuaioaConcessionRequest,
     "kuaioa_process_deviation": KuaioaProcessDeviation,
+    "kuaioa_dept_training_application": KuaioaDeptTrainingApplication,
+    "kuaioa_special_work_qualification": KuaioaSpecialWorkQualification,
+    "kuaioa_training_plan": KuaioaTrainingPlan,
 }
 
 
@@ -92,6 +103,8 @@ class WorkbenchService:
                 item["entity_type"] = entity_type
                 if entity_type == "kuaioa_asset_purchase":
                     item["doc_code"] = getattr(row, "purchase_code", None)
+                elif entity_type == "kuaioa_training_plan":
+                    item["doc_code"] = getattr(row, "plan_code", None)
                 else:
                     item["doc_code"] = getattr(row, "request_code", None)
                 result.append(item)

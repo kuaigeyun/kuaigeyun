@@ -35,6 +35,8 @@ class InspectionItemBase(BaseModel):
     code: str = Field(..., max_length=64)
     name: str = Field(..., max_length=200)
     requirement: Optional[str] = None
+    method: Optional[str] = Field(None, description="点检方法")
+    judgment_standard: Optional[str] = Field(None, description="判定标准")
     value_type: str = Field(default="boolean", max_length=32)
     unit: Optional[str] = Field(None, max_length=32)
     numeric_min: Optional[Decimal] = None
@@ -50,6 +52,8 @@ class InspectionItemUpdate(BaseModel):
     code: Optional[str] = Field(None, max_length=64)
     name: Optional[str] = Field(None, max_length=200)
     requirement: Optional[str] = None
+    method: Optional[str] = None
+    judgment_standard: Optional[str] = None
     value_type: Optional[str] = Field(None, max_length=32)
     unit: Optional[str] = Field(None, max_length=32)
     numeric_min: Optional[Decimal] = None
@@ -82,11 +86,14 @@ class InspectionSchemeLineBase(BaseModel):
     item_code: Optional[str] = None
     item_name: Optional[str] = None
     requirement: Optional[str] = None
+    method: Optional[str] = None
+    judgment_standard: Optional[str] = None
     value_type: Optional[str] = None
     unit: Optional[str] = None
     numeric_min: Optional[Decimal] = None
     numeric_max: Optional[Decimal] = None
     is_critical: bool = False
+    photo_required: bool = False
 
 
 class InspectionSchemeLineCreate(InspectionSchemeLineBase):
@@ -102,13 +109,20 @@ class InspectionSchemeLineResponse(InspectionSchemeLineBase):
 # ---------- 点检方案 ----------
 
 INSPECTION_SCHEME_CYCLE_TYPES = ("每班", "每天", "每周", "每月", "每季度")
+INSPECTION_CAPTURE_MODES = ("A", "B", "C")
 
 
 class InspectionSchemeBase(BaseModel):
     code: str = Field(..., max_length=64)
     name: str = Field(..., max_length=200)
     description: Optional[str] = None
+    domain: str = Field(default="equipment", max_length=32, description="业务域 equipment/esd")
     cycle_type: Optional[str] = Field(None, max_length=32, description="点检周期")
+    capture_mode: str = Field(default="A", max_length=8, description="采集方式 A/B/C")
+    reviewer_user_id: Optional[int] = Field(None, description="指定审核人用户ID")
+    reviewer_user_name: Optional[str] = Field(None, max_length=100, description="指定审核人姓名")
+    overdue_hours: int = Field(default=8, ge=1, le=720, description="未点检超时小时")
+    review_overdue_hours: int = Field(default=4, ge=1, le=720, description="未审核超时小时")
     is_active: bool = True
 
 
@@ -120,7 +134,13 @@ class InspectionSchemeUpdate(BaseModel):
     code: Optional[str] = Field(None, max_length=64)
     name: Optional[str] = Field(None, max_length=200)
     description: Optional[str] = None
+    domain: Optional[str] = Field(None, max_length=32)
     cycle_type: Optional[str] = Field(None, max_length=32)
+    capture_mode: Optional[str] = Field(None, max_length=8)
+    reviewer_user_id: Optional[int] = None
+    reviewer_user_name: Optional[str] = Field(None, max_length=100)
+    overdue_hours: Optional[int] = Field(None, ge=1, le=720)
+    review_overdue_hours: Optional[int] = Field(None, ge=1, le=720)
     is_active: Optional[bool] = None
     lines: Optional[List[InspectionSchemeLineCreate]] = None
 
@@ -342,11 +362,14 @@ class SpotCheckPreviewLine(BaseModel):
     item_code: Optional[str] = None
     item_name: Optional[str] = None
     requirement: Optional[str] = None
+    method: Optional[str] = None
+    judgment_standard: Optional[str] = None
     value_type: Optional[str] = None
     unit: Optional[str] = None
     numeric_min: Optional[Decimal] = None
     numeric_max: Optional[Decimal] = None
     is_critical: bool = False
+    photo_required: bool = False
     measured_value: Optional[str] = None
     is_pass: bool = True
 
@@ -356,6 +379,8 @@ class SpotCheckPreviewResponse(BaseModel):
     scheme_id: int
     scheme_code: Optional[str] = None
     scheme_name: Optional[str] = None
+    cycle_type: Optional[str] = None
+    capture_mode: str = "A"
     lines: List[SpotCheckPreviewLine]
 
 
@@ -365,6 +390,8 @@ class SpotCheckLineInput(BaseModel):
     item_code: Optional[str] = None
     item_name: Optional[str] = None
     requirement: Optional[str] = None
+    method: Optional[str] = None
+    judgment_standard: Optional[str] = None
     value_type: Optional[str] = None
     unit: Optional[str] = None
     numeric_min: Optional[Decimal] = None
@@ -372,6 +399,7 @@ class SpotCheckLineInput(BaseModel):
     measured_value: Optional[str] = None
     # None 时按 value_type + 数值上下限自动判定
     is_pass: Optional[bool] = None
+    photo_required: bool = False
     remark: Optional[str] = None
     attachments: Optional[List[dict]] = None
 
@@ -389,6 +417,7 @@ class SpotCheckCreate(BaseModel):
     inspector_id: Optional[int] = None
     inspector_name: Optional[str] = None
     remark: Optional[str] = None
+    attachments: Optional[List[dict]] = None
     lines: Optional[List[SpotCheckLineInput]] = None
 
 
@@ -398,6 +427,7 @@ class SpotCheckUpdate(BaseModel):
     inspector_name: Optional[str] = None
     status: Optional[str] = None
     remark: Optional[str] = None
+    attachments: Optional[List[dict]] = None
     lines: Optional[List[SpotCheckLineInput]] = None
 
 
@@ -412,17 +442,29 @@ class SpotCheckResponse(AuditActorFields):
     equipment_code: Optional[str] = None
     equipment_name: Optional[str] = None
     scheme_id: Optional[int] = None
+    capture_mode: Optional[str] = None
     check_date: date
     inspector_id: Optional[int] = None
     inspector_name: Optional[str] = None
+    reviewer_user_id: Optional[int] = None
+    reviewer_user_name: Optional[str] = None
+    reviewed_by: Optional[int] = None
+    reviewed_by_name: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    reject_reason: Optional[str] = None
     status: str
     has_abnormality: bool
     abnormality_description: Optional[str] = None
     fault_report_uuid: Optional[str] = None
+    attachments: Optional[List[dict]] = None
     remark: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     lines: Optional[List[SpotCheckLineResponse]] = None
+
+
+class SpotCheckRejectRequest(BaseModel):
+    reject_reason: str = Field(..., min_length=1, description="驳回原因")
 
 
 class SpotCheckListResponse(BaseModel):
@@ -443,6 +485,13 @@ class RoutePatrolPreviewLine(BaseModel):
     item_id: Optional[int] = None
     item_code: Optional[str] = None
     item_name: Optional[str] = None
+    capture_mode: str = "A"
+    requirement: Optional[str] = None
+    method: Optional[str] = None
+    judgment_standard: Optional[str] = None
+    value_type: Optional[str] = None
+    unit: Optional[str] = None
+    photo_required: bool = False
     measured_value: Optional[str] = None
     is_pass: bool = True
 
@@ -460,6 +509,13 @@ class RoutePatrolLineInput(BaseModel):
     item_id: Optional[int] = None
     item_code: Optional[str] = None
     item_name: Optional[str] = None
+    capture_mode: Optional[str] = "A"
+    requirement: Optional[str] = None
+    method: Optional[str] = None
+    judgment_standard: Optional[str] = None
+    value_type: Optional[str] = None
+    unit: Optional[str] = None
+    photo_required: bool = False
     measured_value: Optional[str] = None
     is_pass: bool = True
     remark: Optional[str] = None

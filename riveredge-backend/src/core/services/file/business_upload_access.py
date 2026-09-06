@@ -204,6 +204,10 @@ BUSINESS_FILE_UPLOAD_PERMISSIONS: Final[dict[str, tuple[str, ...]]] = {
         "kuaizhizao:equipment-management-equipment:create",
         "kuaizhizao:equipment-management-equipment:update",
     ),
+    "equipment_acceptance_attachments": (
+        "kuaizhizao:equipment-acceptance:create",
+        "kuaizhizao:equipment-acceptance:update",
+    ),
     "mold_attachments": (
         "kuaizhizao:equipment-management-molds:create",
         "kuaizhizao:equipment-management-molds:update",

@@ -129,8 +129,10 @@ class RdProjectDeliverableBase(BaseModel):
     gate_id: Optional[int] = None
     deliverable_type: Optional[str] = None
     status: str = "PENDING"
+    version: str = "A0"
     file_url: Optional[str] = None
     file_name: Optional[str] = None
+    file_uuid: Optional[str] = None
 
 
 class RdProjectDeliverableCreate(RdProjectDeliverableBase):
@@ -145,6 +147,7 @@ class RdProjectDeliverableUpdate(BaseModel):
     status: Optional[str] = None
     file_url: Optional[str] = None
     file_name: Optional[str] = None
+    file_uuid: Optional[str] = None
 
 
 class RdProjectDeliverableResponse(RdProjectDeliverableBase):
@@ -156,8 +159,54 @@ class RdProjectDeliverableResponse(RdProjectDeliverableBase):
     project_id: int
     submitted_at: Optional[datetime] = None
     approved_at: Optional[datetime] = None
+    created_by: Optional[int] = None
+    created_by_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+class RdProjectDeliverableVersionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    uuid: str
+    deliverable_id: int
+    project_id: int
+    version: str
+    status: str
+    is_effective: bool = False
+    name: str
+    description: Optional[str] = None
+    deliverable_type: Optional[str] = None
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
+    file_uuid: Optional[str] = None
+    change_summary: Optional[str] = None
+    effective_at: Optional[datetime] = None
+    obsolete_at: Optional[datetime] = None
+    created_by: Optional[int] = None
+    created_by_name: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class RdProjectDeliverableVersionListResponse(BaseModel):
+    items: List[RdProjectDeliverableVersionResponse]
+    total: int
+    audience: str
+    can_view_history: bool
+
+
+class RdProjectDeliverableReviseRequest(BaseModel):
+    version: Optional[str] = Field(None, max_length=30, description="新版本号，空则自动递增")
+    change_summary: Optional[str] = Field(None, description="升版说明")
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
+    file_uuid: Optional[str] = None
+
+
+class RdProjectDeliverableRejectRequest(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500, description="驳回原因")
 
 
 # ---------- Links ----------
@@ -275,6 +324,34 @@ class ProjectCollaborationSummary(BaseModel):
     requirement_count: int = 0
     design_review_count: int = 0
     fmea_count: int = 0
+    product_firmware_count: int = 0
+    sample_process_count: int = 0
+    material_review_count: int = 0
+    bom_collab_count: int = 0
+    project_proposal_count: int = 0
+    mold_sample_count: int = 0
+    trial_flow_count: int = 0
+    engineering_change_count: int = 0
+
+
+class PendingInboxItem(BaseModel):
+    """跨项目待办条目（优先一联调）。"""
+
+    doc_type: str
+    doc_id: int
+    doc_code: str
+    title: str
+    status: str
+    project_id: Optional[int] = None
+    project_code: Optional[str] = None
+    project_name: Optional[str] = None
+    updated_at: Optional[datetime] = None
+    list_path: str
+
+
+class PendingInboxListResponse(BaseModel):
+    items: List[PendingInboxItem]
+    total: int
 
 
 class RdProjectWorkbenchResponse(RdProjectResponse):

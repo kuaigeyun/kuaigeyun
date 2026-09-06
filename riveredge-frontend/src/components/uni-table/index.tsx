@@ -106,6 +106,11 @@ function measureOccupiedWidth(el: HTMLElement | null | undefined): number {
   return Math.ceil(maxR - minL)
 }
 
+/** 行选中 key 按内容比较（避免 `[]` 新引用误触发受控同步） */
+function areRowKeysEqual(a: React.Key[], b: React.Key[]): boolean {
+  return a.length === b.length && a.every((key, index) => key === b[index])
+}
+
 /** 行点击切换勾选：命中可操作子元素时不切换，避免误选（成本仅一次 DOM closest） */
 function shouldIgnoreRowClickForSelection(target: Element): boolean {
   return !!target.closest(
@@ -1487,12 +1492,19 @@ export function UniTable<T extends Record<string, any> = Record<string, any>>({
   // 存储选中的行键（支持外部受控与内部自持两种模式）
   const [internalSelectedRowKeys, setInternalSelectedRowKeys] = useState<React.Key[]>([])
   const selectedRowKeys = selectedRowKeysProp !== undefined ? selectedRowKeysProp : internalSelectedRowKeys
+  const selectedRowKeysRef = useRef(selectedRowKeys)
+  selectedRowKeysRef.current = selectedRowKeys
+  /** 上次已同步的受控选中键（按内容），避免 `[]` 引用抖动触发 clearSelected 死循环 */
+  const lastSyncedSelectedRowKeysPropRef = useRef<React.Key[] | undefined>(undefined)
 
   /** 同步清空 ProTable 与受控/内部选中态（删除后避免「已选择 N 项」残留） */
   const clearAllRowSelection = useCallback(() => {
+    if (!areRowKeysEqual(selectedRowKeysRef.current, [])) {
+      setInternalSelectedRowKeys([])
+      onRowSelectionChange?.([])
+    }
+    // ProTable clearSelected 会再调 onChange([])；下方 handleRowSelectionChange 按内容去重，不会回写父级
     nativeTableActionRef.current?.clearSelected?.()
-    setInternalSelectedRowKeys([])
-    onRowSelectionChange?.([])
   }, [onRowSelectionChange])
 
   const handleBatchDeleteConfirm = useCallback(
@@ -1507,11 +1519,17 @@ export function UniTable<T extends Record<string, any> = Record<string, any>>({
   )
 
   useEffect(() => {
-    if (selectedRowKeysProp !== undefined) {
-      setInternalSelectedRowKeys(selectedRowKeysProp)
-      if (selectedRowKeysProp.length === 0) {
-        nativeTableActionRef.current?.clearSelected?.()
-      }
+    if (selectedRowKeysProp === undefined) return
+    const prevSynced = lastSyncedSelectedRowKeysPropRef.current
+    if (prevSynced !== undefined && areRowKeysEqual(prevSynced, selectedRowKeysProp)) {
+      return
+    }
+    const wasNonEmpty = (prevSynced?.length ?? 0) > 0
+    lastSyncedSelectedRowKeysPropRef.current = selectedRowKeysProp
+    setInternalSelectedRowKeys(selectedRowKeysProp)
+    // 仅在「有选中 → 空选」时清 ProTable；空选时反复 clearSelected 会 onChange([]) 把父级 setState([]) 打成死循环
+    if (selectedRowKeysProp.length === 0 && wasNonEmpty) {
+      nativeTableActionRef.current?.clearSelected?.()
     }
   }, [selectedRowKeysProp])
 
@@ -2893,6 +2911,10 @@ export function UniTable<T extends Record<string, any> = Record<string, any>>({
    */
   const handleRowSelectionChange = useCallback(
     (keys: React.Key[]) => {
+      // 按内容去重：ProTable clearSelected 总会 onChange([])，空选时不能再回写父级新 [] 引用
+      if (areRowKeysEqual(selectedRowKeysRef.current, keys)) {
+        return
+      }
       setInternalSelectedRowKeys(keys)
       onRowSelectionChange?.(keys)
     },

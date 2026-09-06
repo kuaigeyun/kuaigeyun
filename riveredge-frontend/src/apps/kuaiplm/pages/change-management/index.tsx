@@ -19,6 +19,7 @@ import {
   listBomChanges,
   listRouteChanges,
   listDrawingChanges,
+  listEcnChanges,
   listUnifiedChanges,
   auditNodeKeyForRow,
   batchApproveChanges,
@@ -31,6 +32,7 @@ import {
 } from '../../services/change-desk';
 import { buildBomChangeCreateUrl, buildRouteChangeCreateUrl } from '../../services/master-data-links';
 import DrawingChangeFormModal from '../../components/DrawingChangeFormModal';
+import EcnChangeFormModal from '../../components/EcnChangeFormModal';
 import { useNewShortcut } from '../../../../hooks/useNewShortcut';
 import { NEW_SHORTCUT_HINT } from '../../../../utils/globalNewShortcut';
 import { getKuaiplmChangeStatusText } from '../../components/kuaiplmMeta';
@@ -51,7 +53,7 @@ import {
 import ChangeDetailDrawer from '../../components/ChangeDetailDrawer';
 import { buildListPageHelpViewConfig } from '../../../../components/page-help-wiki';
 
-type TabKey = 'all' | 'bom' | 'route' | 'drawing';
+type TabKey = 'all' | 'bom' | 'route' | 'drawing' | 'ecn';
 
 const ChangeManagementPage: React.FC = () => {
   const { t } = useTranslation();
@@ -59,18 +61,24 @@ const ChangeManagementPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { message: messageApi, modal: modalApi } = App.useApp();
   const changePerms = useResourcePermissions('kuaiplm.change');
+  const ecnPerms = useResourcePermissions('kuaiplm:ecn');
   const actionRef = useRef<ActionType>(null);
   const lastListParamsRef = useRef<Record<string, string | number | boolean | undefined>>({});
   const bomAuditEnabled = useAuditRequired('bom_change');
   const routeAuditEnabled = useAuditRequired('process_route_change');
   const drawingAuditEnabled = useAuditRequired('drawing_change');
-  const auditEnabled = bomAuditEnabled || routeAuditEnabled || drawingAuditEnabled;
-  const [activeTab, setActiveTab] = useState<TabKey>('all');
+  const ecnAuditEnabled = useAuditRequired('engineering_change');
+  const auditEnabled = bomAuditEnabled || routeAuditEnabled || drawingAuditEnabled || ecnAuditEnabled;
+  const initialTab = (searchParams.get('tab') as TabKey) || 'all';
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    ['all', 'bom', 'route', 'drawing', 'ecn'].includes(initialTab) ? initialTab : 'all',
+  );
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [rowsByUuid, setRowsByUuid] = useState<Record<string, UnifiedChangeRow>>({});
   const [detailRow, setDetailRow] = useState<UnifiedChangeRow | null>(null);
   const [drawingCreateOpen, setDrawingCreateOpen] = useState(false);
   const [drawingCreateUuid, setDrawingCreateUuid] = useState<string | undefined>();
+  const [ecnCreateOpen, setEcnCreateOpen] = useState(false);
 
   const handleCreateBomChange = useCallback(() => {
     navigate(buildBomChangeCreateUrl());
@@ -90,6 +98,19 @@ const ChangeManagementPage: React.FC = () => {
     next.delete('drawingUuid');
     setSearchParams(next, { replace: true });
   }, [handleCreateDrawingChange, searchParams, setSearchParams]);
+  useEffect(() => {
+    if (searchParams.get('create') !== 'ecn') return;
+    setEcnCreateOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('create');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+  useEffect(() => {
+    const tab = searchParams.get('tab') as TabKey | null;
+    if (tab && ['all', 'bom', 'route', 'drawing', 'ecn'].includes(tab) && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams, activeTab]);
   useNewShortcut(handleCreateBomChange);
 
   const fetchList = async (
@@ -103,12 +124,13 @@ const ChangeManagementPage: React.FC = () => {
     if (category === 'bom') return listBomChanges(base);
     if (category === 'route') return listRouteChanges(base);
     if (category === 'drawing') return listDrawingChanges(base);
+    if (category === 'ecn') return listEcnChanges(base);
     return listUnifiedChanges({ ...base, change_category: undefined });
   };
 
   const executeExecute = useCallback(async (row: UnifiedChangeRow) => {
     const uuid = row.uuid;
-    if (!uuid || !row.change_category) return;
+    if (!uuid || !row.change_category || row.change_category === 'ecn') return;
     await executeChange(row.change_category as ChangeDeskCategory, uuid);
     messageApi.success(t('app.kuaiplm.common.messages.executeSuccess'));
     actionRef.current?.reload();
@@ -121,6 +143,8 @@ const ChangeManagementPage: React.FC = () => {
       change_uuid: String(row.uuid),
       change_type: deskApiChangeType(row.change_category),
     }));
+
+  const selectedExecuteItems = selectedBatchItems.filter((item) => item.change_type !== 'ecn');
 
   const handleBatchApprove = useCallback(async () => {
     if (!selectedBatchItems.length) {
@@ -139,11 +163,11 @@ const ChangeManagementPage: React.FC = () => {
   }, [messageApi, selectedBatchItems, t]);
 
   const handleBatchExecute = useCallback(async () => {
-    if (!selectedBatchItems.length) {
-      messageApi.warning(t('app.kuaiplm.change.messages.selectFirst'));
+    if (!selectedExecuteItems.length) {
+      messageApi.warning(t('app.kuaiplm.change.messages.selectExecutableFirst'));
       return;
     }
-    const result = await batchExecuteChanges(selectedBatchItems);
+    const result = await batchExecuteChanges(selectedExecuteItems);
     const successCount = Number(result?.success_count || 0);
     if (successCount > 0) {
       messageApi.success(t('app.kuaiplm.common.messages.batchExecuteSuccess', { count: successCount }));
@@ -152,7 +176,7 @@ const ChangeManagementPage: React.FC = () => {
       return;
     }
     messageApi.error(t('app.kuaiplm.common.messages.batchUpdateFailed'));
-  }, [messageApi, selectedBatchItems, t]);
+  }, [messageApi, selectedExecuteItems, t]);
 
   const handleBatchDelete = useCallback(
     async (keys: React.Key[]) => {
@@ -251,11 +275,15 @@ const ChangeManagementPage: React.FC = () => {
           executed: { text: getKuaiplmChangeStatusText(t, 'executed') },
           rejected: { text: getKuaiplmChangeStatusText(t, 'rejected') },
           cancelled: { text: getKuaiplmChangeStatusText(t, 'cancelled') },
+          erp_pending: { text: getKuaiplmChangeStatusText(t, 'erp_pending') },
+          erp_failed: { text: getKuaiplmChangeStatusText(t, 'erp_failed') },
+          closed: { text: getKuaiplmChangeStatusText(t, 'closed') },
         },
         render: (_, row) => renderPlmChangeStatusTag(t, row.status),
       },
       plmListActionColumn<UnifiedChangeRow>(t, (_, row) => {
         const status = (row.status ?? '').toLowerCase();
+        const isEcn = row.change_category === 'ecn';
         const parts: React.ReactNode[] = [
           <Button
             key="detail"
@@ -270,17 +298,19 @@ const ChangeManagementPage: React.FC = () => {
             unifiedAudit
             auditNodeKey={auditNodeKeyForRow(row)}
             entityType={row.audit?.entity_type || auditNodeKeyForRow(row)}
-            resourcePrefix="kuaiplm:change"
+            resourcePrefix={isEcn ? 'kuaiplm:ecn' : 'kuaiplm:change'}
             pendingStatuses={['pending', 'pending_review', '待审批']}
-            approvedStatuses={['approved', '已审批']}
-            draftStatuses={['draft', '草稿']}
-            entityName={t('app.kuaiplm.change.entityName')}
+            approvedStatuses={['approved', 'erp_pending', '已审批']}
+            draftStatuses={['draft', 'erp_failed', '草稿']}
+            entityName={
+              isEcn ? t('app.kuaiplm.ecn.title') : t('app.kuaiplm.change.entityName')
+            }
             onSuccess={() => actionRef.current?.reload()}
             theme="link"
             size="small"
           />,
         ];
-        if (status === 'approved' || row.status === '已审批') {
+        if (!isEcn && (status === 'approved' || row.status === '已审批')) {
           parts.push(
             <ActionConfirmPopconfirm title={t('app.kuaiplm.change.executeConfirm')} onConfirm={() => executeExecute(row)}>
               <Button
@@ -304,6 +334,7 @@ const ChangeManagementPage: React.FC = () => {
       { key: 'bom', label: t('app.kuaiplm.change.tab.bom') },
       { key: 'route', label: t('app.kuaiplm.change.tab.route') },
       { key: 'drawing', label: t('app.kuaiplm.change.tab.drawing') },
+      { key: 'ecn', label: t('app.kuaiplm.change.tab.ecn') },
     ],
     [t],
   );
@@ -385,9 +416,14 @@ const ChangeManagementPage: React.FC = () => {
             activeKey: activeTab,
             items: toolbarMenuItems,
             onChange: (key) => {
-              setActiveTab((key as TabKey) || 'all');
+              const nextTab = (key as TabKey) || 'all';
+              setActiveTab(nextTab);
               setSelectedRowKeys([]);
-    actionRef.current?.reload();
+              const next = new URLSearchParams(searchParams);
+              if (nextTab === 'all') next.delete('tab');
+              else next.set('tab', nextTab);
+              setSearchParams(next, { replace: true });
+              actionRef.current?.reload();
             },
           },
         }}
@@ -401,10 +437,19 @@ const ChangeManagementPage: React.FC = () => {
                 {t('app.kuaiplm.change.createDrawingButton')}
               </Button>
             ) : null}
+            {ecnPerms.canCreate ? (
+              <Button type="primary" ghost onClick={() => setEcnCreateOpen(true)}>
+                {t('app.kuaiplm.change.createEcnButton')}
+              </Button>
+            ) : null}
           </Space>,
         ]}
       />
-      <ChangeDetailDrawer row={detailRow} onClose={() => setDetailRow(null)} />
+      <ChangeDetailDrawer
+        row={detailRow}
+        onClose={() => setDetailRow(null)}
+        onChanged={() => actionRef.current?.reload()}
+      />
       <DrawingChangeFormModal
         open={drawingCreateOpen}
         drawingUuid={drawingCreateUuid}
@@ -413,6 +458,14 @@ const ChangeManagementPage: React.FC = () => {
           setDrawingCreateUuid(undefined);
         }}
         onSuccess={() => actionRef.current?.reload()}
+      />
+      <EcnChangeFormModal
+        open={ecnCreateOpen}
+        onClose={() => setEcnCreateOpen(false)}
+        onSuccess={() => {
+          setActiveTab('ecn');
+          actionRef.current?.reload();
+        }}
       />
     </ListPageTemplate>
   );

@@ -453,6 +453,8 @@ class ReportService:
         product_name: Optional[str] = None,
         supplier_name: Optional[str] = None,
         work_order_code: Optional[str] = None,
+        template_code: Optional[str] = None,
+        team_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         from apps.kuaizhizao.models.work_order import WorkOrder
         from apps.kuaizhizao.models.reporting_record import ReportingRecord
@@ -475,6 +477,7 @@ class ReportService:
             "wo_labor_detail": "process-completion-report",
             "outsource_query": "outsource-work-order-query",
             "outsource_recon": "outsource-material-reconciliation",
+            "production_daily": "production-daily",
         }
         report_type = prod_aliases.get(report_type, report_type)
 
@@ -482,6 +485,22 @@ class ReportService:
         sk = max(0, int(skip or 0))
         kw = (keyword or "").strip()
         wo_aliases = {"order_code": "code", "plan_qty": "quantity", "overall_progress": "completed_quantity"}
+
+        if report_type in ["production-daily", "production_daily"]:
+            from apps.kuaizhizao.services.production_daily_service import (
+                ProductionDailyReportService,
+            )
+
+            return await ProductionDailyReportService().summarize(
+                tenant_id,
+                template_code=template_code,
+                team_name=team_name,
+                date_start=date_start,
+                date_end=date_end,
+                keyword=kw or None,
+                skip=sk,
+                limit=lim,
+            )
 
         if report_type in ["work-order-query", "wo_query"]:
             wo_q = WorkOrder.filter(tenant_id=tenant_id, deleted_at__isnull=True)
@@ -4182,6 +4201,37 @@ class ReportService:
                     "overall_rate": round(sum(stage_rates) / len(stage_rates), 2) if stage_rates else None,
                 })
             return self._wrap_report_payload({"data": stats, "total": len(stats), "success": True})
+        elif report_type in [
+            "complaint_monthly_list",
+            "complaint_defect_distribution",
+            "complaint_supplier_rank",
+            "complaint_supplier_trend",
+            "complaint_alert",
+            "complaint_batch_rate",
+            "quality_complaint_monthly_list",
+            "quality_complaint_defect_distribution",
+            "quality_complaint_supplier_rank",
+            "quality_complaint_supplier_trend",
+            "quality_complaint_alert",
+            "quality_complaint_batch_rate",
+        ]:
+            from apps.kuaizhizao.services.quality_complaint_analysis_service import (
+                build_quality_complaint_analysis_report,
+            )
+
+            supplier_id = kwargs.get("supplier_id")
+            supplier_id_int = int(supplier_id) if supplier_id not in (None, "") else None
+            payload = await build_quality_complaint_analysis_report(
+                tenant_id,
+                report_type,
+                date_start=date_start,
+                date_end=date_end,
+                keyword=keyword,
+                status=status,
+                supplier_id=supplier_id_int,
+                supplier_name=kwargs.get("supplier_name"),
+            )
+            return self._wrap_report_payload(payload)
         elif report_type in ["defect-pareto-analysis", "pareto", "analysis"]:
             query = DefectRecord.filter(tenant_id=tenant_id, deleted_at__isnull=True)
             if material_id:
@@ -5177,6 +5227,9 @@ class ReportService:
         period_basis: Optional[str] = None,
         limit: int = 10000,
         current_user: Optional[Any] = None,
+        template_code: Optional[str] = None,
+        team_name: Optional[str] = None,
+        keyword: Optional[str] = None,
     ) -> str:
         """导出指定域报表为 CSV 文件，返回临时文件路径"""
         import csv
@@ -5234,6 +5287,11 @@ class ReportService:
                 report_type=report_type,
                 date_start=date_start,
                 date_end=date_end,
+                template_code=template_code,
+                team_name=team_name,
+                keyword=keyword,
+                skip=0,
+                limit=limit,
             )
         elif domain_key == "purchases":
             payload = await self.get_purchase_report(

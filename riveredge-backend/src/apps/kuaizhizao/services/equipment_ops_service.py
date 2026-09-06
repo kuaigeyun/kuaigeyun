@@ -41,6 +41,8 @@ from apps.kuaizhizao.schemas.equipment_ops import (
     InspectionSchemeCreate,
     InspectionSchemeUpdate,
     InspectionSchemeLineCreate,
+    INSPECTION_CAPTURE_MODES,
+    INSPECTION_SCHEME_CYCLE_TYPES,
     SchemeBindingCreate,
     SchemeBindingBulkReplace,
     PatrolRouteCreate,
@@ -137,6 +139,97 @@ def _line_is_pass(
     return True
 
 
+def _normalize_capture_mode(raw: Optional[str], *, required: bool = True) -> str:
+    mode = (raw or "").strip().upper()
+    if not mode:
+        if required:
+            raise ValidationError("请选择采集方式（A/B/C）")
+        raise ValidationError("采集方式不能为空")
+    if mode not in INSPECTION_CAPTURE_MODES:
+        raise ValidationError(f"采集方式必须是 {list(INSPECTION_CAPTURE_MODES)} 之一")
+    return mode
+
+
+def _normalize_cycle_type(raw: Optional[str], *, required: bool = True) -> Optional[str]:
+    cycle = (raw or "").strip()
+    if not cycle:
+        if required:
+            raise ValidationError("请选择点检周期")
+        return None
+    if cycle not in INSPECTION_SCHEME_CYCLE_TYPES:
+        raise ValidationError(f"点检周期必须是 {list(INSPECTION_SCHEME_CYCLE_TYPES)} 之一")
+    return cycle
+
+
+def _normalize_scheme_domain(raw: Optional[str]) -> str:
+    domain = (raw or "equipment").strip().lower() or "equipment"
+    if domain not in ("equipment", "esd"):
+        raise ValidationError("点检方案业务域必须是 equipment 或 esd")
+    return domain
+
+
+def _attachment_count(attachments: Optional[List[dict]]) -> int:
+    if not attachments:
+        return 0
+    return len([a for a in attachments if isinstance(a, dict)])
+
+
+def _assert_scheme_capture_config(
+    capture_mode: str,
+    lines: Optional[List[InspectionSchemeLineCreate]],
+) -> None:
+    line_list = list(lines or [])
+    if capture_mode == "B":
+        if line_list:
+            raise ValidationError("采集方式 B（仅拍照）不配置点检项行，请清空方案行")
+        return
+    if not line_list:
+        raise ValidationError("采集方式 A/C 至少配置一个点检项")
+    if capture_mode == "C" and not any(bool(l.photo_required) for l in line_list):
+        raise ValidationError("采集方式 C 至少指定一项必须拍照")
+
+
+def _assert_spot_check_capture_payload(
+    capture_mode: str,
+    *,
+    attachments: Optional[List[dict]],
+    lines: List[SpotCheckLineInput],
+) -> None:
+    if capture_mode == "B":
+        if _attachment_count(attachments) < 1:
+            raise ValidationError("采集方式 B 须至少上传一张点检照片")
+        return
+    if not lines:
+        raise ValidationError("采集方式 A/C 须提交点检行结果")
+    if capture_mode == "C":
+        for line in lines:
+            if not bool(line.photo_required):
+                continue
+            label = line.item_name or line.item_code or str(line.item_id or line.line_no)
+            if _attachment_count(line.attachments) < 1:
+                raise ValidationError(f"点检项「{label}」须上传照片")
+
+
+def _assert_route_patrol_capture_payload(lines: List[RoutePatrolLineInput]) -> None:
+    """巡检逐步绑定方案：按行上的 capture_mode 校验 A/B/C（与点检同源）。"""
+    if not lines:
+        raise ValidationError("须提交巡检行结果")
+    for line in lines:
+        mode = _normalize_capture_mode(getattr(line, "capture_mode", None) or "A")
+        label = (
+            line.item_name
+            or line.item_code
+            or f"步骤{line.step_no}"
+        )
+        if mode == "B":
+            if _attachment_count(line.attachments) < 1:
+                raise ValidationError(f"采集方式 B：步骤「{label}」须至少上传一张巡检照片")
+            continue
+        if mode == "C" and bool(line.photo_required):
+            if _attachment_count(line.attachments) < 1:
+                raise ValidationError(f"巡检项「{label}」须上传照片")
+
+
 async def _snapshot_inspection_item(tenant_id: int, item_id: int) -> Dict[str, Any]:
     item = await EquipmentInspectionItem.filter(
         tenant_id=tenant_id,
@@ -149,6 +242,8 @@ async def _snapshot_inspection_item(tenant_id: int, item_id: int) -> Dict[str, A
         "item_code": item.code,
         "item_name": item.name,
         "requirement": item.requirement,
+        "method": item.method,
+        "judgment_standard": item.judgment_standard,
         "value_type": item.value_type,
         "unit": item.unit,
         "numeric_min": item.numeric_min,
@@ -327,14 +422,20 @@ class EquipmentInspectionSchemeService(_MasterCRUDMixin):
                 item_code=line.item_code or snap["item_code"],
                 item_name=line.item_name or snap["item_name"],
                 requirement=line.requirement or snap["requirement"],
+                method=line.method or snap["method"],
+                judgment_standard=line.judgment_standard or snap["judgment_standard"],
                 value_type=line.value_type or snap["value_type"],
                 unit=line.unit or snap["unit"],
                 numeric_min=line.numeric_min if line.numeric_min is not None else snap["numeric_min"],
                 numeric_max=line.numeric_max if line.numeric_max is not None else snap["numeric_max"],
                 is_critical=bool(line.is_critical),
+                photo_required=bool(line.photo_required),
             )
 
     async def create(self, tenant_id: int, data: InspectionSchemeCreate, current_user: Optional[User] = None) -> EquipmentInspectionScheme:
+        capture_mode = _normalize_capture_mode(data.capture_mode)
+        cycle_type = _normalize_cycle_type(data.cycle_type, required=True)
+        _assert_scheme_capture_config(capture_mode, data.lines)
         async with in_transaction():
             dup = await EquipmentInspectionScheme.filter(
                 tenant_id=tenant_id,
@@ -348,7 +449,13 @@ class EquipmentInspectionSchemeService(_MasterCRUDMixin):
                 code=data.code,
                 name=data.name,
                 description=data.description,
-                cycle_type=data.cycle_type,
+                domain=_normalize_scheme_domain(getattr(data, "domain", None)),
+                cycle_type=cycle_type,
+                capture_mode=capture_mode,
+                reviewer_user_id=data.reviewer_user_id,
+                reviewer_user_name=(data.reviewer_user_name or "").strip() or None,
+                overdue_hours=int(data.overdue_hours or 8),
+                review_overdue_hours=int(data.review_overdue_hours or 4),
                 is_active=data.is_active,
             )
             apply_create_audit(payload, current_user)
@@ -375,12 +482,39 @@ class EquipmentInspectionSchemeService(_MasterCRUDMixin):
                 ).first()
                 if dup:
                     raise ValidationError(f"点检方案编码已存在: {update_data['code']}")
+            if "capture_mode" in update_data:
+                update_data["capture_mode"] = _normalize_capture_mode(update_data.get("capture_mode"))
+            if "domain" in update_data:
+                update_data["domain"] = _normalize_scheme_domain(update_data.get("domain"))
+            if "cycle_type" in update_data:
+                update_data["cycle_type"] = _normalize_cycle_type(
+                    update_data.get("cycle_type"),
+                    required=True,
+                )
             for k, v in update_data.items():
                 setattr(scheme, k, v)
             apply_update_audit(scheme, current_user)
             await scheme.save()
             if data.lines is not None:
+                capture_mode = _normalize_capture_mode(
+                    getattr(scheme, "capture_mode", None) or data.capture_mode
+                )
+                _assert_scheme_capture_config(capture_mode, data.lines)
                 await self._replace_lines(tenant_id, scheme.id, data.lines)
+            elif "capture_mode" in data.model_fields_set:
+                existing_lines = await self._load_lines(tenant_id, scheme.id)
+                capture_mode = _normalize_capture_mode(scheme.capture_mode)
+                _assert_scheme_capture_config(
+                    capture_mode,
+                    [
+                        InspectionSchemeLineCreate(
+                            item_id=l.item_id,
+                            sort_order=l.sort_order,
+                            photo_required=bool(getattr(l, "photo_required", False)),
+                        )
+                        for l in existing_lines
+                    ],
+                )
             return scheme
 
     async def get_with_lines(self, tenant_id: int, row_id: int) -> tuple[EquipmentInspectionScheme, List[EquipmentInspectionSchemeLine]]:
@@ -706,9 +840,21 @@ class EquipmentSpotCheckService:
         ).all()
         if not bindings:
             raise ValidationError("设备未绑定点检方案，请指定 scheme_id")
-        if len(bindings) > 1:
+        scheme_ids = [b.scheme_id for b in bindings]
+        esd_scheme_ids = set(
+            await EquipmentInspectionScheme.filter(
+                tenant_id=tenant_id,
+                id__in=scheme_ids,
+                domain="esd",
+                deleted_at__isnull=True,
+            ).values_list("id", flat=True)
+        )
+        equipment_bindings = [b for b in bindings if b.scheme_id not in esd_scheme_ids]
+        if not equipment_bindings:
+            raise ValidationError("设备未绑定设备点检方案，请指定 scheme_id")
+        if len(equipment_bindings) > 1:
             raise ValidationError("设备绑定了多个点检方案，请指定 scheme_id")
-        return bindings[0].scheme_id
+        return equipment_bindings[0].scheme_id
 
     async def preview_lines(
         self,
@@ -720,28 +866,35 @@ class EquipmentSpotCheckService:
         _reject_scrapped_equipment(equipment)
         resolved_scheme_id = await self._resolve_scheme_id(tenant_id, equipment_id, scheme_id)
         scheme, lines = await self.scheme_service.get_with_lines(tenant_id, resolved_scheme_id)
+        capture_mode = _normalize_capture_mode(getattr(scheme, "capture_mode", None))
         preview_lines: List[SpotCheckPreviewLine] = []
-        for idx, line in enumerate(lines):
-            preview_lines.append(
-                SpotCheckPreviewLine(
-                    line_no=idx + 1,
-                    item_id=line.item_id,
-                    item_code=line.item_code,
-                    item_name=line.item_name,
-                    requirement=line.requirement,
-                    value_type=line.value_type,
-                    unit=line.unit,
-                    numeric_min=line.numeric_min,
-                    numeric_max=line.numeric_max,
-                    is_critical=bool(getattr(line, "is_critical", False)),
-                    is_pass=True,
+        if capture_mode != "B":
+            for idx, line in enumerate(lines):
+                preview_lines.append(
+                    SpotCheckPreviewLine(
+                        line_no=idx + 1,
+                        item_id=line.item_id,
+                        item_code=line.item_code,
+                        item_name=line.item_name,
+                        requirement=line.requirement,
+                        method=getattr(line, "method", None),
+                        judgment_standard=getattr(line, "judgment_standard", None),
+                        value_type=line.value_type,
+                        unit=line.unit,
+                        numeric_min=line.numeric_min,
+                        numeric_max=line.numeric_max,
+                        is_critical=bool(getattr(line, "is_critical", False)),
+                        photo_required=bool(getattr(line, "photo_required", False)),
+                        is_pass=True,
+                    )
                 )
-            )
         return SpotCheckPreviewResponse(
             equipment_id=equipment_id,
             scheme_id=scheme.id,
             scheme_code=scheme.code,
             scheme_name=scheme.name,
+            cycle_type=scheme.cycle_type,
+            capture_mode=capture_mode,
             lines=preview_lines,
         )
 
@@ -770,6 +923,7 @@ class EquipmentSpotCheckService:
         ).first()
         if not scheme:
             raise ValidationError(f"点检方案不存在: {scheme_id}")
+        capture_mode = _normalize_capture_mode(getattr(scheme, "capture_mode", None))
 
         async with in_transaction():
             document_no = await _generate_code(tenant_id, "equipment_spot_check_code", "SC")
@@ -781,15 +935,22 @@ class EquipmentSpotCheckService:
                 equipment_code=equipment.code,
                 equipment_name=equipment.name,
                 scheme_id=scheme.id,
+                capture_mode=capture_mode,
                 check_date=data.check_date or date.today(),
                 inspector_id=data.inspector_id or operator_id,
                 inspector_name=data.inspector_name or operator_name,
+                reviewer_user_id=getattr(scheme, "reviewer_user_id", None),
+                reviewer_user_name=getattr(scheme, "reviewer_user_name", None),
+                attachments=data.attachments,
                 remark=data.remark,
+                status="待审核",
             )
             apply_create_audit(payload, current_user)
             header = await EquipmentSpotCheck.create(**payload)
 
-            if data.lines:
+            if capture_mode == "B":
+                line_inputs: List[SpotCheckLineInput] = []
+            elif data.lines:
                 line_inputs = data.lines
             else:
                 _, scheme_lines = await self.scheme_service.get_with_lines(tenant_id, scheme.id)
@@ -802,13 +963,22 @@ class EquipmentSpotCheckService:
                         item_code=sl.item_code,
                         item_name=sl.item_name,
                         requirement=sl.requirement,
+                        method=getattr(sl, "method", None),
+                        judgment_standard=getattr(sl, "judgment_standard", None),
                         value_type=sl.value_type,
                         unit=sl.unit,
                         numeric_min=sl.numeric_min,
                         numeric_max=sl.numeric_max,
+                        photo_required=bool(getattr(sl, "photo_required", False)),
                     )
                     for idx, sl in enumerate(scheme_lines)
                 ]
+
+            _assert_spot_check_capture_payload(
+                capture_mode,
+                attachments=data.attachments,
+                lines=line_inputs,
+            )
 
             failed_descriptions: List[str] = []
             for line_input in line_inputs:
@@ -827,10 +997,13 @@ class EquipmentSpotCheckService:
                     item_code=line_input.item_code,
                     item_name=line_input.item_name,
                     requirement=line_input.requirement,
+                    method=line_input.method,
+                    judgment_standard=line_input.judgment_standard,
                     value_type=line_input.value_type,
                     unit=line_input.unit,
                     measured_value=line_input.measured_value,
                     is_pass=is_pass,
+                    photo_required=bool(line_input.photo_required),
                     remark=line_input.remark,
                     attachments=line_input.attachments,
                 )
@@ -852,8 +1025,78 @@ class EquipmentSpotCheckService:
                     reporter_name=header.inspector_name,
                 )
                 header.fault_report_uuid = fault.uuid
-            header.status = "已完成"
+            header.status = "待审核"
             await header.save()
+
+            from apps.kuaizhizao.services.spot_check_reminder_service import (
+                SpotCheckReminderService,
+            )
+
+            await SpotCheckReminderService.on_spot_check_created(tenant_id, header, scheme)
+            if getattr(equipment, "force_spot_check_required", False):
+                from apps.kuaizhizao.services.equipment_line_rebind_service import (
+                    EquipmentLineRebindService,
+                )
+
+                await EquipmentLineRebindService.clear_force_spot_for_equipment(
+                    tenant_id, equipment, current_user=current_user
+                )
+            return header
+
+    async def approve(
+        self,
+        tenant_id: int,
+        row_id: int,
+        *,
+        current_user: Optional[User] = None,
+    ) -> EquipmentSpotCheck:
+        from apps.common.audit_actor import operator_name_from_user
+        from apps.kuaizhizao.services.spot_check_reminder_service import (
+            SpotCheckReminderService,
+        )
+
+        async with in_transaction():
+            header = await self.get(tenant_id, row_id)
+            if header.status != "待审核":
+                raise ValidationError("仅待审核的点检单可审核通过")
+            header.status = "已审核"
+            header.reviewed_by = getattr(current_user, "id", None) if current_user else None
+            header.reviewed_by_name = operator_name_from_user(current_user) or None
+            header.reviewed_at = resolve_business_datetime()
+            header.reject_reason = None
+            apply_update_audit(header, current_user)
+            await header.save()
+            await SpotCheckReminderService.on_spot_check_reviewed(tenant_id, header)
+            return header
+
+    async def reject(
+        self,
+        tenant_id: int,
+        row_id: int,
+        *,
+        reject_reason: str,
+        current_user: Optional[User] = None,
+    ) -> EquipmentSpotCheck:
+        from apps.common.audit_actor import operator_name_from_user
+        from apps.kuaizhizao.services.spot_check_reminder_service import (
+            SpotCheckReminderService,
+        )
+
+        reason = (reject_reason or "").strip()
+        if not reason:
+            raise ValidationError("驳回原因不能为空")
+        async with in_transaction():
+            header = await self.get(tenant_id, row_id)
+            if header.status != "待审核":
+                raise ValidationError("仅待审核的点检单可驳回")
+            header.status = "已驳回"
+            header.reject_reason = reason
+            header.reviewed_by = getattr(current_user, "id", None) if current_user else None
+            header.reviewed_by_name = operator_name_from_user(current_user) or None
+            header.reviewed_at = resolve_business_datetime()
+            apply_update_audit(header, current_user)
+            await header.save()
+            await SpotCheckReminderService.on_spot_check_reviewed(tenant_id, header)
             return header
 
     async def get(self, tenant_id: int, row_id: int) -> EquipmentSpotCheck:
@@ -881,6 +1124,8 @@ class EquipmentSpotCheckService:
         created_end_date: Optional[str] = None,
         has_abnormality: Optional[bool] = None,
         uuid: Optional[str] = None,
+        scheme_domain: Optional[str] = None,
+        scheme_id: Optional[int] = None,
     ) -> tuple[List[EquipmentSpotCheck], int]:
         from apps.kuaizhizao.services.equipment_list_core import (
             SPOT_CHECK_SORTABLE_FIELDS,
@@ -899,6 +1144,32 @@ class EquipmentSpotCheckService:
             qs = qs.filter(has_abnormality=has_abnormality)
         if uuid:
             qs = qs.filter(uuid=uuid.strip())
+        if scheme_id is not None:
+            qs = qs.filter(scheme_id=scheme_id)
+        if scheme_domain:
+            domain = _normalize_scheme_domain(scheme_domain)
+            domain_scheme_ids = list(
+                await EquipmentInspectionScheme.filter(
+                    tenant_id=tenant_id,
+                    domain=domain,
+                    deleted_at__isnull=True,
+                ).values_list("id", flat=True)
+            )
+            if domain == "esd":
+                if not domain_scheme_ids:
+                    return [], 0
+                qs = qs.filter(scheme_id__in=domain_scheme_ids)
+            else:
+                # 设备点检：含历史无方案单据，排除 esd 域方案
+                esd_scheme_ids = list(
+                    await EquipmentInspectionScheme.filter(
+                        tenant_id=tenant_id,
+                        domain="esd",
+                        deleted_at__isnull=True,
+                    ).values_list("id", flat=True)
+                )
+                if esd_scheme_ids:
+                    qs = qs.exclude(scheme_id__in=esd_scheme_ids)
         qs = apply_equipment_keyword_filter(
             qs,
             keyword,
@@ -927,10 +1198,44 @@ class EquipmentSpotCheckService:
     async def update(self, tenant_id: int, row_id: int, data: SpotCheckUpdate, current_user: Optional[User] = None) -> EquipmentSpotCheck:
         async with in_transaction():
             header = await self.get(tenant_id, row_id)
+            if header.status not in ("待审核", "已驳回"):
+                raise ValidationError("仅待审核或已驳回的点检单可编辑")
+            prev_status = header.status
             update_data = data.model_dump(exclude_unset=True, exclude={"lines"})
             for k, v in update_data.items():
                 setattr(header, k, v)
             apply_update_audit(header, current_user)
+            capture_mode = _normalize_capture_mode(getattr(header, "capture_mode", None))
+            if data.lines is not None or "attachments" in data.model_fields_set:
+                line_inputs = data.lines if data.lines is not None else [
+                    SpotCheckLineInput(
+                        line_no=l.line_no,
+                        item_id=l.item_id,
+                        item_code=l.item_code,
+                        item_name=l.item_name,
+                        requirement=l.requirement,
+                        method=getattr(l, "method", None),
+                        judgment_standard=getattr(l, "judgment_standard", None),
+                        value_type=l.value_type,
+                        unit=l.unit,
+                        measured_value=l.measured_value,
+                        is_pass=l.is_pass,
+                        photo_required=bool(getattr(l, "photo_required", False)),
+                        remark=l.remark,
+                        attachments=l.attachments,
+                    )
+                    for l in await self._load_lines(tenant_id, header.id)
+                ]
+                attachments = (
+                    data.attachments
+                    if "attachments" in data.model_fields_set
+                    else getattr(header, "attachments", None)
+                )
+                _assert_spot_check_capture_payload(
+                    capture_mode,
+                    attachments=attachments,
+                    lines=line_inputs if capture_mode != "B" else [],
+                )
             if data.lines is not None:
                 await EquipmentSpotCheckLine.filter(
                     tenant_id=tenant_id,
@@ -954,10 +1259,13 @@ class EquipmentSpotCheckService:
                         item_code=line_input.item_code,
                         item_name=line_input.item_name,
                         requirement=line_input.requirement,
+                        method=line_input.method,
+                        judgment_standard=line_input.judgment_standard,
                         value_type=line_input.value_type,
                         unit=line_input.unit,
                         measured_value=line_input.measured_value,
                         is_pass=is_pass,
+                        photo_required=bool(line_input.photo_required),
                         remark=line_input.remark,
                         attachments=line_input.attachments,
                     )
@@ -990,11 +1298,43 @@ class EquipmentSpotCheckService:
                         header.fault_report_uuid = fault.uuid
                 else:
                     header.abnormality_description = None
+            header.status = "待审核"
+            header.reject_reason = None
+            header.reviewed_by = None
+            header.reviewed_by_name = None
+            header.reviewed_at = None
             await header.save()
+            if prev_status == "已驳回" and header.scheme_id:
+                from apps.kuaizhizao.services.spot_check_reminder_service import (
+                    SpotCheckReminderService,
+                )
+
+                scheme, _ = await self.scheme_service.get_with_lines(
+                    tenant_id, header.scheme_id
+                )
+                await SpotCheckReminderService.on_spot_check_created(
+                    tenant_id, header, scheme
+                )
+            if getattr(header, "equipment_id", None):
+                equipment = await Equipment.filter(
+                    tenant_id=tenant_id,
+                    id=header.equipment_id,
+                    deleted_at__isnull=True,
+                ).first()
+                if equipment and getattr(equipment, "force_spot_check_required", False):
+                    from apps.kuaizhizao.services.equipment_line_rebind_service import (
+                        EquipmentLineRebindService,
+                    )
+
+                    await EquipmentLineRebindService.clear_force_spot_for_equipment(
+                        tenant_id, equipment, current_user=current_user
+                    )
             return header
 
     async def delete(self, tenant_id: int, row_id: int) -> None:
         header = await self.get(tenant_id, row_id)
+        if header.status not in ("待审核", "已驳回"):
+            raise ValidationError("仅待审核或已驳回的点检单可删除")
         header.deleted_at = resolve_business_datetime()
         await header.save()
 
@@ -1009,32 +1349,60 @@ class EquipmentRoutePatrolService:
         line_counter = 0
         for step in steps:
             equipment = await _get_equipment_or_raise(tenant_id, step.equipment_id)
-            if step.scheme_id:
-                _, scheme_lines = await self.scheme_service.get_with_lines(tenant_id, step.scheme_id)
-                for sl in scheme_lines:
-                    line_counter += 1
-                    preview_lines.append(
-                        RoutePatrolPreviewLine(
-                            step_no=line_counter,
-                            equipment_id=equipment.id,
-                            equipment_uuid=equipment.uuid,
-                            equipment_code=step.equipment_code or equipment.code,
-                            equipment_name=step.equipment_name or equipment.name,
-                            item_id=sl.item_id,
-                            item_code=sl.item_code,
-                            item_name=sl.item_name,
-                            is_pass=True,
-                        )
-                    )
-            else:
+            eq_code = step.equipment_code or equipment.code
+            eq_name = step.equipment_name or equipment.name
+            if not step.scheme_id:
                 line_counter += 1
                 preview_lines.append(
                     RoutePatrolPreviewLine(
                         step_no=line_counter,
                         equipment_id=equipment.id,
                         equipment_uuid=equipment.uuid,
-                        equipment_code=step.equipment_code or equipment.code,
-                        equipment_name=step.equipment_name or equipment.name,
+                        equipment_code=eq_code,
+                        equipment_name=eq_name,
+                        capture_mode="A",
+                        photo_required=False,
+                        is_pass=True,
+                    )
+                )
+                continue
+            scheme, scheme_lines = await self.scheme_service.get_with_lines(tenant_id, step.scheme_id)
+            capture_mode = _normalize_capture_mode(getattr(scheme, "capture_mode", None) or "A")
+            if capture_mode == "B":
+                line_counter += 1
+                preview_lines.append(
+                    RoutePatrolPreviewLine(
+                        step_no=line_counter,
+                        equipment_id=equipment.id,
+                        equipment_uuid=equipment.uuid,
+                        equipment_code=eq_code,
+                        equipment_name=eq_name,
+                        item_name="现场拍照",
+                        capture_mode="B",
+                        photo_required=True,
+                        is_pass=True,
+                    )
+                )
+                continue
+            for sl in scheme_lines:
+                line_counter += 1
+                preview_lines.append(
+                    RoutePatrolPreviewLine(
+                        step_no=line_counter,
+                        equipment_id=equipment.id,
+                        equipment_uuid=equipment.uuid,
+                        equipment_code=eq_code,
+                        equipment_name=eq_name,
+                        item_id=sl.item_id,
+                        item_code=sl.item_code,
+                        item_name=sl.item_name,
+                        capture_mode=capture_mode,
+                        requirement=sl.requirement,
+                        method=getattr(sl, "method", None),
+                        judgment_standard=getattr(sl, "judgment_standard", None),
+                        value_type=sl.value_type,
+                        unit=sl.unit,
+                        photo_required=bool(getattr(sl, "photo_required", False)),
                         is_pass=True,
                     )
                 )
@@ -1051,6 +1419,69 @@ class EquipmentRoutePatrolService:
             route_patrol_id=route_patrol_id,
             deleted_at__isnull=True,
         ).order_by("step_no", "id").all()
+
+    async def _persist_patrol_line(
+        self,
+        *,
+        tenant_id: int,
+        header: EquipmentRoutePatrol,
+        line_input: RoutePatrolLineInput,
+        prior_fault: Optional[dict[tuple[int, Optional[int]], str]] = None,
+    ) -> tuple[bool, Optional[str]]:
+        equipment = await _get_equipment_or_raise(tenant_id, line_input.equipment_id)
+        _reject_scrapped_equipment(equipment)
+        capture_mode = _normalize_capture_mode(getattr(line_input, "capture_mode", None) or "A")
+        is_pass = _line_is_pass(
+            line_input.value_type,
+            line_input.measured_value,
+            None,
+            None,
+            line_input.is_pass,
+        )
+        fault_uuid: Optional[str] = None
+        if not is_pass:
+            inherit_key = (equipment.id, line_input.item_id)
+            if prior_fault:
+                fault_uuid = prior_fault.get(inherit_key)
+            if not fault_uuid:
+                fault = await _create_fault_from_ops(
+                    tenant_id=tenant_id,
+                    equipment=equipment,
+                    source_type="route_patrol",
+                    source_uuid=header.uuid,
+                    description=(
+                        f"巡检单 {header.document_no} 设备 {equipment.name} "
+                        f"不合格: {line_input.measured_value or line_input.item_name or ''}"
+                    ),
+                    reporter_id=header.inspector_id,
+                    reporter_name=header.inspector_name,
+                )
+                fault_uuid = fault.uuid
+        await EquipmentRoutePatrolLine.create(
+            tenant_id=tenant_id,
+            route_patrol_id=header.id,
+            step_no=line_input.step_no,
+            equipment_id=equipment.id,
+            equipment_uuid=equipment.uuid,
+            equipment_code=equipment.code,
+            equipment_name=equipment.name,
+            item_id=line_input.item_id,
+            item_code=line_input.item_code,
+            item_name=line_input.item_name,
+            capture_mode=capture_mode,
+            requirement=line_input.requirement,
+            method=line_input.method,
+            judgment_standard=line_input.judgment_standard,
+            value_type=line_input.value_type,
+            unit=line_input.unit,
+            measured_value=line_input.measured_value,
+            is_pass=is_pass,
+            photo_required=bool(line_input.photo_required) or capture_mode == "B",
+            fault_report_uuid=fault_uuid,
+            remark=line_input.remark,
+            attachments=line_input.attachments,
+        )
+        return (not is_pass), fault_uuid
 
     async def create(
         self,
@@ -1091,48 +1522,28 @@ class EquipmentRoutePatrolService:
                         item_id=pl.item_id,
                         item_code=pl.item_code,
                         item_name=pl.item_name,
+                        capture_mode=pl.capture_mode,
+                        requirement=pl.requirement,
+                        method=pl.method,
+                        judgment_standard=pl.judgment_standard,
+                        value_type=pl.value_type,
+                        unit=pl.unit,
+                        photo_required=pl.photo_required,
                     )
                     for pl in preview.lines
                 ]
 
+            _assert_route_patrol_capture_payload(line_inputs)
+
             has_abnormality = False
             for line_input in line_inputs:
-                equipment = await _get_equipment_or_raise(tenant_id, line_input.equipment_id)
-                _reject_scrapped_equipment(equipment)
-                is_pass = line_input.is_pass
-                fault_uuid: Optional[str] = None
-                if not is_pass:
-                    has_abnormality = True
-                    fault = await _create_fault_from_ops(
-                        tenant_id=tenant_id,
-                        equipment=equipment,
-                        source_type="route_patrol",
-                        source_uuid=header.uuid,
-                        description=(
-                            f"巡检单 {header.document_no} 设备 {equipment.name} "
-                            f"不合格: {line_input.measured_value or line_input.item_name or ''}"
-                        ),
-                        reporter_id=header.inspector_id,
-                        reporter_name=header.inspector_name,
-                    )
-                    fault_uuid = fault.uuid
-                await EquipmentRoutePatrolLine.create(
+                abnormal, _ = await self._persist_patrol_line(
                     tenant_id=tenant_id,
-                    route_patrol_id=header.id,
-                    step_no=line_input.step_no,
-                    equipment_id=equipment.id,
-                    equipment_uuid=equipment.uuid,
-                    equipment_code=equipment.code,
-                    equipment_name=equipment.name,
-                    item_id=line_input.item_id,
-                    item_code=line_input.item_code,
-                    item_name=line_input.item_name,
-                    measured_value=line_input.measured_value,
-                    is_pass=is_pass,
-                    fault_report_uuid=fault_uuid,
-                    remark=line_input.remark,
-                    attachments=line_input.attachments,
+                    header=header,
+                    line_input=line_input,
                 )
+                if abnormal:
+                    has_abnormality = True
 
             header.has_abnormality = has_abnormality
             header.status = "已完成"
@@ -1215,6 +1626,7 @@ class EquipmentRoutePatrolService:
                 setattr(header, k, v)
             apply_update_audit(header, current_user)
             if data.lines is not None:
+                _assert_route_patrol_capture_payload(data.lines)
                 old_lines = await EquipmentRoutePatrolLine.filter(
                     tenant_id=tenant_id,
                     route_patrol_id=header.id,
@@ -1232,44 +1644,14 @@ class EquipmentRoutePatrolService:
                 ).update(deleted_at=resolve_business_datetime())
                 has_abnormality = False
                 for line_input in data.lines:
-                    equipment = await _get_equipment_or_raise(tenant_id, line_input.equipment_id)
-                    is_pass = line_input.is_pass
-                    fault_uuid: Optional[str] = None
-                    if not is_pass:
-                        has_abnormality = True
-                        inherit_key = (equipment.id, line_input.item_id)
-                        fault_uuid = prior_fault.get(inherit_key)
-                        if not fault_uuid:
-                            fault = await _create_fault_from_ops(
-                                tenant_id=tenant_id,
-                                equipment=equipment,
-                                source_type="route_patrol",
-                                source_uuid=header.uuid,
-                                description=(
-                                    f"巡检单 {header.document_no} 设备 {equipment.name} "
-                                    f"不合格: {line_input.measured_value or line_input.item_name or ''}"
-                                ),
-                                reporter_id=header.inspector_id,
-                                reporter_name=header.inspector_name,
-                            )
-                            fault_uuid = fault.uuid
-                    await EquipmentRoutePatrolLine.create(
+                    abnormal, _ = await self._persist_patrol_line(
                         tenant_id=tenant_id,
-                        route_patrol_id=header.id,
-                        step_no=line_input.step_no,
-                        equipment_id=equipment.id,
-                        equipment_uuid=equipment.uuid,
-                        equipment_code=equipment.code,
-                        equipment_name=equipment.name,
-                        item_id=line_input.item_id,
-                        item_code=line_input.item_code,
-                        item_name=line_input.item_name,
-                        measured_value=line_input.measured_value,
-                        is_pass=is_pass,
-                        fault_report_uuid=fault_uuid,
-                        remark=line_input.remark,
-                        attachments=line_input.attachments,
+                        header=header,
+                        line_input=line_input,
+                        prior_fault=prior_fault,
                     )
+                    if abnormal:
+                        has_abnormality = True
                 header.has_abnormality = has_abnormality
             await header.save()
             return header

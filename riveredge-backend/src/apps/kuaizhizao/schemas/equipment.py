@@ -68,6 +68,11 @@ class EquipmentBase(BaseModel):
     description: Optional[str] = Field(None, description="描述")
     photo_file_uuid: Optional[str] = Field(None, max_length=36, description="设备照片文件 UUID")
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
+    qr_bind_code: Optional[str] = Field(
+        None,
+        max_length=200,
+        description="手工绑定二维码内容（空则使用系统生成的 EQ 码）",
+    )
     
     @field_validator("status")
     @classmethod
@@ -140,6 +145,11 @@ class EquipmentUpdate(BaseModel):
     description: Optional[str] = Field(None, description="描述")
     photo_file_uuid: Optional[str] = Field(None, max_length=36, description="设备照片文件 UUID")
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
+    qr_bind_code: Optional[str] = Field(
+        None,
+        max_length=200,
+        description="手工绑定二维码内容（空则使用系统生成的 EQ 码）",
+    )
     
     @field_validator("status")
     @classmethod
@@ -172,6 +182,14 @@ class EquipmentResponse(EquipmentBase):
     uuid: str = Field(..., description="设备UUID（对外暴露，业务标识）")
     id: int = Field(..., description="设备ID（内部使用）")
     tenant_id: int = Field(..., description="组织ID")
+    force_spot_check_required: bool = Field(
+        default=False, description="换线后是否须完成强制初检"
+    )
+    force_spot_check_due_at: Optional[datetime] = Field(
+        None, description="强制初检超时时刻"
+    )
+    line_rebind_at: Optional[datetime] = Field(None, description="最近换线完成时刻")
+    line_rebind_id: Optional[int] = Field(None, description="最近换线单ID")
     created_by: Optional[int] = None
     created_by_name: Optional[str] = None
     updated_by: Optional[int] = None
@@ -199,8 +217,13 @@ class EquipmentCalibrationCreate(BaseModel):
     """设备校验记录创建 Schema"""
     calibration_date: date = Field(..., description="校验日期")
     result: str = Field(..., max_length=50, description="校验结果（合格、不合格、限制使用）")
+    plan_type: str = Field(
+        "internal",
+        max_length=20,
+        description="计划类型：internal 内校 / external 外校",
+    )
     certificate_no: Optional[str] = Field(None, max_length=100, description="证书编号")
-    expiry_date: Optional[date] = Field(None, description="有效期至")
+    expiry_date: Optional[date] = Field(None, description="计量到期日（有效期至）")
     attachment_uuid: Optional[str] = Field(None, max_length=36, description="报告附件ID")
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
     remark: Optional[str] = Field(None, description="备注")
@@ -211,8 +234,13 @@ class EquipmentCalibrationCreateWithEquipment(BaseModel):
     equipment_uuid: str = Field(..., description="设备UUID")
     calibration_date: date = Field(..., description="校验日期")
     result: str = Field(..., max_length=50, description="校验结果（合格、不合格、限制使用）")
+    plan_type: str = Field(
+        "internal",
+        max_length=20,
+        description="计划类型：internal 内校 / external 外校",
+    )
     certificate_no: Optional[str] = Field(None, max_length=100, description="证书编号")
-    expiry_date: Optional[date] = Field(None, description="有效期至")
+    expiry_date: Optional[date] = Field(None, description="计量到期日（有效期至）")
     attachment_uuid: Optional[str] = Field(None, max_length=36, description="报告附件ID")
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
     remark: Optional[str] = Field(None, description="备注")
@@ -227,6 +255,7 @@ class EquipmentCalibrationResponse(BaseModel):
     equipment_uuid: str
     equipment_code: Optional[str] = Field(None, description="设备编码")
     equipment_name: Optional[str] = Field(None, description="设备名称")
+    plan_type: str = Field("internal", description="计划类型 internal/external")
     calibration_date: date
     result: str
     certificate_no: Optional[str] = None

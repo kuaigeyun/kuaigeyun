@@ -35,6 +35,10 @@ export const spotChecksApi = {
   ...crudApi('equipment-spot-checks'),
   previewLines: (params: { equipment_id: number; scheme_id?: number }) =>
     apiRequest(`${BASE}/equipment-spot-checks/preview-lines`, { method: 'GET', params }),
+  approve: (id: number) =>
+    apiRequest(`${BASE}/equipment-spot-checks/${id}/approve`, { method: 'POST' }),
+  reject: (id: number, data: { reject_reason: string }) =>
+    apiRequest(`${BASE}/equipment-spot-checks/${id}/reject`, { method: 'POST', data }),
 };
 
 export const routePatrolsApi = {

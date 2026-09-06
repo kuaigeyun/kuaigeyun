@@ -520,6 +520,8 @@ async def get_quality_report(
     column_filters: Optional[str] = Query(None, description="列筛选 JSON"),
     status: Optional[str] = Query(None, description="单据状态"),
     keyword: Optional[str] = Query(None, description="单号或物料关键字"),
+    supplier_id: Optional[int] = Query(None, description="供应商ID"),
+    supplier_name: Optional[str] = Query(None, description="供应商名称"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> dict:
@@ -545,6 +547,8 @@ async def get_quality_report(
             limit=limit,
             status=status,
             keyword=keyword,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
         ),
         **_report_finalize_kwargs(
             order_by=order_by,
@@ -698,6 +702,8 @@ async def get_production_report(
     product_name: Optional[str] = Query(None, description="产品名称模糊筛选"),
     supplier_name: Optional[str] = Query(None, description="供应商名称模糊筛选"),
     work_order_code: Optional[str] = Query(None, description="工单号模糊筛选"),
+    template_code: Optional[str] = Query(None, description="日报模板编码"),
+    team_name: Optional[str] = Query(None, description="班组模糊筛选"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> dict:
@@ -729,6 +735,8 @@ async def get_production_report(
             product_name=product_name,
             supplier_name=supplier_name,
             work_order_code=work_order_code,
+            template_code=template_code,
+            team_name=team_name,
         ),
         **_report_finalize_kwargs(
             order_by=order_by,
@@ -778,6 +786,9 @@ async def export_domain_report(
         material_id=body.get("material_id") or body.get("filters", {}).get("material_id"),
         period_basis=body.get("period_basis"),
         current_user=current_user,
+        template_code=body.get("template_code"),
+        team_name=body.get("team_name"),
+        keyword=body.get("keyword"),
     )
     filename = file_path.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
     return FileResponse(

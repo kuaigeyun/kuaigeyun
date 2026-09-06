@@ -62,6 +62,7 @@ class ReworkOrder(BaseModel):
             ("original_work_order_uuid",),
             ("start_work_order_operation_id",),
             ("status",),
+            ("business_type",),
             ("product_id",),
             ("work_center_id",),
             ("planned_start_date",),
@@ -92,6 +93,43 @@ class ReworkOrder(BaseModel):
     # 返工原因和类型
     rework_reason = fields.TextField(description="返工原因")
     rework_type = fields.CharField(max_length=50, description="返工类型（返工、返修、报废）")
+    # R-11：流程形态（与 rework_type 处置分类正交；禁止客户专名）
+    business_type = fields.CharField(
+        max_length=30,
+        default="simple_exec",
+        description="返工业务类型：multi_signoff/simple_exec",
+    )
+    # R-11 会签型扩展（与制造执行路线正交）
+    no_scrap_confirmed = fields.BooleanField(
+        default=False,
+        description="无报废明确确认",
+    )
+    need_warehouse_in = fields.BooleanField(
+        default=False,
+        description="是否入库",
+    )
+    finance_signed_at = fields.DatetimeField(null=True, description="财务会签时间")
+    finance_signed_by = fields.IntField(null=True, description="财务会签人 ID")
+    finance_signed_by_name = fields.CharField(
+        max_length=100, null=True, description="财务会签人姓名"
+    )
+    product_line_code = fields.CharField(
+        max_length=50, null=True, description="产品线代码（字典）"
+    )
+    # R-07 库存验证扩展
+    verify_month = fields.CharField(
+        max_length=7, null=True, description="验证月份 YYYY-MM"
+    )
+    show_to_customer = fields.BooleanField(
+        default=False, description="是否向客户展示"
+    )
+    pqc_summary = fields.TextField(null=True, description="PQC 质量记录汇总")
+    pqc_summary_file_uuid = fields.CharField(
+        max_length=36, null=True, description="PQC 汇总扫描件"
+    )
+    pqc_checked_at = fields.DatetimeField(null=True, description="PQC 主管核对时刻")
+    pqc_checked_by = fields.IntField(null=True)
+    pqc_checked_by_name = fields.CharField(max_length=100, null=True)
 
     # 返工工艺
     route_id = fields.IntField(null=True, description="返工工艺路线ID（关联物料）")

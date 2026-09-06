@@ -25,8 +25,16 @@ from apps.kuaizhizao.schemas.mold import (
     MoldCalibrationListResponse,
     MoldMaintenanceReminderResponse,
     MoldMaintenanceReminderListResponse,
+    MoldSignbackCreate,
+    MoldSignbackResponse,
+    MoldSignbackListResponse,
 )
-from apps.kuaizhizao.services.mold_service import MoldService, MoldCalibrationService, MoldMaintenanceReminderService
+from apps.kuaizhizao.services.mold_service import (
+    MoldService,
+    MoldCalibrationService,
+    MoldMaintenanceReminderService,
+    MoldSignbackService,
+)
 from core.api.deps.access import require_permission_codes
 from core.api.deps.deps import get_current_tenant
 from infra.api.deps.deps import get_current_user as soil_get_current_user
@@ -403,6 +411,66 @@ async def create_mold_calibration(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
+
+
+@router.get(
+    "/{uuid}/signbacks",
+    response_model=MoldSignbackListResponse,
+    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-management-molds:read"))],
+)
+async def list_mold_signbacks(
+    uuid: str = Path(..., description="模具UUID"),
+    skip: int = Query(0, ge=0, description="跳过数量"),
+    limit: int = Query(100, ge=1, le=1000, description="限制数量"),
+    current_user: User = Depends(soil_get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """获取模具供应商回签履历。"""
+    try:
+        items, total = await MoldSignbackService.list_signbacks(
+            tenant_id=tenant_id,
+            mold_uuid=uuid,
+            skip=skip,
+            limit=limit,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    return MoldSignbackListResponse(
+        items=[MoldSignbackResponse.model_validate(i) for i in items],
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
+
+
+@router.post(
+    "/{uuid}/signbacks",
+    response_model=MoldSignbackResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-management-molds:update"))],
+)
+async def create_mold_signback(
+    data: MoldSignbackCreate,
+    uuid: str = Path(..., description="模具UUID"),
+    current_user: User = Depends(soil_get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """登记模具供应商回签（须上传扫描件），并滚动下期到期日与 INF-03 提醒。"""
+    try:
+        record = await MoldSignbackService.create_signback(
+            tenant_id=tenant_id,
+            mold_uuid=uuid,
+            data=data,
+            current_user=current_user,
+        )
+        return MoldSignbackResponse.model_validate(record)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

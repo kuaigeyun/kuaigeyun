@@ -23,6 +23,9 @@ const ProcessDeviationPage = lazy(() => import('./pages/collaboration/process-de
 const TrainingPlansPage = lazy(() => import('./pages/hr/training-plans/index'));
 const TrainingRecordsPage = lazy(() => import('./pages/hr/training-records/index'));
 const WorkLicensesPage = lazy(() => import('./pages/hr/work-licenses/index'));
+const DeptTrainingApplicationsPage = lazy(() => import('./pages/hr/dept-training-applications/index'));
+const SpecialWorkQualificationsPage = lazy(() => import('./pages/hr/special-work-qualifications/index'));
+const TrainingTemplatesPage = lazy(() => import('./pages/hr/training-templates/index'));
 const LeavePage = lazy(() => import('./pages/hr/leave/index'));
 const LicensesPage = lazy(() => import('./pages/compliance/licenses/index'));
 const AssetPurchasesPage = lazy(() => import('./pages/assets/purchases/index'));
@@ -40,9 +43,12 @@ const KuaioaApp: React.FC = () => (
     <Route path="collaboration/special-price" element={withPageSuspense(SpecialPricePage)} />
     <Route path="collaboration/concession" element={withPageSuspense(ConcessionPage)} />
     <Route path="collaboration/process-deviation" element={withPageSuspense(ProcessDeviationPage)} />
+    <Route path="hr/dept-training-applications" element={withPageSuspense(DeptTrainingApplicationsPage)} />
     <Route path="hr/training-plans" element={withPageSuspense(TrainingPlansPage)} />
     <Route path="hr/training-records" element={withPageSuspense(TrainingRecordsPage)} />
+    <Route path="hr/special-work-qualifications" element={withPageSuspense(SpecialWorkQualificationsPage)} />
     <Route path="hr/work-licenses" element={withPageSuspense(WorkLicensesPage)} />
+    <Route path="hr/training-templates" element={withPageSuspense(TrainingTemplatesPage)} />
     <Route path="hr/leave" element={withPageSuspense(LeavePage)} />
     <Route path="compliance/licenses" element={withPageSuspense(LicensesPage)} />
     <Route path="assets/purchases" element={withPageSuspense(AssetPurchasesPage)} />

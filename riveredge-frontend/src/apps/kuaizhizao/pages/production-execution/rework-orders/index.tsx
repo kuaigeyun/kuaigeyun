@@ -13,8 +13,8 @@ import { rowActionKind } from '../../../../../components/uni-action';
 import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
 import { useInvalidateMenuBadgeCounts } from '../../../../../hooks/useInvalidateMenuBadgeCounts';
 import { useNavigate } from 'react-router-dom';
-import { ActionType, ProColumns, ProDescriptionsItemProps, ProFormText, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTextArea, ProFormItem, ProFormDependency } from '@ant-design/pro-components';
-import { App, Alert, Button, Card, Col, Descriptions, Empty, InputNumber, Modal, Row, Spin, Table, Typography, message } from 'antd';
+import { ActionType, ProColumns, ProDescriptionsItemProps, ProFormText, ProFormSelect, ProFormDatePicker, ProFormDigit, ProFormTextArea, ProFormItem, ProFormDependency, ProFormSwitch, ProFormList, ProFormGroup } from '@ant-design/pro-components';
+import { App, Alert, Button, Card, Col, Descriptions, Empty, Form, Input, InputNumber, Modal, Row, Select, Spin, Table, Typography, message } from 'antd';
 import { MarkerTag } from '../../../../../constants/statusBadges';
 import { EditOutlined, DeleteOutlined, FormOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -24,6 +24,7 @@ import {
   UNI_TABLE_STACKED_BADGE_DATETIME_COLUMN_DEFAULTS,
 } from '../../../../../components/uni-table/stackedPrimaryColumn';
 import { UniMaterialSelect } from '../../../../../components/uni-material-select';
+import { UniUserSelect } from '../../../../../components/uni-user-select';
 import { UniDropdown } from '../../../../../components/uni-dropdown';
 import { UniPullLoadButton } from '../../../../../components/uni-pull';
 import { useCurrentUser } from '../../../../../hooks/useCurrentUser';
@@ -38,6 +39,7 @@ import { DetailDrawerActions, DetailDrawerTemplate, DRAWER_CONFIG, FormModalTemp
 import CodeField from '../../../../../components/code-field';
 import { getDataDictionaryList, getDictionaryItemList } from '../../../../../services/dataDictionary';
 import { qualityApi, reworkOrderApi, workOrderApi } from '../../../services/production';
+import { reworkPositionPlanTemplateApi } from '../../../services/rework-position-plan-template';
 import { buildKuaizhizaoPullCreateMenuItems, resolveKuaizhizaoDocumentAction } from '../../../constants/documentActionRegistry';
 import type { PushPreviewResponse } from '../../../services/sales-order';
 import { getReworkOrderLifecycle, buildReworkOrderLifecycleValueEnum, resolveReworkOrderListLifecycleParams, reworkCapabilityAllowed } from '../../../utils/reworkOrderLifecycle';
@@ -70,6 +72,7 @@ import { useTranslation } from 'react-i18next';
 import { useNewShortcut } from '../../../../../hooks/useNewShortcut';
 import { getAntdModal } from '../../../../../utils/antdAppApis';
 import { buildDocumentListHelpViewConfig, DOCUMENT_LIST_HELP_KEYS } from '../../../../../components/page-help-wiki';
+import { getApiErrorMessage } from '../../../../../utils/errorHandler';
 const REWORK_ORDER_CUSTOM_FIELD_TABLE = 'apps_kuaizhizao_rework_orders';
 
 interface ReworkOrder {
@@ -200,6 +203,11 @@ const ReworkOrdersPage: React.FC = () => {
 
   // Modal 相关状态
   const [modalVisible, setModalVisible] = useState(false);
+  const [applyPositionTemplateOpen, setApplyPositionTemplateOpen] = useState(false);
+  const [applyPositionTemplateId, setApplyPositionTemplateId] = useState<number | undefined>();
+  const [applyPositionTemplateOptions, setApplyPositionTemplateOptions] = useState<
+    Array<{ value: number; label: string }>
+  >([]);
   const [isEdit, setIsEdit] = useState(false);
   const [currentReworkOrder, setCurrentReworkOrder] = useState<ReworkOrder | null>(null);
   const formRef = useRef<any>(null);
@@ -216,6 +224,11 @@ const ReworkOrdersPage: React.FC = () => {
   const [currentReworkOrderForReport, setCurrentReworkOrderForReport] = useState<ReworkOrder | null>(null);
   const [reportingOptions, setReportingOptions] = useState<any>(null);
   const reportFormRef = useRef<any>(null);
+  const [oqcNotifyOpen, setOqcNotifyOpen] = useState(false);
+  const [oqcNotifyTarget, setOqcNotifyTarget] = useState<ReworkOrder | null>(null);
+  const [oqcNotifySubmitting, setOqcNotifySubmitting] = useState(false);
+  const [oqcNotifyForm] = Form.useForm<{ recipient_uuids?: string[]; remarks?: string }>();
+  const oqcNotifyRecipientsRef = useRef<Array<{ user_id: number; user_name: string }>>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const [pullPreviewOpen, setPullPreviewOpen] = useState(false);
@@ -284,6 +297,62 @@ const ReworkOrdersPage: React.FC = () => {
         const { label, color } = resolveReworkTypeDisplay(t, record.rework_type);
         return <MarkerTag color={color}>{label}</MarkerTag>;
       },
+    },
+    {
+      title: t('app.kuaizhizao.reworkOrder.colBusinessType'),
+      dataIndex: 'business_type',
+      render: (_, record) =>
+        t(`app.kuaizhizao.reworkOrder.businessType.${record.business_type || 'simple_exec'}`, {
+          defaultValue: record.business_type || 'simple_exec',
+        }),
+    },
+    {
+      title: t('app.kuaizhizao.reworkOrder.colProductLine'),
+      dataIndex: 'product_line_code',
+    },
+    {
+      title: t('app.kuaizhizao.reworkOrder.fieldFinanceSignedBy'),
+      dataIndex: 'finance_signed_by_name',
+      render: (_, record) =>
+        ['multi_signoff','inventory_verify'].includes(String((record as any).business_type || ''))
+          ? (record as any).finance_signed_by_name || '-'
+          : '-',
+    },
+    {
+      title: t('app.kuaizhizao.reworkOrder.fieldVerifyMonth'),
+      dataIndex: 'verify_month',
+      render: (_, record) =>
+        String((record as any).business_type || '') === 'inventory_verify'
+          ? (record as any).verify_month || '-'
+          : '-',
+    },
+    {
+      title: t('app.kuaizhizao.reworkOrder.fieldPqcCheckedBy'),
+      dataIndex: 'pqc_checked_by_name',
+      render: (_, record) =>
+        String((record as any).business_type || '') === 'inventory_verify'
+          ? (record as any).pqc_checked_by_name || '-'
+          : '-',
+    },
+    {
+      title: t('app.kuaizhizao.reworkOrder.fieldNoScrapConfirmed'),
+      dataIndex: 'no_scrap_confirmed',
+      render: (_, record) =>
+        ['multi_signoff','inventory_verify'].includes(String((record as any).business_type || ''))
+          ? (record as any).no_scrap_confirmed
+            ? t('common.yes')
+            : t('common.no')
+          : '-',
+    },
+    {
+      title: t('app.kuaizhizao.reworkOrder.fieldNeedWarehouseIn'),
+      dataIndex: 'need_warehouse_in',
+      render: (_, record) =>
+        ['multi_signoff','inventory_verify'].includes(String((record as any).business_type || ''))
+          ? (record as any).need_warehouse_in
+            ? t('common.yes')
+            : t('common.no')
+          : '-',
     },
     {
       title: t('app.kuaizhizao.reworkOrder.colStartOperation'),
@@ -517,6 +586,36 @@ const ReworkOrdersPage: React.FC = () => {
       ellipsis: true,
     },
     {
+      title: t('app.kuaizhizao.reworkOrder.colBusinessType'),
+      dataIndex: 'business_type',
+      width: 120,
+      minWidth: 120,
+      uniTableKeepWidth: true,
+      resizable: false,
+      hideInSearch: false,
+      valueType: 'select',
+      valueEnum: {
+        simple_exec: { text: t('app.kuaizhizao.reworkOrder.businessType.simple_exec') },
+        multi_signoff: { text: t('app.kuaizhizao.reworkOrder.businessType.multi_signoff') },
+        inventory_verify: { text: t('app.kuaizhizao.reworkOrder.businessType.inventory_verify') },
+      },
+      render: (_, record) =>
+        t(`app.kuaizhizao.reworkOrder.businessType.${record.business_type || 'simple_exec'}`, {
+          defaultValue: record.business_type || 'simple_exec',
+        }),
+      ellipsis: true,
+    },
+    {
+      title: t('app.kuaizhizao.reworkOrder.colProductLine'),
+      dataIndex: 'product_line_code',
+      width: 100,
+      minWidth: 100,
+      uniTableKeepWidth: true,
+      resizable: false,
+      hideInSearch: false,
+      ellipsis: true,
+    },
+    {
       title: t('app.kuaizhizao.reworkOrder.colLifecycle'),
       // 搜索仍绑 status；key 声明列身份，UniTable 据此给出与审核状态列一致的宽度与对齐
       key: 'lifecycle',
@@ -552,6 +651,24 @@ const ReworkOrdersPage: React.FC = () => {
         <Button key="view" {...rowActionKind('read')} onClick={() => handleDetail(record)}>
           {t('common.detail')}
         </Button>,
+        String(record.status || '') === 'draft' &&
+        ['multi_signoff','inventory_verify'].includes(String(record.business_type || '')) ? (
+          <Button
+            key="submit"
+            {...rowActionKind('submit')}
+            onClick={async () => {
+              try {
+                await reworkOrderApi.submit(String(record.id));
+                messageApi.success(t('app.kuaizhizao.reworkOrder.submitSuccess'));
+                actionRef.current?.reload();
+              } catch (e) {
+                messageApi.error(getApiErrorMessage(e));
+              }
+            }}
+          >
+            {t('app.kuaizhizao.reworkOrder.actionSubmit')}
+          </Button>
+        ) : null,
         reworkCapabilityAllowed(record, 'release') ? (
           <Button
             key="release"
@@ -619,6 +736,33 @@ const ReworkOrdersPage: React.FC = () => {
             onClick={() => void handleQualityRelease(record)}
           >
             {t('app.kuaizhizao.reworkOrder.actionQualityRelease')}
+          </Button>
+        ) : null,
+        reworkCapabilityAllowed(record, 'finance_sign') ? (
+          <Button
+            key="finance_sign"
+            {...rowActionKind('audit')}
+            onClick={() => void handleFinanceSign(record)}
+          >
+            {t('app.kuaizhizao.reworkOrder.actionFinanceSign')}
+          </Button>
+        ) : null,
+        reworkCapabilityAllowed(record, 'pqc_check') ? (
+          <Button
+            key="pqc_check"
+            {...rowActionKind('audit')}
+            onClick={() => void handlePqcCheck(record)}
+          >
+            {t('app.kuaizhizao.reworkOrder.actionPqcCheck')}
+          </Button>
+        ) : null,
+        reworkCapabilityAllowed(record, 'oqc_notify') ? (
+          <Button
+            key="oqc_notify"
+            {...rowActionKind('execute')}
+            onClick={() => openOqcNotify(record)}
+          >
+            {t('app.kuaizhizao.reworkOrder.actionOqcNotify')}
           </Button>
         ) : null,
         reworkCapabilityAllowed(record, 'close') ? (
@@ -815,6 +959,66 @@ const ReworkOrdersPage: React.FC = () => {
     }
   };
 
+  const handleFinanceSign = async (record: ReworkOrder) => {
+    if (!record.id) return;
+    try {
+      await reworkOrderApi.financeSign(String(record.id), {});
+      messageApi.success(t('app.kuaizhizao.reworkOrder.financeSignSuccess'));
+      actionRef.current?.reload();
+      if (reworkOrderDetail?.id === record.id) await refreshReworkDetail(record.id);
+    } catch (error: any) {
+      messageApi.error(error.message || t('common.operationFailed'));
+    }
+  };
+
+  const handlePqcCheck = async (record: ReworkOrder) => {
+    if (!record.id) return;
+    try {
+      await reworkOrderApi.pqcCheck(String(record.id), {
+        pqc_summary: (record as any).pqc_summary,
+      });
+      messageApi.success(t('app.kuaizhizao.reworkOrder.pqcCheckSuccess'));
+      actionRef.current?.reload();
+      if (reworkOrderDetail?.id === record.id) await refreshReworkDetail(record.id);
+    } catch (error: any) {
+      messageApi.error(error.message || t('common.operationFailed'));
+    }
+  };
+
+  const openOqcNotify = (record: ReworkOrder) => {
+    setOqcNotifyTarget(record);
+    oqcNotifyRecipientsRef.current = [];
+    oqcNotifyForm.resetFields();
+    setOqcNotifyOpen(true);
+  };
+
+  const handleOqcNotifySubmit = async () => {
+    if (!oqcNotifyTarget?.id) return;
+    try {
+      const values = await oqcNotifyForm.validateFields();
+      const ids = oqcNotifyRecipientsRef.current.map((x) => x.user_id).filter((id) => id > 0);
+      if (ids.length < 1) {
+        messageApi.warning(t('app.kuaizhizao.reworkOrder.oqcNotifyRecipientsRequired'));
+        return;
+      }
+      setOqcNotifySubmitting(true);
+      await reworkOrderApi.oqcNotify(String(oqcNotifyTarget.id), {
+        recipient_user_ids: ids,
+        remarks: values.remarks,
+      });
+      messageApi.success(t('app.kuaizhizao.reworkOrder.oqcNotifySuccess'));
+      setOqcNotifyOpen(false);
+      setOqcNotifyTarget(null);
+      actionRef.current?.reload();
+      if (reworkOrderDetail?.id === oqcNotifyTarget.id) await refreshReworkDetail(oqcNotifyTarget.id);
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      messageApi.error(error.message || t('common.operationFailed'));
+    } finally {
+      setOqcNotifySubmitting(false);
+    }
+  };
+
   const handleRequestComplete = async (record: ReworkOrder) => {
     if (!record.id) return;
     try {
@@ -963,6 +1167,7 @@ const ReworkOrdersPage: React.FC = () => {
   const createFromWorkOrderInitialValues = useMemo(
     () => ({
       rework_type: reworkTypeOptions[0]?.value,
+      business_type: 'simple_exec',
       routing_mode: 'DYNAMIC',
       verification_required: false,
       start_work_order_operation_id: pullWorkOrderDefaultStartOpId,
@@ -1029,6 +1234,8 @@ const ReworkOrdersPage: React.FC = () => {
       const payload = {
         rework_reason: values.rework_reason,
         rework_type: values.rework_type,
+        business_type: (values.business_type as string) || 'simple_exec',
+        product_line_code: (values.product_line_code as string) || undefined,
         routing_mode: values.routing_mode || 'DYNAMIC',
         verification_required: Boolean(values.verification_required),
         quantity: values.quantity != null ? Number(values.quantity) : undefined,
@@ -1063,6 +1270,29 @@ const ReworkOrdersPage: React.FC = () => {
     try {
       const { customData, standardValues } = extractReworkFormValues(values);
       standardValues.attachments = normalizeDocumentAttachments(standardValues.attachments);
+      if (Array.isArray(standardValues.material_reqs)) {
+        standardValues.material_reqs = standardValues.material_reqs.map((row: any, idx: number) => ({
+          ...row,
+          line_no: row.line_no || idx + 1,
+          required_at: toApiDateTimeString(row.required_at) || null,
+          arrived_at: toApiDateTimeString(row.arrived_at) || null,
+        }));
+      }
+      if (Array.isArray(standardValues.scrap_lines)) {
+        standardValues.scrap_lines = standardValues.scrap_lines.map((row: any, idx: number) => ({
+          ...row,
+          line_no: row.line_no || idx + 1,
+        }));
+      }
+      if (Array.isArray(standardValues.position_plans)) {
+        standardValues.position_plans = standardValues.position_plans.map((row: any, idx: number) => ({
+          ...row,
+          line_no: row.line_no || idx + 1,
+          sequence: row.sequence || idx + 1,
+          planned_start_at: toApiDateTimeString(row.planned_start_at) || null,
+          planned_end_at: toApiDateTimeString(row.planned_end_at) || null,
+        }));
+      }
       if (isEdit && currentReworkOrder?.id) {
         await reworkOrderApi.update(currentReworkOrder.id.toString(), standardValues);
         messageApi.success(t('app.kuaizhizao.reworkOrder.updateSuccess'));
@@ -1106,6 +1336,11 @@ const ReworkOrdersPage: React.FC = () => {
         ...lifecycleParams,
         order_by: orderBy,
         rework_type: s.rework_type as string | undefined,
+        business_type: s.business_type as string | undefined,
+        product_line_code:
+          s.product_line_code != null && String(s.product_line_code).trim()
+            ? String(s.product_line_code).trim()
+            : undefined,
       };
 
       if (fuzzyKeyword) {
@@ -1392,7 +1627,7 @@ const ReworkOrdersPage: React.FC = () => {
   return (
     <ListPageTemplate>
       <UniTable<ReworkOrder>
-        columnPersistenceId="apps.kuaizhizao.pages.production-execution.rework-orders-width-v1"
+        columnPersistenceId="apps.kuaizhizao.pages.production-execution.rework-orders-width-v2"
         viewTypes={['table', 'help']}
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.reworkOrder)}
         headerTitle={t('app.kuaizhizao.reworkOrder.title')}
@@ -1759,8 +1994,133 @@ const ReworkOrdersPage: React.FC = () => {
               />
             </ProFormItem>
           </Col>
-          <Col span={12} />
+          <Col span={12}>
+            <ProFormSelect
+              name="business_type"
+              label={t('app.kuaizhizao.reworkOrder.colBusinessType')}
+              rules={[{ required: true, message: t('app.kuaizhizao.reworkOrder.formBusinessTypeRequired') }]}
+              options={[
+                { value: 'simple_exec', label: t('app.kuaizhizao.reworkOrder.businessType.simple_exec') },
+                { value: 'multi_signoff', label: t('app.kuaizhizao.reworkOrder.businessType.multi_signoff') },
+                {
+                  value: 'inventory_verify',
+                  label: t('app.kuaizhizao.reworkOrder.businessType.inventory_verify'),
+                },
+              ]}
+            />
+          </Col>
         </Row>
+        <Row gutter={16}>
+          <Col span={12}>
+            <ProFormText
+              name="product_line_code"
+              label={t('app.kuaizhizao.reworkOrder.colProductLine')}
+              placeholder={t('app.kuaizhizao.reworkOrder.formProductLinePlaceholder')}
+            />
+          </Col>
+        </Row>
+        <ProFormDependency name={['business_type']}>
+          {({ business_type }) =>
+            business_type === 'multi_signoff' || business_type === 'inventory_verify' ? (
+              <>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <ProFormSwitch
+                      name="no_scrap_confirmed"
+                      label={t('app.kuaizhizao.reworkOrder.fieldNoScrapConfirmed')}
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <ProFormSwitch
+                      name="need_warehouse_in"
+                      label={t('app.kuaizhizao.reworkOrder.fieldNeedWarehouseIn')}
+                    />
+                  </Col>
+                </Row>
+                {business_type === 'inventory_verify' ? (
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <ProFormText
+                        name="verify_month"
+                        label={t('app.kuaizhizao.reworkOrder.fieldVerifyMonth')}
+                        placeholder="YYYY-MM"
+                        rules={[{ required: true, message: t('common.required') }]}
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <ProFormSwitch
+                        name="show_to_customer"
+                        label={t('app.kuaizhizao.reworkOrder.fieldShowToCustomer')}
+                      />
+                    </Col>
+                    <Col span={24}>
+                      <ProFormTextArea
+                        name="pqc_summary"
+                        label={t('app.kuaizhizao.reworkOrder.fieldPqcSummary')}
+                      />
+                    </Col>
+                  </Row>
+                ) : null}
+                <Typography.Text type="secondary">
+                  {t('app.kuaizhizao.reworkOrder.signoffChildrenHint')}
+                </Typography.Text>
+                <ProFormList
+                  name="material_reqs"
+                  label={t('app.kuaizhizao.reworkOrder.sectionMaterialReqs')}
+                  creatorButtonProps={{ creatorButtonText: t('app.kuaizhizao.reworkOrder.addMaterialReq') }}
+                  copyIconProps={false}
+                >
+                  <ProFormGroup>
+                    <ProFormText name="material_code" label={t('app.kuaizhizao.reworkOrder.colMaterialCode')} rules={[{ required: true }]} width="sm" />
+                    <ProFormText name="material_name" label={t('app.kuaizhizao.reworkOrder.colMaterialName')} rules={[{ required: true }]} width="sm" />
+                    <ProFormDigit name="qty" label={t('app.kuaizhizao.reworkOrder.colQty')} rules={[{ required: true }]} width="xs" min={0} />
+                    <ProFormText name="unit" label={t('app.kuaizhizao.reworkOrder.colUnit')} width="xs" />
+                    <ProFormDatePicker name="required_at" label={t('app.kuaizhizao.reworkOrder.colRequiredAt')} fieldProps={{ showTime: true }} />
+                  </ProFormGroup>
+                </ProFormList>
+                <ProFormList
+                  name="scrap_lines"
+                  label={t('app.kuaizhizao.reworkOrder.sectionScrapLines')}
+                  creatorButtonProps={{ creatorButtonText: t('app.kuaizhizao.reworkOrder.addScrapLine') }}
+                  copyIconProps={false}
+                >
+                  <ProFormGroup>
+                    <ProFormText name="material_code" label={t('app.kuaizhizao.reworkOrder.colMaterialCode')} rules={[{ required: true }]} width="sm" />
+                    <ProFormText name="material_name" label={t('app.kuaizhizao.reworkOrder.colMaterialName')} rules={[{ required: true }]} width="sm" />
+                    <ProFormDigit name="qty" label={t('app.kuaizhizao.reworkOrder.colQty')} rules={[{ required: true }]} width="xs" min={0} />
+                    <ProFormText name="scrap_reason" label={t('app.kuaizhizao.reworkOrder.colScrapReason')} width="md" />
+                  </ProFormGroup>
+                </ProFormList>
+                <Button
+                  type="link"
+                  style={{ paddingLeft: 0, marginBottom: 8 }}
+                  onClick={() => setApplyPositionTemplateOpen(true)}
+                >
+                  {t('app.kuaizhizao.reworkOrder.applyPositionTemplate')}
+                </Button>
+                <ProFormList
+                  name="position_plans"
+                  label={t('app.kuaizhizao.reworkOrder.sectionPositionPlans')}
+                  creatorButtonProps={{ creatorButtonText: t('app.kuaizhizao.reworkOrder.addPositionPlan') }}
+                  copyIconProps={false}
+                >
+                  <ProFormGroup>
+                    <ProFormDigit name="sequence" label={t('app.kuaizhizao.reworkOrder.colSequence')} width="xs" min={1} initialValue={1} />
+                    <ProFormText name="station_name" label={t('app.kuaizhizao.reworkOrder.colStationName')} rules={[{ required: true }]} width="sm" />
+                    <ProFormText name="section_name" label={t('app.kuaizhizao.reworkOrder.colSectionName')} width="sm" />
+                    <ProFormText name="station_code" label={t('app.kuaizhizao.reworkOrder.colStationCode')} width="sm" />
+                    <ProFormDigit name="planned_headcount" label={t('app.kuaizhizao.reworkOrder.colPlannedHeadcount')} width="xs" min={0} />
+                    <ProFormDigit name="standard_minutes" label={t('app.kuaizhizao.reworkOrder.colStandardMinutes')} width="xs" min={0} />
+                    <ProFormDigit name="planned_qty" label={t('app.kuaizhizao.reworkOrder.colPlannedQty')} width="xs" min={0} />
+                    <ProFormDatePicker name="planned_start_at" label={t('app.kuaizhizao.reworkOrder.colPlannedStartAt')} fieldProps={{ showTime: true }} />
+                    <ProFormDatePicker name="planned_end_at" label={t('app.kuaizhizao.reworkOrder.colPlannedEndAt')} fieldProps={{ showTime: true }} />
+                    <ProFormText name="owner_user_name" label={t('app.kuaizhizao.reworkOrder.colOwner')} width="sm" />
+                  </ProFormGroup>
+                </ProFormList>
+              </>
+            ) : null
+          }
+        </ProFormDependency>
         <ProFormDependency name={['original_work_order_id']}>
           {({ original_work_order_id }) =>
             original_work_order_id ? (
@@ -1855,6 +2215,72 @@ const ReworkOrdersPage: React.FC = () => {
           fieldProps={{ rows: 3 }}
         />
       </FormModalTemplate>
+
+      <Modal
+        title={t('app.kuaizhizao.reworkOrder.applyPositionTemplateTitle')}
+        open={applyPositionTemplateOpen}
+        destroyOnHidden
+        onCancel={() => {
+          setApplyPositionTemplateOpen(false);
+          setApplyPositionTemplateId(undefined);
+        }}
+        onOk={async () => {
+          if (!applyPositionTemplateId) {
+            messageApi.warning(t('app.kuaizhizao.reworkOrder.applyPositionTemplateRequired'));
+            return;
+          }
+          try {
+            const tpl = await reworkPositionPlanTemplateApi.get(applyPositionTemplateId);
+            const lines = (tpl.items || []).map((item, idx) => ({
+              line_no: item.line_no || idx + 1,
+              sequence: item.sequence || idx + 1,
+              station_name: item.station_name,
+              section_name: item.section_name,
+              station_code: item.station_code,
+              planned_headcount: item.planned_headcount,
+              standard_minutes: item.standard_minutes,
+              planned_qty: item.planned_qty,
+              owner_user_id: item.owner_user_id,
+              owner_user_name: item.owner_user_name,
+              remarks: item.remarks,
+            }));
+            formRef.current?.setFieldsValue({ position_plans: lines });
+            messageApi.success(t('app.kuaizhizao.reworkOrder.applyPositionTemplateSuccess'));
+            setApplyPositionTemplateOpen(false);
+            setApplyPositionTemplateId(undefined);
+          } catch (error) {
+            messageApi.error(getApiErrorMessage(error));
+          }
+        }}
+      >
+        <Select
+          style={{ width: '100%' }}
+          showSearch
+          optionFilterProp="label"
+          placeholder={t('app.kuaizhizao.reworkOrder.applyPositionTemplatePlaceholder')}
+          value={applyPositionTemplateId}
+          onChange={(value) => setApplyPositionTemplateId(value)}
+          options={applyPositionTemplateOptions}
+          onOpenChange={async (open) => {
+            if (!open) return;
+            try {
+              const res = await reworkPositionPlanTemplateApi.list({
+                skip: 0,
+                limit: 200,
+                is_active: true,
+              });
+              setApplyPositionTemplateOptions(
+                (res.data || []).map((row) => ({
+                  value: row.id!,
+                  label: `${row.template_name} (${row.template_code})`,
+                })),
+              );
+            } catch (error) {
+              messageApi.error(getApiErrorMessage(error));
+            }
+          }}
+        />
+      </Modal>
 
       {/* 详情Drawer */}
       <DetailDrawerTemplate
@@ -1952,6 +2378,33 @@ const ReworkOrdersPage: React.FC = () => {
                     ),
                   },
                   {
+                    key: 'finance_sign',
+                    visible: reworkCapabilityAllowed(detail, 'finance_sign'),
+                    render: () => (
+                      <Button onClick={() => void handleFinanceSign(detail)}>
+                        {t('app.kuaizhizao.reworkOrder.actionFinanceSign')}
+                      </Button>
+                    ),
+                  },
+                  {
+                    key: 'pqc_check',
+                    visible: reworkCapabilityAllowed(detail, 'pqc_check'),
+                    render: () => (
+                      <Button onClick={() => void handlePqcCheck(detail)}>
+                        {t('app.kuaizhizao.reworkOrder.actionPqcCheck')}
+                      </Button>
+                    ),
+                  },
+                  {
+                    key: 'oqc_notify',
+                    visible: reworkCapabilityAllowed(detail, 'oqc_notify'),
+                    render: () => (
+                      <Button onClick={() => openOqcNotify(detail)}>
+                        {t('app.kuaizhizao.reworkOrder.actionOqcNotify')}
+                      </Button>
+                    ),
+                  },
+                  {
                     key: 'close',
                     visible: reworkCapabilityAllowed(detail, 'close'),
                     render: () => (
@@ -2026,23 +2479,88 @@ const ReworkOrdersPage: React.FC = () => {
         linesTitle={t('app.kuaizhizao.reworkOrder.sectionRouteTimeline')}
         lines={
           reworkOrderDetail ? (
-            (reworkOrderDetail.rework_operations || []).length > 0 ? (
-              <Table
-                size="small"
-                pagination={false}
-                rowKey={(row) => String(row.id ?? row.work_order_operation_id)}
-                dataSource={reworkOrderDetail.rework_operations || []}
-                columns={[
-                  { title: t('app.kuaizhizao.reworkOrder.formReportOperationSequence', { sequence: '#', name: '' }).replace(' - ', ''), dataIndex: 'operation_name', render: (_: unknown, row) => row.operation_name || row.operation_code },
-                  { title: t('app.kuaizhizao.reworkOrder.colLifecycle'), dataIndex: 'status' },
-                  { title: t('app.kuaizhizao.reworkOrder.colQuantity'), dataIndex: 'input_quantity' },
-                  { title: t('app.kuaizhizao.reworkOrder.colQualifiedQty'), dataIndex: 'qualified_quantity' },
-                  { title: t('app.kuaizhizao.reworkOrder.colUnqualifiedQty'), dataIndex: 'unqualified_quantity' },
-                ]}
-              />
-            ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('app.kuaizhizao.salesOrder.emptyItems')} />
-            )
+            <>
+              {(reworkOrderDetail.rework_operations || []).length > 0 ? (
+                <Table
+                  size="small"
+                  pagination={false}
+                  rowKey={(row) => String(row.id ?? row.work_order_operation_id)}
+                  dataSource={reworkOrderDetail.rework_operations || []}
+                  columns={[
+                    { title: t('app.kuaizhizao.reworkOrder.formReportOperationSequence', { sequence: '#', name: '' }).replace(' - ', ''), dataIndex: 'operation_name', render: (_: unknown, row) => row.operation_name || row.operation_code },
+                    { title: t('app.kuaizhizao.reworkOrder.colLifecycle'), dataIndex: 'status' },
+                    { title: t('app.kuaizhizao.reworkOrder.colQuantity'), dataIndex: 'input_quantity' },
+                    { title: t('app.kuaizhizao.reworkOrder.colQualifiedQty'), dataIndex: 'qualified_quantity' },
+                    { title: t('app.kuaizhizao.reworkOrder.colUnqualifiedQty'), dataIndex: 'unqualified_quantity' },
+                  ]}
+                />
+              ) : (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('app.kuaizhizao.salesOrder.emptyItems')} />
+              )}
+              {['multi_signoff','inventory_verify'].includes(String(reworkOrderDetail.business_type || '')) ? (
+                <div style={{ marginTop: 16 }}>
+                  <Typography.Title level={5}>{t('app.kuaizhizao.reworkOrder.sectionMaterialReqs')}</Typography.Title>
+                  <Table
+                    size="small"
+                    pagination={false}
+                    rowKey={(row, i) => String((row as any).id ?? i)}
+                    dataSource={(reworkOrderDetail as any).material_reqs || []}
+                    columns={[
+                      { title: t('app.kuaizhizao.reworkOrder.colMaterialCode'), dataIndex: 'material_code' },
+                      { title: t('app.kuaizhizao.reworkOrder.colMaterialName'), dataIndex: 'material_name' },
+                      { title: t('app.kuaizhizao.reworkOrder.colQty'), dataIndex: 'qty' },
+                      { title: t('app.kuaizhizao.reworkOrder.colRequiredAt'), dataIndex: 'required_at', render: (v) => formatDateTimeBySiteSetting(v) },
+                    ]}
+                    locale={{ emptyText: t('app.kuaizhizao.salesOrder.emptyItems') }}
+                  />
+                  <Typography.Title level={5} style={{ marginTop: 12 }}>{t('app.kuaizhizao.reworkOrder.sectionScrapLines')}</Typography.Title>
+                  <Table
+                    size="small"
+                    pagination={false}
+                    rowKey={(row, i) => String((row as any).id ?? i)}
+                    dataSource={(reworkOrderDetail as any).scrap_lines || []}
+                    columns={[
+                      { title: t('app.kuaizhizao.reworkOrder.colMaterialCode'), dataIndex: 'material_code' },
+                      { title: t('app.kuaizhizao.reworkOrder.colMaterialName'), dataIndex: 'material_name' },
+                      { title: t('app.kuaizhizao.reworkOrder.colQty'), dataIndex: 'qty' },
+                      { title: t('app.kuaizhizao.reworkOrder.colScrapReason'), dataIndex: 'scrap_reason' },
+                    ]}
+                    locale={{ emptyText: t('app.kuaizhizao.salesOrder.emptyItems') }}
+                  />
+                  <Typography.Title level={5} style={{ marginTop: 12 }}>{t('app.kuaizhizao.reworkOrder.sectionPositionPlans')}</Typography.Title>
+                  <Table
+                    size="small"
+                    pagination={false}
+                    rowKey={(row, i) => String((row as any).id ?? i)}
+                    dataSource={(reworkOrderDetail as any).position_plans || []}
+                    columns={[
+                      { title: t('app.kuaizhizao.reworkOrder.colSequence'), dataIndex: 'sequence' },
+                      { title: t('app.kuaizhizao.reworkOrder.colStationName'), dataIndex: 'station_name' },
+                      { title: t('app.kuaizhizao.reworkOrder.colSectionName'), dataIndex: 'section_name' },
+                      { title: t('app.kuaizhizao.reworkOrder.colStationCode'), dataIndex: 'station_code' },
+                      { title: t('app.kuaizhizao.reworkOrder.colPlannedHeadcount'), dataIndex: 'planned_headcount' },
+                      { title: t('app.kuaizhizao.reworkOrder.colStandardMinutes'), dataIndex: 'standard_minutes' },
+                      { title: t('app.kuaizhizao.reworkOrder.colPlannedQty'), dataIndex: 'planned_qty' },
+                      { title: t('app.kuaizhizao.reworkOrder.colOwner'), dataIndex: 'owner_user_name' },
+                    ]}
+                    locale={{ emptyText: t('app.kuaizhizao.salesOrder.emptyItems') }}
+                  />
+                  <Typography.Title level={5} style={{ marginTop: 12 }}>{t('app.kuaizhizao.reworkOrder.sectionSignoffs')}</Typography.Title>
+                  <Table
+                    size="small"
+                    pagination={false}
+                    rowKey={(row, i) => String((row as any).id ?? i)}
+                    dataSource={(reworkOrderDetail as any).signoffs || []}
+                    columns={[
+                      { title: t('app.kuaizhizao.reworkOrder.colDept'), dataIndex: 'dept_name' },
+                      { title: t('app.kuaizhizao.reworkOrder.colSignStatus'), dataIndex: 'status' },
+                      { title: t('app.kuaizhizao.reworkOrder.colOwner'), dataIndex: 'signer_name' },
+                    ]}
+                    locale={{ emptyText: t('app.kuaizhizao.salesOrder.emptyItems') }}
+                  />
+                </div>
+              ) : null}
+            </>
           ) : undefined
         }
         traceDocument={reworkOrderTraceDocument}
@@ -2068,6 +2586,44 @@ const ReworkOrdersPage: React.FC = () => {
           ) : undefined
         }
       />
+
+      <Modal
+        title={t('app.kuaizhizao.reworkOrder.oqcNotifyTitle')}
+        open={oqcNotifyOpen}
+        confirmLoading={oqcNotifySubmitting}
+        onOk={() => void handleOqcNotifySubmit()}
+        onCancel={() => {
+          setOqcNotifyOpen(false);
+          setOqcNotifyTarget(null);
+          oqcNotifyForm.resetFields();
+        }}
+        destroyOnHidden
+      >
+        <Form form={oqcNotifyForm} layout="vertical">
+          <UniUserSelect
+            name="recipient_uuids"
+            label={t('app.kuaizhizao.reworkOrder.oqcNotifyRecipients')}
+            mode="multiple"
+            required
+            onChange={(_uuids, users) => {
+              const list = (Array.isArray(users) ? users : users ? [users] : []) as Array<{
+                id?: number;
+                full_name?: string;
+                username?: string;
+              }>;
+              oqcNotifyRecipientsRef.current = list
+                .filter((u) => u?.id)
+                .map((u) => ({
+                  user_id: Number(u.id),
+                  user_name: u.full_name || u.username || '',
+                }));
+            }}
+          />
+          <Form.Item name="remarks" label={t('common.remarks')}>
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <FormModalTemplate
         title={t('app.kuaizhizao.reworkOrder.reportModalTitle')}

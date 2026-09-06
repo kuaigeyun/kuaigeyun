@@ -171,6 +171,8 @@ class PermissionRegistryService:
         "system:user-task:update",
         "system:document-time-rewrite:read",
         "system:document-time-rewrite:execute",
+        # 全局总查看：制定方以外角色查看文件历史版本/档案（由权限服务合并，禁止页面写人员名单）
+        "system:document-global-view:read",
     )
 
     @classmethod

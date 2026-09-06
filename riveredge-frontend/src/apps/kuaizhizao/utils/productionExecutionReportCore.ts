@@ -19,6 +19,8 @@ export function resolveProductionReportFormParams(
       pick('order_code') ??
       pick('code') ??
       pick('outsource_work_order_code'),
+    template_code: pick('template_code'),
+    team_name: pick('team_name'),
   };
 }
 

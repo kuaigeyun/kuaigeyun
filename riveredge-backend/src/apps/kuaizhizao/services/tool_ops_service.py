@@ -576,6 +576,10 @@ class ToolBorrowService:
             )
             apply_create_audit(payload, current_user)
             borrow = await ToolBorrow.create(**payload)
+            tool.current_borrower_name = borrow.borrower_name
+            tool.current_borrow_at = borrow.borrow_date
+            apply_update_audit(tool, current_user)
+            await tool.save()
             await ToolStatusService.resolve(tenant_id, tool.id)
             return borrow
 
@@ -742,6 +746,11 @@ class ToolReturnService:
             apply_create_audit(payload, current_user)
             ret = await ToolReturn.create(**payload)
             tool.total_usage_count = (tool.total_usage_count or 0) + data.usage_count
+            tool.current_borrower_name = None
+            tool.current_borrow_at = None
+            tool.last_return_at = ret.return_date
+            tool.last_return_by_name = ret.operator_name
+            apply_update_audit(tool, current_user)
             await tool.save()
             if borrow:
                 borrow.status = "已归还"

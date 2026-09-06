@@ -97,12 +97,22 @@ export function useEquipmentTraceColumns(t: TFunction) {
       { title: t('app.kuaizhizao.equipment.traceColRepairDate'), dataIndex: 'repair_date', width: 120 },
       { title: t('app.kuaizhizao.equipment.traceColRepairType'), dataIndex: 'repair_type', width: 120 },
       { title: t('app.kuaizhizao.equipment.traceColRepairer'), dataIndex: 'repairer_name', width: 100 },
-      { title: t('app.kuaizhizao.equipment.traceColRepairDuration'), dataIndex: 'repair_duration', width: 120 },
       {
-        title: t('app.kuaizhizao.equipment.traceColRepairCost'),
-        dataIndex: 'repair_cost',
-        width: 100,
-        render: (cost: number) => (cost ? `¥${cost}` : '-'),
+        title: t('app.kuaizhizao.equipmentRepair.col.arrivalAt'),
+        dataIndex: 'arrival_at',
+        width: 160,
+      },
+      {
+        title: t('app.kuaizhizao.equipmentRepair.col.faultCause'),
+        dataIndex: 'fault_cause',
+        width: 160,
+        ellipsis: true,
+      },
+      {
+        title: t('app.kuaizhizao.equipmentRepair.col.repairContent'),
+        dataIndex: 'repair_content',
+        width: 160,
+        ellipsis: true,
       },
       { title: t('common.status'), dataIndex: 'status', width: 100, render: renderOpsStatusTag },
       {

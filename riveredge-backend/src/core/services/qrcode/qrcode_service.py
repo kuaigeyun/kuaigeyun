@@ -149,6 +149,50 @@ class QRCodeService:
             "border": border,
             "error_correction": error_correction,
         }
+
+    @staticmethod
+    def generate_raw_content_qrcode(
+        content: str,
+        *,
+        size: int = 10,
+        border: int = 4,
+        error_correction: str = "M",
+    ) -> Dict[str, Any]:
+        """按原文内容生成二维码（设备手工绑定贴纸等）。"""
+        if not QRCODE_AVAILABLE:
+            raise ValidationError("二维码生成功能不可用，请安装qrcode库: pip install qrcode[pil]")
+        qrcode_text = (content or "").strip()
+        if not qrcode_text:
+            raise ValidationError("二维码内容不能为空")
+        error_correction_map = {
+            "L": qrcode.constants.ERROR_CORRECT_L,
+            "M": qrcode.constants.ERROR_CORRECT_M,
+            "Q": qrcode.constants.ERROR_CORRECT_Q,
+            "H": qrcode.constants.ERROR_CORRECT_H,
+        }
+        error_correction_level = error_correction_map.get(
+            error_correction, qrcode.constants.ERROR_CORRECT_M
+        )
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=error_correction_level,
+            box_size=size,
+            border=border,
+        )
+        qr.add_data(qrcode_text)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        return {
+            "qrcode_type": "RAW",
+            "qrcode_text": qrcode_text,
+            "qrcode_image": f"data:image/png;base64,{img_base64}",
+            "size": size,
+            "border": border,
+            "error_correction": error_correction,
+        }
     
     @staticmethod
     def parse_qrcode(qrcode_text: str) -> Dict[str, Any]:

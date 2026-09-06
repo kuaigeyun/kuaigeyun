@@ -40,6 +40,11 @@ from apps.master_data.services.drawing_security import (
     DrawingSecurityService,
     normalize_security_level,
 )
+from core.services.file.document_version_policy import (
+    can_view_historical_versions,
+    filter_version_rows,
+    resolve_audience,
+)
 from core.services.file.file_service import FileService
 from infra.exceptions.exceptions import AuthorizationError, NotFoundError, ValidationError
 from infra.models.user import User
@@ -650,7 +655,8 @@ class DrawingService:
         tenant_id: int,
         drawing_uuid: str,
         current_user: Optional[User] = None,
-    ) -> Tuple[str, List[EngineeringDrawingRevisionBrief]]:
+        permission_codes: Optional[List[str]] = None,
+    ) -> Tuple[str, List[EngineeringDrawingRevisionBrief], str, bool]:
         drawing = await DrawingService._get_active_or_404(tenant_id, drawing_uuid)
         await DrawingSecurityService.assert_can_view(tenant_id, current_user, drawing)
         rows = await EngineeringDrawing.filter(
@@ -663,20 +669,69 @@ class DrawingService:
         )
         if allowed_levels is not None:
             rows = [r for r in rows if r.security_level in allowed_levels]
+
+        latest_released_uuid: Optional[str] = None
+        for r in reversed(rows):
+            if (r.status or "") == "Released":
+                latest_released_uuid = r.uuid
+                break
+
+        by_uuid = {r.uuid: r for r in rows}
+        policy_rows: List[Dict[str, Any]] = []
+        for r in rows:
+            status_raw = (r.status or "").strip()
+            if status_raw == "Released":
+                policy_status = "effective"
+            elif status_raw == "Obsolete":
+                policy_status = "obsolete"
+            else:
+                policy_status = "draft"
+            is_latest = r.uuid == latest_released_uuid
+            policy_rows.append(
+                {
+                    "uuid": r.uuid,
+                    "status": policy_status,
+                    "is_effective": policy_status == "effective",
+                    "is_latest_effective": is_latest,
+                    "created_by": getattr(r, "created_by", None),
+                }
+            )
+
+        current_user_id = getattr(current_user, "id", None) if current_user else None
+        is_author = bool(
+            current_user_id is not None
+            and getattr(drawing, "created_by", None) is not None
+            and int(drawing.created_by) == int(current_user_id)
+        )
+        audience = resolve_audience(
+            permission_codes=permission_codes,
+            is_author=is_author,
+        )
+        visible = filter_version_rows(
+            policy_rows,
+            audience=audience,
+            current_user_id=current_user_id,
+        )
         revisions = [
             EngineeringDrawingRevisionBrief.model_validate(
                 {
-                    "uuid": r.uuid,
-                    "revision": r.revision,
-                    "status": r.status,
-                    "released_at": r.released_at,
-                    "obsolete_reason": r.obsolete_reason,
-                    "created_at": r.created_at,
+                    "uuid": by_uuid[v["uuid"]].uuid,
+                    "revision": by_uuid[v["uuid"]].revision,
+                    "status": by_uuid[v["uuid"]].status,
+                    "released_at": by_uuid[v["uuid"]].released_at,
+                    "obsolete_reason": by_uuid[v["uuid"]].obsolete_reason,
+                    "created_at": by_uuid[v["uuid"]].created_at,
                 }
             )
-            for r in rows
+            for v in visible
+            if v.get("uuid") in by_uuid
         ]
-        return drawing.code, revisions
+        return (
+            drawing.code,
+            revisions,
+            audience.value,
+            can_view_historical_versions(audience),
+        )
 
     @staticmethod
     async def delete_drawing(tenant_id: int, drawing_uuid: str) -> None:

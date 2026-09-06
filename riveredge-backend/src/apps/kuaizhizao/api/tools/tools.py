@@ -82,10 +82,33 @@ async def list_tools(
     limit: int = Query(100, ge=1, le=1000),
     type: Optional[str] = None,
     status: Optional[str] = None,
+    is_active: Optional[bool] = None,
     search: Optional[str] = None,
+    keyword: Optional[str] = None,
+    product_model: Optional[str] = None,
+    order_by: Optional[str] = None,
+    created_start_date: Optional[str] = None,
+    created_end_date: Optional[str] = None,
+    updated_start_date: Optional[str] = None,
+    updated_end_date: Optional[str] = None,
     tenant_id: int = Depends(get_current_tenant),
 ):
-    items, total = await ToolService.list_tools(tenant_id, skip, limit, type, status, search)
+    items, total = await ToolService.list_tools(
+        tenant_id,
+        skip=skip,
+        limit=limit,
+        type=type,
+        status=status,
+        is_active=is_active,
+        search=search,
+        keyword=keyword,
+        product_model=product_model,
+        order_by=order_by,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        updated_start_date=updated_start_date,
+        updated_end_date=updated_end_date,
+    )
     return ToolListResponse(items=[ToolResponse.model_validate(i) for i in items], total=total)
 
 
@@ -110,10 +133,13 @@ async def get_tool(uuid: str, tenant_id: int = Depends(get_current_tenant)):
 async def update_tool(
     uuid: str,
     data: ToolUpdate,
+    current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
     try:
-        tool = await ToolService.update_tool(tenant_id, uuid, data)
+        tool = await ToolService.update_tool(
+            tenant_id, uuid, data, current_user=current_user
+        )
         return ToolResponse.model_validate(tool)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -126,9 +152,10 @@ async def update_tool(
 )
 async def delete_tool(
     uuid: str,
+    current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
     try:
-        await ToolService.delete_tool(tenant_id, uuid)
+        await ToolService.delete_tool(tenant_id, uuid, current_user=current_user)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))

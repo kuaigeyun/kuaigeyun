@@ -974,6 +974,10 @@ class SopPrintDataResponse(BaseModel):
 class SopRevisionListResponse(BaseModel):
     data: List[SopRevisionResponse]
     total: int
+    audience: Optional[str] = None
+    can_view_history: bool = Field(False, alias="canViewHistory")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class SopControlledCopyListResponse(BaseModel):

@@ -1,19 +1,21 @@
 /**
- * 工程变更详情抽屉（BOM / 工艺路线）
+ * 工程变更详情抽屉（BOM / 工艺路线 / 图纸 / ECN）
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { App, Button, Descriptions } from 'antd';
+import { App, Button, Descriptions, Input, Modal, Select, Table } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { DetailDrawerTemplate, DetailDrawerSection } from '../../../components/layout-templates';
 import { formatDateTime } from '../../../utils/format';
+import { getApiErrorMessage } from '../../../utils/errorHandler';
 import { getBomChange, type BomChangeRecord } from '../../master-data/services/bom-change';
 import {
   getProcessRouteChange,
   type ProcessRouteChangeRecord,
 } from '../../master-data/services/process-route-change';
-import { getDrawingChange } from '../services/change-desk';
+import { getDeskChange, getDrawingChange } from '../services/change-desk';
+import { engineeringChangeApi, type EngineeringChange } from '../services/engineering-change';
 import {
   buildBomChangeCreateUrl,
   buildMasterDataUrl,
@@ -49,11 +51,12 @@ type DrawingChangeDetail = {
   createdAt?: string;
 };
 
-type ChangeDetail = BomChangeRecord | ProcessRouteChangeRecord | DrawingChangeDetail;
+type ChangeDetail = BomChangeRecord | ProcessRouteChangeRecord | DrawingChangeDetail | EngineeringChange;
 
 export interface ChangeDetailDrawerProps {
   row: UnifiedChangeRow | null;
   onClose: () => void;
+  onChanged?: () => void;
 }
 
 function formatJsonBlock(value: unknown): string {
@@ -66,13 +69,17 @@ function formatJsonBlock(value: unknown): string {
   }
 }
 
-const ChangeDetailDrawer: React.FC<ChangeDetailDrawerProps> = ({ row, onClose }) => {
+const ChangeDetailDrawer: React.FC<ChangeDetailDrawerProps> = ({ row, onClose, onChanged }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { message: messageApi } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<ChangeDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [erpOpen, setErpOpen] = useState(false);
+  const [erpNo, setErpNo] = useState('');
+  const [erpResult, setErpResult] = useState('pass');
+  const [erpNotes, setErpNotes] = useState('');
 
   const load = useCallback(async () => {
     if (!row?.uuid || !row.change_category) {
@@ -86,6 +93,8 @@ const ChangeDetailDrawer: React.FC<ChangeDetailDrawerProps> = ({ row, onClose })
         setDetail(await getBomChange(row.uuid));
       } else if (row.change_category === 'route') {
         setDetail(await getProcessRouteChange(row.uuid));
+      } else if (row.change_category === 'ecn') {
+        setDetail((await getDeskChange(row.uuid, 'ecn')) as EngineeringChange);
       } else {
         setDetail((await getDrawingChange(row.uuid)) as DrawingChangeDetail);
       }
@@ -106,24 +115,39 @@ const ChangeDetailDrawer: React.FC<ChangeDetailDrawerProps> = ({ row, onClose })
   const bomDetail = category === 'bom' ? (detail as BomChangeRecord | null) : null;
   const routeDetail = category === 'route' ? (detail as ProcessRouteChangeRecord | null) : null;
   const drawingDetail = category === 'drawing' ? (detail as DrawingChangeDetail | null) : null;
+  const ecnDetail = category === 'ecn' ? (detail as EngineeringChange | null) : null;
   const drawingUuid = drawingDetail?.drawingUuid ?? drawingDetail?.drawing_uuid;
   const drawingCode = drawingDetail?.drawingCode ?? drawingDetail?.drawing_code ?? '';
   const drawingName = drawingDetail?.drawingName ?? drawingDetail?.drawing_name ?? row?.target_name ?? '';
   const drawingRevision = drawingDetail?.drawingRevision ?? drawingDetail?.drawing_revision ?? '';
-  const changeType = drawingDetail?.changeType ?? drawingDetail?.change_type ?? (detail as { change_type?: string } | null)?.change_type;
+  const changeType =
+    ecnDetail?.change_kind ??
+    drawingDetail?.changeType ??
+    drawingDetail?.change_type ??
+    (detail as { change_type?: string } | null)?.change_type;
   const changeReason =
+    ecnDetail?.change_reason ??
     drawingDetail?.changeReason ??
     drawingDetail?.change_reason ??
     (detail as { change_reason?: string } | null)?.change_reason;
-  const changeContent = drawingDetail?.changeContent ?? drawingDetail?.change_content ?? (detail as { change_content?: unknown } | null)?.change_content;
+  const changeContent =
+    drawingDetail?.changeContent ??
+    drawingDetail?.change_content ??
+    (detail as { change_content?: unknown } | null)?.change_content;
   const createdByName =
+    ecnDetail?.created_by_name ??
     drawingDetail?.createdByName ??
     drawingDetail?.created_by_name ??
     (detail as { created_by_name?: string; applicant_name?: string } | null)?.created_by_name ??
     (detail as { applicant_name?: string } | null)?.applicant_name;
-  const createdAt = drawingDetail?.createdAt ?? drawingDetail?.created_at ?? (detail as { created_at?: string } | null)?.created_at;
+  const createdAt =
+    ecnDetail?.created_at ??
+    drawingDetail?.createdAt ??
+    drawingDetail?.created_at ??
+    (detail as { created_at?: string } | null)?.created_at;
 
   const openSource = () => {
+    if (category === 'ecn') return;
     if (category === 'bom' && bomDetail?.material_id != null) {
       const url = buildBomChangeCreateUrl(bomDetail.material_id);
       const version = bomDetail.to_version ? `&version=${encodeURIComponent(bomDetail.to_version)}` : '';
@@ -139,91 +163,195 @@ const ChangeDetailDrawer: React.FC<ChangeDetailDrawerProps> = ({ row, onClose })
   };
 
   return (
-    <DetailDrawerTemplate
-      open={!!row}
-      onClose={onClose}
-      title={t('app.kuaiplm.change.detailTitle')}
-      size={640}
-      loading={loading}
-      extra={
-        row ? (
-          <Button type="primary" size="small" onClick={openSource}>
-            {category === 'bom'
-              ? t('app.kuaiplm.change.openBomDesigner')
-              : category === 'drawing'
-                ? t('app.kuaiplm.change.openDrawing')
-                : t('app.kuaiplm.change.openRouteList')}
-          </Button>
-        ) : null
-      }
-      plainBody={
-        error ? (
-          <div>
-            <p>{error}</p>
-            <Button onClick={() => void load()}>{t('common.retry')}</Button>
-          </div>
-        ) : !detail ? null : (
-          <>
-            <DetailDrawerSection title={t('app.kuaiplm.change.detailBasic')}>
-              <Descriptions column={2} size="small" bordered>
-                <Descriptions.Item label={t('app.kuaiplm.common.columns.category')}>
-                  {renderPlmChangeCategoryMarker(t, category as ChangeDeskCategory)}
-                </Descriptions.Item>
-                <Descriptions.Item label={t('common.status')}>
-                  {renderPlmChangeStatusTag(t, detail.status)}
-                </Descriptions.Item>
-                <Descriptions.Item label={t('app.kuaiplm.common.columns.changeType')} span={2}>
-                  {renderPlmChangeTypeMarker(t, changeType, category)}
-                </Descriptions.Item>
-                <Descriptions.Item label={t('app.kuaiplm.common.columns.target')} span={2}>
-                  {category === 'bom'
-                    ? `${bomDetail?.material_code ?? ''} ${bomDetail?.material_name ?? row?.target_name ?? ''}`.trim() ||
-                      '-'
-                    : category === 'drawing'
-                      ? `${drawingCode} ${drawingName} ${drawingRevision}`.trim() || '-'
-                      : `${routeDetail?.process_route_code ?? ''} ${routeDetail?.process_route_name ?? row?.target_name ?? ''}`.trim() ||
-                        '-'}
-                </Descriptions.Item>
-                {bomDetail?.from_version || bomDetail?.to_version ? (
-                  <Descriptions.Item label={t('app.kuaiplm.change.versionRange')} span={2}>
-                    {bomDetail.from_version ?? '-'} → {bomDetail.to_version ?? '-'}
-                  </Descriptions.Item>
-                ) : null}
-                <Descriptions.Item label={t('app.kuaiplm.common.columns.changeReason')} span={2}>
-                  {changeReason || '-'}
-                </Descriptions.Item>
-                <Descriptions.Item label={t('common.createdBy')}>
-                  {createdByName || '-'}
-                </Descriptions.Item>
-                <Descriptions.Item label={t('common.createdAt')}>
-                  {createdAt ? formatDateTime(createdAt) : '-'}
-                </Descriptions.Item>
-              </Descriptions>
-            </DetailDrawerSection>
-            <DetailDrawerSection title={t('app.kuaiplm.change.detailContent')}>
-              <pre
-                style={{
-                  margin: 0,
-                  padding: 12,
-                  background: 'var(--ant-color-fill-quaternary)',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
+    <>
+      <DetailDrawerTemplate
+        open={!!row}
+        onClose={onClose}
+        title={
+          category === 'ecn'
+            ? ecnDetail?.ecn_code || t('app.kuaiplm.ecn.title')
+            : t('app.kuaiplm.change.detailTitle')
+        }
+        size={640}
+        loading={loading}
+        extra={
+          row ? (
+            category === 'ecn' && ecnDetail?.status === 'erp_pending' ? (
+              <Button
+                type="primary"
+                size="small"
+                onClick={() => {
+                  setErpNo(ecnDetail.erp_ecn_no || '');
+                  setErpResult('pass');
+                  setErpNotes('');
+                  setErpOpen(true);
                 }}
               >
-                {formatJsonBlock(changeContent)}
-              </pre>
-            </DetailDrawerSection>
-            <p style={{ marginTop: 16, color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>
-              {category === 'drawing'
-                ? t('app.kuaiplm.change.executeHintDrawing')
-                : t('app.kuaiplm.change.executeHint')}
-            </p>
-          </>
-        )
-      }
-    />
+                {t('app.kuaiplm.ecn.actions.erpAudit')}
+              </Button>
+            ) : category !== 'ecn' ? (
+              <Button type="primary" size="small" onClick={openSource}>
+                {category === 'bom'
+                  ? t('app.kuaiplm.change.openBomDesigner')
+                  : category === 'drawing'
+                    ? t('app.kuaiplm.change.openDrawing')
+                    : t('app.kuaiplm.change.openRouteList')}
+              </Button>
+            ) : null
+          ) : null
+        }
+        plainBody={
+          error ? (
+            <div>
+              <p>{error}</p>
+              <Button onClick={() => void load()}>{t('common.retry')}</Button>
+            </div>
+          ) : !detail ? null : (
+            <>
+              <DetailDrawerSection title={t('app.kuaiplm.change.detailBasic')}>
+                <Descriptions column={2} size="small" bordered>
+                  <Descriptions.Item label={t('app.kuaiplm.common.columns.category')}>
+                    {renderPlmChangeCategoryMarker(t, category as ChangeDeskCategory)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label={t('common.status')}>
+                    {renderPlmChangeStatusTag(t, detail.status)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label={t('app.kuaiplm.common.columns.changeType')} span={2}>
+                    {renderPlmChangeTypeMarker(t, changeType, category)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label={t('app.kuaiplm.common.columns.target')} span={2}>
+                    {category === 'ecn'
+                      ? ecnDetail?.title || row?.target_name || '-'
+                      : category === 'bom'
+                        ? `${bomDetail?.material_code ?? ''} ${bomDetail?.material_name ?? row?.target_name ?? ''}`.trim() ||
+                          '-'
+                        : category === 'drawing'
+                          ? `${drawingCode} ${drawingName} ${drawingRevision}`.trim() || '-'
+                          : `${routeDetail?.process_route_code ?? ''} ${routeDetail?.process_route_name ?? row?.target_name ?? ''}`.trim() ||
+                            '-'}
+                  </Descriptions.Item>
+                  {bomDetail?.from_version || bomDetail?.to_version ? (
+                    <Descriptions.Item label={t('app.kuaiplm.change.versionRange')} span={2}>
+                      {bomDetail.from_version ?? '-'} → {bomDetail.to_version ?? '-'}
+                    </Descriptions.Item>
+                  ) : null}
+                  {category === 'ecn' ? (
+                    <>
+                      <Descriptions.Item label={t('app.kuaiplm.ecn.fields.erpEcnNo')}>
+                        {ecnDetail?.erp_ecn_no || '-'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label={t('app.kuaiplm.ecn.fields.erpAuditStatus')}>
+                        {ecnDetail?.erp_audit_status || '-'}
+                      </Descriptions.Item>
+                    </>
+                  ) : null}
+                  <Descriptions.Item label={t('app.kuaiplm.common.columns.changeReason')} span={2}>
+                    {changeReason || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label={t('common.createdBy')}>
+                    {createdByName || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label={t('common.createdAt')}>
+                    {createdAt ? formatDateTime(createdAt) : '-'}
+                  </Descriptions.Item>
+                </Descriptions>
+              </DetailDrawerSection>
+              {category === 'ecn' && ecnDetail ? (
+                <>
+                  <DetailDrawerSection title={t('app.kuaiplm.ecn.fields.materials')}>
+                    <Table
+                      size="small"
+                      pagination={false}
+                      rowKey={(r) => String(r.id ?? r.material_code)}
+                      dataSource={ecnDetail.materials || []}
+                      columns={[
+                        { title: t('app.kuaiplm.ecn.fields.materialCode'), dataIndex: 'material_code' },
+                        { title: t('app.kuaiplm.ecn.fields.materialName'), dataIndex: 'material_name' },
+                        { title: t('app.kuaiplm.ecn.fields.beforeDesc'), dataIndex: 'before_desc' },
+                        { title: t('app.kuaiplm.ecn.fields.afterDesc'), dataIndex: 'after_desc' },
+                        {
+                          title: t('app.kuaiplm.ecn.fields.ownerUserName'),
+                          dataIndex: 'owner_user_name',
+                        },
+                      ]}
+                    />
+                  </DetailDrawerSection>
+                  <DetailDrawerSection title={t('app.kuaiplm.ecn.fields.signoffs')}>
+                    <Table
+                      size="small"
+                      pagination={false}
+                      rowKey="dept_code"
+                      dataSource={ecnDetail.signoffs || []}
+                      columns={[
+                        { title: t('app.kuaiplm.ecn.fields.deptName'), dataIndex: 'dept_name' },
+                        { title: t('common.status'), dataIndex: 'status', width: 90 },
+                        {
+                          title: t('app.kuaiplm.ecn.fields.signerName'),
+                          dataIndex: 'signer_name',
+                          render: (v) => v || '—',
+                        },
+                      ]}
+                    />
+                  </DetailDrawerSection>
+                </>
+              ) : changeContent != null ? (
+                <DetailDrawerSection title={t('app.kuaiplm.change.detailContent')}>
+                  <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{formatJsonBlock(changeContent)}</pre>
+                </DetailDrawerSection>
+              ) : null}
+            </>
+          )
+        }
+      />
+
+      <Modal
+        title={t('app.kuaiplm.ecn.actions.erpAudit')}
+        open={erpOpen}
+        destroyOnHidden
+        onCancel={() => setErpOpen(false)}
+        onOk={async () => {
+          if (!ecnDetail?.id) return;
+          if (!erpNo.trim()) {
+            messageApi.error(t('app.kuaiplm.ecn.messages.erpNoRequired'));
+            return;
+          }
+          try {
+            await engineeringChangeApi.erpAudit(ecnDetail.id, {
+              erp_ecn_no: erpNo.trim(),
+              result: erpResult,
+              notes: erpNotes || undefined,
+            });
+            messageApi.success(t('app.kuaiplm.ecn.messages.erpAuditSuccess'));
+            setErpOpen(false);
+            await load();
+            onChanged?.();
+          } catch (e) {
+            messageApi.error(getApiErrorMessage(e));
+          }
+        }}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: 4 }}>{t('app.kuaiplm.ecn.fields.erpEcnNo')}</div>
+          <Input value={erpNo} onChange={(e) => setErpNo(e.target.value)} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: 4 }}>{t('app.kuaiplm.ecn.fields.erpAuditStatus')}</div>
+          <Select
+            style={{ width: '100%' }}
+            value={erpResult}
+            onChange={setErpResult}
+            options={[
+              { value: 'pass', label: t('app.kuaiplm.ecn.erpResult.pass') },
+              { value: 'fail', label: t('app.kuaiplm.ecn.erpResult.fail') },
+            ]}
+          />
+        </div>
+        <div>
+          <div style={{ marginBottom: 4 }}>{t('app.kuaiplm.ecn.fields.erpAuditNotes')}</div>
+          <Input.TextArea rows={3} value={erpNotes} onChange={(e) => setErpNotes(e.target.value)} />
+        </div>
+      </Modal>
+    </>
   );
 };
 

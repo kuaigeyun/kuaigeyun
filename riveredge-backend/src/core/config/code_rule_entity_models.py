@@ -39,6 +39,14 @@ ENTITY_MODEL_BY_RULE_CODE: Dict[str, Tuple[str, str]] = {
     "ENGINEERING_BOM_CODE": ("apps.master_data.models.material", "BOM"),
     "ENGINEERING_DRAWING_CODE": ("apps.master_data.models.drawing", "EngineeringDrawing"),
     "EQUIPMENT_CODE": ("apps.kuaizhizao.models.equipment", "Equipment"),
+    "EQUIPMENT_ACCEPTANCE_CODE": (
+        "apps.kuaizhizao.models.equipment_acceptance",
+        "EquipmentAcceptance",
+    ),
+    "EQUIPMENT_LINE_REBIND_CODE": (
+        "apps.kuaizhizao.models.equipment_line_rebind",
+        "EquipmentLineRebind",
+    ),
     "FINISHED_GOODS_INSPECTION_CODE": (
         "apps.kuaizhizao.models.finished_goods_inspection",
         "FinishedGoodsInspection",
@@ -177,10 +185,69 @@ ENTITY_MODEL_BY_RULE_CODE: Dict[str, Tuple[str, str]] = {
     "RD_DESIGN_REVIEW_CODE": ("apps.kuaiplm.models.phase2", "RdDesignReview"),
     "RD_FMEA_CODE": ("apps.kuaiplm.models.phase2", "RdFmeaRecord"),
     "RD_PROJECT_CODE": ("apps.kuaiplm.models.rd_project", "RdProject"),
+    "KUAI_PLM_PRODUCT_FIRMWARE_CODE": ("apps.kuaiplm.models.product_firmware", "ProductFirmware"),
+    "KUAI_PLM_PRODUCTION_FILE_CODE": ("apps.kuaiplm.models.production_file", "ProductionFile"),
+    "KUAI_PLM_TRIAL_FLOW_CODE": ("apps.kuaiplm.models.trial_flow", "TrialFlow"),
+    "KUAI_PLM_LAB_REQUEST_CODE": ("apps.kuaiplm.models.lab_request", "LabRequest"),
+    "KUAI_PLM_LAB_JUDGMENT_RULE_CODE": (
+        "apps.kuaiplm.models.lab_judgment_rule",
+        "LabJudgmentRule",
+    ),
+    "KUAI_PLM_ANNUAL_LAB_PLAN_CODE": (
+        "apps.kuaiplm.models.annual_lab_plan",
+        "AnnualLabPlan",
+    ),
+    "KUAI_PLM_ECN_CODE": ("apps.kuaiplm.models.engineering_change", "EngineeringChange"),
+    "KUAI_PLM_SAMPLE_PROCESS_CODE": ("apps.kuaiplm.models.sample_process", "SampleProcessApplication"),
+    "KUAI_PLM_MATERIAL_REVIEW_CODE": ("apps.kuaiplm.models.material_review", "MaterialReview"),
+    "KUAI_PLM_BOM_COLLAB_CODE": ("apps.kuaiplm.models.bom_collaboration", "BomCollaboration"),
+    "KUAI_PLM_PROJECT_PROPOSAL_CODE": ("apps.kuaiplm.models.project_proposal", "ProjectProposal"),
+    "KUAI_PLM_MOLD_SAMPLE_CODE": ("apps.kuaiplm.models.mold_sample_order", "MoldSampleOrder"),
     "RD_REQUIREMENT_CODE": ("apps.kuaiplm.models.phase2", "RdRequirement"),
     "RECEIPT_NOTICE_CODE": ("apps.kuaizhizao.models.receipt_notice", "ReceiptNotice"),
     "RECEIVABLE_CODE": ("apps.kuaicaiwu.models.receivable", "Receivable"),
     "REWORK_ORDER_CODE": ("apps.kuaizhizao.models.rework_order", "ReworkOrder"),
+    "REWORK_POSITION_PLAN_TEMPLATE_CODE": (
+        "apps.kuaizhizao.models.rework_position_plan_template",
+        "ReworkPositionPlanTemplate",
+    ),
+    "PRODUCTION_DAILY_TEMPLATE_CODE": (
+        "apps.kuaizhizao.models.production_daily",
+        "ProductionDailyTemplate",
+    ),
+    "PRODUCTION_DAILY_REPORT_CODE": (
+        "apps.kuaizhizao.models.production_daily",
+        "ProductionDailyReport",
+    ),
+    "LABEL_MODEL_CONFIG_CODE": (
+        "apps.kuaizhizao.models.label_station",
+        "LabelModelConfig",
+    ),
+    "LABEL_STATION_CODE": (
+        "apps.kuaizhizao.models.label_station",
+        "LabelStation",
+    ),
+    "LABEL_STATION_BOX_CODE": (
+        "apps.kuaizhizao.models.label_station",
+        "LabelOuterBox",
+    ),
+    "LABEL_STATION_JOB_CODE": (
+        "apps.kuaizhizao.models.label_station",
+        "LabelOuterBox",
+    ),
+    "QUALITY_COMPLAINT_CODE": ("apps.kuaizhizao.models.quality_complaint", "QualityComplaint"),
+    "SUPPLIER_EVALUATION_CODE": (
+        "apps.kuaizhizao.models.supplier_evaluation",
+        "SupplierEvaluation",
+    ),
+    "SUPPLIER_EVAL_TEMPLATE_CODE": (
+        "apps.kuaizhizao.models.supplier_evaluation",
+        "SupplierEvalTemplate",
+    ),
+    "SUPPLIER_EVAL_PLAN_CODE": (
+        "apps.kuaizhizao.models.supplier_evaluation",
+        "SupplierEvalPlan",
+    ),
     "ROLE_CODE": ("core.models.role", "Role"),
     "SALES_DELIVERY_CODE": ("apps.kuaizhizao.models.sales_delivery", "SalesDelivery"),
     "SALES_FORECAST_CODE": ("apps.kuaizhizao.models.sales_forecast", "SalesForecast"),

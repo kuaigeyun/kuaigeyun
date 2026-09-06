@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from datetime import date, datetime, timedelta
 
 from core.api.deps import get_current_user, get_current_tenant
+from core.api.deps.access import require_permission_codes
 from core.services.user.approval_todo_mapper import (
     approval_task_matches_module,
     fetch_user_approval_todos,
@@ -2521,6 +2522,159 @@ async def get_equipment_summary(
         "today_maintenance_tasks": int(maintenance_tasks or 0),
         "oee": average_oee,
     }
+
+
+@router.get("/equipment-board/plants", summary="设备看板厂区列表")
+@cache_by_kwargs(namespace="dashboard:equipment_board_plants", ttl=60)
+async def get_equipment_board_plants(
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """主数据启用厂区，供设备总览/分厂看板切换。"""
+    from apps.kuaizhizao.services.equipment_board_service import list_equipment_board_plants
+
+    items = await list_equipment_board_plants(tenant_id)
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/equipment-board", summary="设备总览/厂区看板")
+async def get_equipment_board(
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+    plant_id: Optional[int] = Query(None, description="厂区 ID；缺省为全租户总览"),
+    alert_limit: int = Query(30, ge=1, le=100, description="滚动异常条数上限"),
+    visit_mode: bool = Query(False, description="参观展示模式：叠加展示层覆盖，不改业务真源"),
+):
+    """
+    设备状态、点检应/已/未与点检率、故障率，以及滚动异常清单。
+    设备经车间归属厂区；不写死客户厂区名称。
+    """
+    from apps.kuaizhizao.services.equipment_board_service import get_equipment_board_with_visit
+
+    return await get_equipment_board_with_visit(
+        tenant_id,
+        plant_id=plant_id,
+        alert_limit=alert_limit,
+        scheme_domain="equipment",
+        visit_mode=visit_mode,
+    )
+
+
+class VisitOverrideItem(BaseModel):
+    metric_key: str = Field(..., description="展示指标键")
+    metric_value: float = Field(..., description="展示层数值")
+
+
+class VisitOverrideUpsertRequest(BaseModel):
+    board_domain: str = Field(default="equipment", description="equipment/esd")
+    plant_id: Optional[int] = Field(None, description="厂区；空=总览")
+    reason: Optional[str] = Field(None, description="修订原因")
+    items: List[VisitOverrideItem]
+
+
+class VisitOverrideClearRequest(BaseModel):
+    board_domain: str = Field(default="equipment")
+    plant_id: Optional[int] = None
+    reason: Optional[str] = None
+    metric_keys: Optional[List[str]] = None
+
+
+@router.get(
+    "/equipment-board/visit-overrides",
+    summary="参观展示覆盖列表",
+    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-board-visit:read"))],
+)
+async def list_equipment_board_visit_overrides(
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+    board_domain: str = Query("equipment"),
+    plant_id: Optional[int] = Query(None),
+):
+    from apps.kuaizhizao.services.equipment_board_visit_service import list_visit_overrides
+
+    items = await list_visit_overrides(
+        tenant_id, board_domain=board_domain, plant_id=plant_id
+    )
+    return {"items": items, "total": len(items)}
+
+
+@router.put(
+    "/equipment-board/visit-overrides",
+    summary="修订参观展示指标",
+    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-board-visit:display"))],
+)
+async def upsert_equipment_board_visit_overrides(
+    body: VisitOverrideUpsertRequest,
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    from apps.kuaizhizao.services.equipment_board_visit_service import upsert_visit_overrides
+    from infra.exceptions.exceptions import ValidationError
+
+    try:
+        items = await upsert_visit_overrides(
+            tenant_id,
+            board_domain=body.board_domain,
+            plant_id=body.plant_id,
+            items=[x.model_dump() for x in body.items],
+            reason=body.reason,
+            current_user=current_user,
+        )
+        return {"items": items, "total": len(items)}
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/equipment-board/visit-overrides/clear",
+    summary="清除参观展示覆盖",
+    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-board-visit:display"))],
+)
+async def clear_equipment_board_visit_overrides(
+    body: VisitOverrideClearRequest,
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    from apps.kuaizhizao.services.equipment_board_visit_service import clear_visit_overrides
+    from infra.exceptions.exceptions import ValidationError
+
+    try:
+        cleared = await clear_visit_overrides(
+            tenant_id,
+            board_domain=body.board_domain,
+            plant_id=body.plant_id,
+            metric_keys=body.metric_keys,
+            reason=body.reason,
+            current_user=current_user,
+        )
+        return {"cleared": cleared}
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get(
+    "/equipment-board/visit-audits",
+    summary="参观展示修订审计",
+    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-board-visit:read"))],
+)
+async def list_equipment_board_visit_audits(
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+    board_domain: str = Query("equipment"),
+    plant_id: Optional[int] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+):
+    from apps.kuaizhizao.services.equipment_board_visit_service import list_visit_audits
+
+    items, total = await list_visit_audits(
+        tenant_id,
+        board_domain=board_domain,
+        plant_id=plant_id,
+        skip=skip,
+        limit=limit,
+    )
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 # ==========================================

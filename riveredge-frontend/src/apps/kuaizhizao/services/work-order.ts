@@ -496,6 +496,8 @@ export interface ReworkOrderListParams {
   original_work_order_code?: string;
   product_name?: string;
   rework_type?: string;
+  business_type?: string;
+  product_line_code?: string;
   keyword?: string;
   planned_start_from?: string;
   planned_start_to?: string;
@@ -546,12 +548,24 @@ export const reworkOrderApi = {
     apiRequest(`/apps/kuaizhizao/rework-orders/${id}/report`, { method: 'POST', data }),
   release: async (id: string) =>
     apiRequest(`/apps/kuaizhizao/rework-orders/${id}/release`, { method: 'POST' }),
+  submit: async (id: string) =>
+    apiRequest(`/apps/kuaizhizao/rework-orders/${id}/submit`, { method: 'POST' }),
+  approve: async (id: string) =>
+    apiRequest(`/apps/kuaizhizao/rework-orders/${id}/approve`, { method: 'POST' }),
+  reject: async (id: string) =>
+    apiRequest(`/apps/kuaizhizao/rework-orders/${id}/reject`, { method: 'POST' }),
   advanceNext: async (id: string, data: any) =>
     apiRequest(`/apps/kuaizhizao/rework-orders/${id}/advance-next`, { method: 'POST', data }),
   requestComplete: async (id: string, data?: any) =>
     apiRequest(`/apps/kuaizhizao/rework-orders/${id}/request-complete`, { method: 'POST', data: data ?? {} }),
   qualityRelease: async (id: string, data?: any) =>
     apiRequest(`/apps/kuaizhizao/rework-orders/${id}/quality-release`, { method: 'POST', data: data ?? {} }),
+  financeSign: async (id: string, data?: any) =>
+    apiRequest(`/apps/kuaizhizao/rework-orders/${id}/finance-sign`, { method: 'POST', data: data ?? {} }),
+  pqcCheck: async (id: string, data?: { pqc_summary?: string; pqc_summary_file_uuid?: string; notes?: string }) =>
+    apiRequest(`/apps/kuaizhizao/rework-orders/${id}/pqc-check`, { method: 'POST', data: data ?? {} }),
+  oqcNotify: async (id: string, data: { recipient_user_ids: number[]; remarks?: string }) =>
+    apiRequest(`/apps/kuaizhizao/rework-orders/${id}/oqc-notify`, { method: 'POST', data }),
   close: async (id: string, data?: any) =>
     apiRequest(`/apps/kuaizhizao/rework-orders/${id}/close`, { method: 'POST', data: data ?? {} }),
   cancel: async (id: string, data?: any) =>

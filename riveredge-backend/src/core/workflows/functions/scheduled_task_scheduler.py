@@ -11,6 +11,7 @@ from loguru import logger
 
 from core.models.scheduled_task import ScheduledTask
 from core.tasks.dispatcher import TaskEvent, dispatch_event
+from core.utils.cron_match import match_cron as _match_cron
 from core.utils.timezone_utils import resolve_business_datetime, to_api_isoformat
 
 
@@ -108,34 +109,4 @@ async def _should_execute_task(task: ScheduledTask, now: datetime) -> bool:
             return False
 
     return False
-
-
-def _match_cron(cron_expr: str, now: datetime) -> bool:
-    """简单的 cron 表达式匹配（与历史实现一致）。"""
-    try:
-        parts = cron_expr.strip().split()
-        if len(parts) != 5:
-            return False
-
-        minute, hour, day, month, weekday = parts
-
-        if minute != "*" and str(now.minute) != minute:
-            return False
-        if hour != "*" and str(now.hour) != hour:
-            return False
-        if day != "*" and str(now.day) != day:
-            return False
-        if month != "*" and str(now.month) != month:
-            return False
-
-        if weekday != "*":
-            current_weekday = now.weekday() + 1
-            if current_weekday == 7:
-                current_weekday = 0
-            if str(current_weekday) != weekday:
-                return False
-
-        return True
-    except Exception:
-        return False
 

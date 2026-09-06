@@ -167,12 +167,18 @@ class RdProjectDeliverable(BaseModel):
     status = fields.CharField(
         max_length=30,
         default=RdDeliverableStatus.PENDING.value,
-        description="状态",
+        description="状态 PENDING/SUBMITTED/APPROVED/REJECTED",
     )
+    version = fields.CharField(max_length=30, default="A0", description="当前版本号")
     file_url = fields.CharField(max_length=500, null=True, description="文件URL")
     file_name = fields.CharField(max_length=200, null=True, description="文件名")
+    file_uuid = fields.CharField(max_length=36, null=True, description="core file UUID")
     submitted_at = fields.DatetimeField(null=True, description="提交时间")
     approved_at = fields.DatetimeField(null=True, description="批准时间")
+    created_by = fields.IntField(null=True, description="创建人")
+    created_by_name = fields.CharField(max_length=100, null=True, description="创建人姓名")
+    updated_by = fields.IntField(null=True, description="更新人")
+    updated_by_name = fields.CharField(max_length=100, null=True, description="更新人姓名")
     deleted_at = fields.DatetimeField(null=True)
 
     class Meta:

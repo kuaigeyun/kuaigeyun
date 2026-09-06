@@ -1,7 +1,7 @@
 """固定资产 schemas。"""
 
 from decimal import Decimal
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,6 +16,7 @@ class AssetPurchaseCreate(BaseModel):
     purpose: Optional[str] = None
     applicant_id: Optional[int] = None
     applicant_name: Optional[str] = None
+    attachment_uuids: Optional[List[str]] = None
 
 
 class AssetPurchaseUpdate(BaseModel):
@@ -26,6 +27,14 @@ class AssetPurchaseUpdate(BaseModel):
     currency: Optional[str] = None
     department_name: Optional[str] = None
     purpose: Optional[str] = None
+    attachment_uuids: Optional[List[str]] = None
+
+
+class AssetLifecycleAdvance(BaseModel):
+    stage: str = Field(..., max_length=40)
+    remark: Optional[str] = None
+    file_uuid: Optional[str] = None
+    payment_amount: Optional[Decimal] = None
 
 
 class AssetCreate(BaseModel):
@@ -38,6 +47,7 @@ class AssetCreate(BaseModel):
     custodian_name: Optional[str] = None
     department_name: Optional[str] = None
     location: Optional[str] = None
+    attachment_uuids: Optional[List[str]] = None
     notes: Optional[str] = None
 
 
@@ -51,4 +61,5 @@ class AssetUpdate(BaseModel):
     department_name: Optional[str] = None
     location: Optional[str] = None
     status: Optional[str] = None
+    attachment_uuids: Optional[List[str]] = None
     notes: Optional[str] = None

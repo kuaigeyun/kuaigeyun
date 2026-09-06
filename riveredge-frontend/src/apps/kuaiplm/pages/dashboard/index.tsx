@@ -231,12 +231,12 @@ const KuaiplmDashboard: React.FC = () => {
 
         key: 'tasks',
 
-        title: t('app.kuaiplm.dashboard.kpi.collaborationTodos'),
+        title: t('app.kuaiplm.dashboard.kpi.wave1Pending'),
 
-        value: data?.open_tasks ?? 0,
+        value: data?.pending_wave1_docs ?? 0,
 
-        subtitle: t('app.kuaiplm.dashboard.kpi.collaborationSubtitle', {
-          articles: data?.kb_article_total ?? 0,
+        subtitle: t('app.kuaiplm.dashboard.kpi.wave1PendingSubtitle', {
+          tasks: data?.open_tasks ?? 0,
           reviews: data?.design_review_pending ?? 0,
         }),
 
@@ -246,13 +246,13 @@ const KuaiplmDashboard: React.FC = () => {
 
         boxShadow: '0 4px 12px rgba(14, 165, 233, 0.18)',
 
-        onClick: () => navigate('/apps/kuaiplm/phase2/requirements'),
+        onClick: () => navigate('/apps/kuaiplm/pending-inbox'),
 
         sideMetrics: [
 
-          { label: t('app.kuaiplm.dashboard.kpi.requirements'), value: data?.requirement_total ?? 0 },
+          { label: t('app.kuaiplm.dashboard.kpi.openTasks'), value: data?.open_tasks ?? 0 },
 
-          { label: t('app.kuaiplm.menu.phase2.fmea'), value: data?.fmea_total ?? 0 },
+          { label: t('app.kuaiplm.dashboard.kpi.requirements'), value: data?.requirement_total ?? 0 },
 
         ],
 
@@ -269,6 +269,18 @@ const KuaiplmDashboard: React.FC = () => {
   const shortcuts: ModuleShortcutDef[] = useMemo(
 
     () => [
+
+      {
+
+        key: 'pending-inbox',
+
+        title: t('app.kuaiplm.pendingInbox.title'),
+
+        icon: <ClockCircleOutlined style={{ fontSize: 20, color: token.colorPrimary }} />,
+
+        path: '/apps/kuaiplm/pending-inbox',
+
+      },
 
       {
 

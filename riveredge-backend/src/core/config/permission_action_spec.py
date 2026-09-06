@@ -73,6 +73,8 @@ ACTION_DISPLAY_LABELS: dict[str, str] = {
 
 PERMISSION_CODE_DISPLAY_LABELS: dict[str, str] = {
     "kuaizhizao:rework-order:release": "下达",
+    "kuaizhizao:equipment-board-visit:display": "修订参观展示",
+    "kuaizhizao:equipment-board-visit:read": "查看参观展示修订",
     "kuaizhizao:sales-review:submit": "下达",
     "kuaizhizao:sales-review:approve": "评审",
     "kuaizhizao:sales-review:execute": "下推订单",
@@ -86,11 +88,14 @@ PERMISSION_CODE_DISPLAY_LABELS: dict[str, str] = {
     "haoligo:equipment-documents-acceptance:execute": "试产",
     "haoligo:equipment-documents-acceptance:complete": "台账结案",
     "master-data:process:drawing-loan:complete": "归还",
+    "kuaiplm:mold-sample:execute": "用印",
+    "kuaiplm:mold-sample:complete": "存档",
     "haoligo:finance-equipment-payables:submit": "提交财务",
     "haoligo:finance-equipment-payables:execute": "登记付款",
     "system:application-connection:execute": "同步通讯录",
     "system:document-time-rewrite:read": "查看单据时间修正",
     "system:document-time-rewrite:execute": "执行单据时间修正",
+    "system:document-global-view:read": "全局档案总查看",
 }
 
 

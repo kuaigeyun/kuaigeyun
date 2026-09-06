@@ -953,7 +953,7 @@ class ExceptionService:
         """
         从检验单创建质量异常记录。
 
-        source_type: incoming_inspection | process_inspection | finished_goods_inspection | oqc_inspection
+        source_type: incoming_inspection | process_inspection | finished_goods_inspection | oqc_inspection | lab_request
         """
         import uuid
 
@@ -1024,6 +1024,22 @@ class ExceptionService:
             batch_no = insp.batch_number
             if not desc:
                 desc = f"出货检验不合格：{insp.inspection_code}"
+        elif source_type == "lab_request":
+            from apps.kuaiplm.models.lab_request import LabRequest
+
+            lab = await LabRequest.get_or_none(
+                tenant_id=tenant_id, id=source_id, deleted_at__isnull=True
+            )
+            if not lab:
+                raise NotFoundError(f"实验委托单不存在: {source_id}")
+            material_id = lab.material_id
+            material_code = lab.material_code
+            material_name = lab.material_name
+            if not desc:
+                desc = (
+                    f"实验委托不合格：{lab.code}"
+                    + (f" / {lab.title}" if lab.title else "")
+                )
         else:
             raise ValidationError(f"不支持的检验来源类型: {source_type}")
 

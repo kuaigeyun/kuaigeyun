@@ -32,6 +32,7 @@ async def start_approval(
     title: str,
     content: str,
     submitter_id: int,
+    business_type: Optional[str] = None,
 ) -> None:
     from core.services.approval.approval_instance_service import ApprovalInstanceService
     from infra.exceptions.exceptions import ValidationError
@@ -45,6 +46,7 @@ async def start_approval(
         entity_uuid=entity_uuid,
         title=title,
         content=content,
+        business_type=business_type,
     )
     if not instance:
         raise ValidationError(

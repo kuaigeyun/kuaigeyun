@@ -16,7 +16,11 @@ class KuaioaAssetPurchase(BaseModel):
     applicant_id = fields.IntField(null=True, description="申请人")
     applicant_name = fields.CharField(max_length=100, null=True, description="申请人姓名")
     department_name = fields.CharField(max_length=100, null=True, description="申请部门")
-    status = fields.CharField(max_length=30, default="draft", description="状态")
+    status = fields.CharField(max_length=30, default="draft", description="审批状态")
+    lifecycle_stage = fields.CharField(max_length=40, default="draft", description="生命周期阶段")
+    payment_amount = fields.DecimalField(max_digits=20, decimal_places=4, null=True, description="实付金额")
+    payment_at = fields.DatetimeField(null=True, description="付款时间")
+    attachment_uuids = fields.JSONField(default=list, description="附件UUID列表")
     purpose = fields.TextField(null=True, description="用途说明")
     submitted_at = fields.DatetimeField(null=True, description="提交时间")
     deleted_at = fields.DatetimeField(null=True)
@@ -25,7 +29,7 @@ class KuaioaAssetPurchase(BaseModel):
         table = "apps_kuaioa_asset_purchases"
         table_description = "轻办公 - 固定资产采买申请"
         unique_together = (("tenant_id", "purchase_code"),)
-        indexes = [("tenant_id", "status"), ("tenant_id", "applicant_id")]
+        indexes = [("tenant_id", "status"), ("tenant_id", "applicant_id"), ("tenant_id", "lifecycle_stage")]
 
     class PydanticMeta:
         exclude = ["deleted_at"]
@@ -44,6 +48,9 @@ class KuaioaAsset(BaseModel):
     department_name = fields.CharField(max_length=100, null=True, description="使用部门")
     location = fields.CharField(max_length=200, null=True, description="存放位置")
     status = fields.CharField(max_length=30, default="in_stock", description="状态")
+    finance_audited_at = fields.DatetimeField(null=True, description="财务审核时间")
+    written_off_at = fields.DatetimeField(null=True, description="财务销账时间")
+    attachment_uuids = fields.JSONField(default=list, description="附件UUID列表")
     notes = fields.TextField(null=True, description="备注")
     deleted_at = fields.DatetimeField(null=True)
 
@@ -52,6 +59,31 @@ class KuaioaAsset(BaseModel):
         table_description = "轻办公 - 固定资产台账"
         unique_together = (("tenant_id", "asset_code"),)
         indexes = [("tenant_id", "status"), ("tenant_id", "custodian_id"), ("tenant_id", "purchase_id")]
+
+    class PydanticMeta:
+        exclude = ["deleted_at"]
+
+
+class KuaioaAssetLifecycleEvent(BaseModel):
+    tenant_id = fields.IntField(description="租户ID")
+    purchase_id = fields.IntField(null=True, description="采买申请ID")
+    asset_id = fields.IntField(null=True, description="资产ID")
+    stage = fields.CharField(max_length=40, description="阶段")
+    remark = fields.TextField(null=True, description="备注")
+    file_uuid = fields.CharField(max_length=36, null=True, description="附件UUID")
+    operator_id = fields.IntField(null=True, description="操作人ID")
+    operator_name = fields.CharField(max_length=100, null=True, description="操作人姓名")
+    occurred_at = fields.DatetimeField(description="发生时间")
+    deleted_at = fields.DatetimeField(null=True)
+
+    class Meta:
+        table = "apps_kuaioa_asset_lifecycle_events"
+        table_description = "轻办公 - 固定资产生命周期事件"
+        indexes = [
+            ("tenant_id", "purchase_id"),
+            ("tenant_id", "asset_id"),
+            ("tenant_id", "stage"),
+        ]
 
     class PydanticMeta:
         exclude = ["deleted_at"]

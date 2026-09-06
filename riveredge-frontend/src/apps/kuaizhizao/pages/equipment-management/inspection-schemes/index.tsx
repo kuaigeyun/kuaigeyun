@@ -4,13 +4,14 @@ import {
   ActionType,
   ProColumns,
   ProDescriptionsItemProps,
+  ProFormDependency,
   ProFormDigit,
   ProFormSelect,
   ProFormSwitch,
   ProFormText,
   ProFormTextArea,
 } from '@ant-design/pro-components';
-import { App, Modal, Row, Col } from 'antd';
+import { App, Row, Col, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { UniTable } from '../../../../../components/uni-table';
 import { ListPageTemplate, FormModalTemplate, MODAL_CONFIG } from '../../../../../components/layout-templates';
@@ -18,6 +19,7 @@ import { FormListDetailTable } from '../../../../../components/form-list-detail-
 import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions';
 import { useNewShortcut } from '../../../../../hooks/useNewShortcut';
 import { withSingleNewShortcutHint } from '../../../../../utils/globalNewShortcut';
+import { EquipmentPersonSelect, resolveUserUuidById } from '../../../components/EquipmentPersonSelect';
 import { inspectionItemsApi, inspectionSchemesApi } from '../../../services/equipmentOps';
 import { formDateRangeFormItemProps } from '../../../../../utils/formDate';
 import { alignProColumns, SALES_DOC_LIST_FIELD_RANK } from '../../sales-management/shared/documentFieldAlignment';
@@ -48,6 +50,7 @@ interface SchemeLine {
   item_code?: string;
   item_name?: string;
   is_critical?: boolean;
+  photo_required?: boolean;
 }
 
 interface InspectionScheme {
@@ -56,6 +59,11 @@ interface InspectionScheme {
   name?: string;
   description?: string;
   cycle_type?: string;
+  capture_mode?: string;
+  reviewer_user_id?: number;
+  reviewer_user_name?: string;
+  overdue_hours?: number;
+  review_overdue_hours?: number;
   is_active?: boolean;
   lines?: SchemeLine[];
   updated_at?: string;
@@ -92,7 +100,14 @@ const InspectionSchemesPage: React.FC = () => {
     setIsEdit(false);
     setCurrent(null);
     // FormModal destroyOnHidden：须用 initialValues，打开瞬间 setFieldsValue 无效
-    setFormInitialValues({ is_active: true, cycle_type: '每班', lines: [{ sort_order: 0 }] });
+    setFormInitialValues({
+      is_active: true,
+      cycle_type: '每班',
+      capture_mode: 'A',
+      overdue_hours: 8,
+      review_overdue_hours: 4,
+      lines: [{ sort_order: 0 }],
+    });
     setModalVisible(true);
     void loadItemOptions();
   };
@@ -104,12 +119,17 @@ const InspectionSchemesPage: React.FC = () => {
       const loaded = await inspectionSchemesApi.get(record.id);
       setIsEdit(true);
       setCurrent(loaded);
+      const reviewerUuid = await resolveUserUuidById(loaded.reviewer_user_id);
       setFormInitialValues({
         ...loaded,
+        reviewer_uuid: reviewerUuid,
+        overdue_hours: loaded.overdue_hours ?? 8,
+        review_overdue_hours: loaded.review_overdue_hours ?? 4,
         lines: (loaded.lines ?? []).map((l: SchemeLine, i: number) => ({
           item_id: l.item_id,
           sort_order: l.sort_order ?? i,
           is_critical: l.is_critical ?? false,
+          photo_required: l.photo_required ?? false,
         })),
       });
       setModalVisible(true);
@@ -149,13 +169,37 @@ const InspectionSchemesPage: React.FC = () => {
   };
 
   const handleSubmit = async (values: Record<string, unknown>) => {
+    const captureMode = String(values.capture_mode || '').trim().toUpperCase();
+    const rawLines = ((values.lines as SchemeLine[]) ?? []).filter((l) => l.item_id != null);
+    const lines =
+      captureMode === 'B'
+        ? []
+        : rawLines.map((l, i) => ({
+            item_id: l.item_id,
+            sort_order: l.sort_order ?? i,
+            is_critical: Boolean(l.is_critical),
+            photo_required: Boolean(l.photo_required),
+          }));
+    if (captureMode !== 'B' && !lines.length) {
+      messageApi.warning(t(`${P}.linesRequired`));
+      return;
+    }
+    if (captureMode === 'C' && !lines.some((l) => l.photo_required)) {
+      messageApi.warning(t(`${P}.photoRequiredLineNeeded`));
+      return;
+    }
     const payload = {
-      ...values,
-      lines: ((values.lines as SchemeLine[]) ?? []).map((l, i) => ({
-        item_id: l.item_id,
-        sort_order: l.sort_order ?? i,
-        is_critical: Boolean(l.is_critical),
-      })),
+      code: values.code,
+      name: values.name,
+      description: values.description,
+      cycle_type: values.cycle_type,
+      capture_mode: captureMode,
+      reviewer_user_id: values.reviewer_user_id ?? null,
+      reviewer_user_name: values.reviewer_user_name ?? null,
+      overdue_hours: Number(values.overdue_hours ?? 8),
+      review_overdue_hours: Number(values.review_overdue_hours ?? 4),
+      is_active: Boolean(values.is_active),
+      lines,
     };
     if (isEdit && current?.id) {
       await inspectionSchemesApi.update(current.id, payload);
@@ -178,6 +222,17 @@ const InspectionSchemesPage: React.FC = () => {
       { title: t('common.code'), dataIndex: 'code' },
       { title: t('common.name'), dataIndex: 'name' },
       { title: t(`${P}.col.cycleType`), dataIndex: 'cycle_type' },
+      {
+        title: t(`${P}.col.captureMode`),
+        dataIndex: 'capture_mode',
+        render: (_, r) =>
+          r.capture_mode
+            ? t(`${P}.captureMode.${String(r.capture_mode).toUpperCase()}`, String(r.capture_mode))
+            : '-',
+      },
+      { title: t(`${P}.col.reviewer`), dataIndex: 'reviewer_user_name' },
+      { title: t(`${P}.col.overdueHours`), dataIndex: 'overdue_hours' },
+      { title: t(`${P}.col.reviewOverdueHours`), dataIndex: 'review_overdue_hours' },
       { title: t('common.remark'), dataIndex: 'description', span: 2 },
       buildIsActiveDescriptionColumn<InspectionScheme>(t),
     ],
@@ -191,6 +246,12 @@ const InspectionSchemesPage: React.FC = () => {
         title: t(`${P}.form.isCritical`),
         dataIndex: 'is_critical',
         width: 90,
+        render: (v) => (v ? '是' : '否'),
+      },
+      {
+        title: t(`${P}.form.photoRequired`),
+        dataIndex: 'photo_required',
+        width: 110,
         render: (v) => (v ? '是' : '否'),
       },
       { title: t(`${P}.form.sortOrder`), dataIndex: 'sort_order', width: 80, align: 'right' },
@@ -247,6 +308,33 @@ const InspectionSchemesPage: React.FC = () => {
         resizable: false,
         hideInSearch: true,
         render: (_, r) => (r.cycle_type != null && r.cycle_type !== '' ? String(r.cycle_type) : '-'),
+      },
+      {
+        title: t(`${P}.col.captureMode`),
+        dataIndex: 'capture_mode',
+        width: 140,
+        minWidth: 140,
+        uniTableKeepWidth: true,
+        resizable: false,
+        hideInSearch: true,
+        render: (_, r) =>
+          r.capture_mode
+            ? t(`${P}.captureMode.${String(r.capture_mode).toUpperCase()}`, String(r.capture_mode))
+            : '-',
+      },
+      {
+        title: t(`${P}.col.reviewer`),
+        dataIndex: 'reviewer_user_name',
+        width: 100,
+        minWidth: 100,
+        uniTableKeepWidth: true,
+        resizable: false,
+        ellipsis: true,
+        hideInSearch: true,
+        render: (_, r) =>
+          r.reviewer_user_name != null && r.reviewer_user_name !== ''
+            ? String(r.reviewer_user_name)
+            : '-',
       },
       {
         title: t(`${P}.col.lineCount`),
@@ -315,7 +403,7 @@ const InspectionSchemesPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.inspectionSchemes)}
           headerTitle={t(`${P}.title`)}
-          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.inspection-schemes-width-v2"
+          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.inspection-schemes-review-r10-v1"
           actionRef={actionRef}
           rowKey="id"
           columns={columns}
@@ -397,6 +485,7 @@ const InspectionSchemesPage: React.FC = () => {
             <ProFormSelect
               name="cycle_type"
               label={t(`${P}.col.cycleType`)}
+              rules={[{ required: true, message: t(`${P}.cycleRequired`) }]}
               options={[
                 { label: t(`${P}.cycle.shift`), value: '每班' },
                 { label: t(`${P}.cycle.daily`), value: '每天' },
@@ -406,59 +495,129 @@ const InspectionSchemesPage: React.FC = () => {
               ]}
             />
           </Col>
+          <Col span={12}>
+            <ProFormSelect
+              name="capture_mode"
+              label={t(`${P}.col.captureMode`)}
+              rules={[{ required: true, message: t(`${P}.captureModeRequired`) }]}
+              options={[
+                { label: t(`${P}.captureMode.A`), value: 'A' },
+                { label: t(`${P}.captureMode.B`), value: 'B' },
+                { label: t(`${P}.captureMode.C`), value: 'C' },
+              ]}
+            />
+          </Col>
+          <Col span={12}>
+            <EquipmentPersonSelect
+              uuidFieldName="reviewer_uuid"
+              idFieldName="reviewer_user_id"
+              nameFieldName="reviewer_user_name"
+              label={t(`${P}.col.reviewer`)}
+              formRef={formRef}
+            />
+          </Col>
+          <Col span={12}>
+            <ProFormDigit
+              name="overdue_hours"
+              label={t(`${P}.col.overdueHours`)}
+              rules={[{ required: true, message: t(`${P}.overdueHoursRequired`) }]}
+              min={1}
+              max={720}
+              fieldProps={{ precision: 0, style: { width: '100%' } }}
+            />
+          </Col>
+          <Col span={12}>
+            <ProFormDigit
+              name="review_overdue_hours"
+              label={t(`${P}.col.reviewOverdueHours`)}
+              rules={[{ required: true, message: t(`${P}.reviewOverdueHoursRequired`) }]}
+              min={1}
+              max={720}
+              fieldProps={{ precision: 0, style: { width: '100%' } }}
+            />
+          </Col>
         </Row>
-        <FormListDetailTable
-          name="lines"
-          label={t(`${P}.form.lines`)}
-          addButtonText={t(`${P}.form.addLine`)}
-          defaultRow={{ sort_order: 0, is_critical: false }}
-          bulkAdd={{
-            title: t('common.bulkAddPickTitle', { item: t(`${P}.form.item`) }),
-            options: itemOptions,
-            valueField: 'item_id',
+        <ProFormDependency name={['capture_mode']}>
+          {({ capture_mode }) => {
+            const mode = String(capture_mode || '').toUpperCase();
+            if (mode === 'B') {
+              return (
+                <Typography.Paragraph type="secondary" style={{ marginTop: 8 }}>
+                  {t(`${P}.captureModeBHint`)}
+                </Typography.Paragraph>
+              );
+            }
+            return (
+              <FormListDetailTable
+                name="lines"
+                label={t(`${P}.form.lines`)}
+                addButtonText={t(`${P}.form.addLine`)}
+                defaultRow={{ sort_order: 0, is_critical: false, photo_required: false }}
+                bulkAdd={{
+                  title: t('common.bulkAddPickTitle', { item: t(`${P}.form.item`) }),
+                  options: itemOptions,
+                  valueField: 'item_id',
+                }}
+                columns={[
+                  {
+                    title: t(`${P}.form.item`),
+                    key: 'item_id',
+                    render: (field) => (
+                      <ProFormSelect
+                        name={[field.name, 'item_id']}
+                        options={itemOptions}
+                        rules={[{ required: true }]}
+                        showSearch
+                        formItemProps={{ noStyle: true }}
+                        fieldProps={{ style: { width: '100%' }, placeholder: t('common.select') }}
+                      />
+                    ),
+                  },
+                  {
+                    title: t(`${P}.form.isCritical`),
+                    key: 'is_critical',
+                    width: 100,
+                    render: (field) => (
+                      <ProFormSwitch
+                        name={[field.name, 'is_critical']}
+                        formItemProps={{ noStyle: true }}
+                      />
+                    ),
+                  },
+                  ...(mode === 'C'
+                    ? [
+                        {
+                          title: t(`${P}.form.photoRequired`),
+                          key: 'photo_required',
+                          width: 110,
+                          render: (field: { name: number }) => (
+                            <ProFormSwitch
+                              name={[field.name, 'photo_required']}
+                              formItemProps={{ noStyle: true }}
+                            />
+                          ),
+                        },
+                      ]
+                    : []),
+                  {
+                    title: t(`${P}.form.sortOrder`),
+                    key: 'sort_order',
+                    width: 100,
+                    align: 'right' as const,
+                    render: (field) => (
+                      <ProFormDigit
+                        name={[field.name, 'sort_order']}
+                        min={0}
+                        formItemProps={{ noStyle: true }}
+                        fieldProps={{ style: { width: '100%' } }}
+                      />
+                    ),
+                  },
+                ]}
+              />
+            );
           }}
-          columns={[
-            {
-              title: t(`${P}.form.item`),
-              key: 'item_id',
-              render: (field) => (
-                <ProFormSelect
-                  name={[field.name, 'item_id']}
-                  options={itemOptions}
-                  rules={[{ required: true }]}
-                  showSearch
-                  formItemProps={{ noStyle: true }}
-                  fieldProps={{ style: { width: '100%' }, placeholder: t('common.select') }}
-                />
-              ),
-            },
-            {
-              title: t(`${P}.form.isCritical`),
-              key: 'is_critical',
-              width: 100,
-              render: (field) => (
-                <ProFormSwitch
-                  name={[field.name, 'is_critical']}
-                  formItemProps={{ noStyle: true }}
-                />
-              ),
-            },
-            {
-              title: t(`${P}.form.sortOrder`),
-              key: 'sort_order',
-              width: 100,
-              align: 'right',
-              render: (field) => (
-                <ProFormDigit
-                  name={[field.name, 'sort_order']}
-                  min={0}
-                  formItemProps={{ noStyle: true }}
-                  fieldProps={{ style: { width: '100%' } }}
-                />
-              ),
-            },
-          ]}
-        />
+        </ProFormDependency>
         <Row gutter={16} style={{ marginTop: 16 }}>
           <Col span={24}>
             <ProFormTextArea name="description" label={t('common.remark')} fieldProps={{ rows: 2 }} />

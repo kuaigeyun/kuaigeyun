@@ -78,6 +78,8 @@ export interface EngineeringDrawingRevisionBrief {
 export interface EngineeringDrawingRevisionsResponse {
   code: string;
   revisions: EngineeringDrawingRevisionBrief[];
+  audience?: string;
+  canViewHistory?: boolean;
 }
 
 export interface EngineeringDrawing {

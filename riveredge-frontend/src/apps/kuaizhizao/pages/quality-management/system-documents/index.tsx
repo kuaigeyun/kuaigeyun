@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ActionType, ProColumns, ProFormDateTimePicker, ProFormItem, ProFormSelect, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
-import { App, Button, Col, Empty, Row, Tag, Alert } from 'antd';
+import { App, Button, Col, Empty, Row, Segmented, Table, Tag, Alert, Modal } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import CodeField from '../../../../../components/code-field';
@@ -15,7 +15,11 @@ import { alignProColumns, SALES_DOC_LIST_FIELD_RANK } from '../../sales-manageme
 import { formatDateTimeBySiteSetting } from '../../../../../utils/format';
 import DocumentAttachmentsField from '../../../components/DocumentAttachmentsField';
 import { mapAttachmentsToUploadList, normalizeDocumentAttachments } from '../../../utils/documentAttachments';
-import { qualityQmsApi, QmsSystemDocument } from '../../../services/quality-qms';
+import {
+  qualityQmsApi,
+  QmsSystemDocument,
+  QmsSystemDocumentVersion,
+} from '../../../services/quality-qms';
 import {
   parseEvidenceLinksText,
   stringifyEvidenceLinks,
@@ -24,8 +28,12 @@ import {
 } from '../qms/qmsMeta';
 import QmsIsoClauseSelect from '../qms/QmsIsoClauseSelect';
 import { buildListPageHelpViewConfig } from '../../../../../components/page-help-wiki';
+import { hasDocumentGlobalView } from '../../../../../utils/permissionContract';
+import { useCurrentUser } from '../../../../../hooks/useCurrentUser';
 
 const RESOURCE = 'kuaizhizao:quality-management-system-documents';
+
+type CatalogZone = 'formal' | 'pending';
 
 const SystemDocumentsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -34,9 +42,18 @@ const SystemDocumentsPage: React.FC = () => {
   const formRef = useRef<any>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<QmsSystemDocument | null>(null);
+  const [zone, setZone] = useState<CatalogZone>('formal');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyDoc, setHistoryDoc] = useState<QmsSystemDocument | null>(null);
+  const [historyRows, setHistoryRows] = useState<QmsSystemDocumentVersion[]>([]);
+  const [historyAudience, setHistoryAudience] = useState('');
+  const [historyLoading, setHistoryLoading] = useState(false);
   const { canCreate, canUpdate, canDelete, canAction } = useResourcePermissions(RESOURCE);
   const canPublish = !!canAction?.('publish');
   const canObsolete = !!canAction?.('obsolete');
+  const canReject = !!canAction?.('reject');
+  const currentUser = useCurrentUser();
+  const canSeeFullHistoryHint = hasDocumentGlobalView(currentUser);
 
   const statusEnum = useMemo(
     () =>
@@ -79,6 +96,25 @@ const SystemDocumentsPage: React.FC = () => {
     const due = new Date(row.next_review_at).getTime();
     return Number.isFinite(due) && due <= Date.now();
   }, []);
+
+  const openVersionHistory = useCallback(
+    async (row: QmsSystemDocument) => {
+      setHistoryDoc(row);
+      setHistoryOpen(true);
+      setHistoryLoading(true);
+      try {
+        const res = await qualityQmsApi.systemDocuments.versions(row.id);
+        setHistoryRows(res.items || []);
+        setHistoryAudience(res.audience || '');
+      } catch (e: any) {
+        messageApi.error(e?.message || t('common.loadFailed'));
+        setHistoryRows([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+    },
+    [messageApi, t],
+  );
 
   const columns: ProColumns<QmsSystemDocument>[] = useMemo(
     () =>
@@ -158,6 +194,7 @@ const SystemDocumentsPage: React.FC = () => {
             dataIndex: 'status',
             fixed: 'right',
             valueEnum: statusEnum,
+            hideInSearch: zone === 'formal',
             render: (_, row) => <Tag>{statusEnum[row.status]?.text || row.status}</Tag>,
           },
           {
@@ -166,6 +203,14 @@ const SystemDocumentsPage: React.FC = () => {
             fixed: 'right',
             hideInSearch: true,
             render: (_, row) => [
+              <Button
+                key="history"
+                {...rowActionKind('read')}
+                {...rowActionLabelKeep()}
+                onClick={() => void openVersionHistory(row)}
+              >
+                {t('app.kuaizhizao.quality.qms.actions.versionHistory')}
+              </Button>,
               canUpdate ? (
                 <Button
                   key="edit"
@@ -184,7 +229,22 @@ const SystemDocumentsPage: React.FC = () => {
                   }}
                 />
               ) : null,
-              canPublish && row.status !== 'effective' && row.status !== 'obsolete' ? (
+              canUpdate && row.status === 'effective' ? (
+                <Button
+                  key="revise"
+                  {...rowActionKind('update')}
+                  {...rowActionLabelKeep()}
+                  onClick={async () => {
+                    await qualityQmsApi.systemDocuments.revise(row.id, {});
+                    messageApi.success(t('app.kuaizhizao.quality.qms.messages.reviseSuccess'));
+                    setZone('pending');
+                    actionRef.current?.reload();
+                  }}
+                >
+                  {t('app.kuaizhizao.quality.qms.actions.revise')}
+                </Button>
+              ) : null,
+              canPublish && row.status !== 'effective' && row.status !== 'obsolete' && row.status !== 'rejected' ? (
                 <Button
                   key="publish"
                   {...rowActionKind('execute')}
@@ -192,10 +252,25 @@ const SystemDocumentsPage: React.FC = () => {
                   onClick={async () => {
                     await qualityQmsApi.systemDocuments.publish(row.id);
                     messageApi.success(t('app.kuaizhizao.quality.qms.messages.publishSuccess'));
-    actionRef.current?.reload();
+                    setZone('formal');
+                    actionRef.current?.reload();
                   }}
                 >
                   {t('app.kuaizhizao.quality.qms.actions.publish')}
+                </Button>
+              ) : null,
+              canReject && (row.status === 'draft' || row.status === 'pending') ? (
+                <Button
+                  key="reject"
+                  {...rowActionKind('reject')}
+                  {...rowActionLabelKeep()}
+                  onClick={async () => {
+                    await qualityQmsApi.systemDocuments.reject(row.id, {});
+                    messageApi.success(t('app.kuaizhizao.quality.qms.messages.rejectSuccess'));
+                    actionRef.current?.reload();
+                  }}
+                >
+                  {t('app.kuaizhizao.quality.qms.actions.reject')}
                 </Button>
               ) : null,
               canObsolete && row.status === 'effective' ? (
@@ -205,7 +280,7 @@ const SystemDocumentsPage: React.FC = () => {
                   onClick={async () => {
                     await qualityQmsApi.systemDocuments.obsolete(row.id);
                     messageApi.success(t('app.kuaizhizao.quality.qms.messages.obsoleteSuccess'));
-    actionRef.current?.reload();
+                    actionRef.current?.reload();
                   }}
                 />
               ) : null,
@@ -216,7 +291,7 @@ const SystemDocumentsPage: React.FC = () => {
                   onClick={async () => {
                     await qualityQmsApi.systemDocuments.delete(row.id);
                     messageApi.success(t('common.deleteSuccess'));
-    actionRef.current?.reload();
+                    actionRef.current?.reload();
                   }}
                 />
               ) : null,
@@ -225,7 +300,20 @@ const SystemDocumentsPage: React.FC = () => {
         ],
         SALES_DOC_LIST_FIELD_RANK,
       ),
-    [canDelete, canObsolete, canPublish, canUpdate, isReviewDue, messageApi, statusEnum, t, typeEnum],
+    [
+      canDelete,
+      canObsolete,
+      canPublish,
+      canReject,
+      canUpdate,
+      isReviewDue,
+      messageApi,
+      openVersionHistory,
+      statusEnum,
+      t,
+      typeEnum,
+      zone,
+    ],
   );
 
   return (
@@ -242,7 +330,21 @@ const SystemDocumentsPage: React.FC = () => {
             title={t('app.kuaizhizao.quality.qms.reviewDueBanner', { count: reviewDueSummary.due_count })}
           />
         ) : null}
+        <div style={{ marginBottom: 12 }}>
+          <Segmented
+            value={zone}
+            onChange={(v) => {
+              setZone(v as CatalogZone);
+              actionRef.current?.reload();
+            }}
+            options={[
+              { label: t('app.kuaizhizao.quality.qms.zone.formal'), value: 'formal' },
+              { label: t('app.kuaizhizao.quality.qms.zone.pending'), value: 'pending' },
+            ]}
+          />
+        </div>
         <UniTable<QmsSystemDocument>
+        key={zone}
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('kuaizhizao.systemDocuments')}
           headerTitle={t('app.kuaizhizao.menu.quality-management.system-documents')}
@@ -250,7 +352,7 @@ const SystemDocumentsPage: React.FC = () => {
           rowKey="id"
           columns={columns}
           showAdvancedSearch
-          columnPersistenceId="apps.kuaizhizao.pages.quality-management.system-documents-width-v2"
+          columnPersistenceId="apps.kuaizhizao.pages.quality-management.system-documents-width-v3"
           toolBarRender={() =>
             canCreate
               ? [
@@ -269,10 +371,81 @@ const SystemDocumentsPage: React.FC = () => {
               keyword: params.keyword,
               status: params.status,
               doc_type: params.doc_type,
+              zone,
             });
             return { success: true, data: res.items || [], total: res.total || 0 };
           }}
         />
+
+        <Modal
+          title={
+            historyDoc
+              ? t('app.kuaizhizao.quality.qms.versionHistoryTitle', {
+                  code: historyDoc.document_code,
+                })
+              : t('app.kuaizhizao.quality.qms.actions.versionHistory')
+          }
+          open={historyOpen}
+          onCancel={() => {
+            setHistoryOpen(false);
+            setHistoryDoc(null);
+            setHistoryRows([]);
+          }}
+          footer={null}
+          width={MODAL_CONFIG.LARGE_WIDTH}
+          destroyOnHidden
+        >
+          {canSeeFullHistoryHint ? (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 12 }}
+              title={t('app.kuaizhizao.quality.qms.versionHistoryGlobalHint')}
+            />
+          ) : (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 12 }}
+              title={t('app.kuaizhizao.quality.qms.versionHistoryConsumerHint', {
+                audience: historyAudience || '-',
+              })}
+            />
+          )}
+          <Table
+            size="small"
+            loading={historyLoading}
+            rowKey="id"
+            pagination={false}
+            dataSource={historyRows}
+            locale={{ emptyText: t('app.kuaizhizao.salesOrder.emptyItems') }}
+            columns={[
+              { title: t('app.kuaizhizao.quality.qms.version'), dataIndex: 'version', width: 90 },
+              {
+                title: t('common.status'),
+                dataIndex: 'status',
+                width: 110,
+                render: (v: string) => statusEnum[v]?.text || v,
+              },
+              {
+                title: t('app.kuaizhizao.quality.qms.changeSummary'),
+                dataIndex: 'change_summary',
+                ellipsis: true,
+              },
+              {
+                title: t('app.kuaizhizao.quality.qms.createdBy'),
+                dataIndex: 'created_by_name',
+                width: 100,
+              },
+              {
+                title: t('app.kuaizhizao.quality.qms.effectiveAt'),
+                dataIndex: 'effective_at',
+                width: 160,
+                render: (v) => formatDateTimeBySiteSetting(v) || '-',
+              },
+            ]}
+          />
+        </Modal>
 
         <FormModalTemplate
           title={
@@ -302,6 +475,7 @@ const SystemDocumentsPage: React.FC = () => {
                 await qualityQmsApi.systemDocuments.update(editing.id, payload);
               } else {
                 await qualityQmsApi.systemDocuments.create(payload);
+                setZone('pending');
               }
               messageApi.success(t('common.saveSuccess'));
               setOpen(false);

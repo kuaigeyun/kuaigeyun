@@ -45,19 +45,18 @@ class EquipmentService:
         """创建设备"""
         try:
             if not data.code:
-                try:
-                    data.code = await CodeGenerationService.generate_code(
-                        tenant_id=tenant_id,
-                        rule_code="EQUIPMENT_CODE",
-                        context=None
-                    )
-                except ValidationError:
-                    timestamp = resolve_business_datetime().strftime("%Y%m%d%H%M%S")
-                    data.code = f"EQ{timestamp}"
-            
+                data.code = await CodeGenerationService.generate_code(
+                    tenant_id=tenant_id,
+                    rule_code="EQUIPMENT_CODE",
+                    context=None,
+                )
+
+            bind = (data.qr_bind_code or "").strip() or None
+            if bind:
+                await EquipmentService._assert_qr_bind_unique(tenant_id, bind)
             equipment = Equipment(
                 tenant_id=tenant_id,
-                **data.model_dump(exclude_none=True)
+                **{**data.model_dump(exclude_none=True), "qr_bind_code": bind},
             )
             actor = None
             if created_by is not None:
@@ -67,6 +66,83 @@ class EquipmentService:
             return equipment
         except IntegrityError:
             raise ValidationError(f"设备编码 {data.code} 已存在")
+
+    @staticmethod
+    async def _assert_qr_bind_unique(
+        tenant_id: int,
+        qr_bind_code: str,
+        *,
+        exclude_uuid: Optional[str] = None,
+    ) -> None:
+        qs = Equipment.filter(
+            tenant_id=tenant_id,
+            qr_bind_code=qr_bind_code,
+            deleted_at__isnull=True,
+        )
+        if exclude_uuid:
+            qs = qs.exclude(uuid=exclude_uuid)
+        existing = await qs.first()
+        if existing:
+            raise ValidationError(f"二维码绑定内容已被设备 {existing.code} 使用")
+
+    @staticmethod
+    async def resolve_by_scan(tenant_id: int, raw: str) -> Equipment:
+        """扫码解析：系统 EQ JSON / 设备编码 / 手工绑定码。"""
+        import json
+
+        q = (raw or "").strip()
+        if not q:
+            raise ValidationError("扫码内容不能为空")
+
+        if q.startswith("{") and q.endswith("}"):
+            try:
+                payload = json.loads(q)
+            except json.JSONDecodeError:
+                payload = None
+            if isinstance(payload, dict) and payload.get("type") is not None and isinstance(
+                payload.get("data"), dict
+            ):
+                qr_type = str(payload.get("type") or "").strip().upper()
+                if qr_type != "EQ":
+                    labels = {
+                        "MAT": "物料码",
+                        "WO": "工单码",
+                        "OP": "工序码",
+                        "EQ": "设备码",
+                        "MD": "模具码",
+                        "EMP": "人员码",
+                        "STATION": "工位码",
+                        "BOX": "装箱码",
+                        "TRACE": "追溯码",
+                        "DOC": "单据码",
+                    }
+                    label = labels.get(qr_type, f"{qr_type} 码")
+                    raise ValidationError(f"扫到的是{label}，不是设备码")
+                data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+                uuid = str(data.get("equipment_uuid") or "").strip()
+                if uuid:
+                    return await EquipmentService.get_equipment_by_uuid(tenant_id, uuid)
+                code = str(data.get("equipment_code") or "").strip()
+                if not code:
+                    raise ValidationError("设备码缺少设备编码")
+                by_code = await EquipmentService.get_equipment_by_code(tenant_id, code)
+                if by_code:
+                    return by_code
+                raise NotFoundError("未找到设备")
+
+        by_code = await EquipmentService.get_equipment_by_code(tenant_id, q)
+        if by_code:
+            return by_code
+
+        by_bind = await Equipment.filter(
+            tenant_id=tenant_id,
+            qr_bind_code=q,
+            deleted_at__isnull=True,
+        ).first()
+        if by_bind:
+            return by_bind
+
+        raise NotFoundError("未找到设备")
     
     @staticmethod
     async def get_equipment_by_uuid(
@@ -151,7 +227,7 @@ class EquipmentService:
         query = apply_equipment_keyword_filter(
             query,
             pick_search_keyword(keyword, search),
-            ["code", "name", "serial_number", "responsible_person_name"],
+            ["code", "name", "serial_number", "responsible_person_name", "supplier", "qr_bind_code"],
         )
         query = apply_equipment_created_date_range(
             query,
@@ -189,6 +265,13 @@ class EquipmentService:
         # 允许清空设备照片
         if "photo_file_uuid" in data.model_fields_set:
             update_data["photo_file_uuid"] = data.photo_file_uuid
+        if "qr_bind_code" in data.model_fields_set:
+            bind = (data.qr_bind_code or "").strip() or None
+            update_data["qr_bind_code"] = bind
+            if bind:
+                await EquipmentService._assert_qr_bind_unique(
+                    tenant_id, bind, exclude_uuid=str(equipment.uuid)
+                )
         if 'code' in update_data and update_data['code'] != equipment.code:
             existing = await EquipmentService.get_equipment_by_code(
                 tenant_id, update_data['code']
@@ -234,11 +317,24 @@ class EquipmentService:
         current_user: Optional[User] = None,
     ) -> EquipmentCalibration:
         """创建设备校验记录"""
+        from apps.kuaizhizao.constants.calibration_plan_types import (
+            CALIBRATION_PLAN_EXTERNAL,
+            CALIBRATION_PLAN_TYPES,
+            CALIBRATION_PLAN_TYPE_DEFAULT,
+        )
+
         equipment = await EquipmentService.get_equipment_by_uuid(tenant_id, equipment_uuid)
+        plan_type = (getattr(data, "plan_type", None) or CALIBRATION_PLAN_TYPE_DEFAULT).strip().lower()
+        if plan_type not in CALIBRATION_PLAN_TYPES:
+            raise ValidationError(f"非法校准计划类型: {plan_type}")
+        if plan_type == CALIBRATION_PLAN_EXTERNAL and not data.expiry_date:
+            raise ValidationError("外校记录须填写计量到期日")
+
         calib = EquipmentCalibration(
             tenant_id=tenant_id,
             equipment_id=equipment.id,
             equipment_uuid=equipment.uuid,
+            plan_type=plan_type,
             calibration_date=data.calibration_date,
             result=data.result,
             certificate_no=data.certificate_no,
@@ -251,6 +347,13 @@ class EquipmentService:
         await calib.save()
         await EquipmentService._apply_calibration_to_equipment(
             equipment, data.calibration_date, data.expiry_date
+        )
+        from apps.kuaizhizao.services.equipment_calibration_reminder_service import (
+            EquipmentCalibrationReminderService,
+        )
+
+        await EquipmentCalibrationReminderService.sync_after_calibration_saved(
+            tenant_id, equipment, calib
         )
         return calib
 
@@ -310,9 +413,9 @@ class EquipmentService:
         due_type: Optional[str] = None,
     ) -> tuple[List[dict], int]:
         """设备检定到期提醒（7 天内到期或已逾期）"""
-        from datetime import date
+        from core.utils.timezone_utils import resolve_business_datetime, to_site_date
 
-        today = date.today()
+        today = to_site_date(resolve_business_datetime())
         equipments = await Equipment.filter(
             tenant_id=tenant_id,
             deleted_at__isnull=True,

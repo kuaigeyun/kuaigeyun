@@ -85,7 +85,9 @@ function getInitialValuesFromConfigStore(
   );
   return {
     site_name: configs.site_name ?? '',
+    show_site_name: configs.show_site_name !== false,
     site_logo: configs.site_logo ?? '',
+    site_logo_dark: configs.site_logo_dark ?? '',
     organization_name: configs.organization_name ?? '',
     organization_address: configs.organization_address ?? '',
     contact_info: configs.contact_info ?? '',
@@ -141,6 +143,7 @@ const DEFAULT_FORM_INITIAL = {
   date_format: 'YYYY-MM-DD',
   default_language: 'zh-CN',
   timezone: '',
+  show_site_name: true,
   enable_register: true,
   enable_launch_wizard: true,
   enable_system_dashboard: true,
@@ -152,7 +155,9 @@ const syncNormalizeColor = (color: any, defaultVal: string): string =>
 
 const SITE_SETTINGS_BASIC_TAB_FIELDS = [
   'site_logo',
+  'site_logo_dark',
   'site_name',
+  'show_site_name',
   'organization_name',
   'organization_address',
   'contact_info',
@@ -221,6 +226,9 @@ const SiteSettingsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [logoFileList, setLogoFileList] = useState<UploadFile[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
+  const [darkLogoFileList, setDarkLogoFileList] = useState<UploadFile[]>([]);
+  const [darkLogoUrl, setDarkLogoUrl] = useState<string | undefined>(undefined);
+  const [logoEditTarget, setLogoEditTarget] = useState<'site_logo' | 'site_logo_dark'>('site_logo');
   const [loginLogoFileList, setLoginLogoFileList] = useState<UploadFile[]>([]);
   const [loginLogoUrl, setLoginLogoUrl] = useState<string | undefined>(undefined);
   const [useCustomLoginLogo, setUseCustomLoginLogo] = useState(false);
@@ -263,6 +271,7 @@ const SiteSettingsPage: React.FC = () => {
   const [useNewBranchAdmin, setUseNewBranchAdmin] = useState(false);
   const tenantDomainValue = Form.useWatch('tenant_domain', form);
   const siteLogoValue = Form.useWatch('site_logo', form);
+  const siteLogoDarkValue = Form.useWatch('site_logo_dark', form);
   const themeColorPrimaryValue = Form.useWatch('theme_config.colorPrimary', form);
   const loginLogoValue = Form.useWatch('login_logo', form);
   const loginDecorationValue = Form.useWatch('login_decoration_image', form);
@@ -270,7 +279,9 @@ const SiteSettingsPage: React.FC = () => {
   const loginDecorationEnabledValue = Form.useWatch('login_decoration_enabled', form);
   const loginBackgroundEnabledValue = Form.useWatch('login_background_enabled', form);
   const hasSiteLogoConfigured = Boolean(String(siteLogoValue ?? '').trim());
+  const hasSiteLogoDarkConfigured = Boolean(String(siteLogoDarkValue ?? '').trim());
   const siteLogoPreviewMissing = hasSiteLogoConfigured && !logoUrl;
+  const siteLogoDarkPreviewMissing = hasSiteLogoDarkConfigured && !darkLogoUrl;
   const platformNameValue = Form.useWatch('platform_name', form);
   const platformNameEnValue = Form.useWatch('platform_name_en', form);
   const loginTitleValue = Form.useWatch('login_title', form);
@@ -283,9 +294,8 @@ const SiteSettingsPage: React.FC = () => {
   const tenantPathAccessUrl = (() => {
     if (!currentTenantDomain) return '';
     const { protocol, hostname, port } = window.location;
-    const labels = hostname.split('.');
-    const baseHost = labels.length >= 3 && labels[0].toLowerCase() === currentTenantDomain ? labels.slice(1).join('.') : hostname;
-    return `${protocol}//${port ? `${baseHost}:${port}` : baseHost}/${currentTenantDomain}`;
+    const hostPart = port ? `${hostname}:${port}` : hostname;
+    return `${protocol}//${hostPart}/${currentTenantDomain}`;
   })();
 
   /**
@@ -334,6 +344,40 @@ const SiteSettingsPage: React.FC = () => {
         url: logoValue.trim(),
       }]);
     }
+  };
+
+  const loadDarkLogoPreview = async (logoValue: string | undefined) => {
+    if (!logoValue || !logoValue.trim()) {
+      setDarkLogoUrl(undefined);
+      setDarkLogoFileList([]);
+      return;
+    }
+    if (isUUID(logoValue.trim())) {
+      const previewInfo = await getSiteLogoPreview(logoValue.trim(), {
+        brandingCategory: 'site-logo',
+      });
+      if (!previewInfo?.preview_url) {
+        setDarkLogoUrl(undefined);
+        setDarkLogoFileList([]);
+        return;
+      }
+      const previewUrl = toRelativeIfLocalhost(previewInfo.preview_url);
+      setDarkLogoUrl(previewUrl);
+      setDarkLogoFileList([{
+        uid: logoValue.trim(),
+        name: t('pages.system.siteSettings.siteLogoDark'),
+        status: 'done',
+        url: previewUrl,
+      }]);
+      return;
+    }
+    setDarkLogoUrl(logoValue.trim());
+    setDarkLogoFileList([{
+      uid: logoValue.trim(),
+      name: t('pages.system.siteSettings.siteLogoDark'),
+      status: 'done',
+      url: logoValue.trim(),
+    }]);
   };
 
   const loadDecorationPreview = async (imageValue: string | undefined) => {
@@ -677,6 +721,14 @@ const SiteSettingsPage: React.FC = () => {
     ) {
       values.site_logo = currentSiteLogo;
     }
+    const currentSiteLogoDark = form.getFieldValue('site_logo_dark');
+    if (
+      typeof currentSiteLogoDark === 'string' &&
+      currentSiteLogoDark.trim() &&
+      currentSiteLogoDark.trim() !== String(values.site_logo_dark ?? '').trim()
+    ) {
+      values.site_logo_dark = currentSiteLogoDark;
+    }
     form.setFieldsValue(values);
     systemSettingsRef.current = {
       'security.token_check_interval': values['security.token_check_interval'],
@@ -693,6 +745,12 @@ const SiteSettingsPage: React.FC = () => {
     };
     const logo = String(values.site_logo ?? '').trim();
     if (logo) loadLogoPreview(logo);
+    const darkLogo = String(values.site_logo_dark ?? '').trim();
+    if (darkLogo) loadDarkLogoPreview(darkLogo);
+    else {
+      setDarkLogoUrl(undefined);
+      setDarkLogoFileList([]);
+    }
   }, [configs, initialized]);
 
   const loadSiteSetting = async () => {
@@ -716,7 +774,9 @@ const SiteSettingsPage: React.FC = () => {
 
       const newValues = {
         site_name: setting.settings?.site_name || '',
+        show_site_name: setting.settings?.show_site_name !== false,
         site_logo: siteLogoValue,
+        site_logo_dark: setting.settings?.site_logo_dark || '',
         organization_name: setting.settings?.organization_name || '',
         organization_address: setting.settings?.organization_address || '',
         contact_info: setting.settings?.contact_info || '',
@@ -795,6 +855,7 @@ const SiteSettingsPage: React.FC = () => {
 
       // 加载LOGO预览
       await loadLogoPreview(siteLogoValue);
+      await loadDarkLogoPreview(setting.settings?.site_logo_dark || '');
       await loadLoginLogoPreview(setting.settings?.login_logo || '');
       await loadDecorationPreview(setting.settings?.login_decoration_image || '');
       await loadBackgroundPreview(setting.settings?.login_background_image || '');
@@ -814,12 +875,27 @@ const SiteSettingsPage: React.FC = () => {
       return false;
     }
 
+    setLogoEditTarget('site_logo');
+    setSelectedImageFile(file);
+    setCropModalVisible(true);
+    return false;
+  };
+
+  const handleDarkLogoFileSelect: UploadProps['beforeUpload'] = (file) => {
+    if (!file.type.startsWith('image/')) {
+      messageApi.error(t('pages.system.siteSettings.selectImage'));
+      return false;
+    }
+
+    setLogoEditTarget('site_logo_dark');
     setSelectedImageFile(file);
     setCropModalVisible(true);
     return false;
   };
 
   const handleCropConfirm = async (croppedImageBlob: Blob) => {
+    const fieldKey = logoEditTarget;
+    const isDark = fieldKey === 'site_logo_dark';
     try {
       const croppedFile = new File([croppedImageBlob], selectedImageFile?.name || 'logo.png', {
         type: 'image/png',
@@ -827,19 +903,25 @@ const SiteSettingsPage: React.FC = () => {
       });
 
       const localPreviewUrl = URL.createObjectURL(croppedFile);
-      setLogoUrl(localPreviewUrl);
+      if (isDark) {
+        setDarkLogoUrl(localPreviewUrl);
+      } else {
+        setLogoUrl(localPreviewUrl);
+      }
       setCropModalVisible(false);
       setSelectedImageFile(null);
 
       const response: FileUploadResponse = await uploadFile(croppedFile, {
         category: 'site-logo',
-        description: t('pages.system.siteSettings.siteLogo'),
+        description: isDark
+          ? t('pages.system.siteSettings.siteLogoDark')
+          : t('pages.system.siteSettings.siteLogo'),
       });
 
       if (response.uuid) {
         invalidateSiteLogoPreviewCache(response.uuid);
-        form.setFieldsValue({ site_logo: response.uuid });
-        await updateSiteSetting({ settings: { site_logo: response.uuid } });
+        form.setFieldsValue({ [fieldKey]: response.uuid });
+        await updateSiteSetting({ settings: { [fieldKey]: response.uuid } });
         await fetchConfigs(true);
 
         let previewUrl: string | undefined;
@@ -850,24 +932,37 @@ const SiteSettingsPage: React.FC = () => {
           if (previewInfo?.preview_url) {
             previewUrl = toRelativeIfLocalhost(previewInfo.preview_url);
             URL.revokeObjectURL(localPreviewUrl);
-            setLogoUrl(previewUrl);
+            if (isDark) {
+              setDarkLogoUrl(previewUrl);
+            } else {
+              setLogoUrl(previewUrl);
+            }
           }
         } catch (error) {
           console.warn('Failed to get logo preview URL:', error);
         }
 
-        setLogoFileList([{
+        const fileItem = {
           uid: response.uuid,
           name: response.original_name,
-          status: 'done',
+          status: 'done' as const,
           url: previewUrl || localPreviewUrl,
-        }]);
+        };
+        if (isDark) {
+          setDarkLogoFileList([fileItem]);
+        } else {
+          setLogoFileList([fileItem]);
+        }
 
         useThemeStore.getState().initFromApi();
         messageApi.success(t('pages.system.siteSettings.logoUploadSuccess'));
       } else {
         URL.revokeObjectURL(localPreviewUrl);
-        setLogoUrl(undefined);
+        if (isDark) {
+          setDarkLogoUrl(undefined);
+        } else {
+          setLogoUrl(undefined);
+        }
         throw new Error(t('pages.system.siteSettings.uploadFailed'));
       }
     } catch (error: any) {
@@ -884,12 +979,18 @@ const SiteSettingsPage: React.FC = () => {
   };
 
   const handleSelectExistingLogo = async (file: CoreFile) => {
+    const fieldKey = logoEditTarget;
+    const isDark = fieldKey === 'site_logo_dark';
     try {
       invalidateSiteLogoPreviewCache(file.uuid);
-      form.setFieldsValue({ site_logo: file.uuid });
-      await updateSiteSetting({ settings: { site_logo: file.uuid } });
+      form.setFieldsValue({ [fieldKey]: file.uuid });
+      await updateSiteSetting({ settings: { [fieldKey]: file.uuid } });
       await fetchConfigs(true);
-      await loadLogoPreview(file.uuid);
+      if (isDark) {
+        await loadDarkLogoPreview(file.uuid);
+      } else {
+        await loadLogoPreview(file.uuid);
+      }
       useThemeStore.getState().initFromApi();
       setLogoPickerOpen(false);
       messageApi.success(t('pages.system.siteSettings.selectLogoSuccess'));
@@ -938,6 +1039,29 @@ const SiteSettingsPage: React.FC = () => {
         site_logo: '',
       });
       await updateSiteSetting({ settings: { site_logo: '' } });
+      if (typeof previousLogo === 'string' && previousLogo.trim()) {
+        invalidateSiteLogoPreviewCache(previousLogo.trim());
+      }
+      await fetchConfigs(true);
+      messageApi.success(t('pages.system.siteSettings.logoClearSuccess'));
+      useThemeStore.getState().initFromApi();
+    } catch (error: any) {
+      messageApi.error(error.message || t('pages.system.siteSettings.logoClearFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClearDarkLogo = async () => {
+    try {
+      setSaving(true);
+      const previousLogo = form.getFieldValue('site_logo_dark');
+      setDarkLogoUrl(undefined);
+      setDarkLogoFileList([]);
+      form.setFieldsValue({
+        site_logo_dark: '',
+      });
+      await updateSiteSetting({ settings: { site_logo_dark: '' } });
       if (typeof previousLogo === 'string' && previousLogo.trim()) {
         invalidateSiteLogoPreviewCache(previousLogo.trim());
       }
@@ -1065,7 +1189,9 @@ const SiteSettingsPage: React.FC = () => {
         const values = await form.validateFields([...SITE_SETTINGS_BASIC_TAB_FIELDS]);
         Object.assign(settings, {
           site_logo: values.site_logo,
+          site_logo_dark: values.site_logo_dark,
           site_name: values.site_name,
+          show_site_name: values.show_site_name !== false,
           organization_name: values.organization_name,
           organization_address: values.organization_address,
           contact_info: values.contact_info,
@@ -1371,7 +1497,13 @@ const SiteSettingsPage: React.FC = () => {
               >
                 <Button icon={<UploadOutlined />}>{t('pages.system.siteSettings.uploadLogo')}</Button>
               </Upload>
-              <Button icon={<FolderOpenOutlined />} onClick={() => setLogoPickerOpen(true)}>
+              <Button
+                icon={<FolderOpenOutlined />}
+                onClick={() => {
+                  setLogoEditTarget('site_logo');
+                  setLogoPickerOpen(true);
+                }}
+              >
                 {t('pages.system.siteSettings.selectFromLogoFolder')}
               </Button>
               {logoUrl && (
@@ -1393,10 +1525,98 @@ const SiteSettingsPage: React.FC = () => {
           </Space>
         </Form.Item>
       </Col>
+      <Col xs={24} sm={24} md={24} lg={24}>
+        <Form.Item
+          name="site_logo_dark"
+          label={t('pages.system.siteSettings.siteLogoDark')}
+          tooltip={t('pages.system.siteSettings.siteLogoDarkTooltip')}
+        >
+          <Space orientation="vertical" style={{ width: '100%' }}>
+            {darkLogoUrl && (
+              <div style={{ marginBottom: 8 }}>
+                <img
+                  src={darkLogoUrl}
+                  alt={t('pages.system.siteSettings.siteLogoDark')}
+                  style={{
+                    maxWidth: '200px',
+                    maxHeight: '100px',
+                    objectFit: 'contain',
+                    border: '1px solid var(--river-border-color)',
+                    borderRadius: '4px',
+                    padding: '8px',
+                    background: '#0b1220',
+                  }}
+                />
+              </div>
+            )}
+            <Space wrap>
+              <Upload
+                beforeUpload={handleDarkLogoFileSelect}
+                fileList={darkLogoFileList}
+                maxCount={1}
+                accept="image/*"
+                showUploadList={false}
+              >
+                <Button icon={<UploadOutlined />}>{t('pages.system.siteSettings.uploadLogo')}</Button>
+              </Upload>
+              <Button
+                icon={<FolderOpenOutlined />}
+                onClick={() => {
+                  setLogoEditTarget('site_logo_dark');
+                  setLogoPickerOpen(true);
+                }}
+              >
+                {t('pages.system.siteSettings.selectFromLogoFolder')}
+              </Button>
+              {hasSiteLogoDarkConfigured && (
+                <Button icon={<DeleteOutlined />} danger onClick={handleClearDarkLogo} loading={saving}>
+                  {t('pages.system.siteSettings.clearLogo')}
+                </Button>
+              )}
+            </Space>
+            {siteLogoDarkPreviewMissing && (
+              <Typography.Text type="warning">
+                {t('pages.infra.platform.brandingPreviewMissing')}
+              </Typography.Text>
+            )}
+          </Space>
+        </Form.Item>
+      </Col>
       <Col xs={24} sm={24} md={12} lg={12}>
         <Form.Item
           name="site_name"
-          label={t('pages.system.siteSettings.siteName')}
+          className="site-settings-site-name-item"
+          label={
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                height: 22,
+                lineHeight: '22px',
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  height: 22,
+                  lineHeight: '22px',
+                }}
+              >
+                {t('pages.system.siteSettings.siteName')}
+              </span>
+              <Form.Item name="show_site_name" valuePropName="checked" noStyle>
+                <Switch
+                  size="small"
+                  title={t('pages.system.siteSettings.showSiteNameTooltip')}
+                  checkedChildren={t('pages.system.siteSettings.showSiteNameOn')}
+                  unCheckedChildren={t('pages.system.siteSettings.showSiteNameOff')}
+                  style={{ margin: 0, verticalAlign: 'middle' }}
+                />
+              </Form.Item>
+            </span>
+          }
           tooltip={t('pages.system.siteSettings.siteNameTooltip')}
         >
           <Input placeholder={t('pages.system.siteSettings.siteNamePlaceholder')} />
@@ -1959,6 +2179,24 @@ const SiteSettingsPage: React.FC = () => {
       initialValues={formInitialValues}
       style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}
     >
+      <style>{`
+        .site-settings-site-name-item > .ant-form-item-label > label {
+          display: inline-flex !important;
+          align-items: center !important;
+          height: 22px !important;
+          line-height: 22px !important;
+        }
+        .site-settings-site-name-item > .ant-form-item-label > label .anticon {
+          display: inline-flex !important;
+          align-items: center !important;
+          margin-inline-start: 4px;
+          line-height: 1 !important;
+        }
+        .site-settings-site-name-item > .ant-form-item-label > label .ant-switch {
+          margin-block: 0 !important;
+          vertical-align: middle !important;
+        }
+      `}</style>
       <MultiTabListPageTemplate
         style={{ flex: 1, minHeight: 0 }}
         activeTabKey={activeTabKey}
@@ -1989,7 +2227,11 @@ const SiteSettingsPage: React.FC = () => {
         open={logoPickerOpen}
         onCancel={() => setLogoPickerOpen(false)}
         onSelect={handleSelectExistingLogo}
-        currentUuid={typeof siteLogoValue === 'string' ? siteLogoValue : undefined}
+        currentUuid={
+          logoEditTarget === 'site_logo_dark'
+            ? (typeof siteLogoDarkValue === 'string' ? siteLogoDarkValue : undefined)
+            : (typeof siteLogoValue === 'string' ? siteLogoValue : undefined)
+        }
       />
       <LogoThemeColorModal
         open={logoThemeColorOpen}

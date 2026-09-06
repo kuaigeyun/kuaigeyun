@@ -10,6 +10,16 @@ from .work_order_group import WorkOrderGroup
 from .reporting_record import ReportingRecord
 from .rework_order import ReworkOrder
 from .rework_order_operation import ReworkOrderOperation
+from .rework_order_signoff import (
+    ReworkOrderMaterialReq,
+    ReworkOrderPositionPlan,
+    ReworkOrderScrapLine,
+    ReworkOrderSignoff,
+)
+from .rework_position_plan_template import (
+    ReworkPositionPlanTemplate,
+    ReworkPositionPlanTemplateItem,
+)
 # CostRule, CostCalculation 已迁移至 kuaicaiwu
 from .outsource_order import OutsourceOrder
 from .outsource_work_order import (
@@ -44,6 +54,17 @@ from .quality_exception import QualityException
 from .exception_process_record import ExceptionProcessRecord, ExceptionProcessHistory
 from .quality_8d_report import Quality8DReport
 from .quality_8d_stage_revision import Quality8DStageRevision
+from .quality_complaint import QualityComplaint
+from .quality_complaint_batch_month import QualityComplaintBatchMonth
+from .supplier_evaluation import (
+    SupplierEvalEnvDocument,
+    SupplierEvalPlan,
+    SupplierEvalPlanLine,
+    SupplierEvalTemplate,
+    SupplierEvalTemplateClause,
+    SupplierEvaluation,
+    SupplierEvaluationLine,
+)
 from .oqc_inspection import OQCInspection
 from .fai_characteristic import FaiCharacteristic
 from .fai_order import FaiOrder
@@ -51,6 +72,7 @@ from .qms_internal_audit import QmsInternalAudit
 from .qms_management_review import QmsManagementReview
 from .qms_iso_clause import QmsIsoClause
 from .qms_system_document import QmsSystemDocument
+from .qms_system_document_version import QmsSystemDocumentVersion
 from .spc_sample import SPCSample
 
 # 仓储管理模块
@@ -208,9 +230,11 @@ from .production_plan_item import ProductionPlanItem
 
 # 设备模具管理模块
 from .equipment import Equipment, EquipmentCalibration
+from .equipment_acceptance import EquipmentAcceptance
+from .equipment_line_rebind import EquipmentLineRebind, EquipmentLineRebindItem
 from .maintenance_plan import MaintenancePlan, MaintenanceExecution
 from .equipment_fault import EquipmentFault, EquipmentRepair
-from .mold import Mold, MoldUsage, MoldCalibration
+from .mold import Mold, MoldUsage, MoldCalibration, MoldSignback
 from .mold_ops import (
     MoldMaintenanceItem,
     MoldMaintenanceScheme,
@@ -312,6 +336,7 @@ __all__ = [
     'FaiOrder',
     'FaiCharacteristic',
     'QmsSystemDocument',
+    'QmsSystemDocumentVersion',
     'QmsInternalAudit',
     'QmsManagementReview',
     'SPCSample',
@@ -505,6 +530,7 @@ __all__ = [
     'ToolOpsRepairLine',
     'ToolScrapApplication',
     'MoldCalibration',
+    'MoldSignback',
     'MoldMaintenanceItem',
     'MoldMaintenanceScheme',
     'MoldMaintenanceSchemeLine',
@@ -521,6 +547,7 @@ __all__ = [
     'MoldRepairLine',
     'MoldScrapApplication',
     'EquipmentCalibration',
+    'EquipmentAcceptance',
 
     # 状态流转
     'StateTransitionRule',

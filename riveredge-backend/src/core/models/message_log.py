@@ -35,6 +35,13 @@ class MessageLog(BaseModel):
     inngest_run_id = fields.CharField(max_length=100, null=True, description="Inngest 运行ID（关联 Inngest 工作流实例）")
     error_message = fields.TextField(null=True, description="错误信息")
     sent_at = fields.DatetimeField(null=True, description="发送时间")
+    retry_count = fields.IntField(default=0, description="重试次数")
+    # 业务单据追溯（INF-04）
+    business_document = fields.CharField(max_length=100, null=True, description="业务单据/触发文档编码")
+    business_action = fields.CharField(max_length=50, null=True, description="业务触发动作")
+    entity_type = fields.CharField(max_length=100, null=True, description="业务实体类型")
+    entity_id = fields.IntField(null=True, description="业务实体ID")
+    entity_uuid = fields.CharField(max_length=36, null=True, description="业务实体UUID")
     
     # 软删除字段
     deleted_at = fields.DatetimeField(null=True, description="删除时间（软删除）")
@@ -58,6 +65,7 @@ class MessageLog(BaseModel):
             ("tenant_id", "type", "status"),  # 按组织+类型+状态查询
             ("tenant_id", "recipient", "status"),  # 按组织+收件人+状态查询（用户消息查询）
             ("tenant_id", "created_at"),  # 按组织+创建时间查询（时间范围查询）
+            ("tenant_id", "business_document", "entity_id"),
         ]
     
     def __str__(self):

@@ -2,6 +2,7 @@ import React from 'react';
 import { Col, Form, Input, Row, Select, Switch } from 'antd';
 import type { FormInstance } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { GENERAL_SIGNOFF_BUSINESS_TYPES } from '../constants/generalSignoffBusinessTypes';
 
 type Props = {
   form: FormInstance;
@@ -39,6 +40,22 @@ const FormTemplateModalBody: React.FC<Props> = ({ editing }) => {
             options={[
               { label: t('app.kuaioa.formTemplate.category.general'), value: 'general' },
             ]}
+          />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item
+          name="business_type"
+          label={t('app.kuaioa.formTemplate.businessType')}
+          tooltip={t('app.kuaioa.formTemplate.businessTypeHint')}
+        >
+          <Select
+            allowClear
+            placeholder={t('app.kuaioa.formTemplate.businessTypePlaceholder')}
+            options={GENERAL_SIGNOFF_BUSINESS_TYPES.map((item) => ({
+              value: item.code,
+              label: t(item.labelKey),
+            }))}
           />
         </Form.Item>
       </Col>

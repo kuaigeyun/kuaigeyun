@@ -21,10 +21,12 @@ from apps.kuaizhizao.schemas.rework_order import (
     ReworkAdvanceNextRequest,
     ReworkCancelRequest,
     ReworkCloseRequest,
+    ReworkFinanceSignRequest,
     ReworkHoldRequest,
     ReworkQualityReleaseRequest,
     ReworkRequestCompleteRequest,
 )
+from apps.kuaizhizao.models.rework_order_signoff import ReworkOrderSignoff
 from apps.kuaizhizao.services.document_action_policy.rework_order import (
     assert_rework_order_capability,
     capability_kwargs_from_context,
@@ -694,6 +696,53 @@ async def quality_release(
         await _writeback_start_operation_after_quality_release(
             tenant_id, rework_order, actor_id=actor_id
         )
+    return rework_order
+
+
+async def finance_sign_rework_order(
+    tenant_id: int,
+    rework_order: ReworkOrder,
+    request: ReworkFinanceSignRequest,
+    *,
+    actor_id: int,
+    actor_name: str,
+) -> ReworkOrder:
+    """会签型返工单关闭前财务会签。"""
+    ctx = await compute_capability_context(tenant_id, rework_order)
+    caps = derive_rework_order_capabilities(rework_order, **capability_kwargs_from_context(ctx))
+    assert_rework_order_capability(rework_order, "finance_sign", caps)
+
+    now = resolve_business_datetime()
+    notes = (request.notes or "").strip() or None
+
+    async with in_transaction():
+        rework_order.finance_signed_at = now
+        rework_order.finance_signed_by = actor_id
+        rework_order.finance_signed_by_name = actor_name
+        rework_order.updated_by = actor_id
+        rework_order.updated_by_name = actor_name
+        if notes:
+            base = (rework_order.remarks or "").strip()
+            rework_order.remarks = f"{base}\n财务会签: {notes}".strip()
+        await rework_order.save()
+
+        sign_row = await ReworkOrderSignoff.filter(
+            tenant_id=tenant_id,
+            rework_order_id=rework_order.id,
+            dept_code="finance",
+            deleted_at__isnull=True,
+        ).first()
+        if sign_row:
+            sign_row.status = "signed"
+            sign_row.result = "agree"
+            sign_row.signer_id = actor_id
+            sign_row.signer_name = actor_name
+            sign_row.signed_at = now
+            if notes:
+                sign_row.notes = notes
+            sign_row.updated_by = actor_id
+            sign_row.updated_by_name = actor_name
+            await sign_row.save()
     return rework_order
 
 

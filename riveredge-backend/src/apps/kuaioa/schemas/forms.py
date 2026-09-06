@@ -9,6 +9,7 @@ class FormTemplateCreate(BaseModel):
     template_code: str = Field(..., max_length=50)
     template_name: str = Field(..., max_length=200)
     category: str = Field(default="general", max_length=50)
+    business_type: Optional[str] = Field(None, max_length=50)
     description: Optional[str] = None
     fields_schema: List[Any] = Field(default_factory=list)
     is_active: bool = True
@@ -18,6 +19,7 @@ class FormTemplateCreate(BaseModel):
 class FormTemplateUpdate(BaseModel):
     template_name: Optional[str] = Field(None, max_length=200)
     category: Optional[str] = Field(None, max_length=50)
+    business_type: Optional[str] = Field(None, max_length=50)
     description: Optional[str] = None
     fields_schema: Optional[List[Any]] = None
     is_active: Optional[bool] = None

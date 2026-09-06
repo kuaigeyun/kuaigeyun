@@ -288,6 +288,10 @@ class SiteSettingService:
             tenant_id,
             tenant_settings.get("site_logo"),
         )
+        tenant_settings["site_logo_dark"] = await SiteSettingService._resolve_site_logo_value(
+            tenant_id,
+            tenant_settings.get("site_logo_dark"),
+        )
         tenant_settings["company_seal"] = await SiteSettingService._resolve_company_seal_value(
             tenant_id,
             tenant_settings.get("company_seal"),

@@ -365,6 +365,12 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
     isDarkMode || siderTextColor === '#ffffff'
       ? 'rgba(255, 255, 255, 0.15)'
       : 'rgba(0, 0, 0, 0.12)';
+  /**
+   * 布局主框线唯一色（字面量）。
+   * 顶栏底 / 侧栏搜索底 / UniTabs 底轨与全屏竖线 / 侧栏右 / 底栏开始区顶 —— 禁止回落
+   * 到侧栏 dark menu 的 `--ant-colorBorder`，否则深浅区域会看成两种线色。
+   */
+  const layoutFrameColor = String(token.colorBorder);
   const searchStripIconColor = isDarkMode
     ? 'rgba(255,255,255,0.65)'
     : sidebarSearchStripUsesLightText
@@ -395,16 +401,50 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           --ant-borderRadiusLG: ${token.borderRadiusLG ?? token.borderRadius + 2}px;
           --riveredge-sider-menu-item-height: ${siderMenuItemHeight}px;
           --riveredge-sider-menu-item-radius: ${siderMenuItemBorderRadius}px;
-          /* 布局框线唯一色：顶栏底 / 侧栏右 / 搜索底 / 标签底轨 / 配置按钮顶 */
-          --riveredge-layout-frame-color: ${token.colorBorder};
+          /* 布局框线：水平用 inset 投影；侧栏右缘用 border（inset 会被菜单层盖住，outset 易被 overflow 裁切） */
+          --riveredge-layout-frame-color: ${layoutFrameColor};
+          --riveredge-layout-frame-inset-bottom: inset 0 -1px 0 ${layoutFrameColor};
+          --riveredge-layout-frame-inset-top: inset 0 1px 0 ${layoutFrameColor};
           --riveredge-chrome-strip-height: 40px;
           --riveredge-layout-rail-size: 1px;
         }
-        /* 侧栏内部分割（非主框线）仍随侧栏明暗适配 */
+        /* 框线色挂到布局根，供 UniTabs 等子树读取；不改写 --ant-colorBorder，以免冲掉侧栏 dark menu */
+        .ant-pro-layout {
+          --riveredge-layout-frame-color: ${layoutFrameColor};
+          --riveredge-layout-frame-inset-bottom: inset 0 -1px 0 ${layoutFrameColor};
+          --riveredge-layout-frame-inset-top: inset 0 1px 0 ${layoutFrameColor};
+          --riveredge-chrome-strip-height: 40px;
+          --riveredge-layout-rail-size: 1px;
+        }
+        /* 侧栏内部分割（非主框线）仍随侧栏明暗适配；主框线仍用同一字面量 */
         .ant-pro-layout .ant-pro-sider,
         .ant-pro-layout .ant-layout-sider {
           --riveredge-sider-divider-color: ${siderDividerColor};
-          --riveredge-layout-frame-color: ${token.colorBorder};
+          --riveredge-layout-frame-color: ${layoutFrameColor};
+          --riveredge-layout-frame-inset-bottom: inset 0 -1px 0 ${layoutFrameColor};
+          --riveredge-layout-frame-inset-top: inset 0 1px 0 ${layoutFrameColor};
+        }
+        /* 主框线：顶栏底 / 底栏顶 — inset 投影；侧栏右 — border（不被子层遮挡） */
+        .ant-pro-layout .ant-pro-layout-header,
+        .ant-pro-layout .ant-layout-header {
+          border-bottom: none !important;
+          border-block-end: none !important;
+          box-shadow: var(--riveredge-layout-frame-inset-bottom) !important;
+        }
+        .ant-pro-layout .ant-pro-sider .ant-layout-sider-children,
+        .ant-pro-layout .ant-layout-sider .ant-layout-sider-children {
+          box-shadow: none !important;
+          border-inline-end: 1px solid ${layoutFrameColor} !important;
+        }
+        /* 底栏顶线只画在入口条上，避免与 .ant-pro-sider-footer 叠双线 */
+        .ant-pro-layout .ant-pro-sider-footer,
+        .ant-pro-layout .ant-layout-sider .ant-pro-sider-footer {
+          border-top: none !important;
+          box-shadow: none !important;
+        }
+        .ant-pro-layout .riveredge-sider-footer-bar {
+          border-top: none !important;
+          box-shadow: var(--riveredge-layout-frame-inset-top) !important;
         }
         /* ==================== PageContainer 相关 ==================== */
         .ant-pro-page-container .ant-page-header .ant-page-header-breadcrumb,
@@ -872,14 +912,17 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           margin-bottom: 0 !important;
           padding-bottom: 16px !important;
         }
-        /* 侧边栏底部配置/收起区顶边：与顶栏底、侧栏右、标签底轨同色 */
+        /* 侧边栏底部配置/收起区顶边：与顶栏底、侧栏右、标签底轨同色（inset 投影，只画入口条） */
         .ant-pro-layout .ant-pro-sider-footer,
         .ant-pro-layout .ant-layout-sider .ant-pro-sider-footer,
-        /* 覆盖 collapsedButtonRender 返回的 div */
         .ant-pro-layout .ant-pro-sider-footer > div,
-        .ant-pro-layout .ant-layout-sider .ant-pro-sider-footer > div,
+        .ant-pro-layout .ant-layout-sider .ant-pro-sider-footer > div {
+          border-top: none !important;
+          box-shadow: none !important;
+        }
         .ant-pro-layout .riveredge-sider-footer-bar {
-          border-top: 1px solid var(--riveredge-layout-frame-color, var(--ant-colorBorder, #d9d9d9)) !important;
+          border-top: none !important;
+          box-shadow: var(--riveredge-layout-frame-inset-top) !important;
         }
         /* 侧边栏底部收起按钮样式 - 根据菜单栏背景色自动适配 */
         .ant-pro-layout .ant-pro-sider-footer .ant-btn,
@@ -1296,11 +1339,13 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           --ant-colorBgContainer: ${token.colorBgContainer};
           --ant-colorBgElevated: ${token.colorBgElevated};
         }
-        /* 顶栏背景色（支持透明度）；底边与标签栏/搜索条/配置钮顶边统一 */
+        /* 顶栏背景色（支持透明度）；底边用 inset 投影，与搜索条/标签栏一致 */
         .ant-pro-layout .ant-pro-layout-header,
         .ant-pro-layout .ant-layout-header {
           background: ${headerBgColor} !important;
-          border-bottom: 1px solid var(--riveredge-layout-frame-color, var(--ant-colorBorder, #d9d9d9)) !important;
+          border-bottom: none !important;
+          border-block-end: none !important;
+          box-shadow: var(--riveredge-layout-frame-inset-bottom) !important;
         }
         /* ==================== 顶栏文字颜色自动适配（根据背景色亮度反色处理） ==================== */
         /* 顶栏文字颜色 - 根据背景色亮度自动适配 */
@@ -2056,19 +2101,11 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           position: relative !important;
           background: ${searchStripFollowTabs ? sidebarSearchStripBg : 'transparent'} !important;
           border-bottom: none !important;
+          box-shadow: var(--riveredge-layout-frame-inset-bottom) !important;
         }
-        /* 搜索条底线：与 UniTabs 同色同高；向右 1px 与标签栏底轨在侧栏右边框处重合 */
         .ant-layout-sider .riveredge-sidebar-search-wrapper::after {
-          content: '';
-          position: absolute;
-          left: 0;
-          right: -1px;
-          bottom: 0;
-          height: var(--riveredge-layout-rail-size, 1px);
-          background: var(--riveredge-layout-frame-color, var(--ant-colorBorder, var(--ant-color-border, #d9d9d9)));
-          pointer-events: none;
-          z-index: 2;
-          transform: translateZ(0);
+          content: none !important;
+          display: none !important;
         }
         html[data-sidebar-menu-layout="flat"] .ant-pro-sider .ant-pro-sider-extra {
           margin: 0 !important;
@@ -2164,16 +2201,14 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace !important;
           font-size: 12px !important;
         }
-        /* LOGO 样式 - 设置 min-width 和垂直对齐 */
+        /* LOGO 样式：宽度随 Logo/站点名内容自适应，不设固定 min-width */
         .ant-pro-global-header-logo {
-          min-width: 181px !important;
+          min-width: 0 !important;
+          width: fit-content !important;
+          max-width: 100% !important;
           display: flex !important;
           align-items: center !important;
           height: 100% !important;
-          /* 手机端移除 min-width 限制 */
-          @media (max-width: 1024px) {
-            min-width: 0 !important;
-          }
         }
         /* LOGO 图片垂直对齐 */
         .ant-pro-global-header-logo img {
@@ -2249,9 +2284,6 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           .ant-pro-global-header-logo h1,
           .ant-pro-global-header-logo a h1 {
             display: none !important;
-          }
-          .ant-pro-global-header-logo {
-            min-width: 0 !important;
           }
         }
         /* ==================== 顶栏布局调整 ==================== */
@@ -2331,11 +2363,6 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           line-height: 1.5 !important;
           vertical-align: middle !important;
         }
-        /* 第一项左侧 padding，确保 hover 背景完整显示 */
-        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item:first-child {
-          padding-left: 8px !important;
-          margin-left: -8px !important;
-        }
         /* 最后一个面包屑项不收缩，优先显示完整，确保对齐 */
         .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item:last-child {
           flex-shrink: 0 !important;
@@ -2371,18 +2398,30 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           display: inline-flex !important;
           align-items: center !important;
         }
-        /* 面包屑项内部的链接和文字对齐 */
+        /* 面包屑项内部的链接和文字对齐：左右 padding 对称，各级一致（含第一级） */
         .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-link {
           display: inline-flex !important;
           align-items: center !important;
           padding: 4px 8px !important;
-          margin: -4px -8px !important;
+          margin: -4px -4px !important;
           border-radius: 4px !important;
         }
-        /* 第一项链接的左侧 padding，确保 hover 背景完整显示 */
-        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item:first-child .ant-breadcrumb-link {
-          margin-left: -8px !important;
-          padding-left: 8px !important;
+        /* 带下拉的项：hover 只落在 overlay-link（含文字+箭头），内层 link 不再单独铺底，避免双背景 */
+        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-overlay-link {
+          display: inline-flex !important;
+          align-items: center !important;
+          height: auto !important;
+          line-height: 1.5 !important;
+          padding: 4px 8px !important;
+          margin: -4px -4px !important;
+          border-radius: 4px !important;
+        }
+        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-overlay-link .ant-breadcrumb-link,
+        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-overlay-link > a {
+          padding: 0 !important;
+          margin: 0 !important;
+          border-radius: 0 !important;
+          background: transparent !important;
         }
         /* 面包屑下拉箭头对齐 */
         .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item .anticon {
@@ -2405,28 +2444,29 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
         .ant-pro-layout-container .ant-layout-header .ant-breadcrumb a {
           color: ${isLightModeLightBg ? 'rgba(0, 0, 0, 0.85)' : '#ffffff'} !important;
         }
-        /* 完全禁用面包屑项本身的 hover 背景（包括 Ant Design 默认样式） */
+        /* 禁用 li 自身 hover 背景 */
         .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item:hover {
           background-color: transparent !important;
           background: transparent !important;
         }
-        /* 面包屑链接 hover 样式 - 根据显示模式统一，浅色模式浅色背景无hover */
-        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item a:hover,
-        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item .ant-breadcrumb-link:hover {
+        /* 无下拉：仅 link/a 单层 hover；浅/深顶栏均统一单背景，左右 padding 对称 */
+        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item > a:hover,
+        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item > .ant-breadcrumb-link:hover {
           color: ${isLightModeLightBg ? 'rgba(0, 0, 0, 0.85)' : '#ffffff'} !important;
-          background-color: ${isLightModeLightBg ? 'transparent' : 'rgba(255, 255, 255, 0.1)'} !important;
+          background-color: ${isLightModeLightBg ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.1)'} !important;
           border-radius: 4px !important;
         }
-        /* 确保当链接 hover 时，父级面包屑项本身不显示背景（但允许链接显示背景） */
-        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item:hover {
-          background-color: transparent !important;
+        /* 有下拉：仅 overlay-link 单层 hover（覆盖文字+箭头）；覆盖 antd colorBgTextHover 默认 */
+        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-overlay-link:hover {
+          color: ${isLightModeLightBg ? 'rgba(0, 0, 0, 0.85)' : '#ffffff'} !important;
+          background-color: ${isLightModeLightBg ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.1)'} !important;
         }
-        /* 第一项链接 hover 时确保左侧背景完整显示 - 浅色模式浅色背景无hover */
-        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item:first-child a:hover,
-        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-item:first-child .ant-breadcrumb-link:hover {
-          margin-left: -8px !important;
-          padding-left: 8px !important;
-          background-color: ${isLightModeLightBg ? 'transparent' : 'rgba(255, 255, 255, 0.1)'} !important;
+        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-overlay-link:hover a,
+        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-overlay-link a:hover,
+        .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-overlay-link .ant-breadcrumb-link:hover {
+          color: inherit !important;
+          background-color: transparent !important;
+          background: transparent !important;
         }
         /* 面包屑分隔符颜色 - 深色顶栏纯白 */
         .ant-pro-layout-container .ant-layout-header .ant-breadcrumb .ant-breadcrumb-separator {
@@ -2565,7 +2605,8 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           overflow-x: hidden;
           overflow-y: auto;
           scrollbar-width: none !important;
-          border-inline-end: 1px solid var(--riveredge-layout-frame-color, var(--ant-colorBorder, #d9d9d9));
+          border-inline-end: 1px solid ${layoutFrameColor};
+          box-shadow: none;
           background: ${siderBgColor} !important;
         }
         html[data-sidebar-menu-layout="split"] .riveredge-split-sidebar-primary::-webkit-scrollbar {
@@ -2579,6 +2620,7 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
         }
         html[data-sidebar-menu-layout="split"] .riveredge-split-sidebar-body.is-collapsed .riveredge-split-sidebar-primary {
           border-inline-end: none;
+          box-shadow: none;
         }
         html[data-sidebar-menu-layout="split"] .riveredge-split-sidebar-primary-item {
           display: flex;

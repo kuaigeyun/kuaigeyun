@@ -2492,14 +2492,17 @@ class DocumentPrintService:
         items: list[Dict[str, Any]] = []
         for uuid in ordered_uuids:
             eq = by_uuid[uuid]
-            # 模块尺寸偏小，避免 PNG 固有像素在打印时撑破单元格（版式仍以库内模板为准）
-            qr = QRCodeService.generate_equipment_qrcode(
-                equipment_uuid=str(eq.uuid),
-                equipment_code=eq.code or "",
-                equipment_name=eq.name or "",
-                size=3,
-                border=1,
-            )
+            bind = (getattr(eq, "qr_bind_code", None) or "").strip()
+            if bind:
+                qr = QRCodeService.generate_raw_content_qrcode(bind, size=3, border=1)
+            else:
+                qr = QRCodeService.generate_equipment_qrcode(
+                    equipment_uuid=str(eq.uuid),
+                    equipment_code=eq.code or "",
+                    equipment_name=eq.name or "",
+                    size=3,
+                    border=1,
+                )
             line_name = (getattr(eq, "production_line_name", None) or "").strip()
             workshop_name = (eq.workshop_name or "").strip()
             affiliation = line_name or workshop_name
@@ -2517,6 +2520,7 @@ class DocumentPrintService:
                     "purchase_date": _fmt_date(eq.purchase_date),
                     "installation_date": _fmt_date(eq.installation_date),
                     "status": loc.document_status(eq.status) if eq.status else eq.status,
+                    "qr_bind_code": bind or None,
                     "qrcode_image": qr.get("qrcode_image") or "",
                 }
             )

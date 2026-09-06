@@ -12,6 +12,7 @@ from loguru import logger
 
 from core.api.deps.deps import get_current_user, get_current_tenant
 from core.api.deps.access import require_access
+from core.services.authorization.user_permission_service import UserPermissionService
 from apps.master_data.api._master_data_route_access import require_master_data_module_access
 from infra.models.user import User
 from apps.master_data.services.process_service import ProcessService
@@ -1676,15 +1677,36 @@ async def revise_sop(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("/sop/{sop_uuid}/revisions", response_model=SopRevisionListResponse, summary="List SOP revisions")
+@router.get(
+    "/sop/{sop_uuid}/revisions",
+    response_model=SopRevisionListResponse,
+    response_model_by_alias=True,
+    summary="List SOP revisions",
+)
 async def list_sop_revisions(
     sop_uuid: str,
     current_user: Annotated[User, Depends(get_current_user)],
     tenant_id: Annotated[int, Depends(get_current_tenant)],
 ):
     try:
-        items, total = await SopControlService.list_revisions(tenant_id, sop_uuid)
-        return SopRevisionListResponse(data=items, total=total)
+        permission_codes = sorted(
+            await UserPermissionService.get_user_permissions(
+                user_id=current_user.id,
+                tenant_id=tenant_id,
+            )
+        )
+        items, total, audience, can_view_history = await SopControlService.list_revisions(
+            tenant_id,
+            sop_uuid,
+            current_user=current_user,
+            permission_codes=permission_codes,
+        )
+        return SopRevisionListResponse(
+            data=items,
+            total=total,
+            audience=audience,
+            can_view_history=can_view_history,
+        )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 

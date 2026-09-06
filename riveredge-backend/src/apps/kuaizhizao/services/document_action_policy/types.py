@@ -249,6 +249,9 @@ class ReworkOrderCapabilities(BaseModel):
     advance_next: ActionCapability
     request_complete: ActionCapability
     quality_release: ActionCapability
+    finance_sign: ActionCapability
+    pqc_check: ActionCapability
+    oqc_notify: ActionCapability
     close: ActionCapability
     cancel: ActionCapability
     hold: ActionCapability
@@ -633,6 +636,7 @@ CAPABILITY_REASON_MESSAGES: dict[str, str] = {
     "rework_order.update.not_draft": "仅草稿态返工单可编辑",
     "rework_order.delete.not_allowed": "当前状态不可删除返工单",
     "rework_order.release.not_draft": "仅草稿态返工单可下达",
+    "rework_order.release.awaiting_approval": "会签型返工单须审核通过后方可下达",
     "rework_order.execute.not_allowed": "当前状态不可报工",
     "rework_order.execute.awaiting_decision": "当前工序已完成，请选择下一工序或申请完修",
     "rework_order.advance.not_dynamic": "仅动态路线可追加下一工序",
@@ -641,6 +645,16 @@ CAPABILITY_REASON_MESSAGES: dict[str, str] = {
     "rework_order.quality_release.not_allowed": "当前状态不可质量放行",
     "rework_order.quality_release.verification_pending": "复检尚未通过，无法质量放行",
     "rework_order.close.not_allowed": "当前状态不可关闭",
+    "rework_order.close.awaiting_finance": "会签型返工单须财务会签后方可关闭",
+    "rework_order.finance_sign.not_allowed": "当前不可财务会签",
+    "rework_order.finance_sign.already_signed": "财务已会签",
+    "rework_order.pqc_check.not_inventory_verify": "仅库存验证返工单可核对 PQC 汇总",
+    "rework_order.pqc_check.already_checked": "PQC 汇总已核对",
+    "rework_order.pqc_check.summary_required": "请先填写 PQC 质量记录汇总",
+    "rework_order.pqc_check.not_allowed": "当前状态不可核对 PQC 汇总",
+    "rework_order.oqc_notify.not_inventory_verify": "仅库存验证返工单可发送 OQC 结果通知",
+    "rework_order.oqc_notify.pqc_required": "须先完成 PQC 主管核对",
+    "rework_order.oqc_notify.not_allowed": "当前不可发送 OQC 结果通知",
     "rework_order.cancel.not_allowed": "当前状态不可取消",
     "rework_order.cancel.already_cancelled": "返工单已取消",
     "rework_order.cancel.terminal": "已关闭的返工单不能取消",

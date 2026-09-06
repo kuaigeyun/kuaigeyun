@@ -73,7 +73,16 @@ interface Tool {
   manufacturer?: string;
   supplier?: string;
   purchase_date?: string;
+  inbound_date?: string;
   warranty_expiry?: string;
+  quantity?: number;
+  custodian_name?: string;
+  product_model?: string;
+  storage_location?: string;
+  current_borrower_name?: string;
+  current_borrow_at?: string;
+  last_return_at?: string;
+  last_return_by_name?: string;
   status?: string;
   is_active?: boolean;
   maintenance_period?: number;
@@ -111,7 +120,11 @@ const ToolLedgerPage: React.FC = () => {
           { field: 'spec', labelKey: 'app.kuaizhizao.toolLedger.import.specification', aliases: ['规格型号', '规格'] },
           { field: 'manufacturer', labelKey: 'app.kuaizhizao.toolLedger.import.manufacturer', aliases: ['制造商'] },
           { field: 'supplier', labelKey: 'app.kuaizhizao.toolLedger.import.supplier', aliases: ['供应商'] },
+          { field: 'inbound_date', labelKey: 'app.kuaizhizao.toolLedger.import.inboundDate', aliases: ['入库日期', '入库时间'] },
           { field: 'purchase_date', labelKey: 'app.kuaizhizao.toolLedger.import.purchaseDate', aliases: ['采购日期'] },
+          { field: 'quantity', labelKey: 'app.kuaizhizao.toolLedger.import.quantity', aliases: ['数量'] },
+          { field: 'custodian_name', labelKey: 'app.kuaizhizao.toolLedger.import.custodian', aliases: ['保管人'] },
+          { field: 'product_model', labelKey: 'app.kuaizhizao.toolLedger.import.productModel', aliases: ['产品型号', '型号'] },
           { field: 'warranty_expiry', labelKey: 'app.kuaizhizao.toolLedger.import.warrantyExpiry', aliases: ['保修到期日'] },
           {
             field: 'status',
@@ -137,7 +150,11 @@ const ToolLedgerPage: React.FC = () => {
           t('app.kuaizhizao.toolLedger.importExample.specification'),
           t('app.kuaizhizao.toolLedger.importExample.manufacturer'),
           t('app.kuaizhizao.toolLedger.importExample.supplier'),
+          t('app.kuaizhizao.toolLedger.importExample.inboundDate'),
           t('app.kuaizhizao.toolLedger.importExample.purchaseDate'),
+          t('app.kuaizhizao.toolLedger.importExample.quantity'),
+          t('app.kuaizhizao.toolLedger.importExample.custodian'),
+          t('app.kuaizhizao.toolLedger.importExample.productModel'),
           t('app.kuaizhizao.toolLedger.importExample.warrantyExpiry'),
           pickImportExampleValue(toolDictOptions.TOOL_STATUS, t('app.kuaizhizao.toolLedger.importExample.status')),
           t('app.kuaizhizao.toolLedger.importExample.maintenancePeriod'),
@@ -190,7 +207,12 @@ const ToolLedgerPage: React.FC = () => {
         manufacturer: detail.manufacturer,
         supplier: detail.supplier,
         purchase_date: detail.purchase_date ? dayjs(detail.purchase_date) : null,
+        inbound_date: detail.inbound_date ? dayjs(detail.inbound_date) : null,
         warranty_expiry: detail.warranty_expiry ? dayjs(detail.warranty_expiry) : null,
+        quantity: detail.quantity ?? 1,
+        custodian_name: detail.custodian_name,
+        product_model: detail.product_model,
+        storage_location: detail.storage_location,
         status: detail.status,
         is_active: detail.is_active,
         maintenance_period: detail.maintenance_period,
@@ -240,6 +262,7 @@ const ToolLedgerPage: React.FC = () => {
       const data = {
         ...values,
         purchase_date: toApiDateString(values.purchase_date) ?? null,
+        inbound_date: toApiDateString(values.inbound_date) ?? null,
         warranty_expiry: toApiDateString(values.warranty_expiry) ?? null,
         attachments: normalizeDocumentAttachments(values.attachments),
       };
@@ -335,6 +358,18 @@ const ToolLedgerPage: React.FC = () => {
       render: (_, r) => (r.type != null && r.type !== '' ? String(r.type) : '-'),
     },
     {
+      title: t('app.kuaizhizao.toolLedger.colProductModel'),
+      dataIndex: 'product_model',
+      width: 120,
+      minWidth: 120,
+      uniTableKeepWidth: true,
+      resizable: false,
+      ellipsis: true,
+      sorter: true,
+      search: { order: 23 } as ProColumns['search'],
+      render: (_, r) => (r.product_model != null && r.product_model !== '' ? String(r.product_model) : '-'),
+    },
+    {
       title: t('app.kuaizhizao.toolLedger.colSpec'),
       dataIndex: 'spec',
       width: 120,
@@ -344,6 +379,62 @@ const ToolLedgerPage: React.FC = () => {
       ellipsis: true,
       hideInSearch: true,
       render: (_, r) => (r.spec != null && r.spec !== '' ? String(r.spec) : '-'),
+    },
+    {
+      title: t('app.kuaizhizao.toolLedger.colQuantity'),
+      dataIndex: 'quantity',
+      width: 80,
+      minWidth: 80,
+      uniTableKeepWidth: true,
+      resizable: false,
+      hideInSearch: true,
+      render: (_, r) => (r.quantity != null ? String(r.quantity) : '-'),
+    },
+    {
+      title: t('app.kuaizhizao.toolLedger.colSupplier'),
+      dataIndex: 'supplier',
+      width: 120,
+      minWidth: 120,
+      uniTableKeepWidth: true,
+      resizable: false,
+      ellipsis: true,
+      hideInSearch: true,
+      render: (_, r) => (r.supplier != null && r.supplier !== '' ? String(r.supplier) : '-'),
+    },
+    {
+      title: t('app.kuaizhizao.toolLedger.colCustodian'),
+      dataIndex: 'custodian_name',
+      width: 100,
+      minWidth: 100,
+      uniTableKeepWidth: true,
+      resizable: false,
+      ellipsis: true,
+      hideInSearch: true,
+      render: (_, r) => (r.custodian_name != null && r.custodian_name !== '' ? String(r.custodian_name) : '-'),
+    },
+    {
+      title: t('app.kuaizhizao.toolLedger.colInboundDate'),
+      dataIndex: 'inbound_date',
+      width: 110,
+      minWidth: 110,
+      uniTableKeepWidth: true,
+      resizable: false,
+      hideInSearch: true,
+      render: (_, r) => (r.inbound_date != null && r.inbound_date !== '' ? String(r.inbound_date) : '-'),
+    },
+    {
+      title: t('app.kuaizhizao.toolLedger.colCurrentBorrower'),
+      dataIndex: 'current_borrower_name',
+      width: 110,
+      minWidth: 110,
+      uniTableKeepWidth: true,
+      resizable: false,
+      ellipsis: true,
+      hideInSearch: true,
+      render: (_, r) =>
+        r.current_borrower_name != null && r.current_borrower_name !== ''
+          ? String(r.current_borrower_name)
+          : '-',
     },
     {
       title: t('app.kuaizhizao.toolLedger.colTotalUsageCount'),
@@ -393,7 +484,7 @@ const ToolLedgerPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('kuaizhizao.toolsLedger')}
           headerTitle={t('app.kuaizhizao.toolLedger.title')}
-          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.tool-ledger-width-v2"
+          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.tool-ledger-r10-v1"
           actionRef={actionRef}
           rowKey="uuid"
           columns={columns}
@@ -480,7 +571,11 @@ const ToolLedgerPage: React.FC = () => {
                 spec: cellAt(row, 'spec') || undefined,
                 manufacturer: cellAt(row, 'manufacturer') || undefined,
                 supplier: cellAt(row, 'supplier') || undefined,
+                inbound_date: parseDate(cellAt(row, 'inbound_date')),
                 purchase_date: parseDate(cellAt(row, 'purchase_date')),
+                quantity: parseIntField(cellAt(row, 'quantity')) ?? 1,
+                custodian_name: cellAt(row, 'custodian_name') || undefined,
+                product_model: cellAt(row, 'product_model') || undefined,
                 warranty_expiry: parseDate(cellAt(row, 'warranty_expiry')),
                 status: parseToolDict('TOOL_STATUS', cellAt(row, 'status')) || '正常',
                 maintenance_period: parseIntField(cellAt(row, 'maintenance_period')),
@@ -530,11 +625,19 @@ const ToolLedgerPage: React.FC = () => {
                 { key: 'code', title: t('app.kuaizhizao.toolLedger.import.code') },
                 { key: 'name', title: t('app.kuaizhizao.toolLedger.import.name') },
                 { key: 'type', title: t('app.kuaizhizao.toolLedger.import.type') },
+                { key: 'product_model', title: t('app.kuaizhizao.toolLedger.colProductModel') },
                 { key: 'spec', title: t('app.kuaizhizao.toolLedger.import.specification') },
+                { key: 'quantity', title: t('app.kuaizhizao.toolLedger.colQuantity') },
                 { key: 'manufacturer', title: t('app.kuaizhizao.toolLedger.fieldManufacturer') },
                 { key: 'supplier', title: t('app.kuaizhizao.toolLedger.fieldSupplier') },
-                { key: 'status', title: t('app.kuaizhizao.toolLedger.fieldStatus') },
+                { key: 'custodian_name', title: t('app.kuaizhizao.toolLedger.colCustodian') },
+                { key: 'inbound_date', title: t('app.kuaizhizao.toolLedger.colInboundDate') },
                 { key: 'purchase_date', title: t('app.kuaizhizao.toolLedger.fieldPurchaseDate') },
+                { key: 'current_borrower_name', title: t('app.kuaizhizao.toolLedger.colCurrentBorrower') },
+                { key: 'current_borrow_at', title: t('app.kuaizhizao.toolLedger.colCurrentBorrowAt') },
+                { key: 'last_return_at', title: t('app.kuaizhizao.toolLedger.colLastReturnAt') },
+                { key: 'last_return_by_name', title: t('app.kuaizhizao.toolLedger.colLastReturnBy') },
+                { key: 'status', title: t('app.kuaizhizao.toolLedger.fieldStatus') },
                 { key: 'is_active', title: t('app.kuaizhizao.toolLedger.fieldIsActive') },
               ];
               await downloadRecordsAsXlsx(
@@ -600,6 +703,37 @@ const ToolLedgerPage: React.FC = () => {
           </Col>
           <Col span={12}>
             <ProFormText name="supplier" label={t('app.kuaizhizao.toolLedger.fieldSupplier')} placeholder={t('app.kuaizhizao.toolLedger.phSupplier')} />
+          </Col>
+          <Col span={12}>
+            <ProFormText
+              name="product_model"
+              label={t('app.kuaizhizao.toolLedger.fieldProductModel')}
+              placeholder={t('app.kuaizhizao.toolLedger.phProductModel')}
+            />
+          </Col>
+          <Col span={12}>
+            <ProFormDigit
+              name="quantity"
+              label={t('app.kuaizhizao.toolLedger.fieldQuantity')}
+              min={1}
+              fieldProps={{ precision: 0 }}
+              initialValue={1}
+            />
+          </Col>
+          <Col span={12}>
+            <ProFormText
+              name="custodian_name"
+              label={t('app.kuaizhizao.toolLedger.fieldCustodian')}
+              placeholder={t('app.kuaizhizao.toolLedger.phCustodian')}
+            />
+          </Col>
+          <Col span={12}>
+            <ProFormDatePicker
+              name="inbound_date"
+              label={t('app.kuaizhizao.toolLedger.fieldInboundDate')}
+              formItemProps={formDateFormItemProps}
+              fieldProps={{ style: { width: '100%' } }}
+            />
           </Col>
           <Col span={12}>
             <ProFormDatePicker

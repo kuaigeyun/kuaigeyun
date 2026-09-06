@@ -12,6 +12,18 @@ const SITE_LOGO_CACHE_TTL_MS = 25 * 60 * 1000;
 /** v3：顶栏改用 512 Logo 档，废弃旧 128 头像档缓存 */
 const SITE_LOGO_CACHE_KEY_PREFIX = 'siteLogoUrlCache_v3_';
 
+export type SiteLogoConfigKey = 'site_logo' | 'site_logo_dark';
+
+export type UseSiteLogoUrlOptions = {
+  /** 配置键；深色背景 Logo 用 site_logo_dark */
+  configKey?: SiteLogoConfigKey;
+  /**
+   * 未配置时是否回退框架默认 Logo。
+   * site_logo_dark 须为 false：空则由调用方回退到浅色 Logo。
+   */
+  fallbackToDefault?: boolean;
+};
+
 function getCachedSiteLogoUrl(logoUuid: string): string | undefined {
   try {
     const raw = localStorage.getItem(`${SITE_LOGO_CACHE_KEY_PREFIX}${logoUuid}`);
@@ -50,15 +62,15 @@ function isUUID(str: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
-function readSiteLogoConfigValue(): string {
-  const fromStore = String(useConfigStore.getState().getConfig('site_logo', '') ?? '').trim();
+function readSiteLogoConfigValue(configKey: SiteLogoConfigKey): string {
+  const fromStore = String(useConfigStore.getState().getConfig(configKey, '') ?? '').trim();
   if (fromStore) return fromStore;
-  const persisted = getPersistedConfigs()?.site_logo;
+  const persisted = getPersistedConfigs()?.[configKey];
   return typeof persisted === 'string' ? persisted.trim() : '';
 }
 
-function resolveInitialDisplayUrl(): string {
-  const logoValue = readSiteLogoConfigValue();
+function resolveInitialDisplayUrl(configKey: SiteLogoConfigKey): string {
+  const logoValue = readSiteLogoConfigValue(configKey);
   if (!logoValue) return '';
   if (isUUID(logoValue)) return getCachedSiteLogoUrl(logoValue) ?? '';
   return logoValue;
@@ -67,22 +79,27 @@ function resolveInitialDisplayUrl(): string {
 /**
  * 与顶栏一致的站点 Logo 解析。
  * 已配置自定义 Logo 时：首帧用缓存预览 URL，没有缓存则留空，绝不先画框架 PNG。
- * 仅在站点配置已加载且未设置 site_logo 时，才使用框架默认 Logo。
+ * 仅在站点配置已加载且未设置 site_logo、且 fallbackToDefault 时，才使用框架默认 Logo。
  */
-export function useSiteLogoUrl(): string {
-  const siteLogoValue = (useConfigStore((s) => (s.getConfig('site_logo', '') as string)?.trim()) || '') || '';
+export function useSiteLogoUrl(options?: UseSiteLogoUrlOptions): string {
+  const configKey: SiteLogoConfigKey = options?.configKey ?? 'site_logo';
+  const fallbackToDefault = options?.fallbackToDefault ?? configKey === 'site_logo';
+  const siteLogoValue =
+    (useConfigStore((s) => (s.getConfig(configKey, '') as string)?.trim()) || '') || '';
   const initialized = useConfigStore((s) => s.initialized);
 
-  const [siteLogoUrl, setSiteLogoUrl] = useState<string>(resolveInitialDisplayUrl);
+  const [siteLogoUrl, setSiteLogoUrl] = useState<string>(() => resolveInitialDisplayUrl(configKey));
 
   useEffect(() => {
-    const logoValue = siteLogoValue || readSiteLogoConfigValue();
+    const logoValue = siteLogoValue || readSiteLogoConfigValue(configKey);
     let cancelled = false;
 
     const loadSiteLogo = async () => {
       if (!logoValue) {
         if (initialized) {
-          setSiteLogoUrl(DEFAULT_SITE_LOGO_URL);
+          setSiteLogoUrl(fallbackToDefault ? DEFAULT_SITE_LOGO_URL : '');
+        } else {
+          setSiteLogoUrl('');
         }
         return;
       }
@@ -98,7 +115,7 @@ export function useSiteLogoUrl(): string {
         if (cancelled) return;
         if (!previewInfo?.preview_url) {
           clearCachedSiteLogoUrl(logoValue);
-          setSiteLogoUrl(DEFAULT_SITE_LOGO_URL);
+          setSiteLogoUrl(fallbackToDefault ? DEFAULT_SITE_LOGO_URL : '');
           return;
         }
         const newUrl = normalizeFilePreviewUrl(toRelativeIfLocalhost(previewInfo.preview_url));
@@ -111,13 +128,16 @@ export function useSiteLogoUrl(): string {
 
     void loadSiteLogo().catch(() => {
       if (cancelled) return;
-      setSiteLogoUrl((prev) => prev || DEFAULT_SITE_LOGO_URL);
+      setSiteLogoUrl((prev) => {
+        if (prev) return prev;
+        return fallbackToDefault ? DEFAULT_SITE_LOGO_URL : '';
+      });
     });
 
     return () => {
       cancelled = true;
     };
-  }, [siteLogoValue, initialized]);
+  }, [siteLogoValue, initialized, configKey, fallbackToDefault]);
 
   return siteLogoUrl;
 }

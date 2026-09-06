@@ -2,7 +2,7 @@
  * 轻办公详情抽屉：审批类 HALF_WIDTH，台账类 STANDARD_WIDTH。
  */
 import React, { useMemo } from 'react';
-import { Descriptions } from 'antd';
+import { Descriptions, Timeline } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { getFileDownloadUrlWithToken } from '../../../services/file';
 import {
@@ -92,6 +92,16 @@ function renderFieldValue(
       </a>
     );
   }
+  if (Array.isArray(raw)) {
+    if (!raw.length) return '-';
+    if (field.type === 'userIds') return raw.map(String).join(t('common.listSeparator'));
+    if (field.options?.length) {
+      return raw
+        .map((v) => field.options?.find((o) => String(o.value) === String(v))?.label || String(v))
+        .join(t('common.listSeparator'));
+    }
+    return raw.map(String).join(t('common.listSeparator'));
+  }
   if (raw == null || raw === '') return '-';
   return String(raw);
 }
@@ -125,6 +135,29 @@ const KuaioaDetailDrawer: React.FC<Props> = ({
   const titleCode = record ? String(record[codeField] ?? '') : '';
   const titleName = record ? String(record[titleField] ?? record.title ?? '') : '';
 
+  const lifecycleItems = useMemo(() => {
+    const events = record?.lifecycle_events;
+    if (!Array.isArray(events) || !events.length) return null;
+    return events.map((event) => {
+      const row = event as Record<string, unknown>;
+      const stage = String(row.stage || '');
+      const stageLabel = t(`app.kuaioa.asset.stage.${stage}`, { defaultValue: stage });
+      const when = row.occurred_at ? formatDateTimeBySiteSetting(String(row.occurred_at)) : '';
+      const who = row.operator_name ? String(row.operator_name) : '';
+      const remark = row.remark ? String(row.remark) : '';
+      return {
+        children: (
+          <div>
+            <div>{stageLabel}</div>
+            <div style={{ color: 'var(--ant-color-text-secondary)', fontSize: 12 }}>
+              {[when, who, remark].filter(Boolean).join(' ')}
+            </div>
+          </div>
+        ),
+      };
+    });
+  }, [record, t]);
+
   return (
     <DetailDrawerTemplate
       open={open}
@@ -142,6 +175,8 @@ const KuaioaDetailDrawer: React.FC<Props> = ({
           <Descriptions column={2} size="small" items={descriptionItems} />
         ) : null
       }
+      timeline={lifecycleItems ? <Timeline items={lifecycleItems} /> : undefined}
+      timelineTitle={t('app.kuaioa.asset.lifecycle')}
     />
   );
 };

@@ -19,6 +19,7 @@ from apps.kuaizhizao.schemas.equipment_ops import (
     SpotCheckListResponse,
     SpotCheckLineResponse,
     SpotCheckPreviewResponse,
+    SpotCheckRejectRequest,
     RoutePatrolCreate,
     RoutePatrolUpdate,
     RoutePatrolResponse,
@@ -111,6 +112,8 @@ async def list_spot_checks(
     created_end_date: Optional[str] = Query(None, description="创建结束日期 YYYY-MM-DD"),
     has_abnormality: Optional[bool] = Query(None, description="是否异常"),
     uuid: Optional[str] = Query(None, description="点检单 UUID（精确匹配）"),
+    scheme_domain: Optional[str] = Query(None, description="方案业务域 equipment/esd"),
+    scheme_id: Optional[int] = Query(None, ge=1, description="点检方案 ID"),
     tenant_id: int = Depends(get_current_tenant),
 ):
     rows, total = await svc.spot_check_service.list(
@@ -127,6 +130,8 @@ async def list_spot_checks(
         created_end_date=created_end_date,
         has_abnormality=has_abnormality,
         uuid=uuid,
+        scheme_domain=scheme_domain,
+        scheme_id=scheme_id,
     )
     return SpotCheckListResponse(
         items=[SpotCheckResponse.model_validate(r) for r in rows],
@@ -176,6 +181,52 @@ async def delete_spot_check(row_id: int, tenant_id: int = Depends(get_current_te
         await svc.spot_check_service.delete(tenant_id, row_id)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/equipment-spot-checks/{row_id}/approve",
+    response_model=SpotCheckResponse,
+    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-spot-check:approve"))],
+)
+async def approve_spot_check(
+    row_id: int,
+    current_user: User = Depends(soil_get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    try:
+        header = await svc.spot_check_service.approve(
+            tenant_id, row_id, current_user=current_user
+        )
+        lines = await svc.spot_check_service._load_lines(tenant_id, header.id)
+        return _spot_check_response(header, lines)
+    except (ValidationError, NotFoundError) as e:
+        code = status.HTTP_404_NOT_FOUND if isinstance(e, NotFoundError) else status.HTTP_422_UNPROCESSABLE_ENTITY
+        raise HTTPException(status_code=code, detail=str(e))
+
+
+@router.post(
+    "/equipment-spot-checks/{row_id}/reject",
+    response_model=SpotCheckResponse,
+    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-spot-check:reject"))],
+)
+async def reject_spot_check(
+    row_id: int,
+    data: SpotCheckRejectRequest,
+    current_user: User = Depends(soil_get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    try:
+        header = await svc.spot_check_service.reject(
+            tenant_id,
+            row_id,
+            reject_reason=data.reject_reason,
+            current_user=current_user,
+        )
+        lines = await svc.spot_check_service._load_lines(tenant_id, header.id)
+        return _spot_check_response(header, lines)
+    except (ValidationError, NotFoundError) as e:
+        code = status.HTTP_404_NOT_FOUND if isinstance(e, NotFoundError) else status.HTTP_422_UNPROCESSABLE_ENTITY
+        raise HTTPException(status_code=code, detail=str(e))
 
 
 # ---------- 巡检单 ----------

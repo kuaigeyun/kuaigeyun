@@ -770,7 +770,11 @@ class ApplicationService:
 
         if is_industry_module_app_code(app_code):
             from core.services.application.industry_pack_menu_service import IndustryPackMenuService
+            from core.services.application.industry_extension_runtime_service import (
+                IndustryExtensionRuntimeService,
+            )
 
+            await IndustryExtensionRuntimeService.on_module_deactivated(tenant_id, app_code)
             await IndustryPackMenuService.sync_after_industry_module_lifecycle(
                 tenant_id, activate_shell=False
             )
@@ -840,10 +844,14 @@ class ApplicationService:
         app_code = str(application.get("code") or "")
         if is_industry_module_app_code(app_code):
             from core.services.application.industry_pack_menu_service import IndustryPackMenuService
+            from core.services.application.industry_extension_runtime_service import (
+                IndustryExtensionRuntimeService,
+            )
 
             await IndustryPackMenuService.sync_after_industry_module_lifecycle(
                 tenant_id, activate_shell=True
             )
+            await IndustryExtensionRuntimeService.on_module_activated(tenant_id, app_code)
         elif is_industry_pack_shell_code(app_code):
             from core.services.application.industry_pack_menu_service import IndustryPackMenuService
 
@@ -966,7 +974,11 @@ class ApplicationService:
 
         if is_industry_module_app_code(app_code):
             from core.services.application.industry_pack_menu_service import IndustryPackMenuService
+            from core.services.application.industry_extension_runtime_service import (
+                IndustryExtensionRuntimeService,
+            )
 
+            await IndustryExtensionRuntimeService.on_module_deactivated(tenant_id, app_code)
             await IndustryPackMenuService.sync_after_industry_module_lifecycle(
                 tenant_id, activate_shell=False
             )

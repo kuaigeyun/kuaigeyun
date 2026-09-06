@@ -193,16 +193,29 @@ async def list_inspection_schemes(
     created_end_date: Optional[str] = Query(None, description="创建日期止"),
     updated_start_date: Optional[str] = Query(None, description="更新日期起"),
     updated_end_date: Optional[str] = Query(None, description="更新日期止"),
+    domain: Optional[str] = Query(None, description="业务域 equipment/esd"),
     tenant_id: int = Depends(get_current_tenant),
 ):
-    rows, total = await svc.inspection_scheme_service._list(tenant_id, skip, limit, search, is_active,
+    from apps.kuaizhizao.models.equipment_ops import EquipmentInspectionScheme
+    from apps.kuaizhizao.services.equipment_list_core import apply_master_crud_list_filters
+    from apps.kuaizhizao.services.equipment_ops_service import _normalize_scheme_domain
+
+    qs = EquipmentInspectionScheme.filter(tenant_id=tenant_id, deleted_at__isnull=True)
+    if domain:
+        qs = qs.filter(domain=_normalize_scheme_domain(domain))
+    qs, order_clause = apply_master_crud_list_filters(
+        qs,
         keyword=keyword,
+        search=search,
+        is_active=is_active,
         order_by=order_by,
         created_start_date=created_start_date,
         created_end_date=created_end_date,
         updated_start_date=updated_start_date,
         updated_end_date=updated_end_date,
     )
+    total = await qs.count()
+    rows = await qs.order_by(order_clause).offset(skip).limit(limit)
     items = []
     for row in rows:
         _, lines = await svc.inspection_scheme_service.get_with_lines(tenant_id, row.id)

@@ -1034,3 +1034,19 @@ async def reload_app_routes(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"重新加载失败: {str(e)}"
         )
+
+@router.get(
+    "/industry-extensions/document-replacements",
+    summary="List active industry document replacements",
+)
+async def list_industry_document_replacements(
+    tenant_id: int = Depends(get_current_tenant),
+    _auth: AuthContext = Depends(get_auth_context),
+):
+    """当前租户已启用的 document 替代清单（宿主 path → 行业页），供 FE 解析组件。"""
+    from core.services.application.industry_extension_runtime_service import (
+        IndustryExtensionRuntimeService,
+    )
+
+    items = await IndustryExtensionRuntimeService.list_active_document_replacements(tenant_id)
+    return {"items": items, "total": len(items)}

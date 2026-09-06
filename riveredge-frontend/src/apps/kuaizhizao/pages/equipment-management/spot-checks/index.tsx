@@ -17,6 +17,8 @@ import { MarkerTag } from '../../../../../constants/statusBadges';
 import dayjs from 'dayjs';
 import { UniTable } from '../../../../../components/uni-table';
 import { ListPageTemplate, FormModalTemplate, MODAL_CONFIG } from '../../../../../components/layout-templates';
+import { rowActionKind } from '../../../../../components/uni-action';
+import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
 import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions';
 import { useNewShortcut } from '../../../../../hooks/useNewShortcut';
 import { withSingleNewShortcutHint } from '../../../../../utils/globalNewShortcut';
@@ -24,7 +26,6 @@ import {
   buildDetailDrawerEditExtra,
   EquipmentMasterDetailDrawer,
   MasterDataLinesTable,
-  renderEquipmentMasterRowActions,
   useEquipmentDetailDrawer,
 } from '../shared/equipmentMasterDataDetail';
 import { equipmentApi } from '../../../services/equipment';
@@ -63,12 +64,15 @@ interface SpotCheckLine {
   item_code?: string;
   item_name?: string;
   requirement?: string;
+  method?: string;
+  judgment_standard?: string;
   value_type?: string;
   unit?: string;
   numeric_min?: number | string | null;
   numeric_max?: number | string | null;
   measured_value?: string;
   is_pass?: boolean;
+  photo_required?: boolean;
   remark?: string;
   attachments?: DocumentAttachmentFile[];
 }
@@ -81,12 +85,21 @@ interface SpotCheck {
   equipment_code?: string;
   equipment_name?: string;
   scheme_id?: number;
+  capture_mode?: string;
   check_date?: string;
+  inspector_id?: number;
   inspector_name?: string;
+  reviewer_user_id?: number;
+  reviewer_user_name?: string;
+  reviewed_by_name?: string;
+  reviewed_at?: string;
+  reject_reason?: string;
   status?: string;
   has_abnormality?: boolean;
   fault_report_uuid?: string;
   abnormality_description?: string;
+  attachments?: DocumentAttachmentFile[];
+  remark?: string;
   updated_at?: string;
   lines?: SpotCheckLine[];
 }
@@ -97,9 +110,14 @@ const SpotChecksPage: React.FC = () => {
   const { t } = useTranslation();
   const { message: messageApi } = App.useApp();
   const perms = useResourcePermissions(RESOURCE);
+  const canApprove = perms.canAction?.('approve') ?? false;
+  const canReject = perms.canAction?.('reject') ?? false;
   const actionRef = useRef<ActionType>(null);
   const urlUuidRef = useRef<string | undefined>(undefined);
   const deepLinkOpenedRef = useRef(false);
+  const createDeepLinkHandledRef = useRef(false);
+  const schemeDomain = (searchParams.get('domain') || '').trim().toLowerCase() || undefined;
+  const urlSchemeId = Number(searchParams.get('scheme_id') || 0) || undefined;
   const formRef = useRef<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
@@ -109,6 +127,11 @@ const SpotChecksPage: React.FC = () => {
   );
   const [submitting, setSubmitting] = useState(false);
   const [previewLines, setPreviewLines] = useState<SpotCheckLine[]>([]);
+  const [captureMode, setCaptureMode] = useState<string>('A');
+  const [headerAttachments, setHeaderAttachments] = useState<DocumentAttachmentFile[]>([]);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<SpotCheck | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [equipmentOptions, setEquipmentOptions] = useState<{ label: string; value: number }[]>([]);
   const [equipmentUuidById, setEquipmentUuidById] = useState<Record<number, string>>({});
   const [schemeOptions, setSchemeOptions] = useState<{ label: string; value: number }[]>([]);
@@ -153,7 +176,11 @@ const SpotChecksPage: React.FC = () => {
   const loadOptions = async () => {
     const [eqRes, schRes] = await Promise.all([
       equipmentApi.list({ limit: 1000 }),
-      inspectionSchemesApi.list({ limit: 1000, is_active: true }),
+      inspectionSchemesApi.list({
+        limit: 1000,
+        is_active: true,
+        ...(schemeDomain ? { domain: schemeDomain } : { domain: 'equipment' }),
+      }),
     ]);
     setEquipmentOptions(
       (eqRes.items ?? []).map((eq: { id: number; code: string; name: string }) => ({
@@ -179,10 +206,14 @@ const SpotChecksPage: React.FC = () => {
   const handlePreview = async (equipmentId?: number, schemeId?: number) => {
     if (!equipmentId) {
       setPreviewLines([]);
+      setCaptureMode('A');
+      setHeaderAttachments([]);
       return;
     }
     if (!schemeId) {
       setPreviewLines([]);
+      setCaptureMode('A');
+      setHeaderAttachments([]);
       return;
     }
     try {
@@ -190,6 +221,9 @@ const SpotChecksPage: React.FC = () => {
         equipment_id: equipmentId,
         scheme_id: schemeId,
       });
+      const mode = String(res.capture_mode || 'A').toUpperCase();
+      setCaptureMode(mode);
+      setHeaderAttachments([]);
       setPreviewLines(
         (res.lines ?? []).map((l) => {
           const valueType = String(l.value_type || 'boolean').toLowerCase();
@@ -198,6 +232,7 @@ const SpotChecksPage: React.FC = () => {
           const isPass = l.is_pass ?? true;
           return {
             ...l,
+            photo_required: Boolean(l.photo_required),
             is_pass: isPass,
             measured_value: isBoolean
               ? l.measured_value?.trim()
@@ -236,6 +271,8 @@ const SpotChecksPage: React.FC = () => {
     } catch (error: unknown) {
       messageApi.error(getApiErrorMessage(error, t(`${P}.previewFailed`)));
       setPreviewLines([]);
+      setCaptureMode('A');
+      setHeaderAttachments([]);
     }
   };
 
@@ -243,11 +280,26 @@ const SpotChecksPage: React.FC = () => {
     setIsEdit(false);
     setCurrent(null);
     setPreviewLines([]);
-    setFormInitialValues({ check_date: dayjs() });
+    setCaptureMode('A');
+    setHeaderAttachments([]);
+    setFormInitialValues({
+      check_date: dayjs(),
+      ...(urlSchemeId ? { scheme_id: urlSchemeId } : {}),
+    });
     setModalVisible(true);
     void loadOptions();
   };
   useNewShortcut(handleCreate);
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1') {
+      createDeepLinkHandledRef.current = false;
+      return;
+    }
+    if (createDeepLinkHandledRef.current || !perms.canCreate) return;
+    createDeepLinkHandledRef.current = true;
+    handleCreate();
+  }, [searchParams, perms.canCreate]);
 
   const handleEdit = async (record: SpotCheck) => {
     if (!record.id) return;
@@ -257,6 +309,8 @@ const SpotChecksPage: React.FC = () => {
       setIsEdit(true);
       setCurrent(detail);
       setPreviewLines(detail.lines ?? []);
+      setCaptureMode(String(detail.capture_mode || 'A').toUpperCase());
+      setHeaderAttachments(detail.attachments ?? []);
       setFormInitialValues({
         equipment_id: detail.equipment_id,
         scheme_id: detail.scheme_id,
@@ -281,10 +335,59 @@ const SpotChecksPage: React.FC = () => {
     actionRef.current?.reload();
   };
 
+  const handleApprove = async (record: SpotCheck) => {
+    if (!record.id) return;
+    try {
+      await spotChecksApi.approve(record.id);
+      messageApi.success(t(`${P}.approveSuccess`));
+      actionRef.current?.reload();
+      if (detail?.id === record.id) {
+        void handleDetail(record);
+      }
+    } catch (error: unknown) {
+      messageApi.error(getApiErrorMessage(error, t(`${P}.approveFailed`)));
+    }
+  };
+
+  const handleRejectConfirm = async () => {
+    if (!rejectTarget?.id || !rejectReason.trim()) return;
+    try {
+      await spotChecksApi.reject(rejectTarget.id, { reject_reason: rejectReason.trim() });
+      messageApi.success(t(`${P}.rejectSuccess`));
+      setRejectModalVisible(false);
+      setRejectTarget(null);
+      setRejectReason('');
+      actionRef.current?.reload();
+      if (detail?.id === rejectTarget.id) {
+        void handleDetail(rejectTarget);
+      }
+    } catch (error: unknown) {
+      messageApi.error(getApiErrorMessage(error, t(`${P}.rejectFailed`)));
+    }
+  };
+
   const handleSubmit = async (values: Record<string, unknown>) => {
-    if (!previewLines.length) {
+    const mode = String(captureMode || 'A').toUpperCase();
+    if (mode === 'B') {
+      if (!headerAttachments.length) {
+        messageApi.warning(t(`${P}.headerPhotosRequired`));
+        return;
+      }
+    } else if (!previewLines.length) {
       messageApi.warning(t(`${P}.noPreviewLines`));
       return;
+    } else if (mode === 'C') {
+      const missing = previewLines.find(
+        (l) => l.photo_required && !(l.attachments && l.attachments.length),
+      );
+      if (missing) {
+        messageApi.warning(
+          t(`${P}.linePhotoRequired`, {
+            name: missing.item_name || missing.item_code || missing.line_no,
+          }),
+        );
+        return;
+      }
     }
     const payload = {
       equipment_id: values.equipment_id,
@@ -293,21 +396,28 @@ const SpotChecksPage: React.FC = () => {
       inspector_id: values.inspector_id,
       inspector_name: values.inspector_name,
       remark: values.remark,
-      lines: previewLines.map((l) => ({
-        line_no: l.line_no,
-        item_id: l.item_id,
-        item_code: l.item_code,
-        item_name: l.item_name,
-        requirement: l.requirement,
-        value_type: l.value_type,
-        unit: l.unit,
-        numeric_min: l.numeric_min,
-        numeric_max: l.numeric_max,
-        measured_value: l.measured_value,
-        is_pass: l.is_pass,
-        remark: l.remark,
-        attachments: l.attachments?.length ? l.attachments : undefined,
-      })),
+      attachments: mode === 'B' ? headerAttachments : undefined,
+      lines:
+        mode === 'B'
+          ? []
+          : previewLines.map((l) => ({
+              line_no: l.line_no,
+              item_id: l.item_id,
+              item_code: l.item_code,
+              item_name: l.item_name,
+              requirement: l.requirement,
+              method: l.method,
+              judgment_standard: l.judgment_standard,
+              value_type: l.value_type,
+              unit: l.unit,
+              numeric_min: l.numeric_min,
+              numeric_max: l.numeric_max,
+              measured_value: l.measured_value,
+              is_pass: l.is_pass,
+              photo_required: Boolean(l.photo_required),
+              remark: l.remark,
+              attachments: l.attachments?.length ? l.attachments : undefined,
+            })),
     };
     setSubmitting(true);
     try {
@@ -328,6 +438,8 @@ const SpotChecksPage: React.FC = () => {
       setModalVisible(false);
       setFormInitialValues(undefined);
       setPreviewLines([]);
+      setHeaderAttachments([]);
+      setCaptureMode('A');
       actionRef.current?.reload();
       if (detailVisible && detail?.id === current?.id && current?.id) {
         void handleDetail({ id: current.id });
@@ -341,6 +453,13 @@ const SpotChecksPage: React.FC = () => {
 
   const lineColumns = [
     { title: t(`${P}.line.item`), dataIndex: 'item_name', width: 140 },
+    { title: t(`${P}.line.method`), dataIndex: 'method', ellipsis: true, width: 120 },
+    {
+      title: t(`${P}.line.judgmentStandard`),
+      dataIndex: 'judgment_standard',
+      ellipsis: true,
+      width: 120,
+    },
     { title: t(`${P}.line.requirement`), dataIndex: 'requirement', ellipsis: true },
     { title: t('common.unit'), dataIndex: 'unit', width: 60 },
     {
@@ -414,13 +533,28 @@ const SpotChecksPage: React.FC = () => {
     () => [
       { title: t(`${P}.col.documentNo`), dataIndex: 'document_no' },
       { title: t(`${P}.col.equipment`), dataIndex: 'equipment_name' },
+      {
+        title: t(`${P}.col.captureMode`),
+        dataIndex: 'capture_mode',
+        render: (_, r) =>
+          r.capture_mode
+            ? t(
+                `app.kuaizhizao.equipmentOps.inspectionScheme.captureMode.${String(r.capture_mode).toUpperCase()}`,
+                String(r.capture_mode),
+              )
+            : '-',
+      },
       { title: t(`${P}.col.checkDate`), dataIndex: 'check_date', valueType: 'date' },
       { title: t(`${P}.col.inspector`), dataIndex: 'inspector_name' },
+      { title: t(`${P}.col.reviewer`), dataIndex: 'reviewer_user_name' },
+      { title: t(`${P}.col.reviewedBy`), dataIndex: 'reviewed_by_name' },
+      { title: t(`${P}.col.reviewedAt`), dataIndex: 'reviewed_at', valueType: 'dateTime' },
       {
         title: t('common.status'),
         dataIndex: 'status',
         render: (_, r) => renderDocumentStatusTag(r.status ?? '-', r.status),
       },
+      { title: t(`${P}.form.rejectReason`), dataIndex: 'reject_reason', span: 2 },
       {
         title: t(`${P}.col.abnormality`),
         dataIndex: 'has_abnormality',
@@ -571,6 +705,20 @@ const SpotChecksPage: React.FC = () => {
           r.inspector_name != null && r.inspector_name !== '' ? String(r.inspector_name) : '-',
       },
       {
+        title: t(`${P}.col.reviewer`),
+        dataIndex: 'reviewer_user_name',
+        width: 100,
+        minWidth: 100,
+        uniTableKeepWidth: true,
+        resizable: false,
+        ellipsis: true,
+        hideInSearch: true,
+        render: (_, r) =>
+          r.reviewer_user_name != null && r.reviewer_user_name !== ''
+            ? String(r.reviewer_user_name)
+            : '-',
+      },
+      {
         title: t(`${P}.col.abnormality`),
         dataIndex: 'has_abnormality',
         ...UNI_TABLE_MARKER_BADGE_COLUMN_DEFAULTS,
@@ -621,28 +769,75 @@ const SpotChecksPage: React.FC = () => {
         key: 'option',
         fixed: 'right',
         hideInSearch: true,
-        render: (_, record) =>
-          renderEquipmentMasterRowActions({
-            record,
-            t,
-            canRead: perms.canRead,
-            canUpdate: perms.canUpdate,
-            canDelete: perms.canDelete,
-            onDetail: (row) => {
-              void handleDetail(row);
-            },
-            onEdit: (row) => {
-              void handleEdit(row);
-            },
-            onDelete: (row) => {
-              if (row.id != null) {
-                void handleDelete([row.id]);
-              }
-            },
-          }),
+        render: (_, record) => {
+          const editable = record.status === '待审核' || record.status === '已驳回';
+          return (
+            <>
+              {perms.canRead ? (
+                <Button
+                  {...rowActionKind('read')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleDetail(record);
+                  }}
+                >
+                  {t('common.detail')}
+                </Button>
+              ) : null}
+              {perms.canUpdate && editable ? (
+                <Button
+                  {...rowActionKind('update')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleEdit(record);
+                  }}
+                >
+                  {t('common.edit')}
+                </Button>
+              ) : null}
+              {canApprove && record.status === '待审核' ? (
+                <Button
+                  {...rowActionKind('approve')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleApprove(record);
+                  }}
+                >
+                  {t(`${P}.action.approve`)}
+                </Button>
+              ) : null}
+              {canReject && record.status === '待审核' ? (
+                <Button
+                  {...rowActionKind('reject')}
+                  danger
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRejectTarget(record);
+                    setRejectReason('');
+                    setRejectModalVisible(true);
+                  }}
+                >
+                  {t(`${P}.action.reject`)}
+                </Button>
+              ) : null}
+              {perms.canDelete && editable ? (
+                <ActionConfirmPopconfirm
+                  title={t('common.deleteTitle')}
+                  onConfirm={() => {
+                    if (record.id != null) void handleDelete([record.id]);
+                  }}
+                >
+                  <Button {...rowActionKind('delete')} danger onClick={(e) => e.stopPropagation()}>
+                    {t('common.delete')}
+                  </Button>
+                </ActionConfirmPopconfirm>
+              ) : null}
+            </>
+          );
+        },
       },
     ], SALES_DOC_LIST_FIELD_RANK),
-    [t, perms, spotCheckStatusValueEnum, abnormalityValueEnum, navigate, handleDetail],
+    [t, perms, canApprove, canReject, spotCheckStatusValueEnum, abnormalityValueEnum, navigate, handleDetail],
   );
 
   return (
@@ -652,7 +847,7 @@ const SpotChecksPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.spotChecks)}
           headerTitle={t(`${P}.title`)}
-          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.spot-checks-width-v2"
+          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.spot-checks-review-r10-v1"
           actionRef={actionRef}
           rowKey="id"
           columns={columns}
@@ -671,6 +866,7 @@ const SpotChecksPage: React.FC = () => {
                 limit: params.pageSize,
                 ...listParams,
                 ...(urlUuidRef.current ? { uuid: urlUuidRef.current } : {}),
+                scheme_domain: schemeDomain || 'equipment',
               });
               const { data, total } = normalizeEquipmentListResponse(res);
               return { data: data as SpotCheck[], success: true, total };
@@ -707,11 +903,19 @@ const SpotChecksPage: React.FC = () => {
             emptyDescription={t('common.noData')}
           />
         }
-        extra={buildDetailDrawerEditExtra(t, Boolean(detail && perms.canUpdate), () => {
-          if (!detail) return;
-          closeDetail();
-          void handleEdit(detail);
-        })}
+        extra={buildDetailDrawerEditExtra(
+          t,
+          Boolean(
+            detail &&
+              perms.canUpdate &&
+              (detail.status === '待审核' || detail.status === '已驳回'),
+          ),
+          () => {
+            if (!detail) return;
+            closeDetail();
+            void handleEdit(detail);
+          },
+        )}
       />
 
       <FormModalTemplate
@@ -721,6 +925,8 @@ const SpotChecksPage: React.FC = () => {
           setModalVisible(false);
           setFormInitialValues(undefined);
           setPreviewLines([]);
+          setHeaderAttachments([]);
+          setCaptureMode('A');
         }}
         onFinish={handleSubmit}
         isEdit={isEdit}
@@ -780,20 +986,60 @@ const SpotChecksPage: React.FC = () => {
             />
           </Col>
           <Col span={24}>
+            <Typography.Text type="secondary">
+              {t(`${P}.col.captureMode`)}：
+              {t(
+                `app.kuaizhizao.equipmentOps.inspectionScheme.captureMode.${String(captureMode || 'A').toUpperCase()}`,
+                String(captureMode || 'A'),
+              )}
+            </Typography.Text>
+          </Col>
+        </Row>
+        {String(captureMode).toUpperCase() === 'B' ? (
+          <div style={{ marginTop: 16 }}>
+            <Typography.Text>{t(`${P}.form.headerPhotos`)}</Typography.Text>
+            <div style={{ marginTop: 8 }}>
+              <LineAttachmentsUpload
+                category="equipment_spot_check"
+                value={headerAttachments}
+                onChange={setHeaderAttachments}
+              />
+            </div>
+          </div>
+        ) : (
+          previewLines.length > 0 && (
+            <Table
+              size="small"
+              rowKey={(r) => String(r.line_no ?? r.item_id)}
+              columns={lineColumns}
+              dataSource={previewLines}
+              pagination={false}
+              style={{ marginTop: 16 }}
+              scroll={{ x: 1100 }}
+            />
+          )
+        )}
+        <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col span={24}>
             <ProFormTextArea name="remark" label={t('common.remark')} fieldProps={{ rows: 2 }} />
           </Col>
         </Row>
-        {previewLines.length > 0 && (
-          <Table
-            size="small"
-            rowKey={(r) => String(r.line_no ?? r.item_id)}
-            columns={lineColumns}
-            dataSource={previewLines}
-            pagination={false}
-            style={{ marginTop: 16 }}
-          />
-        )}
       </FormModalTemplate>
+
+      <Modal
+        title={t(`${P}.rejectModal`)}
+        open={rejectModalVisible}
+        onOk={() => void handleRejectConfirm()}
+        onCancel={() => setRejectModalVisible(false)}
+        destroyOnHidden
+      >
+        <Input.TextArea
+          rows={4}
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          placeholder={t(`${P}.form.rejectReason`)}
+        />
+      </Modal>
     </>
   );
 };

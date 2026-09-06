@@ -255,8 +255,12 @@ class MessageConfigService:
             if data.type == "email":
                 success, message, error = await MessageConfigService._send_test_email(data.config, data.target)
             elif data.type == "sms":
-                # 短信测试逻辑暂未真实实现，先模拟成功
-                success, message, error = True, "短信配置验证通过（模拟）", None
+                # 短信供应商未书面确认接入前禁止模拟成功（INF-04）
+                success, message, error = (
+                    False,
+                    "短信通道未接入真实供应商，禁止模拟成功",
+                    "SMS_PROVIDER_NOT_CONFIGURED",
+                )
             else:
                 success, message, error = False, f"不支持测试的消息类型: {data.type}", None
                 
@@ -277,25 +281,50 @@ class MessageConfigService:
         """
         发送测试邮件内部方法
         """
+        body = (
+            f"这是一条来自 RiverEdge 系统的测试邮件。\n"
+            f"发送时间：{to_api_isoformat(resolve_business_datetime())}\n"
+            f"如果您收到这封邮件，说明您的 SMTP 配置正确。"
+        )
+        return await MessageConfigService._send_email(
+            config,
+            target,
+            subject="RiverEdge 消息发送测试",
+            content=body,
+        )
+
+    @staticmethod
+    async def _send_email(
+        config: dict,
+        target: str,
+        *,
+        subject: str,
+        content: str,
+    ) -> tuple[bool, str, Optional[str]]:
+        """发送业务/测试邮件：使用调用方提供的主题与正文。"""
         host = config.get("smtp_host")
         port = config.get("smtp_port", 465)
         username = config.get("smtp_username")
         password = config.get("smtp_password")
         use_tls = config.get("smtp_use_tls", True)
-        from_name = config.get("from_name", "RiverEdge Test")
+        from_name = config.get("from_name", "RiverEdge")
 
         if not all([host, username, password]):
             return False, "参数不完整", "缺少 host, username 或 password"
+        if not target or not str(target).strip():
+            return False, "收件人为空", "缺少收件邮箱"
+        if not subject or not str(subject).strip():
+            return False, "主题为空", "缺少邮件主题"
+        if content is None or not str(content).strip():
+            return False, "正文为空", "缺少邮件正文"
 
         try:
             import aiosmtplib
             message = MIMEMultipart()
             message["From"] = f"{from_name} <{username}>"
-            message["To"] = target
-            message["Subject"] = "RiverEdge 消息发送测试"
-            
-            body = f"这是一条来自 RiverEdge 系统的测试邮件。\n发送时间：{to_api_isoformat(resolve_business_datetime())}\n如果您收到这封邮件，说明您的 SMTP 配置正确。"
-            message.attach(MIMEText(body, "plain", "utf-8"))
+            message["To"] = str(target).strip()
+            message["Subject"] = str(subject).strip()
+            message.attach(MIMEText(str(content), "plain", "utf-8"))
 
             await aiosmtplib.send(
                 message,
@@ -304,10 +333,10 @@ class MessageConfigService:
                 username=username,
                 password=password,
                 use_tls=use_tls,
-                timeout=10
+                timeout=10,
             )
-            return True, "测试邮件已成功发送", None
+            return True, "邮件已成功发送", None
         except Exception as e:
-            logger.error(f"SMTP 测试失败: {e}")
+            logger.error(f"SMTP 发送失败: {e}")
             return False, "邮件发送失败", str(e)
 

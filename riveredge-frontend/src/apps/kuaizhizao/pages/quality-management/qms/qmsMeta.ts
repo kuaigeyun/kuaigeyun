@@ -30,6 +30,7 @@ export const QMS_DOC_STATUS_OPTIONS = [
   { value: 'draft', labelKey: 'app.kuaizhizao.quality.qms.docStatus.draft' },
   { value: 'effective', labelKey: 'app.kuaizhizao.quality.qms.docStatus.effective' },
   { value: 'obsolete', labelKey: 'app.kuaizhizao.quality.qms.docStatus.obsolete' },
+  { value: 'rejected', labelKey: 'app.kuaizhizao.quality.qms.docStatus.rejected' },
 ] as const;
 
 export const QMS_AUDIT_STATUS_OPTIONS = [

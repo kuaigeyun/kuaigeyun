@@ -108,13 +108,46 @@ class Mold(BaseModel):
     
     description = fields.TextField(null=True, description="描述")
     attachments = fields.JSONField(null=True, description="附件列表")
-    
+
+    # 供应商半年回签（R-10）
+    signback_required = fields.BooleanField(default=True, description="是否要求供应商半年回签")
+    signback_period_months = fields.IntField(default=6, description="回签周期（月）")
+    last_signback_date = fields.DateField(null=True, description="最近回签日期")
+    next_signback_due = fields.DateField(null=True, description="下次回签到期日")
+    last_signback_supplier = fields.CharField(max_length=200, null=True, description="最近回签供应商快照")
+    last_signback_attachments = fields.JSONField(null=True, description="最近回签扫描件")
+
     # 软删除字段
     deleted_at = fields.DatetimeField(null=True, description="删除时间（软删除）")
     
     def __str__(self):
         """字符串表示"""
         return f"{self.code} - {self.name}"
+
+
+class MoldSignback(BaseModel):
+    """模具供应商回签履历（半年回签扫描件）。"""
+
+    class Meta:
+        table = "apps_kuaizhizao_mold_signbacks"
+        table_description = "快格轻制造 - 模具供应商回签"
+        indexes = [
+            ("tenant_id", "mold_id"),
+            ("tenant_id", "signed_at"),
+            ("uuid",),
+        ]
+
+    id = fields.IntField(pk=True, description="主键")
+    mold_id = fields.IntField(description="模具ID")
+    mold_uuid = fields.CharField(max_length=36, description="模具UUID")
+    mold_code = fields.CharField(max_length=50, null=True, description="模具编码快照")
+    mold_name = fields.CharField(max_length=200, null=True, description="模具名称快照")
+    period_due = fields.DateField(null=True, description="本期应回签到期日")
+    signed_at = fields.DateField(description="实际回签日期")
+    supplier_name = fields.CharField(max_length=200, null=True, description="回签供应商")
+    attachments = fields.JSONField(null=True, description="扫描件附件")
+    remark = fields.TextField(null=True, description="备注")
+    deleted_at = fields.DatetimeField(null=True, description="软删除")
 
 
 class MoldUsage(BaseModel):

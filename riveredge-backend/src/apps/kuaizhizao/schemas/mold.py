@@ -52,6 +52,8 @@ class MoldBase(BaseModel):
     design_lifetime: Optional[int] = Field(None, ge=1, description="设计寿命（使用次数），用于寿命预警")
     description: Optional[str] = Field(None, description="描述")
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
+    signback_required: bool = Field(default=True, description="是否要求供应商半年回签")
+    signback_period_months: int = Field(default=6, ge=1, description="回签周期（月）")
     
     @field_validator("status")
     @classmethod
@@ -101,6 +103,8 @@ class MoldUpdate(BaseModel):
     design_lifetime: Optional[int] = Field(None, ge=1, description="设计寿命（使用次数）")
     description: Optional[str] = Field(None, description="描述")
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
+    signback_required: Optional[bool] = Field(None, description="是否要求供应商半年回签")
+    signback_period_months: Optional[int] = Field(None, ge=1, description="回签周期（月）")
 
     @field_validator("status")
     @classmethod
@@ -134,6 +138,10 @@ class MoldResponse(MoldBase):
     calibration_period: Optional[int] = Field(None, description="校验周期（天）")
     last_calibration_date: Optional[date] = Field(None, description="上次校验日期")
     next_calibration_date: Optional[date] = Field(None, description="下次校验日期")
+    last_signback_date: Optional[date] = Field(None, description="最近回签日期")
+    next_signback_due: Optional[date] = Field(None, description="下次回签到期日")
+    last_signback_supplier: Optional[str] = Field(None, description="最近回签供应商")
+    last_signback_attachments: Optional[List[dict]] = Field(None, description="最近回签扫描件")
     created_by: Optional[int] = None
     created_by_name: Optional[str] = None
     updated_by: Optional[int] = None
@@ -141,6 +149,46 @@ class MoldResponse(MoldBase):
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     deleted_at: Optional[datetime] = Field(None, description="删除时间（软删除）")
+
+
+class MoldSignbackCreate(BaseModel):
+    """模具供应商回签登记。"""
+
+    signed_at: date = Field(..., description="实际回签日期")
+    supplier_name: Optional[str] = Field(None, max_length=200, description="回签供应商")
+    attachments: List[dict] = Field(..., min_length=1, description="扫描件附件（至少一份）")
+    remark: Optional[str] = Field(None, description="备注")
+
+
+class MoldSignbackResponse(BaseModel):
+    """模具供应商回签履历响应。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    uuid: str = Field(..., description="回签记录UUID")
+    id: int = Field(..., description="回签记录ID")
+    mold_uuid: str = Field(..., description="模具UUID")
+    mold_code: Optional[str] = Field(None, description="模具编码")
+    mold_name: Optional[str] = Field(None, description="模具名称")
+    period_due: Optional[date] = Field(None, description="本期应回签到期日")
+    signed_at: date = Field(..., description="实际回签日期")
+    supplier_name: Optional[str] = Field(None, description="回签供应商")
+    attachments: Optional[List[dict]] = Field(None, description="扫描件")
+    remark: Optional[str] = Field(None, description="备注")
+    created_at: datetime = Field(..., description="创建时间")
+    created_by: Optional[int] = Field(None, description="创建人ID")
+    created_by_name: Optional[str] = Field(None, description="创建人姓名")
+
+
+class MoldSignbackListResponse(BaseModel):
+    """模具供应商回签履历列表。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    items: list[MoldSignbackResponse] = Field(..., description="回签履历")
+    total: int = Field(..., description="总数量")
+    skip: int = Field(..., description="跳过数量")
+    limit: int = Field(..., description="限制数量")
 
 
 class MoldListResponse(BaseModel):

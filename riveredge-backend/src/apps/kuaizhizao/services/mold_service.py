@@ -9,22 +9,24 @@ Date: 2026-01-05
 
 from typing import List, Optional
 from datetime import datetime, date
+import calendar
 import math
 from tortoise.exceptions import IntegrityError
 from tortoise.expressions import Q
 
-from apps.kuaizhizao.models.mold import Mold, MoldCalibration
+from apps.kuaizhizao.models.mold import Mold, MoldCalibration, MoldSignback
 from apps.kuaizhizao.models.mold_ops import MoldMaintenanceScheme, MoldSchemeBinding
 from apps.kuaizhizao.schemas.mold import (
     MoldCreate,
     MoldUpdate,
     MoldCalibrationCreate,
+    MoldSignbackCreate,
 )
 from apps.common.audit_actor import apply_create_audit
 from core.services.business.code_generation_service import CodeGenerationService
 from infra.exceptions.exceptions import NotFoundError, ValidationError
 from infra.models.user import User
-from core.utils.timezone_utils import resolve_business_datetime
+from core.utils.timezone_utils import resolve_business_datetime, to_site_date
 
 
 class MoldService:
@@ -33,7 +35,41 @@ class MoldService:
     
     提供模具的 CRUD 操作。
     """
-    
+
+    @staticmethod
+    def _add_calendar_months(d: date, months: int) -> date:
+        if months < 1:
+            raise ValidationError("回签周期须至少 1 个月")
+        y = d.year + (d.month - 1 + months) // 12
+        m = (d.month - 1 + months) % 12 + 1
+        last = calendar.monthrange(y, m)[1]
+        return date(y, m, min(d.day, last))
+
+    @staticmethod
+    def _site_today() -> date:
+        return to_site_date(resolve_business_datetime())
+
+    @staticmethod
+    def apply_signback_schedule(mold: Mold, *, recompute_next: bool = False) -> None:
+        """按回签开关与周期写入/清空 next_signback_due。"""
+        if not mold.signback_required:
+            mold.next_signback_due = None
+            return
+        months = int(mold.signback_period_months or 6)
+        if months < 1:
+            raise ValidationError("回签周期须至少 1 个月")
+        mold.signback_period_months = months
+        if not recompute_next and mold.next_signback_due is not None:
+            return
+        if mold.last_signback_date:
+            mold.next_signback_due = MoldService._add_calendar_months(
+                mold.last_signback_date, months
+            )
+            return
+        today = MoldService._site_today()
+        anchor = mold.installation_date or mold.purchase_date or today
+        mold.next_signback_due = MoldService._add_calendar_months(anchor, months)
+
     @staticmethod
     async def create_mold(
         tenant_id: int,
@@ -52,31 +88,31 @@ class MoldService:
             Mold: 创建的模具对象
             
         Raises:
-            ValidationError: 当模具编码已存在时抛出
+            ValidationError: 当模具编码已存在或编码规则不可用时抛出
         """
+        from apps.kuaizhizao.services.mold_signback_reminder_service import (
+            MoldSignbackReminderService,
+        )
+
         try:
-            # 如果没有提供编码，自动生成
             if not data.code:
-                try:
-                    data.code = await CodeGenerationService.generate_code(
-                        tenant_id=tenant_id,
-                        rule_code="MOLD_CODE",
-                        context=None
-                    )
-                except ValidationError:
-                    # 如果编码规则不存在，使用默认编码格式
-                    timestamp = resolve_business_datetime().strftime("%Y%m%d%H%M%S")
-                    data.code = f"MD{timestamp}"
+                data.code = await CodeGenerationService.generate_code(
+                    tenant_id=tenant_id,
+                    rule_code="MOLD_CODE",
+                    context=None,
+                )
             
             mold = Mold(
                 tenant_id=tenant_id,
                 **data.model_dump(exclude_none=True)
             )
+            MoldService.apply_signback_schedule(mold, recompute_next=True)
             actor = None
             if created_by is not None:
                 actor = await User.filter(id=created_by, tenant_id=tenant_id).first()
             apply_create_audit(mold, actor)
             await mold.save()
+            await MoldSignbackReminderService.sync_for_mold(tenant_id, mold)
             return mold
         except IntegrityError:
             raise ValidationError(f"模具编码 {data.code} 已存在")
@@ -190,6 +226,10 @@ class MoldService:
             NotFoundError: 当模具不存在时抛出
             ValidationError: 当模具编码已存在时抛出
         """
+        from apps.kuaizhizao.services.mold_signback_reminder_service import (
+            MoldSignbackReminderService,
+        )
+
         mold = await MoldService.get_mold_by_uuid(tenant_id, uuid)
         
         update_data = data.model_dump(exclude_unset=True, exclude_none=True)
@@ -207,8 +247,21 @@ class MoldService:
         # 更新字段
         for key, value in update_data.items():
             setattr(mold, key, value)
-        
+
+        recompute_next = any(
+            key in update_data
+            for key in (
+                "signback_required",
+                "signback_period_months",
+                "purchase_date",
+                "installation_date",
+            )
+        ) or (
+            bool(mold.signback_required) and mold.next_signback_due is None
+        )
+        MoldService.apply_signback_schedule(mold, recompute_next=recompute_next)
         await mold.save()
+        await MoldSignbackReminderService.sync_for_mold(tenant_id, mold)
         return mold
     
     @staticmethod
@@ -226,11 +279,82 @@ class MoldService:
         Raises:
             NotFoundError: 当模具不存在时抛出
         """
+        from apps.kuaizhizao.services.mold_signback_reminder_service import (
+            MoldSignbackReminderService,
+        )
+
         mold = await MoldService.get_mold_by_uuid(tenant_id, uuid)
         
         # 软删除
         mold.deleted_at = resolve_business_datetime()
         await mold.save()
+        await MoldSignbackReminderService.stop_for_mold(
+            tenant_id, mold.id, reason="模具已删除"
+        )
+
+
+class MoldSignbackService:
+    """模具供应商回签履历。"""
+
+    @staticmethod
+    async def list_signbacks(
+        tenant_id: int,
+        mold_uuid: str,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> tuple[List[MoldSignback], int]:
+        mold = await MoldService.get_mold_by_uuid(tenant_id, mold_uuid)
+        query = MoldSignback.filter(
+            tenant_id=tenant_id,
+            mold_id=mold.id,
+            deleted_at__isnull=True,
+        )
+        total = await query.count()
+        items = await query.offset(skip).limit(limit).order_by("-signed_at", "-id")
+        return list(items), total
+
+    @staticmethod
+    async def create_signback(
+        tenant_id: int,
+        mold_uuid: str,
+        data: MoldSignbackCreate,
+        current_user: Optional[User] = None,
+    ) -> MoldSignback:
+        from apps.kuaizhizao.services.mold_signback_reminder_service import (
+            MoldSignbackReminderService,
+        )
+
+        mold = await MoldService.get_mold_by_uuid(tenant_id, mold_uuid)
+        if not mold.signback_required:
+            raise ValidationError("该模具未开启供应商回签")
+        attachments = list(data.attachments or [])
+        if not attachments:
+            raise ValidationError("须上传回签扫描件")
+
+        months = int(mold.signback_period_months or 6)
+        supplier_name = (data.supplier_name or mold.supplier or "").strip() or None
+        record = MoldSignback(
+            tenant_id=tenant_id,
+            mold_id=mold.id,
+            mold_uuid=str(mold.uuid),
+            mold_code=mold.code,
+            mold_name=mold.name,
+            period_due=mold.next_signback_due,
+            signed_at=data.signed_at,
+            supplier_name=supplier_name,
+            attachments=attachments,
+            remark=data.remark,
+        )
+        apply_create_audit(record, current_user)
+        await record.save()
+
+        mold.last_signback_date = data.signed_at
+        mold.last_signback_supplier = supplier_name
+        mold.last_signback_attachments = attachments
+        mold.next_signback_due = MoldService._add_calendar_months(data.signed_at, months)
+        await mold.save()
+        await MoldSignbackReminderService.sync_for_mold(tenant_id, mold)
+        return record
 
 
 class MoldCalibrationService:

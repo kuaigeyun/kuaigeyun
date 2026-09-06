@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ActionType, ProColumns, ProDescriptionsItemProps, ProFormSelect } from '@ant-design/pro-components';
+import { ActionType, ProColumns, ProDescriptionsItemProps, ProFormSelect, ProFormTextArea } from '@ant-design/pro-components';
 import { App, Button, Descriptions, Modal, Typography } from 'antd';
 import { StatusTag } from '../../../../../constants/statusBadges';
 import { renderDocumentStatusTag } from '../../../../../utils/documentLifecycleStatusTag';
@@ -45,11 +45,16 @@ interface EquipmentRepair {
   repair_date?: string;
   repair_type?: string;
   repair_description?: string;
+  fault_cause?: string;
+  repair_content?: string;
   repairer_name?: string;
   repair_duration?: number;
   repair_cost?: number;
   status?: string;
   repair_result?: string;
+  arrival_at?: string;
+  arrival_by_name?: string;
+  completed_at?: string;
   repair_parts?: { items?: Array<{ spare_part_id?: number; quantity?: number }> };
   attachments?: Array<{ uid?: string; name?: string; url?: string }>;
   created_at?: string;
@@ -92,12 +97,31 @@ const EquipmentRepairsPage: React.FC = () => {
     setCompleteVisible(true);
   };
 
-  const handleComplete = async (values: { repair_result?: string }) => {
+  const handleComplete = async (values: {
+    repair_result?: string;
+    fault_cause?: string;
+    repair_content?: string;
+  }) => {
     if (!completeTarget?.uuid) return;
+    const cause = String(values.fault_cause || '').trim();
+    const content = String(values.repair_content || '').trim();
+    if (!cause) {
+      messageApi.warning(t(`${P}.faultCauseRequired`));
+      return;
+    }
+    if (!content) {
+      messageApi.warning(t(`${P}.repairContentRequired`));
+      return;
+    }
+    if (!completeTarget.arrival_at) {
+      messageApi.warning(t(`${P}.arriveRequiredFirst`));
+      return;
+    }
     setCompleting(true);
     try {
-      await equipmentFaultApi.updateRepair(completeTarget.uuid, {
-        status: '已完成',
+      await equipmentFaultApi.completeRepair(completeTarget.uuid, {
+        fault_cause: cause,
+        repair_content: content,
         repair_result: values.repair_result || '成功',
       });
       messageApi.success(t(`${P}.completeSuccess`));
@@ -143,11 +167,19 @@ const EquipmentRepairsPage: React.FC = () => {
       { title: t(`${P}.col.repairType`), dataIndex: 'repair_type' },
       { title: t(`${P}.col.repairerName`), dataIndex: 'repairer_name' },
       {
+        title: t(`${P}.col.arrivalAt`),
+        dataIndex: 'arrival_at',
+        render: (_, r) => (r.arrival_at ? formatDateTime(r.arrival_at) : '-'),
+      },
+      { title: t(`${P}.col.arrivalBy`), dataIndex: 'arrival_by_name' },
+      {
         title: t('common.status'),
         dataIndex: 'status',
         render: (_, r) => renderDocumentStatusTag(r.status ?? '-', r.status ?? '-'),
       },
       { title: t(`${P}.col.repairResult`), dataIndex: 'repair_result' },
+      { title: t(`${P}.col.faultCause`), dataIndex: 'fault_cause', span: 2 },
+      { title: t(`${P}.col.repairContent`), dataIndex: 'repair_content', span: 2 },
       { title: t(`${P}.col.repairDescription`), dataIndex: 'repair_description', span: 2 },
       {
         title: t(`${P}.col.sparePartsUsed`, { defaultValue: '使用备件' }),
@@ -419,11 +451,27 @@ const EquipmentRepairsPage: React.FC = () => {
             setCompleteTarget(null);
           }
         }}
-        initialValues={{ repair_result: '成功' }}
+        initialValues={{
+          repair_result: '成功',
+          fault_cause: completeTarget?.fault_cause,
+          repair_content: completeTarget?.repair_content || completeTarget?.repair_description,
+        }}
         onFinish={handleComplete}
         submitter={{ submitButtonProps: { loading: completing } }}
         width={MODAL_CONFIG.STANDARD_WIDTH}
       >
+        <ProFormTextArea
+          name="fault_cause"
+          label={t(`${P}.col.faultCause`)}
+          rules={[{ required: true, message: t(`${P}.faultCauseRequired`) }]}
+          fieldProps={{ rows: 3 }}
+        />
+        <ProFormTextArea
+          name="repair_content"
+          label={t(`${P}.col.repairContent`)}
+          rules={[{ required: true, message: t(`${P}.repairContentRequired`) }]}
+          fieldProps={{ rows: 3 }}
+        />
         <ProFormSelect
           name="repair_result"
           label={t(`${P}.col.repairResult`)}

@@ -38,13 +38,105 @@
             "path": "/apps/kuaiplm/gate-templates",
             "permission": "kuaiplm:gate-template:read",
             "sort_order": 3
+          },
+          {
+            "title": "app.kuaiplm.menu.pending-inbox",
+            "path": "/apps/kuaiplm/pending-inbox",
+            "permission": "kuaiplm:dashboard:read",
+            "sort_order": 4
+          }
+        ]
+      },
+      {
+        "title": "app.kuaiplm.menu.group.project-docs",
+        "icon": "layers",
+        "sort_order": 2,
+        "children": [
+          {
+            "title": "app.kuaiplm.menu.product-firmwares",
+            "path": "/apps/kuaiplm/product-firmwares",
+            "permission": "kuaiplm:product-firmware:read",
+            "sort_order": 1
+          },
+          {
+            "title": "app.kuaiplm.menu.production-files",
+            "path": "/apps/kuaiplm/production-files",
+            "permission": "kuaiplm:production-file:read",
+            "sort_order": 2
+          },
+          {
+            "title": "app.kuaiplm.menu.sample-process",
+            "path": "/apps/kuaiplm/sample-process-applications",
+            "permission": "kuaiplm:sample-process:read",
+            "sort_order": 3
+          },
+          {
+            "title": "app.kuaiplm.menu.material-reviews",
+            "path": "/apps/kuaiplm/material-reviews",
+            "permission": "kuaiplm:material-review:read",
+            "sort_order": 4
+          },
+          {
+            "title": "app.kuaiplm.menu.bom-collaborations",
+            "path": "/apps/kuaiplm/bom-collaborations",
+            "permission": "kuaiplm:bom-collab:read",
+            "sort_order": 5
+          },
+          {
+            "title": "app.kuaiplm.menu.project-proposals",
+            "path": "/apps/kuaiplm/project-proposals",
+            "permission": "kuaiplm:project-proposal:read",
+            "sort_order": 6
+          },
+          {
+            "title": "app.kuaiplm.menu.mold-sample-orders",
+            "path": "/apps/kuaiplm/mold-sample-orders",
+            "permission": "kuaiplm:mold-sample:read",
+            "sort_order": 7
+          },
+          {
+            "title": "app.kuaiplm.menu.trial-flows",
+            "path": "/apps/kuaiplm/trial-flows",
+            "permission": "kuaiplm:trial-flow:read",
+            "sort_order": 8
+          }
+        ]
+      },
+      {
+        "title": "app.kuaiplm.menu.group.lab-management",
+        "icon": "experiment",
+        "sort_order": 3,
+        "children": [
+          {
+            "title": "app.kuaiplm.menu.lab-requests",
+            "path": "/apps/kuaiplm/lab-requests",
+            "permission": "kuaiplm:lab-request:read",
+            "sort_order": 1
+          },
+          {
+            "title": "app.kuaiplm.menu.lab-board",
+            "path": "/apps/kuaiplm/lab-board",
+            "permission": "kuaiplm:lab-request:read",
+            "sort_order": 2
+          },
+          {
+            "title": "app.kuaiplm.menu.lab-judgment-rules",
+            "path": "/apps/kuaiplm/lab-judgment-rules",
+            "permission": "kuaiplm:lab-judgment-rule:read",
+            "sort_order": 3
+          },
+          {
+            "title": "app.kuaiplm.menu.annual-lab-plans",
+            "path": "/apps/kuaiplm/annual-lab-plans",
+            "permission": "kuaiplm:annual-lab-plan:read",
+            "sort_order": 4
           }
         ]
       },
       {
         "title": "app.kuaiplm.menu.design-data",
         "icon": "fileText",
-        "sort_order": 2,
+        "sort_order": 4,
         "children": [
           {
             "title": "app.master-data.menu.process.drawings",
@@ -90,7 +182,7 @@
       {
         "title": "app.kuaiplm.menu.process-data",
         "icon": "workflow",
-        "sort_order": 3,
+        "sort_order": 5,
         "meta": {
           "menu_takeover": "master-data-process"
         },
@@ -130,7 +222,7 @@
       {
         "title": "app.kuaiplm.menu.phase2",
         "icon": "users",
-        "sort_order": 4,
+        "sort_order": 6,
         "children": [
           {
             "title": "app.kuaiplm.menu.phase2.requirements",
@@ -155,7 +247,7 @@
       {
         "title": "app.kuaiplm.menu.knowledge-center",
         "icon": "bookOpen",
-        "sort_order": 5,
+        "sort_order": 7,
         "children": [
           {
             "title": "app.kuaiplm.menu.knowledge-base",
@@ -190,6 +282,7 @@
     "kuaiplm:change:approve",
     "kuaiplm:change:reject",
     "kuaiplm:change:revoke",
+    "kuaiplm:change:execute",
     "kuaiplm:knowledge:read",
     "kuaiplm:knowledge:create",
     "kuaiplm:knowledge:delete",
@@ -205,7 +298,121 @@
     "kuaiplm:fmea:read",
     "kuaiplm:fmea:create",
     "kuaiplm:fmea:delete",
-    "kuaiplm:fmea:update"
+    "kuaiplm:fmea:update",
+    "kuaiplm:product-firmware:read",
+    "kuaiplm:product-firmware:create",
+    "kuaiplm:product-firmware:update",
+    "kuaiplm:product-firmware:delete",
+    "kuaiplm:product-firmware:submit",
+    "kuaiplm:product-firmware:approve",
+    "kuaiplm:product-firmware:reject",
+    "kuaiplm:product-firmware:revoke",
+    "kuaiplm:product-firmware:execute",
+    "kuaiplm:product-firmware:export",
+    "kuaiplm:production-file:read",
+    "kuaiplm:production-file:create",
+    "kuaiplm:production-file:update",
+    "kuaiplm:production-file:delete",
+    "kuaiplm:production-file:submit",
+    "kuaiplm:production-file:approve",
+    "kuaiplm:production-file:reject",
+    "kuaiplm:production-file:revoke",
+    "kuaiplm:production-file:execute",
+    "kuaiplm:production-file:obsolete",
+    "kuaiplm:production-file:export",
+    "kuaiplm:trial-flow:read",
+    "kuaiplm:trial-flow:create",
+    "kuaiplm:trial-flow:update",
+    "kuaiplm:trial-flow:delete",
+    "kuaiplm:trial-flow:submit",
+    "kuaiplm:trial-flow:approve",
+    "kuaiplm:trial-flow:reject",
+    "kuaiplm:trial-flow:revoke",
+    "kuaiplm:trial-flow:execute",
+    "kuaiplm:trial-flow:export",
+    "kuaiplm:lab-request:read",
+    "kuaiplm:lab-request:create",
+    "kuaiplm:lab-request:update",
+    "kuaiplm:lab-request:delete",
+    "kuaiplm:lab-request:submit",
+    "kuaiplm:lab-request:execute",
+    "kuaiplm:lab-request:complete",
+    "kuaiplm:lab-request:approve",
+    "kuaiplm:lab-request:reject",
+    "kuaiplm:lab-request:revoke",
+    "kuaiplm:lab-request:export",
+    "kuaiplm:lab-judgment-rule:read",
+    "kuaiplm:lab-judgment-rule:create",
+    "kuaiplm:lab-judgment-rule:update",
+    "kuaiplm:lab-judgment-rule:delete",
+    "kuaiplm:annual-lab-plan:read",
+    "kuaiplm:annual-lab-plan:create",
+    "kuaiplm:annual-lab-plan:update",
+    "kuaiplm:annual-lab-plan:delete",
+    "kuaiplm:annual-lab-plan:submit",
+    "kuaiplm:annual-lab-plan:approve",
+    "kuaiplm:annual-lab-plan:reject",
+    "kuaiplm:ecn:read",
+    "kuaiplm:ecn:create",
+    "kuaiplm:ecn:update",
+    "kuaiplm:ecn:delete",
+    "kuaiplm:ecn:submit",
+    "kuaiplm:ecn:approve",
+    "kuaiplm:ecn:reject",
+    "kuaiplm:ecn:revoke",
+    "kuaiplm:ecn:execute",
+    "kuaiplm:ecn:export",
+    "kuaiplm:sample-process:read",
+    "kuaiplm:sample-process:create",
+    "kuaiplm:sample-process:update",
+    "kuaiplm:sample-process:delete",
+    "kuaiplm:sample-process:submit",
+    "kuaiplm:sample-process:approve",
+    "kuaiplm:sample-process:reject",
+    "kuaiplm:sample-process:revoke",
+    "kuaiplm:sample-process:execute",
+    "kuaiplm:sample-process:export",
+    "kuaiplm:material-review:read",
+    "kuaiplm:material-review:create",
+    "kuaiplm:material-review:update",
+    "kuaiplm:material-review:delete",
+    "kuaiplm:material-review:submit",
+    "kuaiplm:material-review:approve",
+    "kuaiplm:material-review:reject",
+    "kuaiplm:material-review:revoke",
+    "kuaiplm:material-review:export",
+    "kuaiplm:bom-collab:read",
+    "kuaiplm:bom-collab:create",
+    "kuaiplm:bom-collab:update",
+    "kuaiplm:bom-collab:delete",
+    "kuaiplm:bom-collab:submit",
+    "kuaiplm:bom-collab:approve",
+    "kuaiplm:bom-collab:reject",
+    "kuaiplm:bom-collab:revoke",
+    "kuaiplm:bom-collab:execute",
+    "kuaiplm:bom-collab:export",
+    "kuaiplm:project-proposal:read",
+    "kuaiplm:project-proposal:create",
+    "kuaiplm:project-proposal:update",
+    "kuaiplm:project-proposal:delete",
+    "kuaiplm:project-proposal:submit",
+    "kuaiplm:project-proposal:approve",
+    "kuaiplm:project-proposal:reject",
+    "kuaiplm:project-proposal:revoke",
+    "kuaiplm:project-proposal:execute",
+    "kuaiplm:project-proposal:export",
+    "kuaiplm:mold-sample:read",
+    "kuaiplm:mold-sample:create",
+    "kuaiplm:mold-sample:update",
+    "kuaiplm:mold-sample:delete",
+    "kuaiplm:mold-sample:submit",
+    "kuaiplm:mold-sample:approve",
+    "kuaiplm:mold-sample:reject",
+    "kuaiplm:mold-sample:revoke",
+    "kuaiplm:mold-sample:execute",
+    "kuaiplm:mold-sample:complete",
+    "kuaiplm:mold-sample:print",
+    "kuaiplm:mold-sample:export"
   ],
   "dependencies": {
     "riveredge-backend": ">=1.0.0",
@@ -235,6 +442,81 @@
       "name": "图纸工程变更审核",
       "template": "simple",
       "config_category": "common"
+    },
+    {
+      "node_key": "product_firmware",
+      "entity_type": "product_firmware",
+      "resource": "kuaiplm:product-firmware",
+      "name": "产品固件审核",
+      "template": "simple",
+      "config_category": "common"
+    },
+    {
+      "node_key": "production_file",
+      "entity_type": "production_file",
+      "resource": "kuaiplm:production-file",
+      "name": "生产文件审核",
+      "template": "simple",
+      "config_category": "common"
+    },
+    {
+      "node_key": "trial_flow",
+      "entity_type": "trial_flow",
+      "resource": "kuaiplm:trial-flow",
+      "name": "试流审核",
+      "template": "simple",
+      "config_category": "common",
+      "business_type": ""
+    },
+    {
+      "node_key": "engineering_change",
+      "entity_type": "engineering_change",
+      "resource": "kuaiplm:ecn",
+      "name": "工程变更审核",
+      "template": "simple",
+      "config_category": "common"
+    },
+    {
+      "node_key": "sample_process",
+      "entity_type": "sample_process",
+      "resource": "kuaiplm:sample-process",
+      "name": "样品加工审核",
+      "template": "simple",
+      "config_category": "common",
+      "business_type": ""
+    },
+    {
+      "node_key": "material_review",
+      "entity_type": "material_review",
+      "resource": "kuaiplm:material-review",
+      "name": "物料评审审核",
+      "template": "simple",
+      "config_category": "common"
+    },
+    {
+      "node_key": "bom_collaboration",
+      "entity_type": "bom_collaboration",
+      "resource": "kuaiplm:bom-collab",
+      "name": "BOM协同审核",
+      "template": "simple",
+      "config_category": "common"
+    },
+    {
+      "node_key": "project_proposal",
+      "entity_type": "project_proposal",
+      "resource": "kuaiplm:project-proposal",
+      "name": "项目建议审核",
+      "template": "simple",
+      "config_category": "common"
+    },
+    {
+      "node_key": "mold_sample",
+      "entity_type": "mold_sample",
+      "resource": "kuaiplm:mold-sample",
+      "name": "开模打样审核",
+      "template": "simple",
+      "config_category": "common",
+      "business_type": ""
     }
   ]
 }

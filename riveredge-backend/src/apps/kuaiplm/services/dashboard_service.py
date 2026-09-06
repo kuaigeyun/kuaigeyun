@@ -220,6 +220,10 @@ class DashboardService:
         ).count()
         fmea_total = await RdFmeaRecord.filter(tenant_id=tenant_id, deleted_at__isnull=True).count()
 
+        from apps.kuaiplm.services.pending_inbox_service import PendingInboxService
+
+        pending_wave1_docs = await PendingInboxService().pending_count(tenant_id)
+
         recent = await RdProject.filter(tenant_id=tenant_id, deleted_at__isnull=True).order_by("-created_at", "-id").limit(5).all()
         recent_ids = [p.id for p in recent]
         recent_gates = await RdProjectGate.filter(
@@ -264,6 +268,7 @@ class DashboardService:
             requirement_total=req_total,
             design_review_pending=dr_pending,
             fmea_total=fmea_total,
+            pending_wave1_docs=pending_wave1_docs,
             recent_projects=recent_projects,
             project_gantt=project_gantt,
             my_tasks=my_tasks,

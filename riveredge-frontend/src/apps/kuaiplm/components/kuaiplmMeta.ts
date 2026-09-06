@@ -43,6 +43,7 @@ export const KUAIPLM_CHANGE_CATEGORY_I18N: Record<string, string> = {
   route: 'app.kuaiplm.common.changeCategory.route',
   process_route: 'app.kuaiplm.common.changeCategory.route',
   drawing: 'app.kuaiplm.common.changeCategory.drawing',
+  ecn: 'app.kuaiplm.common.changeCategory.ecn',
 };
 
 export const KUAIPLM_CHANGE_STATUS_I18N: Record<string, string> = {
@@ -52,6 +53,9 @@ export const KUAIPLM_CHANGE_STATUS_I18N: Record<string, string> = {
   rejected: 'app.kuaiplm.common.changeStatus.rejected',
   executed: 'app.kuaiplm.common.changeStatus.executed',
   cancelled: 'app.kuaiplm.common.changeStatus.cancelled',
+  erp_pending: 'app.kuaiplm.common.changeStatus.erpPending',
+  erp_failed: 'app.kuaiplm.common.changeStatus.erpFailed',
+  closed: 'app.kuaiplm.common.changeStatus.closed',
 };
 
 export const KUAIPLM_BOM_CHANGE_TYPE_I18N: Record<string, string> = {
@@ -78,11 +82,19 @@ export const KUAIPLM_DRAWING_CHANGE_TYPE_I18N: Record<string, string> = {
   other: 'app.kuaiplm.common.drawingChangeType.other',
 };
 
+export const KUAIPLM_ECN_CHANGE_KIND_I18N: Record<string, string> = {
+  material: 'app.kuaiplm.ecn.changeKind.material',
+  process: 'app.kuaiplm.ecn.changeKind.process',
+  drawing: 'app.kuaiplm.ecn.changeKind.drawing',
+  other: 'app.kuaiplm.ecn.changeKind.other',
+};
+
 /** BOM + 工艺路线变更类型码 → i18n（我的任务/审批内容展示共用） */
 export const KUAIPLM_CHANGE_TYPE_I18N: Record<string, string> = {
   ...KUAIPLM_BOM_CHANGE_TYPE_I18N,
   ...KUAIPLM_ROUTE_CHANGE_TYPE_I18N,
   ...KUAIPLM_DRAWING_CHANGE_TYPE_I18N,
+  ...KUAIPLM_ECN_CHANGE_KIND_I18N,
 };
 
 /** 审批任务标题前缀（历史存量中文前缀 → i18n） */
@@ -269,7 +281,14 @@ export function getKuaiplmChangeTypeText(
   if (routeKey) return t(routeKey);
   const drawingKey = KUAIPLM_DRAWING_CHANGE_TYPE_I18N[normalized];
   if (drawingKey) return t(drawingKey);
-  if (normalized === 'bom' || normalized === 'process_route' || normalized === 'drawing') {
+  const ecnKindKey = KUAIPLM_ECN_CHANGE_KIND_I18N[normalized];
+  if (ecnKindKey) return t(ecnKindKey);
+  if (
+    normalized === 'bom' ||
+    normalized === 'process_route' ||
+    normalized === 'drawing' ||
+    normalized === 'ecn'
+  ) {
     return getKuaiplmChangeCategoryText(t, normalized);
   }
   return changeType;

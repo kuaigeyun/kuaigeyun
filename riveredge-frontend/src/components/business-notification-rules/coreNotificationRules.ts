@@ -31,6 +31,21 @@ export const CORE_NOTIFICATION_DOCUMENT_OPTIONS = [
     fallback: '设备故障单',
   },
   {
+    value: 'equipment_calibration',
+    labelKey: 'pages.system.configCenter.notification.document.equipment_calibration',
+    fallback: '设备检定',
+  },
+  {
+    value: 'mold_signback',
+    labelKey: 'pages.system.configCenter.notification.document.mold_signback',
+    fallback: '模具供应商回签',
+  },
+  {
+    value: 'supplier_env_document',
+    labelKey: 'pages.system.configCenter.notification.document.supplier_env_document',
+    fallback: '供应商环保资料',
+  },
+  {
     value: 'inventory_alert',
     labelKey: 'pages.system.configCenter.notification.document.inventory_alert',
     fallback: '库存预警',
@@ -161,6 +176,42 @@ export const CORE_NOTIFICATION_ACTION_OPTIONS: Record<
     { value: 'assigned', labelKey: 'pages.system.configCenter.notification.action.equipment_fault.assigned', fallback: '派工维修' },
     { value: 'resolved', labelKey: 'pages.system.configCenter.notification.action.equipment_fault.resolved', fallback: '故障恢复' },
   ],
+  equipment_calibration: [
+    {
+      value: 'due_soon',
+      labelKey: 'pages.system.configCenter.notification.action.equipment_calibration.due_soon',
+      fallback: '到期前提醒',
+    },
+    {
+      value: 'due_overdue',
+      labelKey: 'pages.system.configCenter.notification.action.equipment_calibration.due_overdue',
+      fallback: '过期提醒',
+    },
+  ],
+  mold_signback: [
+    {
+      value: 'due_soon',
+      labelKey: 'pages.system.configCenter.notification.action.mold_signback.due_soon',
+      fallback: '到期前提醒',
+    },
+    {
+      value: 'due_overdue',
+      labelKey: 'pages.system.configCenter.notification.action.mold_signback.due_overdue',
+      fallback: '过期未执行',
+    },
+  ],
+  supplier_env_document: [
+    {
+      value: 'due_soon',
+      labelKey: 'pages.system.configCenter.notification.action.supplier_env_document.due_soon',
+      fallback: '到期前提醒',
+    },
+    {
+      value: 'due_overdue',
+      labelKey: 'pages.system.configCenter.notification.action.supplier_env_document.due_overdue',
+      fallback: '过期提醒',
+    },
+  ],
   inventory_alert: [
     {
       value: 'triggered',
@@ -224,6 +275,12 @@ export const CORE_RECOMMENDED_NOTIFICATION_ACTIONS: ReadonlySet<string> = new Se
   'equipment_fault:reported',
   'equipment_fault:assigned',
   'equipment_fault:resolved',
+  'equipment_calibration:due_soon',
+  'equipment_calibration:due_overdue',
+  'mold_signback:due_soon',
+  'mold_signback:due_overdue',
+  'supplier_env_document:due_soon',
+  'supplier_env_document:due_overdue',
   'inventory_alert:triggered',
   'shipment_notice:confirmed',
 ]);

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from apps.kuaioa.constants.general_signoff_business_types import (
+    is_valid_general_signoff_business_type,
+)
 from apps.kuaioa.models.form_request import KuaioaFormRequest
 from apps.kuaioa.models.form_template import KuaioaFormTemplate
 from apps.kuaioa.schemas.forms import (
@@ -29,8 +32,15 @@ from apps.kuaioa.services.form_schema_validator import normalize_fields_schema, 
 from apps.common.audit_actor import apply_create_audit
 from core.services.system.menu_service import MenuService
 from core.utils.timezone_utils import resolve_business_datetime
-from infra.exceptions.exceptions import BusinessLogicError, NotFoundError
+from infra.exceptions.exceptions import BusinessLogicError, NotFoundError, ValidationError
 from infra.models.user import User
+
+
+def _normalize_business_type(raw: Optional[str]) -> Optional[str]:
+    code = (raw or "").strip() or None
+    if not is_valid_general_signoff_business_type(code):
+        raise ValidationError(f"非法业务类型: {raw}")
+    return code
 
 
 class FormTemplateService:
@@ -40,11 +50,18 @@ class FormTemplateService:
         *,
         keyword: Optional[str] = None,
         category: Optional[str] = None,
+        business_type: Optional[str] = None,
         is_active: Optional[bool] = None,
     ) -> list[dict[str, Any]]:
         q = KuaioaFormTemplate.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if category:
             q = q.filter(category=category)
+        if business_type is not None:
+            bt = (business_type or "").strip()
+            if bt:
+                q = q.filter(business_type=bt)
+            else:
+                q = q.filter(business_type__isnull=True)
         if is_active is not None:
             q = q.filter(is_active=is_active)
         if keyword:
@@ -73,6 +90,7 @@ class FormTemplateService:
             "template_code": data.template_code.strip(),
             "template_name": data.template_name.strip(),
             "category": data.category,
+            "business_type": _normalize_business_type(data.business_type),
             "description": data.description,
             "fields_schema": normalize_fields_schema(data.fields_schema),
             "is_active": data.is_active,
@@ -96,6 +114,8 @@ class FormTemplateService:
         payload = data.model_dump(exclude_unset=True)
         if "fields_schema" in payload:
             payload["fields_schema"] = normalize_fields_schema(payload["fields_schema"])
+        if "business_type" in payload:
+            payload["business_type"] = _normalize_business_type(payload.get("business_type"))
         for key, value in payload.items():
             setattr(row, key, value)
         await touch_updated(row, user)
@@ -154,12 +174,19 @@ class FormRequestService:
         keyword: Optional[str] = None,
         status: Optional[str] = None,
         template_id: Optional[int] = None,
+        business_type: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         q = KuaioaFormRequest.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if status:
             q = q.filter(status=status)
         if template_id:
             q = q.filter(template_id=template_id)
+        if business_type is not None:
+            bt = (business_type or "").strip()
+            if bt:
+                q = q.filter(business_type=bt)
+            else:
+                q = q.filter(business_type__isnull=True)
         if keyword:
             q = q.filter(build_keyword_q(keyword, "request_code", "title", "applicant_name"))
         rows = await q.order_by("-created_at", "-id")
@@ -193,6 +220,7 @@ class FormRequestService:
             "request_code": request_code,
             "template_id": data.template_id,
             "template_code": template.template_code if template else data.template_code,
+            "business_type": (template.business_type if template else None) or None,
             "title": data.title.strip(),
             "form_data": data.form_data,
             "department_name": data.department_name,
@@ -264,6 +292,7 @@ class FormRequestService:
                 title=f"自定义申请: {row.title}",
                 content=row.notes or row.title,
                 submitter_id=user_id,
+                business_type=row.business_type,
             )
         else:
             row.status = "approved"

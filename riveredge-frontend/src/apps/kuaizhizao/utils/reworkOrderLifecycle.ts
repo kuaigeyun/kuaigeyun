@@ -1,5 +1,5 @@
 /**
- * 返工单生命周期：草稿→已下达→执行中→待复检→质量放行→已关闭
+ * 返工单生命周期：草稿→待审→已审→已下达→执行中→待复检→质量放行→已关闭
  */
 
 import type { LifecycleResult } from '../../../components/uni-lifecycle/types';
@@ -8,6 +8,8 @@ import { parseBackendLifecycle } from './backendLifecycle';
 
 const REWORK_ORDER_STAGE_KEYS = new Set([
   'draft',
+  'pending',
+  'approved',
   'released',
   'in_progress',
   'pending_verification',
@@ -26,6 +28,8 @@ function isReworkOrderLifecycle(backend: BackendLifecycle): boolean {
 
 const STATUS_TO_KEY: Record<string, string> = {
   draft: 'draft',
+  pending: 'pending',
+  approved: 'approved',
   released: 'released',
   in_progress: 'in_progress',
   pending_verification: 'pending_verification',
@@ -35,6 +39,8 @@ const STATUS_TO_KEY: Record<string, string> = {
   on_hold: 'on_hold',
   completed: 'closed',
   草稿: 'draft',
+  待审核: 'pending',
+  已审核: 'approved',
   已下达: 'released',
   执行中: 'in_progress',
   待复检: 'pending_verification',
@@ -47,6 +53,8 @@ const STATUS_TO_KEY: Record<string, string> = {
 
 const NORMAL_ORDER = [
   'draft',
+  'pending',
+  'approved',
   'released',
   'in_progress',
   'pending_verification',
@@ -56,6 +64,8 @@ const NORMAL_ORDER = [
 
 const LABELS: Record<string, string> = {
   draft: '草稿',
+  pending: '待审核',
+  approved: '已审核',
   released: '已下达',
   in_progress: '执行中',
   pending_verification: '待复检',
@@ -70,6 +80,8 @@ function buildFallbackLifecycle(record: Record<string, unknown>): BackendLifecyc
   const key = status ? (STATUS_TO_KEY[status] ?? STATUS_TO_KEY[status.toLowerCase()] ?? 'draft') : 'draft';
   const stageDefs = [
     { key: 'draft', label: '草稿' },
+    { key: 'pending', label: '待审核' },
+    { key: 'approved', label: '已审核' },
     { key: 'released', label: '已下达' },
     { key: 'in_progress', label: '执行中' },
     { key: 'pending_verification', label: '待复检' },
@@ -98,22 +110,26 @@ function buildFallbackLifecycle(record: Record<string, unknown>): BackendLifecyc
     status:
       key === 'cancelled'
         ? 'exception'
-        : key === 'closed' || key === 'quality_released'
+        : key === 'closed' || key === 'quality_released' || key === 'approved'
           ? 'success'
-          : key === 'in_progress' || key === 'released'
+          : key === 'in_progress' || key === 'released' || key === 'pending'
             ? 'active'
             : 'normal',
     main_stages: mainStages,
     next_step_suggestions:
       key === 'draft'
-        ? ['下达']
-        : key === 'released' || key === 'in_progress'
-          ? ['报工', '下一工序', '申请完修']
-          : key === 'pending_verification'
-            ? ['复检', '质量放行']
-            : key === 'quality_released'
-              ? ['关闭']
-              : [],
+        ? ['提交审核', '下达']
+        : key === 'pending'
+          ? ['审核']
+          : key === 'approved'
+            ? ['下达']
+            : key === 'released' || key === 'in_progress'
+              ? ['报工', '下一工序', '申请完修']
+              : key === 'pending_verification'
+                ? ['复检', '质量放行']
+                : key === 'quality_released'
+                  ? ['财务会签', '关闭']
+                  : [],
   };
 }
 
@@ -138,6 +154,8 @@ export function getReworkOrderLifecycle(
 
 const REWORK_ORDER_LIFECYCLE_KEYS = [
   'draft',
+  'pending',
+  'approved',
   'released',
   'in_progress',
   'pending_verification',
@@ -149,6 +167,8 @@ const REWORK_ORDER_LIFECYCLE_KEYS = [
 
 const REWORK_ORDER_LIFECYCLE_I18N: Record<string, string> = {
   draft: 'app.kuaizhizao.reworkOrder.lifecycleDraft',
+  pending: 'app.kuaizhizao.reworkOrder.lifecyclePending',
+  approved: 'app.kuaizhizao.reworkOrder.lifecycleApproved',
   released: 'app.kuaizhizao.reworkOrder.lifecycleReleased',
   in_progress: 'app.kuaizhizao.reworkOrder.lifecycleInProgress',
   pending_verification: 'app.kuaizhizao.reworkOrder.lifecyclePendingVerification',
@@ -163,6 +183,8 @@ export function buildReworkOrderLifecycleValueEnum(
 ): Record<string, { text: string; status?: 'Default' | 'Processing' | 'Success' | 'Error' }> {
   const statusByKey: Record<string, 'Default' | 'Processing' | 'Success' | 'Error'> = {
     draft: 'Default',
+    pending: 'Processing',
+    approved: 'Success',
     released: 'Processing',
     in_progress: 'Processing',
     pending_verification: 'Processing',
@@ -197,8 +219,12 @@ export function resolveReworkOrderListLifecycleParams(
 }
 
 export function reworkCapabilityAllowed(
-  record: ReworkOrderLike | null | undefined,
+  record: ReworkOrderLike | Record<string, unknown> | null | undefined,
   action: string,
 ): boolean {
-  return record?.capabilities?.[action]?.allowed === true;
+  if (!record) return false;
+  const caps = (record as ReworkOrderLike).capabilities;
+  const entry = caps?.[action];
+  if (!entry) return true;
+  return entry.allowed !== false;
 }

@@ -17,6 +17,9 @@ const CHANGE_STATUS_TAG_COLOR: Record<string, string> = {
   executed: 'default',
   rejected: 'error',
   cancelled: 'default',
+  erp_pending: 'processing',
+  erp_failed: 'error',
+  closed: 'success',
 };
 
 const CHANGE_CATEGORY_MARKER_COLOR: Record<string, string> = {
@@ -24,6 +27,7 @@ const CHANGE_CATEGORY_MARKER_COLOR: Record<string, string> = {
   route: 'purple',
   process_route: 'purple',
   drawing: 'cyan',
+  ecn: 'orange',
 };
 
 export function renderPlmChangeCategoryMarker(t: TFunction, category?: string | null) {

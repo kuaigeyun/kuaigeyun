@@ -86,8 +86,34 @@ export interface RdProjectDeliverable {
   description?: string | null;
   deliverable_type?: string | null;
   status?: string;
+  version?: string | null;
   file_url?: string | null;
   file_name?: string | null;
+  file_uuid?: string | null;
+}
+
+export interface RdProjectDeliverableVersion {
+  id: number;
+  deliverable_id: number;
+  project_id: number;
+  version: string;
+  status: string;
+  is_effective: boolean;
+  name: string;
+  description?: string | null;
+  deliverable_type?: string | null;
+  file_url?: string | null;
+  file_name?: string | null;
+  change_summary?: string | null;
+  created_by_name?: string | null;
+  created_at?: string;
+}
+
+export interface RdProjectDeliverableVersionListResponse {
+  items: RdProjectDeliverableVersion[];
+  total: number;
+  audience: string;
+  can_view_history: boolean;
 }
 
 export interface RdProjectLink {
@@ -108,6 +134,14 @@ export interface ProjectCollaborationSummary {
   requirement_count?: number;
   design_review_count?: number;
   fmea_count?: number;
+  product_firmware_count?: number;
+  sample_process_count?: number;
+  material_review_count?: number;
+  bom_collab_count?: number;
+  project_proposal_count?: number;
+  mold_sample_count?: number;
+  trial_flow_count?: number;
+  engineering_change_count?: number;
 }
 
 const WORKBENCH_NESTED_KEYS = new Set([
@@ -279,6 +313,38 @@ export async function deleteRdProjectDeliverable(
   deliverableId: number | string,
 ) {
   return apiRequest<void>(`${BASE}/${projectId}/deliverables/${deliverableId}`, { method: 'DELETE' });
+}
+
+export async function listRdProjectDeliverableVersions(
+  projectId: number | string,
+  deliverableId: number | string,
+) {
+  return apiRequest<RdProjectDeliverableVersionListResponse>(
+    `${BASE}/${projectId}/deliverables/${deliverableId}/versions`,
+    { method: 'GET' },
+  );
+}
+
+export async function reviseRdProjectDeliverable(
+  projectId: number | string,
+  deliverableId: number | string,
+  data?: { version?: string; change_summary?: string; file_url?: string; file_name?: string },
+) {
+  return apiRequest<RdProjectDeliverable>(
+    `${BASE}/${projectId}/deliverables/${deliverableId}/revise`,
+    { method: 'POST', data: data ?? {} },
+  );
+}
+
+export async function rejectRdProjectDeliverable(
+  projectId: number | string,
+  deliverableId: number | string,
+  data?: { reason?: string },
+) {
+  return apiRequest<RdProjectDeliverable>(
+    `${BASE}/${projectId}/deliverables/${deliverableId}/reject`,
+    { method: 'POST', data: data ?? {} },
+  );
 }
 
 export async function createRdProjectLink(

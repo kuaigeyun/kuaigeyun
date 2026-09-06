@@ -36,7 +36,7 @@ import { renderDocumentStatusTag } from '../../../../../utils/documentLifecycleS
 import { ROUTES } from '../../../constants/routes';
 import {
   buildAbnormalityValueEnum,
-  buildSpotCheckStatusValueEnum,
+  buildRoutePatrolStatusValueEnum,
   EQUIPMENT_OPS_PINNED_STATUS_FIELD,
   normalizeEquipmentListResponse,
   resolveRoutePatrolListParams,
@@ -47,12 +47,19 @@ import { UNI_TABLE_MARKER_BADGE_COLUMN_DEFAULTS } from '../../../../../utils/uni
 import { buildDocumentListHelpViewConfig, DOCUMENT_LIST_HELP_KEYS } from '../../../../../components/page-help-wiki';
 const P = 'app.kuaizhizao.equipmentOps.routePatrol';
 const RESOURCE = 'kuaizhizao:equipment-route-patrol';
+const SCHEME_P = 'app.kuaizhizao.equipmentOps.inspectionScheme';
 
 function formatRoutePatrolFormDate(value: unknown): string | undefined {
   if (value == null || value === '') return undefined;
   if (dayjs.isDayjs(value)) return value.format('YYYY-MM-DD');
   const parsed = dayjs(value as string | number | Date);
   return parsed.isValid() ? parsed.format('YYYY-MM-DD') : undefined;
+}
+
+function normalizePatrolValueType(raw?: string): string {
+  const v = String(raw || 'boolean').trim().toLowerCase();
+  if (v === 'bool' || v === '是/否') return 'boolean';
+  return v;
 }
 
 interface RoutePatrolLine {
@@ -63,6 +70,13 @@ interface RoutePatrolLine {
   item_id?: number;
   item_code?: string;
   item_name?: string;
+  capture_mode?: string;
+  requirement?: string;
+  method?: string;
+  judgment_standard?: string;
+  value_type?: string;
+  unit?: string;
+  photo_required?: boolean;
   measured_value?: string;
   is_pass?: boolean;
   remark?: string;
@@ -160,7 +174,30 @@ const RoutePatrolsPage: React.FC = () => {
     }
     try {
       const res = await routePatrolsApi.previewLines({ route_id: routeId });
-      setPreviewLines(res.lines ?? []);
+      setPreviewLines(
+        (res.lines ?? []).map((l: RoutePatrolLine) => {
+          const mode = String(l.capture_mode || 'A').toUpperCase();
+          const valueType = normalizePatrolValueType(l.value_type);
+          const isBoolean = valueType === 'boolean';
+          const isPass = l.is_pass ?? true;
+          return {
+            ...l,
+            capture_mode: mode,
+            photo_required: Boolean(l.photo_required) || mode === 'B',
+            is_pass: isPass,
+            measured_value:
+              mode === 'B'
+                ? l.measured_value
+                : isBoolean
+                  ? l.measured_value?.trim()
+                    ? l.measured_value
+                    : isPass
+                      ? '是'
+                      : '否'
+                  : l.measured_value,
+          };
+        }),
+      );
     } catch (error: unknown) {
       messageApi.error(getApiErrorMessage(error, t(`${P}.previewFailed`)));
       setPreviewLines([]);
@@ -184,7 +221,16 @@ const RoutePatrolsPage: React.FC = () => {
       const inspectorUuid = await resolveUserUuidById(detail.inspector_id);
       setIsEdit(true);
       setCurrent(detail);
-      setPreviewLines(detail.lines ?? []);
+      setPreviewLines(
+        (detail.lines ?? []).map((l: RoutePatrolLine) => {
+          const mode = String(l.capture_mode || 'A').toUpperCase();
+          return {
+            ...l,
+            capture_mode: mode,
+            photo_required: Boolean(l.photo_required) || mode === 'B',
+          };
+        }),
+      );
       setFormInitialValues({
         route_id: detail.route_id,
         patrol_date: detail.patrol_date ? dayjs(detail.patrol_date) : dayjs(),
@@ -213,6 +259,24 @@ const RoutePatrolsPage: React.FC = () => {
       messageApi.warning(t(`${P}.noPreviewLines`));
       return;
     }
+    const missingPhoto = previewLines.find((l) => {
+      const mode = String(l.capture_mode || 'A').toUpperCase();
+      if (mode === 'B') return !(l.attachments && l.attachments.length);
+      if (mode === 'C' && l.photo_required) return !(l.attachments && l.attachments.length);
+      return false;
+    });
+    if (missingPhoto) {
+      messageApi.warning(
+        t(`${P}.linePhotoRequired`, {
+          name:
+            missingPhoto.item_name ||
+            missingPhoto.item_code ||
+            missingPhoto.equipment_name ||
+            missingPhoto.step_no,
+        }),
+      );
+      return;
+    }
     const payload = {
       route_id: values.route_id,
       patrol_date: formatRoutePatrolFormDate(values.patrol_date),
@@ -225,6 +289,13 @@ const RoutePatrolsPage: React.FC = () => {
         item_id: l.item_id,
         item_code: l.item_code,
         item_name: l.item_name,
+        capture_mode: String(l.capture_mode || 'A').toUpperCase(),
+        requirement: l.requirement,
+        method: l.method,
+        judgment_standard: l.judgment_standard,
+        value_type: l.value_type,
+        unit: l.unit,
+        photo_required: Boolean(l.photo_required),
         measured_value: l.measured_value,
         is_pass: l.is_pass ?? true,
         remark: l.remark,
@@ -263,55 +334,115 @@ const RoutePatrolsPage: React.FC = () => {
 
   const lineColumns = [
     { title: t(`${P}.line.step`), dataIndex: 'step_no', width: 60 },
-    { title: t(`${P}.line.equipment`), dataIndex: 'equipment_name', width: 140 },
+    { title: t(`${P}.line.equipment`), dataIndex: 'equipment_name', width: 120 },
+    {
+      title: t(`${P}.line.captureMode`),
+      dataIndex: 'capture_mode',
+      width: 100,
+      render: (_: unknown, row: RoutePatrolLine) =>
+        row.capture_mode
+          ? t(`${SCHEME_P}.captureMode.${String(row.capture_mode).toUpperCase()}`, {
+              defaultValue: String(row.capture_mode),
+            })
+          : '-',
+    },
     { title: t(`${P}.line.item`), dataIndex: 'item_name', width: 120 },
+    {
+      title: t(`${P}.line.method`),
+      dataIndex: 'method',
+      width: 100,
+      ellipsis: true,
+      render: (_: unknown, row: RoutePatrolLine) =>
+        String(row.capture_mode || 'A').toUpperCase() === 'B' ? '-' : row.method || '-',
+    },
+    {
+      title: t(`${P}.line.judgmentStandard`),
+      dataIndex: 'judgment_standard',
+      width: 100,
+      ellipsis: true,
+      render: (_: unknown, row: RoutePatrolLine) =>
+        String(row.capture_mode || 'A').toUpperCase() === 'B'
+          ? '-'
+          : row.judgment_standard || '-',
+    },
     {
       title: t(`${P}.line.measuredValue`),
       dataIndex: 'measured_value',
       width: 120,
-      render: (_: unknown, row: RoutePatrolLine, index: number) => (
-        <Input
-          size="small"
-          value={row.measured_value}
-          onChange={(e) => {
-            const next = [...previewLines];
-            next[index] = { ...next[index], measured_value: e.target.value };
-            setPreviewLines(next);
-          }}
-        />
-      ),
+      render: (_: unknown, row: RoutePatrolLine, index: number) => {
+        const mode = String(row.capture_mode || 'A').toUpperCase();
+        if (mode === 'B') return '-';
+        const valueType = normalizePatrolValueType(row.value_type);
+        if (valueType === 'boolean') {
+          return row.measured_value || ((row.is_pass ?? true) ? '是' : '否');
+        }
+        return (
+          <Input
+            size="small"
+            value={row.measured_value}
+            addonAfter={row.unit || undefined}
+            onChange={(e) => {
+              const next = [...previewLines];
+              next[index] = { ...next[index], measured_value: e.target.value };
+              setPreviewLines(next);
+            }}
+          />
+        );
+      },
     },
     {
       title: t(`${P}.line.isPass`),
       dataIndex: 'is_pass',
       width: 80,
-      render: (_: unknown, row: RoutePatrolLine, index: number) => (
-        <Switch
-          size="small"
-          checked={row.is_pass ?? true}
-          onChange={(checked) => {
-            const next = [...previewLines];
-            next[index] = { ...next[index], is_pass: checked };
-            setPreviewLines(next);
-          }}
-        />
-      ),
+      render: (_: unknown, row: RoutePatrolLine, index: number) => {
+        const mode = String(row.capture_mode || 'A').toUpperCase();
+        if (mode === 'B') return <MarkerTag color="success">{t(`${P}.normal`)}</MarkerTag>;
+        return (
+          <Switch
+            size="small"
+            checked={row.is_pass ?? true}
+            onChange={(checked) => {
+              const next = [...previewLines];
+              const valueType = normalizePatrolValueType(row.value_type);
+              next[index] = {
+                ...next[index],
+                is_pass: checked,
+                ...(valueType === 'boolean'
+                  ? { measured_value: checked ? '是' : '否' }
+                  : {}),
+              };
+              setPreviewLines(next);
+            }}
+          />
+        );
+      },
     },
     {
-      title: t(`${P}.line.photos`, { defaultValue: '照片' }),
+      title: t(`${P}.line.photos`),
       dataIndex: 'attachments',
       width: 180,
-      render: (_: unknown, row: RoutePatrolLine, index: number) => (
-        <LineAttachmentsUpload
-          category="equipment_route_patrol_line"
-          value={row.attachments}
-          onChange={(next) => {
-            const copy = [...previewLines];
-            copy[index] = { ...copy[index], attachments: next };
-            setPreviewLines(copy);
-          }}
-        />
-      ),
+      render: (_: unknown, row: RoutePatrolLine, index: number) => {
+        const mode = String(row.capture_mode || 'A').toUpperCase();
+        const required = mode === 'B' || Boolean(row.photo_required);
+        return (
+          <div>
+            {required ? (
+              <Typography.Text type="danger" style={{ fontSize: 12, display: 'block' }}>
+                {t(`${P}.line.photoRequiredHint`)}
+              </Typography.Text>
+            ) : null}
+            <LineAttachmentsUpload
+              category="equipment_route_patrol_line"
+              value={row.attachments}
+              onChange={(next) => {
+                const copy = [...previewLines];
+                copy[index] = { ...copy[index], attachments: next };
+                setPreviewLines(copy);
+              }}
+            />
+          </div>
+        );
+      },
     },
     {
       title: t(`${P}.line.fault`),
@@ -334,7 +465,7 @@ const RoutePatrolsPage: React.FC = () => {
     },
   ];
 
-  const routePatrolStatusValueEnum = useMemo(() => buildSpotCheckStatusValueEnum(t), [t]);
+  const routePatrolStatusValueEnum = useMemo(() => buildRoutePatrolStatusValueEnum(t), [t]);
   const abnormalityValueEnum = useMemo(() => buildAbnormalityValueEnum(t, P), [t]);
 
   const detailBasicColumns = useMemo<ProDescriptionsItemProps<RoutePatrol>[]>(
@@ -366,8 +497,26 @@ const RoutePatrolsPage: React.FC = () => {
   const detailLineColumns = useMemo<ColumnsType<RoutePatrolLine>>(
     () => [
       { title: t(`${P}.line.step`), dataIndex: 'step_no', width: 60 },
-      { title: t(`${P}.line.equipment`), dataIndex: 'equipment_name', width: 140 },
+      { title: t(`${P}.line.equipment`), dataIndex: 'equipment_name', width: 120 },
+      {
+        title: t(`${P}.line.captureMode`),
+        dataIndex: 'capture_mode',
+        width: 100,
+        render: (_, row) =>
+          row.capture_mode
+            ? t(`${SCHEME_P}.captureMode.${String(row.capture_mode).toUpperCase()}`, {
+                defaultValue: String(row.capture_mode),
+              })
+            : '-',
+      },
       { title: t(`${P}.line.item`), dataIndex: 'item_name', width: 120 },
+      { title: t(`${P}.line.method`), dataIndex: 'method', width: 100, ellipsis: true },
+      {
+        title: t(`${P}.line.judgmentStandard`),
+        dataIndex: 'judgment_standard',
+        width: 100,
+        ellipsis: true,
+      },
       { title: t(`${P}.line.measuredValue`), dataIndex: 'measured_value', width: 120 },
       {
         title: t(`${P}.line.isPass`),
@@ -381,7 +530,7 @@ const RoutePatrolsPage: React.FC = () => {
           ),
       },
       {
-        title: t(`${P}.line.photos`, { defaultValue: '照片' }),
+        title: t(`${P}.line.photos`),
         dataIndex: 'attachments',
         width: 180,
         render: (_, row) => (
@@ -411,7 +560,7 @@ const RoutePatrolsPage: React.FC = () => {
             '-'
           ),
       },
-      { title: t(`${P}.line.remark`, { defaultValue: '备注' }), dataIndex: 'remark', ellipsis: true },
+      { title: t(`${P}.line.remark`), dataIndex: 'remark', ellipsis: true },
     ],
     [t, navigate],
   );
@@ -577,7 +726,7 @@ const RoutePatrolsPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.routePatrols)}
           headerTitle={t(`${P}.title`)}
-          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.route-patrols-width-v2"
+          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.route-patrols-width-v3"
           actionRef={actionRef}
           rowKey="id"
           columns={columns}
@@ -685,20 +834,23 @@ const RoutePatrolsPage: React.FC = () => {
               formRef={formRef}
             />
           </Col>
-          <Col span={24}>
-            <ProFormTextArea name="remark" label={t('common.remark')} fieldProps={{ rows: 2 }} />
-          </Col>
         </Row>
         {previewLines.length > 0 && (
           <Table
             size="small"
-            rowKey={(r) => String(r.step_no ?? r.equipment_id)}
+            rowKey={(r) => `${r.step_no ?? ''}-${r.equipment_id ?? ''}-${r.item_id ?? ''}`}
             columns={lineColumns}
             dataSource={previewLines}
             pagination={false}
             style={{ marginTop: 16 }}
+            scroll={{ x: 1200 }}
           />
         )}
+        <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col span={24}>
+            <ProFormTextArea name="remark" label={t('common.remark')} fieldProps={{ rows: 2 }} />
+          </Col>
+        </Row>
       </FormModalTemplate>
     </>
   );

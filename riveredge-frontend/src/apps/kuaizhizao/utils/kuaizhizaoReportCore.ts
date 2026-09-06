@@ -67,6 +67,16 @@ export const REPORT_TYPE_ROUTES: Record<string, ReportTypeRoute> = {
   quality_exception: { api: 'quality', backendType: 'quality_exception', templateId: 'queryTable' },
   nonconforming_summary: { api: 'quality', backendType: 'nonconforming_summary', templateId: 'queryTable' },
   quality_rate_trend: { api: 'quality', backendType: 'quality_rate_trend', templateId: 'queryTable' },
+  complaint_monthly_list: { api: 'quality', backendType: 'complaint_monthly_list', templateId: 'queryTable' },
+  complaint_defect_distribution: {
+    api: 'quality',
+    backendType: 'complaint_defect_distribution',
+    templateId: 'queryTable',
+  },
+  complaint_supplier_rank: { api: 'quality', backendType: 'complaint_supplier_rank', templateId: 'queryTable' },
+  complaint_supplier_trend: { api: 'quality', backendType: 'complaint_supplier_trend', templateId: 'queryTable' },
+  complaint_alert: { api: 'quality', backendType: 'complaint_alert', templateId: 'queryTable' },
+  complaint_batch_rate: { api: 'quality', backendType: 'complaint_batch_rate', templateId: 'queryTable' },
 
   wo_query: { api: 'production', backendType: 'wo_query', templateId: 'queryTable' },
   wo_tracking: { api: 'production', backendType: 'work-order-execution-report', templateId: 'queryTable' },
@@ -79,6 +89,7 @@ export const REPORT_TYPE_ROUTES: Record<string, ReportTypeRoute> = {
   'production-delay-warning': { api: 'production', backendType: 'production-delay-warning', templateId: 'queryTable' },
   outsource_query: { api: 'production', backendType: 'outsource-work-order-query', templateId: 'queryTable' },
   outsource_recon: { api: 'production', backendType: 'outsource-material-reconciliation', templateId: 'queryTable' },
+  production_daily: { api: 'production', backendType: 'production_daily', templateId: 'queryTable' },
 
   po_query: { api: 'purchase', backendType: 'po_query', templateId: 'queryTable' },
   po_progress: { api: 'purchase', backendType: 'po_progress', templateId: 'queryTable' },
@@ -312,6 +323,14 @@ export async function fetchKuaizhizaoReport(
     ...(supplier_name || formSupplier ? { supplier_name: supplier_name ?? formSupplier } : {}),
     ...(work_order_code ? { work_order_code } : {}),
     ...(period_basis ? { period_basis } : {}),
+    ...(typeof params?.supplier_id === 'number'
+      ? { supplier_id: params.supplier_id }
+      : typeof params?.supplier_id === 'string' && String(params.supplier_id).trim()
+        ? { supplier_id: Number(params.supplier_id) }
+        : {}),
+    ...(typeof params?.supplier_name === 'string' && params.supplier_name.trim()
+      ? { supplier_name: params.supplier_name.trim() }
+      : {}),
   };
 
   switch (route.api) {

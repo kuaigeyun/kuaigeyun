@@ -5,7 +5,13 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel, Field
 
-from apps.kuaioa.schemas.asset import AssetCreate, AssetPurchaseCreate, AssetPurchaseUpdate, AssetUpdate
+from apps.kuaioa.schemas.asset import (
+    AssetCreate,
+    AssetLifecycleAdvance,
+    AssetPurchaseCreate,
+    AssetPurchaseUpdate,
+    AssetUpdate,
+)
 from apps.kuaioa.services.asset_service import AssetPurchaseService, AssetRegistryService
 from core.api.deps.access import require_access
 from core.api.deps.deps import get_current_tenant
@@ -134,6 +140,22 @@ async def register_asset_from_purchase(
         raise HTTPException(status_code=code, detail={"message": str(e)})
 
 
+@router.post("/purchases/{purchase_id}/lifecycle", summary="Advance asset purchase lifecycle")
+async def advance_asset_purchase_lifecycle(
+    data: AssetLifecycleAdvance,
+    purchase_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    _auth=Depends(require_access("kuaioa.asset-purchase", "update", required_permissions=["kuaioa:asset-purchase:update"])),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    try:
+        row = await purchase_service.advance_lifecycle(tenant_id, purchase_id, data, current_user)
+        return {"data": row, "success": True}
+    except (NotFoundError, BusinessLogicError) as e:
+        code = status.HTTP_404_NOT_FOUND if isinstance(e, NotFoundError) else status.HTTP_409_CONFLICT
+        raise HTTPException(status_code=code, detail={"message": str(e)})
+
+
 @router.get("/registry", summary="List fixed assets")
 async def list_assets(
     keyword: Optional[str] = Query(None),
@@ -245,3 +267,33 @@ async def scrap_asset(
         return {"data": row, "success": True}
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"message": str(e)})
+
+
+@router.post("/registry/{asset_id}/finance-audit", summary="Finance audit asset")
+async def finance_audit_asset(
+    asset_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    _auth=Depends(require_access("kuaioa.asset", "update", required_permissions=["kuaioa:asset:update"])),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    try:
+        row = await asset_service.finance_audit_asset(tenant_id, asset_id, current_user.id)
+        return {"data": row, "success": True}
+    except (NotFoundError, BusinessLogicError) as e:
+        code = status.HTTP_404_NOT_FOUND if isinstance(e, NotFoundError) else status.HTTP_409_CONFLICT
+        raise HTTPException(status_code=code, detail={"message": str(e)})
+
+
+@router.post("/registry/{asset_id}/write-off", summary="Finance write-off asset")
+async def write_off_asset(
+    asset_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    _auth=Depends(require_access("kuaioa.asset", "update", required_permissions=["kuaioa:asset:update"])),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    try:
+        row = await asset_service.write_off_asset(tenant_id, asset_id, current_user.id)
+        return {"data": row, "success": True}
+    except (NotFoundError, BusinessLogicError) as e:
+        code = status.HTTP_404_NOT_FOUND if isinstance(e, NotFoundError) else status.HTTP_409_CONFLICT
+        raise HTTPException(status_code=code, detail={"message": str(e)})

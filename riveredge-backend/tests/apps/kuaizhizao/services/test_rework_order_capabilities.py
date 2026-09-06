@@ -102,6 +102,28 @@ def test_predefined_no_advance_next():
 def test_close_from_quality_released():
     caps = derive_rework_order_capabilities(_record(status="quality_released"))
     assert caps.close.allowed is True
+    assert caps.finance_sign.allowed is False
+
+
+def test_multi_signoff_close_awaits_finance():
+    caps = derive_rework_order_capabilities(
+        _record(status="quality_released", business_type="multi_signoff", finance_signed_at=None)
+    )
+    assert caps.finance_sign.allowed is True
+    assert caps.close.allowed is False
+    assert caps.close.reason == "rework_order.close.awaiting_finance"
+
+
+def test_multi_signoff_close_after_finance_signed():
+    caps = derive_rework_order_capabilities(
+        _record(
+            status="quality_released",
+            business_type="multi_signoff",
+            finance_signed_at="2026-09-06T01:00:00+00:00",
+        )
+    )
+    assert caps.finance_sign.allowed is False
+    assert caps.close.allowed is True
 
 
 def test_recoverable_report_unqualified_take():

@@ -20,6 +20,7 @@ export interface KuaiplmDashboardSummary {
   requirement_total?: number;
   design_review_pending?: number;
   fmea_total?: number;
+  pending_wave1_docs?: number;
   recent_projects?: Array<{
     id: number;
     project_code?: string;

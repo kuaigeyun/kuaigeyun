@@ -7,7 +7,7 @@ Date: 2026-05-28
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from tortoise.transactions import in_transaction
 
@@ -40,6 +40,7 @@ from apps.kuaiplm.models import (
     RdProjectTask,
     RdRequirement,
 )
+from apps.kuaiplm.models.rd_project_deliverable_version import RdProjectDeliverableVersion
 from apps.kuaiplm.schemas.rd_project import (
     PushTrialWorkOrderRequest,
     PushTrialWorkOrderResponse,
@@ -48,8 +49,12 @@ from apps.kuaiplm.schemas.rd_project import (
     ProjectCollaborationSummary,
     RdProjectCreate,
     RdProjectDeliverableCreate,
+    RdProjectDeliverableRejectRequest,
     RdProjectDeliverableResponse,
+    RdProjectDeliverableReviseRequest,
     RdProjectDeliverableUpdate,
+    RdProjectDeliverableVersionListResponse,
+    RdProjectDeliverableVersionResponse,
     RdProjectGateResponse,
     RdProjectGateUpdate,
     RdProjectLinkCreate,
@@ -68,10 +73,20 @@ from apps.kuaiplm.services.plm_list_core import (
     RD_PROJECT_SORT_DB_COLS,
     apply_plm_list_filters,
 )
+from apps.kuaiplm.utils.deliverable_version import (
+    bump_deliverable_version,
+    deliverable_version_policy_row,
+    head_status_to_version_status,
+)
 from apps.kuaiplm.utils.gate_template_seed import load_template_gate_defs
 from apps.kuaiplm.utils.rd_project_progress import compute_project_progress
 from apps.kuaiplm.utils.rd_project_execution import gates_not_executed
 from apps.master_data.models.material import Material
+from core.services.file.document_version_policy import (
+    can_view_historical_versions,
+    filter_version_rows,
+    resolve_audience,
+)
 from infra.exceptions.exceptions import BusinessLogicError, NotFoundError
 from infra.models.user import User
 from core.utils.timezone_utils import resolve_business_datetime, to_site_date, today_site_str
@@ -566,16 +581,18 @@ class RdProjectService(AppBaseService[RdProject]):
             if not gate:
                 continue
             for tpl in templates:
-                await RdProjectDeliverable.create(
+                row = await RdProjectDeliverable.create(
                     tenant_id=tenant_id,
                     project_id=project_id,
                     gate_id=gate.id,
                     name=tpl["name"],
                     deliverable_type=tpl.get("deliverable_type"),
                     status=RdDeliverableStatus.PENDING.value,
+                    version="A0",
                     created_by=created_by,
                     updated_by=created_by,
                 )
+                await self._ensure_deliverable_version_row(row)
 
     async def _validate_parent_task(
         self,
@@ -727,6 +744,41 @@ class RdProjectService(AppBaseService[RdProject]):
         fmea_count = await RdFmeaRecord.filter(
             tenant_id=tenant_id, project_id=project_id, deleted_at__isnull=True
         ).count()
+
+        from apps.kuaiplm.models.bom_collaboration import BomCollaboration
+        from apps.kuaiplm.models.engineering_change import EngineeringChange
+        from apps.kuaiplm.models.material_review import MaterialReview
+        from apps.kuaiplm.models.mold_sample_order import MoldSampleOrder
+        from apps.kuaiplm.models.product_firmware import ProductFirmware
+        from apps.kuaiplm.models.project_proposal import ProjectProposal
+        from apps.kuaiplm.models.sample_process import SampleProcessApplication
+        from apps.kuaiplm.models.trial_flow import TrialFlow
+
+        product_firmware_count = await ProductFirmware.filter(
+            tenant_id=tenant_id, project_id=project_id, deleted_at__isnull=True
+        ).count()
+        sample_process_count = await SampleProcessApplication.filter(
+            tenant_id=tenant_id, project_id=project_id, deleted_at__isnull=True
+        ).count()
+        material_review_count = await MaterialReview.filter(
+            tenant_id=tenant_id, project_id=project_id, deleted_at__isnull=True
+        ).count()
+        bom_collab_count = await BomCollaboration.filter(
+            tenant_id=tenant_id, project_id=project_id, deleted_at__isnull=True
+        ).count()
+        project_proposal_count = await ProjectProposal.filter(
+            tenant_id=tenant_id, project_id=project_id, deleted_at__isnull=True
+        ).count()
+        mold_sample_count = await MoldSampleOrder.filter(
+            tenant_id=tenant_id, project_id=project_id, deleted_at__isnull=True
+        ).count()
+        trial_flow_count = await TrialFlow.filter(
+            tenant_id=tenant_id, project_id=project_id, deleted_at__isnull=True
+        ).count()
+        engineering_change_count = await EngineeringChange.filter(
+            tenant_id=tenant_id, project_id=project_id, deleted_at__isnull=True
+        ).count()
+
         progress = compute_project_progress(gates, tasks, deliverables)
         source_codes = await self._load_source_project_codes(tenant_id, [project])
         members = await self._load_project_members(tenant_id, int(project.id))
@@ -750,6 +802,14 @@ class RdProjectService(AppBaseService[RdProject]):
                 requirement_count=req_count,
                 design_review_count=dr_count,
                 fmea_count=fmea_count,
+                product_firmware_count=product_firmware_count,
+                sample_process_count=sample_process_count,
+                material_review_count=material_review_count,
+                bom_collab_count=bom_collab_count,
+                project_proposal_count=project_proposal_count,
+                mold_sample_count=mold_sample_count,
+                trial_flow_count=trial_flow_count,
+                engineering_change_count=engineering_change_count,
             ),
         })
 
@@ -1010,6 +1070,58 @@ class RdProjectService(AppBaseService[RdProject]):
 
     # ---------- Deliverables ----------
 
+    async def _ensure_deliverable_version_row(
+        self,
+        row: RdProjectDeliverable,
+        *,
+        change_summary: Optional[str] = None,
+        actor_name: Optional[str] = None,
+    ) -> RdProjectDeliverableVersion:
+        version = (row.version or "A0").strip() or "A0"
+        existing = await RdProjectDeliverableVersion.filter(
+            tenant_id=row.tenant_id,
+            deliverable_id=row.id,
+            version=version,
+            deleted_at__isnull=True,
+        ).first()
+        ver_status = head_status_to_version_status(row.status)
+        is_effective = ver_status == "effective"
+        if existing:
+            existing.status = ver_status
+            existing.is_effective = is_effective
+            existing.name = row.name
+            existing.description = row.description
+            existing.deliverable_type = row.deliverable_type
+            existing.file_url = row.file_url
+            existing.file_name = row.file_name
+            existing.file_uuid = getattr(row, "file_uuid", None)
+            existing.updated_by = row.updated_by
+            existing.updated_by_name = actor_name or getattr(row, "updated_by_name", None)
+            if is_effective and not existing.effective_at:
+                existing.effective_at = resolve_business_datetime()
+            await existing.save()
+            return existing
+        return await RdProjectDeliverableVersion.create(
+            tenant_id=row.tenant_id,
+            deliverable_id=row.id,
+            project_id=row.project_id,
+            version=version,
+            status=ver_status,
+            is_effective=is_effective,
+            name=row.name,
+            description=row.description,
+            deliverable_type=row.deliverable_type,
+            file_url=row.file_url,
+            file_name=row.file_name,
+            file_uuid=getattr(row, "file_uuid", None),
+            change_summary=change_summary,
+            effective_at=resolve_business_datetime() if is_effective else None,
+            created_by=row.created_by,
+            created_by_name=getattr(row, "created_by_name", None) or actor_name,
+            updated_by=row.updated_by,
+            updated_by_name=getattr(row, "updated_by_name", None) or actor_name,
+        )
+
     async def create_deliverable(
         self, tenant_id: int, project_id: int, data: RdProjectDeliverableCreate, created_by: int
     ) -> RdProjectDeliverableResponse:
@@ -1020,6 +1132,11 @@ class RdProjectService(AppBaseService[RdProject]):
             )
             if not gate:
                 raise BusinessLogicError(f"阶段门不存在: {data.gate_id}")
+        user_info = await self.get_user_info(created_by)
+        version = (getattr(data, "version", None) or "A0").strip() or "A0"
+        status = (data.status or RdDeliverableStatus.PENDING.value).strip().upper()
+        if status not in {s.value for s in RdDeliverableStatus}:
+            raise BusinessLogicError(f"非法交付物状态: {status}")
         row = await RdProjectDeliverable.create(
             tenant_id=tenant_id,
             project_id=project_id,
@@ -1027,12 +1144,17 @@ class RdProjectService(AppBaseService[RdProject]):
             name=data.name,
             description=data.description,
             deliverable_type=data.deliverable_type,
-            status=data.status,
+            status=status,
+            version=version,
             file_url=data.file_url,
             file_name=data.file_name,
+            file_uuid=getattr(data, "file_uuid", None),
             created_by=created_by,
+            created_by_name=user_info["name"],
             updated_by=created_by,
+            updated_by_name=user_info["name"],
         )
+        await self._ensure_deliverable_version_row(row, actor_name=user_info["name"])
         return RdProjectDeliverableResponse.model_validate(row)
 
     async def update_deliverable(
@@ -1043,18 +1165,237 @@ class RdProjectService(AppBaseService[RdProject]):
         )
         if not row:
             raise NotFoundError(f"交付物不存在: {deliverable_id}")
-        update_fields = {"updated_by": updated_by}
+        user_info = await self.get_user_info(updated_by)
+        update_fields: Dict[str, Any] = {
+            "updated_by": updated_by,
+            "updated_by_name": user_info["name"],
+        }
         for field in (
-            "name", "description", "gate_id", "deliverable_type", "status", "file_url", "file_name",
+            "name",
+            "description",
+            "gate_id",
+            "deliverable_type",
+            "status",
+            "file_url",
+            "file_name",
+            "file_uuid",
         ):
             val = getattr(data, field, None)
             if val is not None:
                 update_fields[field] = val
-        if data.status == RdDeliverableStatus.SUBMITTED.value:
-            update_fields["submitted_at"] = resolve_business_datetime()
-        if data.status == RdDeliverableStatus.APPROVED.value:
-            update_fields["approved_at"] = resolve_business_datetime()
-        await row.update_from_dict(update_fields).save()
+        if data.status is not None:
+            status = str(data.status).strip().upper()
+            if status not in {s.value for s in RdDeliverableStatus}:
+                raise BusinessLogicError(f"非法交付物状态: {status}")
+            update_fields["status"] = status
+            if status == RdDeliverableStatus.SUBMITTED.value:
+                update_fields["submitted_at"] = resolve_business_datetime()
+            if status == RdDeliverableStatus.APPROVED.value:
+                update_fields["approved_at"] = resolve_business_datetime()
+
+        async with in_transaction():
+            await row.update_from_dict(update_fields).save()
+            row = await RdProjectDeliverable.get(id=deliverable_id)
+            if row.status == RdDeliverableStatus.APPROVED.value:
+                await RdProjectDeliverableVersion.filter(
+                    tenant_id=tenant_id,
+                    deliverable_id=row.id,
+                    is_effective=True,
+                    deleted_at__isnull=True,
+                ).exclude(version=row.version).update(
+                    is_effective=False,
+                    status="obsolete",
+                    obsolete_at=resolve_business_datetime(),
+                )
+            await self._ensure_deliverable_version_row(row, actor_name=user_info["name"])
+        return RdProjectDeliverableResponse.model_validate(row)
+
+    async def list_deliverable_versions(
+        self,
+        tenant_id: int,
+        project_id: int,
+        deliverable_id: int,
+        *,
+        current_user_id: Optional[int] = None,
+        permission_codes: Optional[List[str]] = None,
+    ) -> RdProjectDeliverableVersionListResponse:
+        row = await RdProjectDeliverable.get_or_none(
+            tenant_id=tenant_id, id=deliverable_id, project_id=project_id, deleted_at__isnull=True
+        )
+        if not row:
+            raise NotFoundError(f"交付物不存在: {deliverable_id}")
+        versions = await RdProjectDeliverableVersion.filter(
+            tenant_id=tenant_id,
+            deliverable_id=deliverable_id,
+            deleted_at__isnull=True,
+        ).order_by("-id")
+        policy_rows = [deliverable_version_policy_row(v) for v in versions]
+        is_author = bool(
+            current_user_id is not None
+            and getattr(row, "created_by", None) is not None
+            and int(row.created_by) == int(current_user_id)
+        )
+        audience = resolve_audience(
+            permission_codes=permission_codes,
+            is_author=is_author,
+        )
+        visible_policy = filter_version_rows(
+            policy_rows,
+            audience=audience,
+            current_user_id=current_user_id,
+        )
+        visible_ids = {r.get("id") for r in visible_policy}
+        items = [
+            RdProjectDeliverableVersionResponse.model_validate(v)
+            for v in versions
+            if v.id in visible_ids
+        ]
+        return RdProjectDeliverableVersionListResponse(
+            items=items,
+            total=len(items),
+            audience=audience.value,
+            can_view_history=can_view_historical_versions(audience),
+        )
+
+    async def revise_deliverable(
+        self,
+        tenant_id: int,
+        project_id: int,
+        deliverable_id: int,
+        payload: RdProjectDeliverableReviseRequest,
+        *,
+        actor_id: int,
+    ) -> RdProjectDeliverableResponse:
+        row = await RdProjectDeliverable.get_or_none(
+            tenant_id=tenant_id, id=deliverable_id, project_id=project_id, deleted_at__isnull=True
+        )
+        if not row:
+            raise NotFoundError(f"交付物不存在: {deliverable_id}")
+        if row.status != RdDeliverableStatus.APPROVED.value:
+            raise BusinessLogicError("仅已批准交付物可升版")
+        user_info = await self.get_user_info(actor_id)
+        new_version = (payload.version or "").strip() or bump_deliverable_version(row.version)
+        clash = await RdProjectDeliverableVersion.filter(
+            tenant_id=tenant_id,
+            deliverable_id=row.id,
+            version=new_version,
+            deleted_at__isnull=True,
+        ).exists()
+        if clash:
+            raise BusinessLogicError(f"版本号已存在: {new_version}")
+
+        async with in_transaction():
+            await RdProjectDeliverableVersion.create(
+                tenant_id=tenant_id,
+                deliverable_id=row.id,
+                project_id=project_id,
+                version=new_version,
+                status="draft",
+                is_effective=False,
+                name=row.name,
+                description=row.description,
+                deliverable_type=row.deliverable_type,
+                file_url=payload.file_url if payload.file_url is not None else row.file_url,
+                file_name=payload.file_name if payload.file_name is not None else row.file_name,
+                file_uuid=payload.file_uuid if payload.file_uuid is not None else getattr(row, "file_uuid", None),
+                change_summary=(payload.change_summary or None),
+                created_by=actor_id,
+                created_by_name=user_info["name"],
+                updated_by=actor_id,
+                updated_by_name=user_info["name"],
+            )
+            row.version = new_version
+            row.status = RdDeliverableStatus.PENDING.value
+            if payload.file_url is not None:
+                row.file_url = payload.file_url
+            if payload.file_name is not None:
+                row.file_name = payload.file_name
+            if payload.file_uuid is not None:
+                row.file_uuid = payload.file_uuid
+            row.submitted_at = None
+            row.approved_at = None
+            row.updated_by = actor_id
+            row.updated_by_name = user_info["name"]
+            await row.save()
+        return RdProjectDeliverableResponse.model_validate(row)
+
+    async def reject_deliverable(
+        self,
+        tenant_id: int,
+        project_id: int,
+        deliverable_id: int,
+        payload: Optional[RdProjectDeliverableRejectRequest] = None,
+        *,
+        actor_id: int,
+    ) -> RdProjectDeliverableResponse:
+        row = await RdProjectDeliverable.get_or_none(
+            tenant_id=tenant_id, id=deliverable_id, project_id=project_id, deleted_at__isnull=True
+        )
+        if not row:
+            raise NotFoundError(f"交付物不存在: {deliverable_id}")
+        if row.status not in (
+            RdDeliverableStatus.PENDING.value,
+            RdDeliverableStatus.SUBMITTED.value,
+        ):
+            raise BusinessLogicError("仅草稿或已提交交付物可驳回")
+        user_info = await self.get_user_info(actor_id)
+        reason = (payload.reason if payload else None) or None
+
+        async with in_transaction():
+            draft_ver = await RdProjectDeliverableVersion.filter(
+                tenant_id=tenant_id,
+                deliverable_id=row.id,
+                version=row.version,
+                deleted_at__isnull=True,
+            ).first()
+            if draft_ver:
+                draft_ver.status = "rejected"
+                draft_ver.is_effective = False
+                draft_ver.change_summary = reason or draft_ver.change_summary
+                draft_ver.updated_by = actor_id
+                draft_ver.updated_by_name = user_info["name"]
+                await draft_ver.save()
+
+            prev = (
+                await RdProjectDeliverableVersion.filter(
+                    tenant_id=tenant_id,
+                    deliverable_id=row.id,
+                    deleted_at__isnull=True,
+                    status="effective",
+                )
+                .order_by("-id")
+                .first()
+            )
+            if prev and draft_ver and prev.id == draft_ver.id:
+                prev = None
+            if not prev:
+                prev = (
+                    await RdProjectDeliverableVersion.filter(
+                        tenant_id=tenant_id,
+                        deliverable_id=row.id,
+                        is_effective=True,
+                        deleted_at__isnull=True,
+                    )
+                    .exclude(id=draft_ver.id if draft_ver else -1)
+                    .order_by("-id")
+                    .first()
+                )
+            if prev:
+                prev.status = "effective"
+                prev.is_effective = True
+                prev.obsolete_at = None
+                await prev.save()
+                row.version = prev.version
+                row.status = RdDeliverableStatus.APPROVED.value
+                row.file_url = prev.file_url
+                row.file_name = prev.file_name
+                row.file_uuid = prev.file_uuid
+                row.approved_at = prev.effective_at or resolve_business_datetime()
+            else:
+                row.status = RdDeliverableStatus.REJECTED.value
+            row.updated_by = actor_id
+            row.updated_by_name = user_info["name"]
+            await row.save()
         return RdProjectDeliverableResponse.model_validate(row)
 
     async def delete_deliverable(
@@ -1066,11 +1407,17 @@ class RdProjectService(AppBaseService[RdProject]):
         if not row:
             raise NotFoundError(f"交付物不存在: {deliverable_id}")
         user_info = await self.get_user_info(deleted_by)
+        now = resolve_business_datetime()
         await row.update_from_dict({
-            "deleted_at": resolve_business_datetime(),
+            "deleted_at": now,
             "updated_by": deleted_by,
             "updated_by_name": user_info["name"],
         }).save()
+        await RdProjectDeliverableVersion.filter(
+            tenant_id=tenant_id,
+            deliverable_id=deliverable_id,
+            deleted_at__isnull=True,
+        ).update(deleted_at=now)
 
     # ---------- Links ----------
 

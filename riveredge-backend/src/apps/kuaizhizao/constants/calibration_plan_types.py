@@ -1,0 +1,15 @@
+"""设备校准外校计划类型（R-09）。"""
+
+from __future__ import annotations
+
+CALIBRATION_PLAN_INTERNAL = "internal"
+CALIBRATION_PLAN_EXTERNAL = "external"
+
+CALIBRATION_PLAN_TYPES = frozenset(
+    {
+        CALIBRATION_PLAN_INTERNAL,
+        CALIBRATION_PLAN_EXTERNAL,
+    }
+)
+
+CALIBRATION_PLAN_TYPE_DEFAULT = CALIBRATION_PLAN_INTERNAL

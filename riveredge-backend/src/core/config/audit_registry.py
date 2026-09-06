@@ -49,6 +49,7 @@ class AuditEntry:
     name: str
     template: str
     config_category: str
+    business_type: str = ""
 
 
 def _apps_dir() -> Path:
@@ -68,7 +69,7 @@ def _load_entries() -> Tuple[AuditEntry, ...]:
 
     entries: List[AuditEntry] = []
     seen_node_keys: Dict[str, str] = {}
-    seen_entity_types: Dict[str, str] = {}
+    seen_entity_business: Dict[Tuple[str, str], str] = {}
 
     for plugin_dir in sorted(apps_dir.iterdir(), key=lambda p: p.name):
         if not plugin_dir.is_dir():
@@ -95,6 +96,7 @@ def _load_entries() -> Tuple[AuditEntry, ...]:
             name = str(raw.get("name") or "").strip()
             template = str(raw.get("template") or "").strip()
             config_category = str(raw.get("config_category") or "common").strip() or "common"
+            business_type = str(raw.get("business_type") or "").strip()
             if not (node_key and entity_type and resource and name and template):
                 raise ValueError(
                     f"manifest[{app_code}].audit 项字段缺失（node_key/entity_type/resource/name/template 均必填）: {raw!r}"
@@ -112,12 +114,14 @@ def _load_entries() -> Tuple[AuditEntry, ...]:
                 raise ValueError(
                     f"audit node_key 重复声明: {node_key}（{seen_node_keys[node_key]} 与 {app_code}）"
                 )
-            if entity_type in seen_entity_types:
+            entity_key = (entity_type, business_type)
+            if entity_key in seen_entity_business:
                 raise ValueError(
-                    f"audit entity_type 重复声明: {entity_type}（{seen_entity_types[entity_type]} 与 {app_code}）"
+                    f"audit entity_type+business_type 重复声明: {entity_type!r}/{business_type!r}"
+                    f"（{seen_entity_business[entity_key]} 与 {app_code}）"
                 )
             seen_node_keys[node_key] = app_code
-            seen_entity_types[entity_type] = app_code
+            seen_entity_business[entity_key] = app_code
             entries.append(
                 AuditEntry(
                     app=app_code,
@@ -127,6 +131,7 @@ def _load_entries() -> Tuple[AuditEntry, ...]:
                     name=name,
                     template=template,
                     config_category=config_category,
+                    business_type=business_type,
                 )
             )
 
@@ -150,7 +155,17 @@ def _node_key_index() -> Dict[str, AuditEntry]:
 
 @lru_cache(maxsize=1)
 def _entity_type_index() -> Dict[str, AuditEntry]:
-    return {e.entity_type: e for e in _load_entries()}
+    """默认业务类型（business_type 为空）的 entity_type → entry。"""
+    return {
+        e.entity_type: e
+        for e in _load_entries()
+        if not e.business_type
+    }
+
+
+@lru_cache(maxsize=1)
+def _entity_business_index() -> Dict[Tuple[str, str], AuditEntry]:
+    return {(e.entity_type, e.business_type): e for e in _load_entries()}
 
 
 @lru_cache(maxsize=1)
@@ -172,6 +187,23 @@ def entry_by_node_key(node_key: str) -> Optional[AuditEntry]:
 
 def entry_by_entity_type(entity_type: str) -> Optional[AuditEntry]:
     return _entity_type_index().get(str(entity_type or "").strip())
+
+
+def entry_by_entity_type_and_business(
+    entity_type: str,
+    business_type: Optional[str] = None,
+) -> Optional[AuditEntry]:
+    """按实体 + 业务类型解析审核声明；未命中精确 business_type 时不回落到其它类型。"""
+    et = str(entity_type or "").strip()
+    bt = str(business_type or "").strip()
+    if not et:
+        return None
+    hit = _entity_business_index().get((et, bt))
+    if hit:
+        return hit
+    if bt:
+        return None
+    return _entity_type_index().get(et)
 
 
 def node_keys_for_app(app: str) -> List[str]:

@@ -94,6 +94,112 @@ export const mesDashboardService = {
     });
   },
 
+  /** 设备总览/厂区看板：厂区列表（主数据） */
+  getEquipmentBoardPlants: async () => {
+    return apiRequest<{
+      items: { id: number; uuid: string; code: string; name: string }[];
+      total: number;
+    }>('/apps/kuaizhizao/dashboard/equipment-board/plants', {
+      method: 'GET',
+    });
+  },
+
+  /** 设备总览/厂区看板指标与滚动异常 */
+  getEquipmentBoard: async (plantId?: number, alertLimit = 30, visitMode = false) => {
+    return apiRequest<{
+      plant: { id: number; uuid: string; code: string; name: string } | null;
+      metrics: {
+        total_count: number;
+        faulty_count: number;
+        open_fault_count: number;
+        failure_rate: number;
+        spot_check_due: number;
+        spot_check_done: number;
+        spot_check_pending: number;
+        spot_check_rate: number;
+        spot_check_review_pending: number;
+        alert_count: number;
+      };
+      source_metrics?: Record<string, number>;
+      visit_mode?: boolean;
+      visit_overrides?: {
+        metric_key: string;
+        metric_value: number;
+        reason?: string;
+      }[];
+      status_breakdown: { status: string; count: number }[];
+      alerts: {
+        kind: string;
+        title: string;
+        detail?: string;
+        document_no?: string;
+        equipment_code?: string;
+        equipment_name?: string;
+        occurred_at?: string;
+        link_path?: string;
+        link_uuid?: string;
+      }[];
+      as_of?: string;
+      spot_check_date?: string;
+    }>('/apps/kuaizhizao/dashboard/equipment-board', {
+      method: 'GET',
+      params: {
+        plant_id: plantId,
+        alert_limit: alertLimit,
+        visit_mode: visitMode,
+      },
+    });
+  },
+
+  listEquipmentBoardVisitOverrides: async (plantId?: number, boardDomain = 'equipment') => {
+    return apiRequest<{ items: { metric_key: string; metric_value: number; reason?: string }[] }>(
+      '/apps/kuaizhizao/dashboard/equipment-board/visit-overrides',
+      { method: 'GET', params: { plant_id: plantId, board_domain: boardDomain } },
+    );
+  },
+
+  upsertEquipmentBoardVisitOverrides: async (payload: {
+    board_domain?: string;
+    plant_id?: number;
+    reason?: string;
+    items: { metric_key: string; metric_value: number }[];
+  }) => {
+    return apiRequest('/apps/kuaizhizao/dashboard/equipment-board/visit-overrides', {
+      method: 'PUT',
+      data: payload,
+    });
+  },
+
+  clearEquipmentBoardVisitOverrides: async (payload: {
+    board_domain?: string;
+    plant_id?: number;
+    reason?: string;
+    metric_keys?: string[];
+  }) => {
+    return apiRequest('/apps/kuaizhizao/dashboard/equipment-board/visit-overrides/clear', {
+      method: 'POST',
+      data: payload,
+    });
+  },
+
+  listEquipmentBoardVisitAudits: async (plantId?: number, boardDomain = 'equipment') => {
+    return apiRequest<{
+      items: {
+        action: string;
+        metric_key?: string;
+        before_value?: number;
+        after_value?: number;
+        reason?: string;
+        operator_name?: string;
+        created_at?: string;
+      }[];
+      total: number;
+    }>('/apps/kuaizhizao/dashboard/equipment-board/visit-audits', {
+      method: 'GET',
+      params: { plant_id: plantId, board_domain: boardDomain, limit: 30 },
+    });
+  },
+
   getTodosByModule: async (module: string, limit = 8) => {
     return apiRequest<{ items: import('../../../services/dashboard').TodoItem[]; total: number }>(
       '/apps/kuaizhizao/dashboard/todos',

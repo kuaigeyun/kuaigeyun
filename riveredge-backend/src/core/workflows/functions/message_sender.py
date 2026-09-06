@@ -2,7 +2,6 @@
 消息发送工作流函数。
 """
 
-from datetime import datetime
 from typing import Any, Dict
 
 from loguru import logger
@@ -40,8 +39,18 @@ async def message_sender_function(event: Event) -> Dict[str, Any]:
     if not message_log:
         return {"success": False, "error": f"消息记录不存在: {message_log_uuid}"}
 
+    # 优先使用日志中已渲染的主题/正文（防止事件丢字段）
+    subject = subject if subject is not None else message_log.subject
+    content = content if content is not None else message_log.content
+    recipient = recipient if recipient is not None else message_log.recipient
+    message_type = message_type or message_log.type
+    config_uuid = config_uuid or message_log.config_uuid
+
     message_log.status = "sending"
     message_log.sent_at = resolve_business_datetime()
+    retry = int(getattr(message_log, "retry_count", 0) or 0) + 1
+    if hasattr(message_log, "retry_count"):
+        message_log.retry_count = retry
     await message_log.save()
 
     try:
@@ -60,6 +69,7 @@ async def message_sender_function(event: Event) -> Dict[str, Any]:
             message_log.status = "success"
             if not message_log.sent_at:
                 message_log.sent_at = resolve_business_datetime()
+            message_log.error_message = None
         else:
             message_log.status = "failed"
             message_log.error_message = result.get("error", "未知错误")
@@ -84,12 +94,16 @@ async def _send_email(
     subject: str,
     content: str,
 ) -> Dict[str, Any]:
-    _ = subject, content
     try:
         config = await MessageConfigService.get_message_config_by_uuid(tenant_id, config_uuid)
         if not config:
             return {"success": False, "error": "邮件配置不存在"}
-        success, message, error = await MessageConfigService._send_test_email(config.config, recipient)
+        success, message, error = await MessageConfigService._send_email(
+            config.config or {},
+            recipient,
+            subject=subject or "",
+            content=content or "",
+        )
         return {"success": success, "message": message, "error": error}
     except Exception as e:
         logger.error(f"发送邮件失败: {e}")
@@ -102,13 +116,28 @@ async def _send_sms(
     recipient: str,
     content: str,
 ) -> Dict[str, Any]:
+    """短信供应商未书面确认前禁止模拟成功（INF-04）。"""
     _ = content
     try:
         config = await MessageConfigService.get_message_config_by_uuid(tenant_id, config_uuid)
         if not config:
             return {"success": False, "error": "短信配置不存在"}
-        logger.info(f"发送短信到 {recipient}: {content}")
-        return {"success": True, "message": "短信发送成功（模拟）"}
+        provider = str((config.config or {}).get("provider") or "").strip()
+        if not provider or provider.lower() in {"mock", "simulate", "test"}:
+            logger.error(
+                "短信通道未接入真实供应商，拒绝发送 tenant={} recipient={}",
+                tenant_id,
+                recipient,
+            )
+            return {
+                "success": False,
+                "error": "短信通道未接入真实供应商，禁止模拟成功（SMS_PROVIDER_NOT_CONFIGURED）",
+            }
+        # 真实供应商适配器接入前保持失败可见，不静默成功
+        return {
+            "success": False,
+            "error": f"短信供应商 {provider} 尚未实现发送适配器",
+        }
     except Exception as e:
         logger.error(f"发送短信失败: {e}")
         return {"success": False, "error": str(e)}
@@ -120,11 +149,21 @@ async def _send_push_notification(
     subject: str,
     content: str,
 ) -> Dict[str, Any]:
-    _ = tenant_id, content
     try:
-        logger.info(f"发送推送通知到 {recipient}: {subject}")
-        return {"success": True, "message": "推送通知发送成功（模拟）"}
+        from core.services.messaging.push_dispatch_service import schedule_internal_message_push
+
+        user_id = int(str(recipient).strip())
+        if user_id < 1:
+            return {"success": False, "error": "推送收件人无效"}
+        schedule_internal_message_push(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            subject=subject or "新消息",
+            content=content or "",
+            message_log_uuid=None,
+            variables=None,
+        )
+        return {"success": True, "message": "推送已调度"}
     except Exception as e:
         logger.error(f"发送推送通知失败: {e}")
         return {"success": False, "error": str(e)}
-

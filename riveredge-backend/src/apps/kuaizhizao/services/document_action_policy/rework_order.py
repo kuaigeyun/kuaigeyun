@@ -59,6 +59,7 @@ def derive_rework_order_capabilities(
 ) -> ReworkOrderCapabilities:
     status = _norm(getattr(record, "status", None))
     routing_mode = _norm(getattr(record, "routing_mode", ROUTING_MODE_DYNAMIC))
+    business_type = _norm(getattr(record, "business_type", None)) or "simple_exec"
     verification_required = bool(getattr(record, "verification_required", False))
     is_terminal = status in _TERMINAL
 
@@ -71,8 +72,22 @@ def derive_rework_order_capabilities(
         "rework_order.delete.not_allowed" if not delete_allowed else None,
     )
 
-    release_allowed = status == "draft"
-    release_cap = _cap(release_allowed, "rework_order.release.not_draft" if not release_allowed else None)
+    # 简化执行：草稿可下达；会签型/库存验证：审核通过后可下达
+    if business_type in ("multi_signoff", "inventory_verify"):
+        release_allowed = status == "approved"
+        release_reason = (
+            None
+            if release_allowed
+            else (
+                "rework_order.release.awaiting_approval"
+                if status in ("draft", "pending")
+                else "rework_order.release.not_draft"
+            )
+        )
+    else:
+        release_allowed = status == "draft"
+        release_reason = "rework_order.release.not_draft" if not release_allowed else None
+    release_cap = _cap(release_allowed, release_reason)
 
     execute_allowed = status in ("released", "in_progress") and not awaiting_route_decision
     execute_cap = _cap(
@@ -116,13 +131,60 @@ def derive_rework_order_capabilities(
         else None,
     )
 
-    close_allowed = status == "quality_released" or (
+    base_close_ready = status == "quality_released" or (
         status == "pending_verification" and not verification_required
     )
-    close_cap = _cap(
-        close_allowed,
-        "rework_order.close.not_allowed" if not close_allowed else None,
-    )
+    finance_signed = bool(getattr(record, "finance_signed_at", None))
+    if business_type in ("multi_signoff", "inventory_verify"):
+        finance_sign_allowed = base_close_ready and not finance_signed
+        finance_sign_cap = _cap(
+            finance_sign_allowed,
+            "rework_order.finance_sign.already_signed"
+            if base_close_ready and finance_signed
+            else "rework_order.finance_sign.not_allowed"
+            if not finance_sign_allowed
+            else None,
+        )
+        close_allowed = base_close_ready and finance_signed
+        close_cap = _cap(
+            close_allowed,
+            "rework_order.close.awaiting_finance"
+            if base_close_ready and not finance_signed
+            else "rework_order.close.not_allowed"
+            if not close_allowed
+            else None,
+        )
+    else:
+        finance_sign_cap = _cap(False, "rework_order.finance_sign.not_allowed")
+        close_allowed = base_close_ready
+        close_cap = _cap(
+            close_allowed,
+            "rework_order.close.not_allowed" if not close_allowed else None,
+        )
+
+    pqc_checked = bool(getattr(record, "pqc_checked_at", None))
+    if business_type == "inventory_verify":
+        pqc_status_ok = status not in ("draft", "cancelled")
+        pqc_check_allowed = pqc_status_ok and not pqc_checked
+        if not pqc_status_ok:
+            pqc_reason = "rework_order.pqc_check.not_allowed"
+        elif pqc_checked:
+            pqc_reason = "rework_order.pqc_check.already_checked"
+        else:
+            pqc_reason = None
+        pqc_check_cap = _cap(pqc_check_allowed, pqc_reason)
+        oqc_notify_allowed = pqc_status_ok and pqc_checked
+        oqc_notify_cap = _cap(
+            oqc_notify_allowed,
+            "rework_order.oqc_notify.pqc_required"
+            if pqc_status_ok and not pqc_checked
+            else "rework_order.oqc_notify.not_allowed"
+            if not oqc_notify_allowed
+            else None,
+        )
+    else:
+        pqc_check_cap = _cap(False, "rework_order.pqc_check.not_inventory_verify")
+        oqc_notify_cap = _cap(False, "rework_order.oqc_notify.not_inventory_verify")
 
     cancel_allowed = False
     cancel_reason = "rework_order.cancel.not_allowed"
@@ -151,6 +213,9 @@ def derive_rework_order_capabilities(
         advance_next=advance_cap,
         request_complete=request_complete_cap,
         quality_release=quality_release_cap,
+        finance_sign=finance_sign_cap,
+        pqc_check=pqc_check_cap,
+        oqc_notify=oqc_notify_cap,
         close=close_cap,
         cancel=_cap(cancel_allowed, cancel_reason),
         hold=hold_cap,
@@ -169,6 +234,9 @@ def assert_rework_order_capability(record: Any, action: str, caps: Optional[Rewo
         "advance_next": resolved.advance_next,
         "request_complete": resolved.request_complete,
         "quality_release": resolved.quality_release,
+        "finance_sign": resolved.finance_sign,
+        "pqc_check": resolved.pqc_check,
+        "oqc_notify": resolved.oqc_notify,
         "close": resolved.close,
         "cancel": resolved.cancel,
         "hold": resolved.hold,

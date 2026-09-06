@@ -331,25 +331,17 @@ class ApprovalInstanceService:
         content: Optional[str] = None,
         *,
         send_notification: bool = True,
+        business_type: Optional[str] = None,
+        selected_approver_user_ids: Optional[List[int]] = None,
+        selected_approver_by_node: Optional[Dict[str, List[int]]] = None,
+        extra_data: Optional[Dict[str, Any]] = None,
     ) -> Optional[ApprovalInstance]:
         """
         按 process_code 启动审批流程（统一入口）
 
         若流程不存在则返回 None，调用方走简单审核；若流程存在则创建实例并返回。
 
-        Args:
-            tenant_id: 租户ID
-            user_id: 提交人ID
-            process_code: 流程代码（如 demand_approval、purchase_order_approval、sales_order_approval）
-            entity_type: 实体类型
-            entity_id: 实体ID
-            entity_uuid: 实体UUID
-            title: 审批标题
-            content: 审批内容（可选）
-            send_notification: 见 create_approval_instance
-
-        Returns:
-            ApprovalInstance 或 None（流程不存在时）
+        selected_approver_*：发起时勾选人员快照，写入实例 data，节点解析优先使用。
         """
         process = await ApprovalProcess.filter(
             tenant_id=tenant_id,
@@ -361,15 +353,42 @@ class ApprovalInstanceService:
         if not process:
             return None
 
+        payload: Dict[str, Any] = {
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "entity_uuid": entity_uuid,
+        }
+        if business_type:
+            payload["business_type"] = str(business_type).strip()
+        if extra_data:
+            payload.update(extra_data)
+
+        snapshot_ids: List[int] = []
+        if selected_approver_user_ids:
+            snapshot_ids.extend(int(x) for x in selected_approver_user_ids if int(x) > 0)
+        by_node: Dict[str, List[int]] = {}
+        if selected_approver_by_node:
+            for node_id, ids in selected_approver_by_node.items():
+                cleaned = [int(x) for x in (ids or []) if int(x) > 0]
+                if cleaned:
+                    by_node[str(node_id)] = cleaned
+                    snapshot_ids.extend(cleaned)
+        if snapshot_ids or by_node:
+            unique_ids = list(dict.fromkeys(snapshot_ids))
+            name_map = await ApprovalInstanceService._user_display_map(tenant_id, unique_ids)
+            payload["selected_approver_user_ids"] = unique_ids
+            payload["selected_approver_by_node"] = by_node
+            payload["selected_approver_snapshot"] = {
+                "user_ids": unique_ids,
+                "names": {str(uid): name_map.get(uid, str(uid)) for uid in unique_ids},
+                "by_node": by_node,
+            }
+
         data = ApprovalInstanceCreate(
             process_uuid=str(process.uuid),
             title=title,
             content=content or "",
-            data={
-                "entity_type": entity_type,
-                "entity_id": entity_id,
-                "entity_uuid": entity_uuid,
-            },
+            data=payload,
         )
         from core.services.approval.audit_context_builder import build_audit_context
 
@@ -395,13 +414,25 @@ class ApprovalInstanceService:
         content: Optional[str] = None,
         *,
         send_notification: bool = True,
+        business_type: Optional[str] = None,
+        selected_approver_user_ids: Optional[List[int]] = None,
+        selected_approver_by_node: Optional[Dict[str, List[int]]] = None,
+        extra_data: Optional[Dict[str, Any]] = None,
     ) -> Optional[ApprovalInstance]:
         """
         按 manifest node_key 解析审核绑定并启动审批（统一入口，避免业务层硬编码 process_code）。
+        若传入 business_type，优先按 entity_type+business_type 解析声明中的 node_key。
         """
+        from core.config.audit_registry import entry_by_entity_type_and_business
         from core.services.approval.audit_binding_service import AuditBindingService
 
-        process = await AuditBindingService.resolve_process_for_node(tenant_id, node_key)
+        resolved_key = node_key
+        if business_type:
+            entry = entry_by_entity_type_and_business(entity_type, business_type)
+            if entry:
+                resolved_key = entry.node_key
+
+        process = await AuditBindingService.resolve_process_for_node(tenant_id, resolved_key)
         if not process:
             return None
         return await ApprovalInstanceService.start_approval(
@@ -414,6 +445,10 @@ class ApprovalInstanceService:
             title=title,
             content=content,
             send_notification=send_notification,
+            business_type=business_type,
+            selected_approver_user_ids=selected_approver_user_ids,
+            selected_approver_by_node=selected_approver_by_node,
+            extra_data=extra_data,
         )
 
     @staticmethod
@@ -1541,9 +1576,12 @@ class ApprovalInstanceService:
     async def _resolve_node_approvers(node: dict, instance: ApprovalInstance) -> List[int]:
         """
         解析节点审批人。兼容前端 camelCase（approverType, approverIds）与后端 snake_case。
-        支持：user（指定用户）、role（角色）、department（部门负责人）、manager（直属上级，用部门负责人）。
+        支持：user（指定用户）、role（角色）、department（部门负责人）、manager（直属上级）、
+        form/form_select/selected（发起时勾选快照）。
+        找不到有效审批人时抛 ValidationError，禁止回落到提交人。
         """
         node_data = node.get("data", {})
+        node_id = str(node.get("id") or "")
         approver_type = (
             node_data.get("approverType")
             or node_data.get("approver_type")
@@ -1563,6 +1601,29 @@ class ApprovalInstanceService:
 
         tenant_id = instance.tenant_id
         submitter_id = instance.submitter_id
+        instance_data = instance.data if isinstance(instance.data, dict) else {}
+
+        async def _from_selected_snapshot() -> List[int]:
+            by_node = instance_data.get("selected_approver_by_node") or {}
+            if isinstance(by_node, dict) and node_id and by_node.get(node_id):
+                raw = by_node.get(node_id) or []
+            else:
+                raw = instance_data.get("selected_approver_user_ids") or []
+                snap = instance_data.get("selected_approver_snapshot") or {}
+                if not raw and isinstance(snap, dict):
+                    raw = snap.get("user_ids") or []
+            ids = await ApprovalInstanceService._resolve_approver_ids_from_identifiers(
+                tenant_id, raw or [], by_uuid=None
+            )
+            active = await ApprovalInstanceService._filter_active_user_ids(tenant_id, ids)
+            if not active:
+                raise ValidationError(
+                    f"审批节点 {node_id or approver_type} 缺少发起时勾选的有效人员快照，无法提交审核"
+                )
+            return active
+
+        if approver_type in {"form", "form_select", "selected"}:
+            return await _from_selected_snapshot()
 
         if approver_type == "user":
             ids = await ApprovalInstanceService._resolve_approver_ids_from_identifiers(
@@ -1570,14 +1631,23 @@ class ApprovalInstanceService:
             )
             if ids:
                 return ids
-            return [submitter_id]
+            # 节点未写死人员时，允许使用发起快照
+            if instance_data.get("selected_approver_user_ids") or instance_data.get(
+                "selected_approver_by_node"
+            ):
+                return await _from_selected_snapshot()
+            raise ValidationError(
+                f"审批节点未配置有效指定人员（approverType=user），无法提交审核"
+            )
 
         if approver_type == "role":
             # approverIds 存角色 UUID，解析该角色下所有用户
             try:
                 role_uuids = [str(x).strip() for x in approver_ids_raw if x]
                 if not role_uuids:
-                    return [submitter_id]
+                    raise ValidationError(
+                        "审批节点未配置角色（approverType=role），无法提交审核"
+                    )
                 roles = await Role.filter(
                     tenant_id=tenant_id,
                     uuid__in=role_uuids,
@@ -1585,8 +1655,9 @@ class ApprovalInstanceService:
                     is_active=True,
                 ).all()
                 if not roles:
-                    logger.warning("审批节点配置的角色未找到，回退到提交人")
-                    return [submitter_id]
+                    raise ValidationError(
+                        "审批节点配置的角色不存在或已停用，无法提交审核"
+                    )
                 role_ids = [r.id for r in roles]
                 ur = await UserRole.filter(role_id__in=role_ids).values_list("user_id", flat=True)
                 user_ids = list(dict.fromkeys(int(uid) for uid in ur if uid is not None))
@@ -1600,9 +1671,14 @@ class ApprovalInstanceService:
                     active = list(dict.fromkeys(int(uid) for uid in active_ids if uid is not None))
                     if active:
                         return active
+                raise ValidationError(
+                    "审批节点角色下无可用用户，无法提交审核"
+                )
+            except ValidationError:
+                raise
             except Exception as e:
-                logger.warning("解析角色审批人失败: %s，回退到提交人", e)
-            return [submitter_id]
+                logger.error("解析角色审批人失败: {}", e)
+                raise ValidationError(f"解析角色审批人失败: {e}") from e
 
         if approver_type == "department":
             try:
@@ -1618,18 +1694,22 @@ class ApprovalInstanceService:
                     )
                     if managers:
                         return managers
-                    logger.warning(
-                        "审批节点指定部门未配置负责人或负责人不可用，回退到提交人"
+                    raise ValidationError(
+                        "审批节点指定部门未配置可用负责人，无法提交审核"
                     )
-                    return [submitter_id]
                 managers = await ApprovalInstanceService._resolve_submitter_department_manager_ids(
                     tenant_id, submitter_id, walk_parent=True
                 )
                 if managers:
                     return managers
+                raise ValidationError(
+                    "提交人部门未配置可用负责人，无法提交审核"
+                )
+            except ValidationError:
+                raise
             except Exception as e:
-                logger.warning("解析部门负责人失败: %s，回退到提交人", e)
-            return [submitter_id]
+                logger.error("解析部门负责人失败: {}", e)
+                raise ValidationError(f"解析部门负责人失败: {e}") from e
 
         if approver_type == "manager":
             try:
@@ -1638,12 +1718,18 @@ class ApprovalInstanceService:
                 )
                 if managers:
                     return managers
+                raise ValidationError(
+                    "提交人直属部门未配置可用负责人，无法提交审核"
+                )
+            except ValidationError:
+                raise
             except Exception as e:
-                logger.warning("解析直属上级失败: %s，回退到提交人", e)
-            return [submitter_id]
+                logger.error("解析直属上级失败: {}", e)
+                raise ValidationError(f"解析直属上级失败: {e}") from e
 
-        # optional 等未实现类型回退到提交人
-        return [submitter_id]
+        raise ValidationError(
+            f"不支持的审批人类型 {approver_type!r}，无法提交审核"
+        )
 
     @staticmethod
     async def _check_node_completion(
@@ -2618,6 +2704,178 @@ class ApprovalInstanceService:
                     )
                 logger.info(f"采购发票 {entity_id} 审批回调完成: {approval_instance.status}")
 
+            async def _handle_product_firmware() -> None:
+                from apps.kuaiplm.services.product_firmware_service import ProductFirmwareService
+                from infra.models.user import User
+
+                if not entity_id:
+                    return
+                approver = await User.get_or_none(id=approver_id)
+                if not approver:
+                    return
+                svc = ProductFirmwareService()
+                if approval_instance.status == "approved":
+                    await svc.approve(tenant_id, int(entity_id), approver)
+                elif approval_instance.status == "rejected":
+                    await svc.reject(tenant_id, int(entity_id), approver)
+                logger.info(f"产品固件 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_production_file() -> None:
+                from apps.kuaiplm.services.production_file_service import ProductionFileService
+                from infra.models.user import User
+
+                if not entity_id:
+                    return
+                approver = await User.get_or_none(id=approver_id)
+                if not approver:
+                    return
+                svc = ProductionFileService()
+                if approval_instance.status == "approved":
+                    await svc.approve(tenant_id, int(entity_id), approver)
+                elif approval_instance.status == "rejected":
+                    await svc.reject(tenant_id, int(entity_id), approver)
+                logger.info(f"生产文件 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_trial_flow() -> None:
+                from apps.kuaiplm.services.trial_flow_service import TrialFlowService
+                from infra.models.user import User
+
+                if not entity_id:
+                    return
+                approver = await User.get_or_none(id=approver_id)
+                if not approver:
+                    return
+                svc = TrialFlowService()
+                if approval_instance.status == "approved":
+                    await svc.approve(tenant_id, int(entity_id), approver)
+                elif approval_instance.status == "rejected":
+                    await svc.reject(tenant_id, int(entity_id), approver)
+                logger.info(f"试流单 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_rework_order() -> None:
+                from apps.kuaizhizao.services.rework_order_service import ReworkOrderService
+
+                if not entity_id:
+                    return
+                svc = ReworkOrderService()
+                if approval_instance.status == "approved":
+                    await svc.approve_rework_order(tenant_id, int(entity_id), approver_id)
+                elif approval_instance.status == "rejected":
+                    await svc.reject_rework_order(tenant_id, int(entity_id), approver_id)
+                logger.info(f"返工单 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_quality_complaint() -> None:
+                from apps.kuaizhizao.services.quality_complaint_service import QualityComplaintService
+                from infra.models.user import User
+
+                if not entity_id:
+                    return
+                approver = await User.get_or_none(id=approver_id)
+                if not approver:
+                    return
+                svc = QualityComplaintService()
+                if approval_instance.status == "approved":
+                    await svc.approve(tenant_id, int(entity_id), approver)
+                elif approval_instance.status == "rejected":
+                    await svc.reject(tenant_id, int(entity_id), approver)
+                logger.info(f"质量投诉 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_engineering_change() -> None:
+                from apps.kuaiplm.services.engineering_change_service import EngineeringChangeService
+                from infra.models.user import User
+
+                if not entity_id:
+                    return
+                approver = await User.get_or_none(id=approver_id)
+                if not approver:
+                    return
+                svc = EngineeringChangeService()
+                if approval_instance.status == "approved":
+                    await svc.approve(tenant_id, int(entity_id), approver)
+                elif approval_instance.status == "rejected":
+                    await svc.reject(tenant_id, int(entity_id), approver)
+                logger.info(f"工程变更 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_sample_process() -> None:
+                from apps.kuaiplm.services.sample_process_service import SampleProcessService
+                from infra.models.user import User
+
+                if not entity_id:
+                    return
+                approver = await User.get_or_none(id=approver_id)
+                if not approver:
+                    return
+                svc = SampleProcessService()
+                if approval_instance.status == "approved":
+                    await svc.approve(tenant_id, int(entity_id), approver)
+                elif approval_instance.status == "rejected":
+                    await svc.reject(tenant_id, int(entity_id), approver)
+                logger.info(f"样品加工申请 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_material_review() -> None:
+                from apps.kuaiplm.services.material_review_service import MaterialReviewService
+                from infra.models.user import User
+
+                if not entity_id:
+                    return
+                approver = await User.get_or_none(id=approver_id)
+                if not approver:
+                    return
+                svc = MaterialReviewService()
+                if approval_instance.status == "approved":
+                    await svc.approve(tenant_id, int(entity_id), approver)
+                elif approval_instance.status == "rejected":
+                    await svc.reject(tenant_id, int(entity_id), approver)
+                logger.info(f"物料评审 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_bom_collaboration() -> None:
+                from apps.kuaiplm.services.bom_collaboration_service import BomCollaborationService
+                from infra.models.user import User
+
+                if not entity_id:
+                    return
+                approver = await User.get_or_none(id=approver_id)
+                if not approver:
+                    return
+                svc = BomCollaborationService()
+                if approval_instance.status == "approved":
+                    await svc.approve(tenant_id, int(entity_id), approver)
+                elif approval_instance.status == "rejected":
+                    await svc.reject(tenant_id, int(entity_id), approver)
+                logger.info(f"BOM 协同 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_project_proposal() -> None:
+                from apps.kuaiplm.services.project_proposal_service import ProjectProposalService
+                from infra.models.user import User
+
+                if not entity_id:
+                    return
+                approver = await User.get_or_none(id=approver_id)
+                if not approver:
+                    return
+                svc = ProjectProposalService()
+                if approval_instance.status == "approved":
+                    await svc.approve(tenant_id, int(entity_id), approver)
+                elif approval_instance.status == "rejected":
+                    await svc.reject(tenant_id, int(entity_id), approver)
+                logger.info(f"项目建议书 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_mold_sample() -> None:
+                from apps.kuaiplm.services.mold_sample_order_service import MoldSampleOrderService
+                from infra.models.user import User
+
+                if not entity_id:
+                    return
+                approver = await User.get_or_none(id=approver_id)
+                if not approver:
+                    return
+                svc = MoldSampleOrderService()
+                if approval_instance.status == "approved":
+                    await svc.approve(tenant_id, int(entity_id), approver)
+                elif approval_instance.status == "rejected":
+                    await svc.reject(tenant_id, int(entity_id), approver)
+                logger.info(f"开模/打样 {entity_id} 审批回调完成: {approval_instance.status}")
+
             completion_handlers = {
                 "sales_order": _handle_sales_order,
                 "demand": _handle_demand,
@@ -2632,6 +2890,17 @@ class ApprovalInstanceService:
                 "payable": _handle_payable,
                 "receivable": _handle_receivable,
                 "purchase_invoice": _handle_purchase_invoice,
+                "product_firmware": _handle_product_firmware,
+                "production_file": _handle_production_file,
+                "trial_flow": _handle_trial_flow,
+                "rework_order": _handle_rework_order,
+                "quality_complaint": _handle_quality_complaint,
+                "engineering_change": _handle_engineering_change,
+                "sample_process": _handle_sample_process,
+                "material_review": _handle_material_review,
+                "bom_collaboration": _handle_bom_collaboration,
+                "project_proposal": _handle_project_proposal,
+                "mold_sample": _handle_mold_sample,
             }
             handler = completion_handlers.get(entity_type)
             if handler:

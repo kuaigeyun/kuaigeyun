@@ -7,9 +7,13 @@ from fastapi import APIRouter
 from .master_data import router as master_data_router
 from .documents import router as documents_router
 from .scheme_bindings import router as scheme_bindings_router
+from .acceptances import router as acceptances_router
+from .line_rebinds import router as line_rebinds_router
 
 router = APIRouter(tags=["App - Kuaige Zhizao - Equipment Ops"])
 
 router.include_router(master_data_router)
 router.include_router(scheme_bindings_router)
 router.include_router(documents_router)
+router.include_router(acceptances_router)
+router.include_router(line_rebinds_router)

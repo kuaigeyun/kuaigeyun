@@ -479,7 +479,14 @@ export const sopApi = {
   revise: async (uuid: string, data?: { changeReason?: string }): Promise<SOP> => {
     return api.post(`/apps/master-data/process/sop/${uuid}/revise`, data ?? {});
   },
-  listRevisions: async (uuid: string): Promise<{ data: SopRevision[]; total: number }> => {
+  listRevisions: async (
+    uuid: string,
+  ): Promise<{
+    data: SopRevision[];
+    total: number;
+    audience?: string;
+    canViewHistory?: boolean;
+  }> => {
     return api.get(`/apps/master-data/process/sop/${uuid}/revisions`);
   },
   listCopies: async (uuid: string): Promise<{ data: SopControlledCopy[]; total: number }> => {

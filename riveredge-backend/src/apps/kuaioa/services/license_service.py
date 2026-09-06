@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, List, Optional
 
+from apps.kuaioa.constants.license_types import ALLOWED_NOTIFY_CHANNELS
 from apps.kuaioa.models.license import KuaioaLicense
 from apps.kuaioa.schemas.license import LicenseCreate, LicenseUpdate
 from apps.kuaioa.services.kuaioa_list_core import (
@@ -16,6 +17,34 @@ from apps.kuaioa.services.kuaioa_list_core import (
 )
 from core.utils.timezone_utils import resolve_business_datetime, to_site_date
 from infra.exceptions.exceptions import NotFoundError
+
+
+def _normalize_user_ids(raw: Any) -> List[int]:
+    if not isinstance(raw, list):
+        return []
+    out: List[int] = []
+    seen = set()
+    for item in raw:
+        try:
+            uid = int(item)
+        except (TypeError, ValueError):
+            continue
+        if uid <= 0 or uid in seen:
+            continue
+        seen.add(uid)
+        out.append(uid)
+    return out
+
+
+def _normalize_channels(raw: Any) -> List[str]:
+    if not isinstance(raw, list):
+        return ["internal"]
+    out: List[str] = []
+    for item in raw:
+        ch = str(item or "").strip().lower()
+        if ch in ALLOWED_NOTIFY_CHANNELS and ch not in out:
+            out.append(ch)
+    return out or ["internal"]
 
 
 class LicenseRegistryService:
@@ -61,12 +90,18 @@ class LicenseRegistryService:
             "issue_date": parse_optional_date(data.issue_date),
             "expiry_date": parse_optional_date(data.expiry_date),
             "reminder_days": data.reminder_days,
+            "notify_user_ids": _normalize_user_ids(data.notify_user_ids),
+            "notify_channels": _normalize_channels(data.notify_channels),
+            "notify_enabled": bool(data.notify_enabled),
             "file_uuid": data.file_uuid,
             "notes": data.notes,
             "status": "valid",
         }
         await apply_create_audit_by_user_id(create_payload, user_id)
         row = await KuaioaLicense.create(**create_payload)
+        from apps.kuaioa.services.license_reminder_service import LicenseReminderService
+
+        await LicenseReminderService.sync_after_saved(tenant_id, row)
         return model_to_dict(row)
 
     async def update_license(
@@ -81,10 +116,17 @@ class LicenseRegistryService:
         for key in ("issue_date", "expiry_date"):
             if key in payload:
                 payload[key] = parse_optional_date(payload[key])
+        if "notify_user_ids" in payload:
+            payload["notify_user_ids"] = _normalize_user_ids(payload["notify_user_ids"])
+        if "notify_channels" in payload:
+            payload["notify_channels"] = _normalize_channels(payload["notify_channels"])
         for key, value in payload.items():
             setattr(row, key, value)
         await touch_updated(row, user_id)
         await row.save()
+        from apps.kuaioa.services.license_reminder_service import LicenseReminderService
+
+        await LicenseReminderService.sync_after_saved(tenant_id, row)
         return model_to_dict(row)
 
     async def delete_license(self, tenant_id: int, license_id: int, user_id: int) -> None:
@@ -93,6 +135,9 @@ class LicenseRegistryService:
         )
         if not row:
             raise NotFoundError("证照不存在")
+        from apps.kuaioa.services.license_reminder_service import LicenseReminderService
+
+        await LicenseReminderService.stop_for_license(tenant_id, license_id, reason="证照已删除")
         row.deleted_at = resolve_business_datetime()
         await touch_updated(row, user_id)
         await row.save()
@@ -116,3 +161,8 @@ class LicenseRegistryService:
                 item["days_until_expiry"] = delta
                 result.append(item)
         return result
+
+    async def list_license_types(self) -> list[dict[str, str]]:
+        from apps.kuaioa.constants.license_types import LICENSE_TYPE_PRESETS
+
+        return [{"code": code, "label": label} for code, label in LICENSE_TYPE_PRESETS]

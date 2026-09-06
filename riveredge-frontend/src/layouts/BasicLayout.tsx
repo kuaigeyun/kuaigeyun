@@ -1095,6 +1095,8 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
 
   // 站点设置：统一从 configStore 获取（app.tsx 初始化时已 fetchConfigs，site-settings 保存时会 refresh）
   const siteName = (useConfigStore((s) => (s.getConfig('site_name', '') as string)?.trim()) || '') || 'RiverEdge SaaS';
+  const showSiteName = useConfigStore((s) => s.configs.show_site_name !== false);
+  const layoutTitle = showSiteName ? siteName : false;
   const enableSystemDashboard = useConfigStore((s) => s.configs.enable_system_dashboard !== false);
   const documentVisible = useDocumentVisible();
 
@@ -1158,11 +1160,12 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
     return uuidRegex.test(str);
   };
 
-  const resolvedSiteLogoUrl = useSiteLogoUrl();
+  const resolvedSiteLogoUrl = useSiteLogoUrl({ configKey: 'site_logo' });
+  const resolvedSiteLogoDarkUrl = useSiteLogoUrl({
+    configKey: 'site_logo_dark',
+    fallbackToDefault: false,
+  });
   const [siteLogoDisplayUrl, setSiteLogoDisplayUrl] = useState(resolvedSiteLogoUrl);
-  useEffect(() => {
-    setSiteLogoDisplayUrl(resolvedSiteLogoUrl);
-  }, [resolvedSiteLogoUrl]);
 
   // 传入 ReactNode，避免 ProLayout 对 string 固定渲染 alt="logo"；加载失败：自定义 → /img/logo.png → /favicon.svg → 内置 data URI
   const siteLogo = useMemo(
@@ -1767,6 +1770,15 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
   const isLightModeLightBg = React.useMemo(() => {
     return !isDarkMode && headerTextColor !== '#ffffff';
   }, [isDarkMode, headerTextColor]);
+
+  /** 顶栏深色背景时优先 site_logo_dark，未配置则回退 site_logo */
+  const activeSiteLogoUrl =
+    !isLightModeLightBg && resolvedSiteLogoDarkUrl
+      ? resolvedSiteLogoDarkUrl
+      : resolvedSiteLogoUrl;
+  useEffect(() => {
+    setSiteLogoDisplayUrl(activeSiteLogoUrl);
+  }, [activeSiteLogoUrl]);
 
   // 根据菜单栏背景色计算文字颜色
   const siderTextColor = React.useMemo(() => {
@@ -2758,7 +2770,7 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
       <LayoutStyleInjector shellStyles={shellStyles} themeStyles={themeStyles} />
 
       <ProLayout
-        title={siteName}
+        title={layoutTitle}
         logo={siteLogo}
         headerTitleRender={isMobileOrTablet ? (logo) => (
           <div 

@@ -7,11 +7,13 @@ import {
   assignFixedAsset,
   createFixedAsset,
   deleteFixedAsset,
+  financeAuditFixedAsset,
   getFixedAsset,
   listFixedAssets,
   returnFixedAsset,
   scrapFixedAsset,
   updateFixedAsset,
+  writeOffFixedAsset,
 } from '../../../services/assets';
 import { buildOaAssetStatusEnum } from '../../../utils/oaFormEnums';
 
@@ -38,7 +40,7 @@ const AssetsRegistryPage: React.FC = () => {
         statusPresentation="marker"
         detailVariant="master"
         getDetailFn={getFixedAsset}
-        columnPersistenceId="apps.kuaioa.asset.registry.list-v4"
+        columnPersistenceId="apps.kuaioa.asset.registry.list-v5"
         fields={[
           { name: 'asset_code', labelKey: 'app.kuaioa.asset.code', width: 140 },
           { name: 'asset_name', labelKey: 'app.kuaioa.asset.name', required: true, width: 200 },
@@ -74,9 +76,30 @@ const AssetsRegistryPage: React.FC = () => {
             },
           },
           {
+            key: 'financeAudit',
+            labelKey: 'app.kuaioa.asset.financeAudit',
+            requireUpdate: true,
+            visible: (r) =>
+              r.status !== 'scrapped' &&
+              r.status !== 'written_off' &&
+              r.status !== 'finance_pending',
+            onClick: async (r) => {
+              await financeAuditFixedAsset(Number(r.id));
+            },
+          },
+          {
+            key: 'writeOff',
+            labelKey: 'app.kuaioa.asset.writeOff',
+            requireUpdate: true,
+            visible: (r) => r.status === 'finance_pending',
+            onClick: async (r) => {
+              await writeOffFixedAsset(Number(r.id));
+            },
+          },
+          {
             key: 'scrap',
             labelKey: 'app.kuaioa.asset.scrap',
-            visible: (r) => r.status !== 'scrapped',
+            visible: (r) => r.status !== 'scrapped' && r.status !== 'written_off',
             onClick: async (r) => {
               await scrapFixedAsset(Number(r.id));
             },

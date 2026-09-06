@@ -27,6 +27,18 @@ class ReworkOrderBase(BaseModel):
     quantity: Decimal = Field(..., description="返工数量")
     rework_reason: str = Field(..., description="返工原因")
     rework_type: str = Field(..., max_length=50, description="返工类型（返工、返修、报废）")
+    business_type: str = Field(
+        "simple_exec",
+        max_length=30,
+        description="返工业务类型：multi_signoff/simple_exec/inventory_verify",
+    )
+    no_scrap_confirmed: bool = Field(False, description="无报废明确确认")
+    need_warehouse_in: bool = Field(False, description="是否入库")
+    product_line_code: Optional[str] = Field(None, max_length=50, description="产品线代码")
+    verify_month: Optional[str] = Field(None, max_length=7, description="验证月份 YYYY-MM")
+    show_to_customer: bool = Field(False, description="是否向客户展示")
+    pqc_summary: Optional[str] = Field(None, description="PQC 质量记录汇总")
+    pqc_summary_file_uuid: Optional[str] = Field(None, max_length=36)
 
     route_id: Optional[int] = Field(None, description="返工工艺路线ID")
     route_name: Optional[str] = Field(None, max_length=200, description="返工工艺路线名称")
@@ -38,6 +50,73 @@ class ReworkOrderBase(BaseModel):
     operator_name: Optional[str] = Field(None, max_length=100, description="操作员姓名")
     remarks: Optional[str] = Field(None, description="备注")
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
+
+
+class ReworkOrderMaterialReqItem(BaseModel):
+    """返工物料需求行"""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: Optional[int] = None
+    line_no: int = 1
+    material_id: Optional[int] = None
+    material_code: str = Field(..., max_length=80)
+    material_name: str = Field(..., max_length=200)
+    qty: Decimal = Field(...)
+    unit: Optional[str] = Field(None, max_length=20)
+    required_at: Optional[datetime] = None
+    arrived_at: Optional[datetime] = None
+    remarks: Optional[str] = Field(None, max_length=500)
+
+
+class ReworkOrderScrapLineItem(BaseModel):
+    """返工报废明细行"""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: Optional[int] = None
+    line_no: int = 1
+    material_id: Optional[int] = None
+    material_code: str = Field(..., max_length=80)
+    material_name: str = Field(..., max_length=200)
+    qty: Decimal = Field(...)
+    unit: Optional[str] = Field(None, max_length=20)
+    scrap_reason: Optional[str] = Field(None, max_length=500)
+    remarks: Optional[str] = Field(None, max_length=500)
+
+
+class ReworkOrderPositionPlanItem(BaseModel):
+    """排位策划行（与制造执行工序正交）"""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: Optional[int] = None
+    line_no: int = 1
+    sequence: int = 1
+    station_name: str = Field(..., max_length=100, description="工序名称")
+    section_name: Optional[str] = Field(None, max_length=100, description="工段/产线")
+    station_code: Optional[str] = Field(None, max_length=50, description="工位/设备")
+    planned_headcount: Optional[Decimal] = Field(None, description="计划人数")
+    standard_minutes: Optional[Decimal] = Field(None, description="标准工时（分钟）")
+    planned_start_at: Optional[datetime] = Field(None, description="计划开始")
+    planned_end_at: Optional[datetime] = Field(None, description="计划完成")
+    planned_qty: Optional[Decimal] = None
+    owner_user_id: Optional[int] = None
+    owner_user_name: Optional[str] = Field(None, max_length=100)
+    remarks: Optional[str] = Field(None, max_length=500)
+
+
+class ReworkOrderSignoffItem(BaseModel):
+    """会签结果行（响应）"""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: Optional[int] = None
+    dept_code: str
+    dept_name: str
+    sort_order: int = 0
+    status: str = "pending"
+    result: Optional[str] = None
+    signer_id: Optional[int] = None
+    signer_name: Optional[str] = None
+    signed_at: Optional[datetime] = None
+    notes: Optional[str] = None
 
 
 class ReworkOrderOperationItem(BaseModel):
@@ -70,6 +149,9 @@ class ReworkOrderCapabilities(BaseModel):
     advance_next: ActionCapability
     request_complete: ActionCapability
     quality_release: ActionCapability
+    finance_sign: ActionCapability
+    pqc_check: ActionCapability
+    oqc_notify: ActionCapability
     close: ActionCapability
     cancel: ActionCapability
     hold: ActionCapability
@@ -89,6 +171,15 @@ class ReworkOrderCreate(ReworkOrderBase):
         None, description="预设路线有序工序 ID 列表（含起始工序）"
     )
     source_inspection_id: Optional[int] = Field(None, description="来源成品检验单 ID")
+    material_reqs: Optional[List[ReworkOrderMaterialReqItem]] = Field(
+        None, description="物料需求行（会签型）"
+    )
+    scrap_lines: Optional[List[ReworkOrderScrapLineItem]] = Field(
+        None, description="报废明细行（会签型）"
+    )
+    position_plans: Optional[List[ReworkOrderPositionPlanItem]] = Field(
+        None, description="排位策划行（会签型，与执行工序正交）"
+    )
 
 
 class ReworkOrderUpdate(BaseModel):
@@ -101,6 +192,16 @@ class ReworkOrderUpdate(BaseModel):
     quantity: Optional[Decimal] = Field(None, description="返工数量")
     rework_reason: Optional[str] = Field(None, description="返工原因")
     rework_type: Optional[str] = Field(None, max_length=50, description="返工类型")
+    business_type: Optional[str] = Field(
+        None, max_length=30, description="返工业务类型：multi_signoff/simple_exec/inventory_verify"
+    )
+    no_scrap_confirmed: Optional[bool] = Field(None, description="无报废明确确认")
+    need_warehouse_in: Optional[bool] = Field(None, description="是否入库")
+    product_line_code: Optional[str] = Field(None, max_length=50, description="产品线代码")
+    verify_month: Optional[str] = Field(None, max_length=7, description="验证月份 YYYY-MM")
+    show_to_customer: Optional[bool] = Field(None, description="是否向客户展示")
+    pqc_summary: Optional[str] = Field(None, description="PQC 质量记录汇总")
+    pqc_summary_file_uuid: Optional[str] = Field(None, max_length=36)
     route_id: Optional[int] = Field(None, description="返工工艺路线ID")
     route_name: Optional[str] = Field(None, max_length=200, description="返工工艺路线名称")
     planned_start_date: Optional[datetime] = Field(None, description="计划开始日期")
@@ -114,6 +215,15 @@ class ReworkOrderUpdate(BaseModel):
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
     start_work_order_operation_id: Optional[int] = Field(None, description="动态路线起始工序")
     predefined_operation_ids: Optional[List[int]] = Field(None, description="预设路线工序列表")
+    material_reqs: Optional[List[ReworkOrderMaterialReqItem]] = Field(
+        None, description="物料需求行（传入则全量替换）"
+    )
+    scrap_lines: Optional[List[ReworkOrderScrapLineItem]] = Field(
+        None, description="报废明细行（传入则全量替换）"
+    )
+    position_plans: Optional[List[ReworkOrderPositionPlanItem]] = Field(
+        None, description="排位策划行（传入则全量替换）"
+    )
 
 
 class ReworkOrderResponse(ReworkOrderBase):
@@ -135,6 +245,9 @@ class ReworkOrderResponse(ReworkOrderBase):
     quality_released_by_name: Optional[str] = Field(None, description="质量放行人")
     closed_at: Optional[datetime] = Field(None, description="关闭时间")
     closed_by_name: Optional[str] = Field(None, description="关闭人")
+    finance_signed_at: Optional[datetime] = Field(None, description="财务会签时间")
+    finance_signed_by_name: Optional[str] = Field(None, description="财务会签人")
+    product_line_code: Optional[str] = Field(None, description="产品线代码")
     source_inspection_id: Optional[int] = Field(None, description="来源检验单 ID")
     verification_inspection_id: Optional[int] = Field(None, description="复检单 ID")
     verification_inspection_type: Optional[str] = Field(
@@ -150,6 +263,10 @@ class ReworkOrderResponse(ReworkOrderBase):
     updated_at: datetime = Field(..., description="更新时间")
     lifecycle: Optional[dict] = Field(None, description="生命周期")
     rework_operations: Optional[List[ReworkOrderOperationItem]] = Field(None, description="返工路线工序")
+    material_reqs: Optional[List[ReworkOrderMaterialReqItem]] = Field(None, description="物料需求")
+    scrap_lines: Optional[List[ReworkOrderScrapLineItem]] = Field(None, description="报废明细")
+    position_plans: Optional[List[ReworkOrderPositionPlanItem]] = Field(None, description="排位策划")
+    signoffs: Optional[List[ReworkOrderSignoffItem]] = Field(None, description="会签行")
     capabilities: Optional[ReworkOrderCapabilities] = Field(None, description="业务态 capabilities")
 
 
@@ -169,6 +286,14 @@ class ReworkOrderListResponse(BaseModel):
     quantity: Decimal
     rework_reason: str
     rework_type: str
+    business_type: str = "simple_exec"
+    product_line_code: Optional[str] = None
+    verify_month: Optional[str] = None
+    show_to_customer: bool = False
+    pqc_summary: Optional[str] = None
+    pqc_summary_file_uuid: Optional[str] = None
+    pqc_checked_at: Optional[datetime] = None
+    pqc_checked_by_name: Optional[str] = None
     routing_mode: str = "DYNAMIC"
     verification_required: bool = False
     status: str
@@ -191,6 +316,11 @@ class ReworkOrderFromWorkOrderRequest(BaseModel):
     """从工单创建返工单请求Schema"""
     rework_reason: str = Field(..., description="返工原因")
     rework_type: str = Field(..., max_length=50, description="返工类型")
+    business_type: str = Field(
+        "simple_exec",
+        max_length=30,
+        description="返工业务类型：multi_signoff/simple_exec",
+    )
     quantity: Optional[Decimal] = Field(None, description="返工数量")
     routing_mode: str = Field("DYNAMIC", description="路线模式 DYNAMIC/PREDEFINED")
     verification_required: bool = Field(False, description="是否需要复检")
@@ -201,6 +331,7 @@ class ReworkOrderFromWorkOrderRequest(BaseModel):
     planned_start_date: Optional[datetime] = Field(None, description="计划开始时间")
     planned_end_date: Optional[datetime] = Field(None, description="计划结束时间")
     remarks: Optional[str] = Field(None, description="备注")
+    product_line_code: Optional[str] = Field(None, max_length=50, description="产品线代码")
 
 
 class ReworkFromWorkOrderPreviewResponse(BaseModel):
@@ -232,8 +363,26 @@ class ReworkQualityReleaseRequest(BaseModel):
 
 
 class ReworkCloseRequest(BaseModel):
-    """业务关闭"""
-    remarks: Optional[str] = Field(None, description="备注")
+    """关闭返工单"""
+    remarks: Optional[str] = Field(None, description="关闭备注")
+
+
+class ReworkFinanceSignRequest(BaseModel):
+    """财务会签（会签型关闭前必经）"""
+    notes: Optional[str] = Field(None, max_length=500, description="会签备注")
+
+
+class ReworkPqcCheckRequest(BaseModel):
+    """库存验证 PQC 主管核对"""
+    pqc_summary: Optional[str] = Field(None, description="PQC 质量记录汇总（可顺带写入）")
+    pqc_summary_file_uuid: Optional[str] = Field(None, max_length=36, description="汇总扫描件")
+    notes: Optional[str] = Field(None, max_length=500, description="核对备注")
+
+
+class ReworkOqcNotifyRequest(BaseModel):
+    """库存验证 OQC 结果通知（勾选接收人）"""
+    recipient_user_ids: List[int] = Field(..., min_length=1, description="通知接收人用户 ID")
+    remarks: Optional[str] = Field(None, max_length=500, description="通知备注")
 
 
 class ReworkCancelRequest(BaseModel):

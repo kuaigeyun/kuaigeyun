@@ -84,6 +84,11 @@ interface MoldDetail {
   warranty_period?: number;
   status?: string;
   is_active?: boolean;
+  signback_required?: boolean;
+  signback_period_months?: number;
+  last_signback_date?: string;
+  next_signback_due?: string;
+  last_signback_supplier?: string;
   description?: string;
   total_usage_count?: number;
   cavity_count?: number;
@@ -238,6 +243,33 @@ const MoldDetailPage: React.FC = () => {
       { title: t('app.kuaizhizao.mold.colPurchaseDate'), dataIndex: 'purchase_date', valueType: 'date' },
       { title: t('app.kuaizhizao.mold.colInstallationDate'), dataIndex: 'installation_date', valueType: 'date' },
       { title: t('app.kuaizhizao.mold.colWarrantyPeriod'), dataIndex: 'warranty_period' },
+      {
+        title: t('app.kuaizhizao.mold.colSignbackRequired'),
+        dataIndex: 'signback_required',
+        render: (_, record) => (
+          <MarkerTag color={record.signback_required ? 'success' : 'default'}>
+            {record.signback_required ? t('common.yes') : t('common.no')}
+          </MarkerTag>
+        ),
+      },
+      {
+        title: t('app.kuaizhizao.mold.fieldSignbackPeriodMonths'),
+        dataIndex: 'signback_period_months',
+      },
+      {
+        title: t('app.kuaizhizao.mold.colLastSignbackDate'),
+        dataIndex: 'last_signback_date',
+        valueType: 'date',
+      },
+      {
+        title: t('app.kuaizhizao.mold.colNextSignbackDue'),
+        dataIndex: 'next_signback_due',
+        valueType: 'date',
+      },
+      {
+        title: t('app.kuaizhizao.mold.fieldSignbackSupplier'),
+        dataIndex: 'last_signback_supplier',
+      },
       {
         title: t('common.status'),
         dataIndex: 'status',

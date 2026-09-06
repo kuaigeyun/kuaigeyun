@@ -6,8 +6,8 @@ import { apiRequest } from '../../../services/api';
 
 const KUAIPLM_CHANGES = '/apps/kuaiplm/changes';
 
-export type ChangeDeskCategory = 'bom' | 'route' | 'drawing';
-export type DeskApiChangeType = 'bom' | 'process_route' | 'drawing';
+export type ChangeDeskCategory = 'bom' | 'route' | 'drawing' | 'ecn';
+export type DeskApiChangeType = 'bom' | 'process_route' | 'drawing' | 'ecn';
 
 export interface UnifiedChangeRow {
   id?: string | number;
@@ -35,6 +35,7 @@ export interface UnifiedChangeRow {
 function auditNodeKeyForRow(row: UnifiedChangeRow): string {
   if (row.change_category === 'route') return 'process_route_change';
   if (row.change_category === 'drawing') return 'drawing_change';
+  if (row.change_category === 'ecn') return 'engineering_change';
   return 'bom_change';
 }
 
@@ -69,11 +70,13 @@ function mapDeskItem(row: Record<string, unknown>): UnifiedChangeRow {
       ? 'route'
       : categoryRaw === 'drawing'
         ? 'drawing'
-        : 'bom';
+        : categoryRaw === 'ecn'
+          ? 'ecn'
+          : 'bom';
   const extra = (row.extra ?? {}) as Record<string, unknown>;
   const detailChangeType = row.category
     ? String(row.change_type ?? '')
-    : categoryRaw === 'bom' || categoryRaw === 'process_route'
+    : categoryRaw === 'bom' || categoryRaw === 'process_route' || categoryRaw === 'ecn'
       ? ''
       : String(row.change_type ?? '');
   return {
@@ -98,6 +101,7 @@ function deskChangeType(category?: ChangeDeskCategory): DeskApiChangeType | unde
   if (category === 'bom') return 'bom';
   if (category === 'route') return 'process_route';
   if (category === 'drawing') return 'drawing';
+  if (category === 'ecn') return 'ecn';
   return undefined;
 }
 
@@ -144,6 +148,17 @@ export async function listRouteChanges(params?: ChangeListParams) {
 
 export async function listDrawingChanges(params?: ChangeListParams) {
   return listFromChangeDesk(params, 'drawing');
+}
+
+export async function listEcnChanges(params?: ChangeListParams) {
+  return listFromChangeDesk(params, 'ecn');
+}
+
+export async function getDeskChange(changeUuid: string, changeType: DeskApiChangeType) {
+  return apiRequest<Record<string, unknown>>(`${KUAIPLM_CHANGES}/${changeUuid}`, {
+    method: 'GET',
+    params: { change_type: changeType },
+  });
 }
 
 export async function createDrawingChange(data: {

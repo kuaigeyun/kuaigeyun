@@ -64,6 +64,7 @@ import {
 } from '../shared/equipmentMasterDataDetail';
 import { UNI_TABLE_MARKER_BADGE_COLUMN_DEFAULTS } from '../../../../../utils/uniTableLayoutColumns';
 import { UniTableStackedPrimaryCell } from '../../../../../components/uni-table/stackedPrimaryColumn';
+import { rowActionKind } from '../../../../../components/uni-action';
 import { buildMoldDetailPath } from './moldPaths';
 import { todaySiteDateString } from '../../../../../utils/format';
 import { buildListPageHelpViewConfig } from '../../../../../components/page-help-wiki';
@@ -97,6 +98,11 @@ interface Mold {
   calibration_period?: number;
   last_calibration_date?: string;
   next_calibration_date?: string;
+  signback_required?: boolean;
+  signback_period_months?: number;
+  last_signback_date?: string;
+  next_signback_due?: string;
+  last_signback_supplier?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -181,6 +187,10 @@ const MoldsPage: React.FC = () => {
   const [currentMold, setCurrentMold] = useState<Mold | null>(null);
   const [formInitialValues, setFormInitialValues] = useState<Record<string, any> | undefined>(undefined);
   const formRef = useRef<any>(null);
+  const [signbackModalOpen, setSignbackModalOpen] = useState(false);
+  const [signbackTarget, setSignbackTarget] = useState<Mold | null>(null);
+  const [signbackSubmitting, setSignbackSubmitting] = useState(false);
+  const signbackFormRef = useRef<any>(null);
 
   const {
     customFields: moldFormCustomFields,
@@ -260,6 +270,8 @@ const MoldsPage: React.FC = () => {
         is_active: detail.is_active,
         cavity_count: detail.cavity_count,
         design_lifetime: detail.design_lifetime,
+        signback_required: detail.signback_required ?? true,
+        signback_period_months: detail.signback_period_months ?? 6,
         description: detail.description,
         attachments: mapAttachmentsToUploadList(detail.attachments),
         ...fieldFormValues,
@@ -284,6 +296,45 @@ const MoldsPage: React.FC = () => {
       return;
     }
     navigate(buildMoldDetailPath(record.uuid));
+  };
+
+  const openSignbackModal = (record: Mold) => {
+    setSignbackTarget(record);
+    setSignbackModalOpen(true);
+  };
+
+  const handleSignbackSubmit = async (values: Record<string, unknown>) => {
+    if (!signbackTarget?.uuid) {
+      messageApi.error(t('app.kuaizhizao.mold.uuidNotFound'));
+      return;
+    }
+    const attachments = normalizeDocumentAttachments(values.attachments);
+    if (!attachments.length) {
+      messageApi.error(t('app.kuaizhizao.mold.ruleSignbackAttachmentsRequired'));
+      throw new Error(t('app.kuaizhizao.mold.ruleSignbackAttachmentsRequired'));
+    }
+    setSignbackSubmitting(true);
+    try {
+      await moldApi.createSignback(signbackTarget.uuid, {
+        signed_at: toApiDateString(values.signed_at) || todaySiteDateString(),
+        supplier_name:
+          typeof values.supplier_name === 'string' && values.supplier_name.trim()
+            ? values.supplier_name.trim()
+            : signbackTarget.supplier,
+        attachments,
+        remark: typeof values.remark === 'string' ? values.remark : undefined,
+      });
+      messageApi.success(t('app.kuaizhizao.mold.signbackSuccess'));
+      setSignbackModalOpen(false);
+      setSignbackTarget(null);
+      signbackFormRef.current?.resetFields?.();
+      actionRef.current?.reload();
+    } catch (error: any) {
+      messageApi.error(error?.message || t('common.operationFailed'));
+      throw error;
+    } finally {
+      setSignbackSubmitting(false);
+    }
   };
 
   /**
@@ -511,6 +562,56 @@ const MoldsPage: React.FC = () => {
         return `${pct}%`;
       },
     },
+    {
+      title: t('app.kuaizhizao.mold.colLastSignbackDate'),
+      dataIndex: 'last_signback_date',
+      width: 120,
+      minWidth: 120,
+      uniTableKeepWidth: true,
+      resizable: false,
+      hideInSearch: true,
+      render: (_, r) =>
+        r.last_signback_date != null && r.last_signback_date !== ''
+          ? String(r.last_signback_date)
+          : '-',
+    },
+    {
+      title: t('app.kuaizhizao.mold.colNextSignbackDue'),
+      dataIndex: 'next_signback_due',
+      width: 120,
+      minWidth: 120,
+      uniTableKeepWidth: true,
+      resizable: false,
+      hideInSearch: true,
+      render: (_, r) =>
+        r.next_signback_due != null && r.next_signback_due !== ''
+          ? String(r.next_signback_due)
+          : '-',
+    },
+    {
+      title: t('app.kuaizhizao.mold.colSignbackStatus'),
+      key: 'signback_status',
+      ...UNI_TABLE_MARKER_BADGE_COLUMN_DEFAULTS,
+      hideInSearch: true,
+      render: (_, r) => {
+        if (!r.signback_required) {
+          return <MarkerTag color="default">{t('app.kuaizhizao.mold.signbackStatusOff')}</MarkerTag>;
+        }
+        if (!r.next_signback_due) {
+          return <MarkerTag color="success">{t('app.kuaizhizao.mold.signbackStatusOk')}</MarkerTag>;
+        }
+        const today = todaySiteDateString();
+        const due = String(r.next_signback_due);
+        if (due < today) {
+          return <MarkerTag color="error">{t('app.kuaizhizao.mold.signbackStatusOverdue')}</MarkerTag>;
+        }
+        const daysLeft = dayjs(due).diff(dayjs(today), 'day');
+        if (daysLeft <= 14) {
+          return <MarkerTag color="warning">{t('app.kuaizhizao.mold.signbackStatusDueSoon')}</MarkerTag>;
+        }
+        return <MarkerTag color="success">{t('app.kuaizhizao.mold.signbackStatusOk')}</MarkerTag>;
+      },
+    },
     ...buildDocumentAuditColumns<Record<string, unknown>>(t),
     ...customFieldColumns,
     {
@@ -518,8 +619,20 @@ const MoldsPage: React.FC = () => {
       key: 'option',
       fixed: 'right',
       hideInSearch: true,
-      render: (_text, record) =>
-        renderEquipmentMasterRowActions({
+      render: (_text, record) => [
+        perms.canUpdate && record.signback_required ? (
+          <Button
+            key="signback"
+            {...rowActionKind('update')}
+            onClick={(e) => {
+              e.stopPropagation();
+              openSignbackModal(record);
+            }}
+          >
+            {t('app.kuaizhizao.mold.actionRegisterSignback')}
+          </Button>
+        ) : null,
+        ...renderEquipmentMasterRowActions({
           record,
           t,
           canRead: perms.canRead,
@@ -537,9 +650,10 @@ const MoldsPage: React.FC = () => {
             }
           },
         }),
+      ],
     },
   ], SALES_DOC_LIST_FIELD_RANK);
-  }, [moldListCustomFields, generateMoldCustomFieldColumns, t, activeStatusValueEnum, moldStatusValueEnum, perms, handleDetail]);
+  }, [moldListCustomFields, generateMoldCustomFieldColumns, t, activeStatusValueEnum, moldStatusValueEnum, perms]);
 
   const moldCardToolbar = useMemo(
     () =>
@@ -558,7 +672,7 @@ const MoldsPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('kuaizhizao.moldsLedger')}
           headerTitle={t('app.kuaizhizao.mold.title')}
-          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.molds-width-v2"
+          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.molds-signback-r10-v1"
           actionRef={actionRef}
           rowKey="uuid"
           columns={columns}
@@ -715,6 +829,9 @@ const MoldsPage: React.FC = () => {
                 { key: 'manufacturer', title: t('app.kuaizhizao.mold.fieldManufacturer') },
                 { key: 'supplier', title: t('app.kuaizhizao.mold.fieldSupplier') },
                 { key: 'status', title: t('app.kuaizhizao.mold.fieldStatus') },
+                { key: 'last_signback_date', title: t('app.kuaizhizao.mold.colLastSignbackDate') },
+                { key: 'next_signback_due', title: t('app.kuaizhizao.mold.colNextSignbackDue') },
+                { key: 'signback_required', title: t('app.kuaizhizao.mold.colSignbackRequired') },
               ];
               await downloadRecordsAsXlsx(
                 items as Array<Record<string, unknown>>,
@@ -846,6 +963,22 @@ const MoldsPage: React.FC = () => {
               fieldProps={{ precision: 0 }}
             />
           </Col>
+          <Col span={12}>
+            <ProFormSwitch
+              name="signback_required"
+              label={t('app.kuaizhizao.mold.fieldSignbackRequired')}
+              initialValue={true}
+            />
+          </Col>
+          <Col span={12}>
+            <ProFormDigit
+              name="signback_period_months"
+              label={t('app.kuaizhizao.mold.fieldSignbackPeriodMonths')}
+              min={1}
+              initialValue={6}
+              fieldProps={{ precision: 0 }}
+            />
+          </Col>
           <CustomFieldsFormSection
             customFields={moldFormCustomFields}
             customFieldValues={moldFormCustomFieldValues}
@@ -865,6 +998,56 @@ const MoldsPage: React.FC = () => {
           </Col>
           <Col span={24}>
             <ProFormSwitch name="is_active" label={t('app.kuaizhizao.mold.fieldIsActive')} />
+          </Col>
+        </Row>
+      </FormModalTemplate>
+
+      <FormModalTemplate
+        key={signbackTarget?.uuid || 'mold-signback'}
+        title={t('app.kuaizhizao.mold.signbackModalTitle')}
+        open={signbackModalOpen}
+        onClose={() => {
+          setSignbackModalOpen(false);
+          setSignbackTarget(null);
+          signbackFormRef.current?.resetFields?.();
+        }}
+        onFinish={handleSignbackSubmit}
+        isEdit={false}
+        width={MODAL_CONFIG.STANDARD_WIDTH}
+        formRef={signbackFormRef}
+        loading={signbackSubmitting}
+        grid={false}
+        initialValues={{
+          signed_at: dayjs(todaySiteDateString()),
+          supplier_name: signbackTarget?.supplier,
+        }}
+      >
+        <Row gutter={16}>
+          <Col span={12}>
+            <ProFormDatePicker
+              name="signed_at"
+              label={t('app.kuaizhizao.mold.fieldSignedAt')}
+              rules={[{ required: true, message: t('app.kuaizhizao.mold.ruleSignedAtRequired') }]}
+              formItemProps={formDateFormItemProps}
+              fieldProps={{ style: { width: '100%' } }}
+            />
+          </Col>
+          <Col span={12}>
+            <ProFormText
+              name="supplier_name"
+              label={t('app.kuaizhizao.mold.fieldSignbackSupplier')}
+              placeholder={t('app.kuaizhizao.mold.phSupplier')}
+            />
+          </Col>
+          <Col span={24}>
+            <DocumentAttachmentsField
+              name="attachments"
+              category="mold_attachments"
+              label={t('app.kuaizhizao.mold.fieldSignbackAttachments')}
+            />
+          </Col>
+          <Col span={24}>
+            <ProFormTextArea name="remark" label={t('common.remark')} fieldProps={{ rows: 2 }} />
           </Col>
         </Row>
       </FormModalTemplate>

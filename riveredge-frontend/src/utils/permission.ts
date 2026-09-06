@@ -127,7 +127,7 @@ export function hasResourceAction(
   return hasPermission(user, permissionCode);
 }
 
-/** 与后端 menu_resource_resolver 一致：分组占位权限不参与菜单可见性拦截 */
+/** 与后端 menu_resource_resolver 对齐：workspace 为分组占位；entry 为应用入口码（角色矩阵不拆模块），侧栏叶子持码仍可显示 */
 const GENERIC_MENU_RESOURCES = new Set(['workspace', 'entry']);
 
 function isGenericMenuPermissionCode(code: string): boolean {
@@ -198,8 +198,16 @@ function isAppGroupPlaceholderItem(item: PermissionMenuItem): boolean {
 /**
  * 按权限过滤菜单树。
  *
+ * 真源：菜单管理 / navigation-tree 同一棵库内菜单树；侧栏只是对该树做「当前用户 RBAC」过滤，
+ * 不是第二套菜单配置。菜单管理展示全量（配置态），侧栏展示授权后可见子集（运行态）。
+ *
  * 节点分类（唯一判定依据，禁止按 path 白名单补丁）：
- * - **可导航项**：自身有 `path` 且非 `hideInMenu` → 只认非 workspace/entry 的模块权限码；仅占位码且无可见子项则隐藏
+ * - **可导航叶子**：有 `path`、非 `hideInMenu`、无可见子项 → 按本节点 permissionCodes 判定；
+ *   仅挂 `entry`/`workspace` 时，用户**实际持有**该码则显示（如 KU-AI 以 entry 为应用门控）；
+ *   **未声明权限码**时保留（如平台超管 `/infra/*`，由上游 `hasPlatformAdministrativeAuthority` 门控）。
+ * - **可导航空壳**：有 `path` 且**声明了本应可见的子菜单**（非 hideInMenu），但过滤后无可见子项 → 一律隐藏
+ *   （禁止靠 entry/workspace 撑开模具/巡查等空目录；昨日前端误伤 KU-AI 真叶子）。
+ *   仅挂 `hideInMenu` 设计器子路由的列表页（审批流程/打印模板等）**不是**空壳，按本节点权限判定。
  * - **分组壳**：无 `path`（或自身 hideInMenu）→ 仅当有可见子节点时保留
  *
  * `hideInMenu` 子路由（设计器等）不参与「可见子节点」计数，但可挂在可导航项下供面包屑/路由树使用。
@@ -218,6 +226,10 @@ export function filterMenuItemsByPermission<T extends PermissionMenuItem>(
 
       const permissionCodes = item.permissionCodes;
       const hasVisibleChildren = (nextChildren ?? []).some(
+        (child) => !child.hideInMenu && !isAppGroupPlaceholderItem(child),
+      );
+      /** 配置态声明过「侧栏应可见」的子项（不含设计器 hideInMenu） */
+      const hasDeclaredNavigableChildren = (item.children ?? []).some(
         (child) => !child.hideInMenu && !isAppGroupPlaceholderItem(child),
       );
       const itemPath = String(item.path ?? '');
@@ -251,9 +263,23 @@ export function filterMenuItemsByPermission<T extends PermissionMenuItem>(
 
       const required = (permissionCodes ?? []).filter((c) => c && !isGenericMenuPermissionCode(c));
       if (isNavigableMenuEntry && !hasVisibleChildren) {
-        // 可导航空壳：必须有真实模块码且已授权。workspace/entry 占位码不能单独撑开侧栏
-        if (required.length === 0 || !hasAnyMenuPermission(user, required)) {
+        // 声明了本应可见的子菜单却全部不可见：空目录，禁止靠 entry/workspace 撑开。
+        // 仅挂 hideInMenu 设计器时 hasDeclaredNavigableChildren=false，按本节点权限保留。
+        if (hasDeclaredNavigableChildren) {
           return null;
+        }
+        if (required.length > 0) {
+          if (!hasAnyMenuPermission(user, required)) {
+            return null;
+          }
+        } else {
+          const raw = (permissionCodes ?? []).filter(Boolean);
+          // 未声明权限码：保留（平台超管 infra 等由上游门控）；仅挂 entry/workspace 时须实际持有
+          if (raw.length > 0) {
+            if (!isAdminBypass(user) && !raw.some((code) => hasPermission(user, code))) {
+              return null;
+            }
+          }
         }
       } else if (required.length > 0 && !hasAnyMenuPermission(user, required)) {
         return null;

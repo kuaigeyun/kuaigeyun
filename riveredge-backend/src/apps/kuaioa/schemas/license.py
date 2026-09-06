@@ -1,6 +1,6 @@
 """证照 schemas。"""
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -13,6 +13,9 @@ class LicenseCreate(BaseModel):
     issue_date: Optional[str] = None
     expiry_date: Optional[str] = None
     reminder_days: int = 30
+    notify_user_ids: Optional[List[int]] = None
+    notify_channels: Optional[List[str]] = None
+    notify_enabled: bool = True
     file_uuid: Optional[str] = None
     notes: Optional[str] = None
 
@@ -26,5 +29,8 @@ class LicenseUpdate(BaseModel):
     expiry_date: Optional[str] = None
     status: Optional[str] = None
     reminder_days: Optional[int] = None
+    notify_user_ids: Optional[List[int]] = None
+    notify_channels: Optional[List[str]] = None
+    notify_enabled: Optional[bool] = None
     file_uuid: Optional[str] = None
     notes: Optional[str] = None

@@ -16,6 +16,11 @@ from apps.master_data.schemas.process_schemas import (
     SopRevisionResponse,
     SopReviseRequest,
 )
+from core.services.file.document_version_policy import (
+    can_view_historical_versions,
+    filter_version_rows,
+    resolve_audience,
+)
 from infra.models.user import User
 from core.utils.timezone_utils import resolve_business_datetime
 from infra.exceptions.exceptions import BusinessLogicError, NotFoundError, ValidationError
@@ -179,7 +184,13 @@ def _flow_to_steps(flow_config: Any) -> List[Dict[str, Any]]:
 
 class SopControlService:
     @staticmethod
-    async def list_revisions(tenant_id: int, sop_uuid: str) -> Tuple[List[SopRevisionResponse], int]:
+    async def list_revisions(
+        tenant_id: int,
+        sop_uuid: str,
+        *,
+        current_user: Optional[User] = None,
+        permission_codes: Optional[List[str]] = None,
+    ) -> Tuple[List[SopRevisionResponse], int, str, bool]:
         sop = await _get_sop(tenant_id, sop_uuid)
         rows = (
             await SopRevision.filter(
@@ -190,8 +201,49 @@ class SopControlService:
             .order_by("-effective_at", "-id")
             .all()
         )
-        items = [SopRevisionResponse.model_validate(r) for r in rows]
-        return items, len(items)
+
+        latest_effective_id: Optional[int] = None
+        for r in rows:
+            if r.obsolete_at is None:
+                latest_effective_id = r.id
+                break
+
+        by_id = {r.id: r for r in rows}
+        author_id = getattr(sop, "created_by", None)
+        policy_rows: List[Dict[str, Any]] = []
+        for r in rows:
+            obsolete = r.obsolete_at is not None
+            policy_rows.append(
+                {
+                    "id": r.id,
+                    "status": "obsolete" if obsolete else "effective",
+                    "is_effective": not obsolete,
+                    "is_latest_effective": r.id == latest_effective_id,
+                    "created_by": author_id,
+                }
+            )
+
+        current_user_id = getattr(current_user, "id", None) if current_user else None
+        is_author = bool(
+            current_user_id is not None
+            and author_id is not None
+            and int(author_id) == int(current_user_id)
+        )
+        audience = resolve_audience(
+            permission_codes=permission_codes,
+            is_author=is_author,
+        )
+        visible = filter_version_rows(
+            policy_rows,
+            audience=audience,
+            current_user_id=current_user_id,
+        )
+        items = [
+            SopRevisionResponse.model_validate(by_id[v["id"]])
+            for v in visible
+            if v.get("id") in by_id
+        ]
+        return items, len(items), audience.value, can_view_historical_versions(audience)
 
     @staticmethod
     async def list_copies(tenant_id: int, sop_uuid: str) -> Tuple[List[SopControlledCopyResponse], int]:

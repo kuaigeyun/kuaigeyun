@@ -68,10 +68,14 @@ class EquipmentFault(BaseModel):
     # 关联设备
     equipment_id = fields.IntField(description="设备ID（关联设备）")
     equipment_uuid = fields.CharField(max_length=36, description="设备UUID")
+    equipment_code = fields.CharField(max_length=50, null=True, description="设备编码快照")
     equipment_name = fields.CharField(max_length=200, description="设备名称")
     
     # 故障信息
     fault_date = fields.DatetimeField(description="故障发生日期")
+    reported_at = fields.DatetimeField(null=True, description="报障时间（扫码上传时刻）")
+    response_minutes = fields.IntField(default=60, description="规定到场时限（分钟）")
+    response_due_at = fields.DatetimeField(null=True, description="要求到场截止时刻")
     fault_type = fields.CharField(max_length=50, description="故障类型（机械故障、电气故障、软件故障、其他）")
     fault_description = fields.TextField(description="故障描述")
     fault_level = fields.CharField(max_length=50, description="故障级别（轻微、一般、严重、紧急）")
@@ -165,11 +169,17 @@ class EquipmentRepair(BaseModel):
     repair_date = fields.DatetimeField(description="维修日期")
     repair_type = fields.CharField(max_length=50, description="维修类型（现场维修、返厂维修、委外维修）")
     repair_description = fields.TextField(description="维修描述")
+    fault_cause = fields.TextField(null=True, description="故障原因（完工必填）")
+    repair_content = fields.TextField(null=True, description="维修内容（完工必填）")
     repair_cost = fields.DecimalField(max_digits=12, decimal_places=4, null=True, description="维修成本")
     repair_parts = fields.JSONField(null=True, description="维修备件（JSON格式）")
     repairer_id = fields.IntField(null=True, description="维修人员ID（用户ID）")
     repairer_name = fields.CharField(max_length=100, null=True, description="维修人员姓名")
     repair_duration = fields.DecimalField(max_digits=10, decimal_places=2, null=True, description="维修时长（小时）")
+    arrival_at = fields.DatetimeField(null=True, description="到场扫码时间")
+    arrival_by_id = fields.IntField(null=True, description="到场签到人ID")
+    arrival_by_name = fields.CharField(max_length=100, null=True, description="到场签到人姓名")
+    completed_at = fields.DatetimeField(null=True, description="完工时间")
     
     # 状态
     status = fields.CharField(max_length=50, default="进行中", description="维修状态（进行中、已完成、已取消）")

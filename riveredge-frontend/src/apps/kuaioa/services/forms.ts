@@ -8,6 +8,7 @@ export interface FormTemplate {
   template_code: string;
   template_name: string;
   category: string;
+  business_type?: string | null;
   description?: string | null;
   fields_schema?: unknown;
   is_active: boolean;
@@ -20,13 +21,20 @@ export interface FormRequest {
   request_code: string;
   template_id?: number | null;
   template_code?: string | null;
+  business_type?: string | null;
   title: string;
   form_data?: Record<string, unknown>;
   status: string;
   applicant_name?: string | null;
   department_name?: string | null;
   approval_status?: string | null;
+  notes?: string | null;
 }
+
+export type FormBusinessType = { code: string; name: string };
+
+export const listFormBusinessTypes = () =>
+  kuaioaList<FormBusinessType>(`${BASE}/business-types`);
 
 export const listFormTemplates = (params?: Record<string, unknown>) =>
   kuaioaList<FormTemplate>(`${BASE}/templates`, params);

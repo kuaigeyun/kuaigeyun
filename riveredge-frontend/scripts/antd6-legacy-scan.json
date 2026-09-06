@@ -1,10 +1,35 @@
 {
   "antd": "^6.4.4",
-  "scanned_files": 2418,
-  "pattern_types": 0,
-  "total_hits": 0,
-  "by_severity": {},
-  "rows": [],
-  "top_files": [],
+  "scanned_files": 2448,
+  "pattern_types": 1,
+  "total_hits": 1,
+  "by_severity": {
+    "high": {
+      "hits": 1,
+      "patterns": 1
+    }
+  },
+  "rows": [
+    {
+      "api": "onDropdownVisibleChange → onOpenChange",
+      "component": "Select",
+      "severity": "high",
+      "hits": 1,
+      "files": 1,
+      "samples": [
+        {
+          "file": "src/apps/kuaiplm/pages/material-reviews/index.tsx",
+          "line": 178,
+          "snippet": "onDropdownVisibleChange={(open) => {"
+        }
+      ]
+    }
+  ],
+  "top_files": [
+    {
+      "file": "src/apps/kuaiplm/pages/material-reviews/index.tsx",
+      "approx_hits": 1
+    }
+  ],
   "migration_ref": "https://ant.design/docs/react/migration-v6"
 }

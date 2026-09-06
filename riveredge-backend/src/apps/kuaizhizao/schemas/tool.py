@@ -25,8 +25,12 @@ class ToolBase(BaseModel):
     manufacturer: Optional[str] = Field(None, max_length=200, description="制造商")
     supplier: Optional[str] = Field(None, max_length=200, description="供应商")
     purchase_date: Optional[date] = Field(None, description="采购日期")
+    inbound_date: Optional[date] = Field(None, description="入库日期")
     warranty_expiry: Optional[date] = Field(None, description="保修到期日")
 
+    quantity: int = Field(default=1, ge=1, description="数量")
+    custodian_name: Optional[str] = Field(None, max_length=100, description="保管人")
+    product_model: Optional[str] = Field(None, max_length=120, description="产品型号")
     storage_location: Optional[str] = Field(None, max_length=200, description="存放位置")
     maintenance_scheme_id: Optional[int] = Field(None, description="默认保养方案ID")
     repair_scheme_id: Optional[int] = Field(None, description="默认维修方案ID")
@@ -57,6 +61,14 @@ class ToolUpdate(BaseModel):
     name: Optional[str] = None
     type: Optional[str] = None
     spec: Optional[str] = None
+    manufacturer: Optional[str] = None
+    supplier: Optional[str] = None
+    purchase_date: Optional[date] = None
+    inbound_date: Optional[date] = None
+    warranty_expiry: Optional[date] = None
+    quantity: Optional[int] = Field(None, ge=1)
+    custodian_name: Optional[str] = None
+    product_model: Optional[str] = None
     storage_location: Optional[str] = None
     maintenance_scheme_id: Optional[int] = None
     repair_scheme_id: Optional[int] = None
@@ -88,6 +100,10 @@ class ToolResponse(ToolBase):
     last_calibration_date: Optional[date] = None
     next_calibration_date: Optional[date] = None
     total_usage_count: int
+    current_borrower_name: Optional[str] = None
+    current_borrow_at: Optional[datetime] = None
+    last_return_at: Optional[datetime] = None
+    last_return_by_name: Optional[str] = None
     created_by: Optional[int] = None
     created_by_name: Optional[str] = None
     updated_by: Optional[int] = None

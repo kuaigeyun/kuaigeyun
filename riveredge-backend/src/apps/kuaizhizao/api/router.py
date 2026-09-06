@@ -21,6 +21,19 @@ from .productions.quality_improvement import router as quality_improvement_route
 from .productions.quality_management import router as quality_management_router
 from .productions.quality_qms import router as quality_qms_router
 from .productions.quality_fai import router as quality_fai_router
+from .productions.quality_complaints import router as quality_complaints_router
+from .productions.supplier_evaluations import router as supplier_evaluations_router
+from .productions.quality_complaint_batch_months import (
+    router as quality_complaint_batch_months_router,
+)
+from .productions.rework_position_plan_templates import (
+    router as rework_position_plan_templates_router,
+)
+from .productions.production_daily import (
+    report_router as production_daily_reports_router,
+    template_router as production_daily_templates_router,
+)
+from .productions.label_station import router as label_station_router
 from .productions.outsource_receipt_api import router as outsource_receipt_router
 from .productions.document_relations_legacy import router as document_relations_legacy_router
 from .productions.production_control_api import router as production_control_router
@@ -150,6 +163,13 @@ router.include_router(quality_execution_router)
 router.include_router(quality_improvement_router)
 router.include_router(quality_qms_router)
 router.include_router(quality_fai_router)
+router.include_router(quality_complaints_router)
+router.include_router(supplier_evaluations_router)
+router.include_router(quality_complaint_batch_months_router)
+router.include_router(rework_position_plan_templates_router)
+router.include_router(production_daily_templates_router)
+router.include_router(production_daily_reports_router)
+router.include_router(label_station_router)
 router.include_router(quality_management_router)
 router.include_router(work_orders_router)
 router.include_router(work_order_groups_router)

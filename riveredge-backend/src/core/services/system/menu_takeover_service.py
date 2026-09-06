@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 from loguru import logger
 
 from core.config.menu_takeover import (
+    META_DOCUMENT_REPLACED_BY,
     META_SUPPRESSED_BY_TAKEOVER,
     MENU_TAKEOVER_RULES,
     MenuTakeoverRule,
@@ -149,6 +150,69 @@ class MenuTakeoverService:
         else:
             await MenuTakeoverService.revert_takeover(tenant_id, app_code)
         await MenuService._clear_menu_cache(tenant_id)
+
+    @staticmethod
+    async def tag_document_replacement(
+        tenant_id: int,
+        *,
+        host_app: str,
+        menu_path: str,
+        extension_id: str,
+    ) -> int:
+        """在宿主菜单 meta 标记 document 替代；不隐藏菜单（宿主 path 保持可见）。"""
+        source_uuid = await MenuTakeoverService._get_app_uuid(tenant_id, host_app)
+        if not source_uuid:
+            return 0
+        menus = await Menu.filter(
+            tenant_id=tenant_id,
+            application_uuid=source_uuid,
+            deleted_at__isnull=True,
+        ).all()
+        updated = 0
+        target = (menu_path or "").strip()
+        for menu in menus:
+            path = (menu.path or "").strip()
+            if path != target and not path.startswith(f"{target}/"):
+                continue
+            meta: Dict[str, Any] = dict(menu.meta or {})
+            if meta.get(META_DOCUMENT_REPLACED_BY) == extension_id:
+                continue
+            meta[META_DOCUMENT_REPLACED_BY] = extension_id
+            menu.meta = meta
+            await menu.save(update_fields=["meta", "updated_at"])
+            updated += 1
+        return updated
+
+    @staticmethod
+    async def clear_document_replacement(
+        tenant_id: int,
+        *,
+        host_app: str,
+        menu_path: str,
+        extension_id: str,
+    ) -> int:
+        source_uuid = await MenuTakeoverService._get_app_uuid(tenant_id, host_app)
+        if not source_uuid:
+            return 0
+        menus = await Menu.filter(
+            tenant_id=tenant_id,
+            application_uuid=source_uuid,
+            deleted_at__isnull=True,
+        ).all()
+        cleared = 0
+        target = (menu_path or "").strip()
+        for menu in menus:
+            path = (menu.path or "").strip()
+            if path != target and not path.startswith(f"{target}/"):
+                continue
+            meta: Dict[str, Any] = dict(menu.meta or {})
+            if meta.get(META_DOCUMENT_REPLACED_BY) != extension_id:
+                continue
+            meta.pop(META_DOCUMENT_REPLACED_BY, None)
+            menu.meta = meta or None
+            await menu.save(update_fields=["meta", "updated_at"])
+            cleared += 1
+        return cleared
 
 
 __all__ = ["MenuTakeoverService"]

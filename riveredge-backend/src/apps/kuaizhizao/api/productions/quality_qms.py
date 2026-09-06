@@ -27,8 +27,11 @@ from apps.kuaizhizao.schemas.quality_qms import (
     QmsSystemDocumentCreate,
     QmsSystemDocumentListResponse,
     QmsSystemDocumentResponse,
+    QmsSystemDocumentReviseRequest,
+    QmsSystemDocumentRejectRequest,
     QmsSystemDocumentReviewDueSummary,
     QmsSystemDocumentUpdate,
+    QmsSystemDocumentVersionListResponse,
 )
 from apps.kuaizhizao.services.qms_iso_clause_service import iso_clause_service
 from apps.kuaizhizao.services.quality_qms_service import (
@@ -38,6 +41,7 @@ from apps.kuaizhizao.services.quality_qms_service import (
 )
 from core.api.deps import get_current_tenant, get_current_user
 from core.api.deps.access import require_access
+from core.services.authorization.user_permission_service import UserPermissionService
 from infra.models.user import User
 
 router = APIRouter(tags=["App - Kuaige Zhizao - Quality System"])
@@ -79,6 +83,13 @@ _DOC_PUBLISH = Depends(
         "kuaizhizao.quality-management-system-documents",
         "publish",
         required_permissions=["kuaizhizao:quality-management-system-documents:publish"],
+    )
+)
+_DOC_REJECT = Depends(
+    require_access(
+        "kuaizhizao.quality-management-system-documents",
+        "reject",
+        required_permissions=["kuaizhizao:quality-management-system-documents:reject"],
     )
 )
 _DOC_OBSOLETE = Depends(
@@ -191,7 +202,17 @@ async def create_system_document(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> QmsSystemDocumentResponse:
-    return await doc_service.create_document(tenant_id=tenant_id, payload=payload)
+    actor_name = (
+        getattr(current_user, "full_name", None)
+        or getattr(current_user, "username", None)
+        or str(current_user.id)
+    )
+    return await doc_service.create_document(
+        tenant_id=tenant_id,
+        payload=payload,
+        actor_id=current_user.id,
+        actor_name=actor_name,
+    )
 
 
 @router.get("/qms/system-documents", response_model=QmsSystemDocumentListResponse, summary="List system documents")
@@ -199,17 +220,30 @@ async def list_system_documents(
     keyword: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     doc_type: Optional[str] = Query(None),
+    zone: Optional[str] = Query(
+        "formal",
+        description="目录分区：formal 正式目录 / pending 待审区 / all 全部（受权限约束）",
+    ),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
     _auth=_DOC_READ,
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ) -> QmsSystemDocumentListResponse:
+    permission_codes = sorted(
+        await UserPermissionService.get_user_permissions(
+            user_id=current_user.id,
+            tenant_id=tenant_id,
+        )
+    )
     return await doc_service.list_documents(
         tenant_id=tenant_id,
         keyword=keyword,
         status=status,
         doc_type=doc_type,
+        zone=zone,
+        current_user_id=current_user.id,
+        permission_codes=permission_codes,
         skip=skip,
         limit=limit,
     )
@@ -240,6 +274,83 @@ async def get_system_document(
     tenant_id: int = Depends(get_current_tenant),
 ) -> QmsSystemDocumentResponse:
     return await doc_service.get_document(tenant_id=tenant_id, document_id=document_id)
+
+
+@router.get(
+    "/qms/system-documents/{document_id}/versions",
+    response_model=QmsSystemDocumentVersionListResponse,
+    summary="List system document versions (INF-05 filtered)",
+)
+async def list_system_document_versions(
+    document_id: int,
+    _auth=_DOC_READ,
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+) -> QmsSystemDocumentVersionListResponse:
+    permission_codes = sorted(
+        await UserPermissionService.get_user_permissions(
+            user_id=current_user.id,
+            tenant_id=tenant_id,
+        )
+    )
+    return await doc_service.list_versions(
+        tenant_id=tenant_id,
+        document_id=document_id,
+        current_user_id=current_user.id,
+        permission_codes=permission_codes,
+    )
+
+
+@router.post(
+    "/qms/system-documents/{document_id}/revise",
+    response_model=QmsSystemDocumentResponse,
+    summary="Revise system document (version up to draft)",
+)
+async def revise_system_document(
+    document_id: int,
+    payload: QmsSystemDocumentReviseRequest,
+    _auth=_DOC_UPDATE,
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+) -> QmsSystemDocumentResponse:
+    actor_name = (
+        getattr(current_user, "full_name", None)
+        or getattr(current_user, "username", None)
+        or str(current_user.id)
+    )
+    return await doc_service.revise_document(
+        tenant_id=tenant_id,
+        document_id=document_id,
+        payload=payload,
+        actor_id=current_user.id,
+        actor_name=actor_name,
+    )
+
+
+@router.post(
+    "/qms/system-documents/{document_id}/reject",
+    response_model=QmsSystemDocumentResponse,
+    summary="Reject pending/draft system document revision",
+)
+async def reject_system_document(
+    document_id: int,
+    payload: QmsSystemDocumentRejectRequest,
+    _auth=_DOC_REJECT,
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+) -> QmsSystemDocumentResponse:
+    actor_name = (
+        getattr(current_user, "full_name", None)
+        or getattr(current_user, "username", None)
+        or str(current_user.id)
+    )
+    return await doc_service.reject_document(
+        tenant_id=tenant_id,
+        document_id=document_id,
+        payload=payload,
+        actor_id=current_user.id,
+        actor_name=actor_name,
+    )
 
 
 @router.put(

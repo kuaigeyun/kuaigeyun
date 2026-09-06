@@ -10,6 +10,11 @@ class KuaioaFormTemplate(BaseModel):
     template_code = fields.CharField(max_length=50, description="模板编码")
     template_name = fields.CharField(max_length=200, description="模板名称")
     category = fields.CharField(max_length=50, default="general", description="分类")
+    business_type = fields.CharField(
+        max_length=50,
+        null=True,
+        description="通用会签业务类型（空=普通自定义申请）",
+    )
     description = fields.TextField(null=True, description="说明")
     fields_schema = fields.JSONField(default=list, description="字段定义 JSON")
     is_active = fields.BooleanField(default=True, description="是否启用")
@@ -20,7 +25,11 @@ class KuaioaFormTemplate(BaseModel):
         table = "apps_kuaioa_form_templates"
         table_description = "轻办公 - 审批表单模板"
         unique_together = (("tenant_id", "template_code"),)
-        indexes = [("tenant_id", "category"), ("tenant_id", "is_active")]
+        indexes = [
+            ("tenant_id", "category"),
+            ("tenant_id", "business_type"),
+            ("tenant_id", "is_active"),
+        ]
 
     class PydanticMeta:
         exclude = ["deleted_at"]

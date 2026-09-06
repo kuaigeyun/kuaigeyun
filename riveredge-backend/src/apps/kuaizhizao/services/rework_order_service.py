@@ -23,8 +23,22 @@ from infra.services.business_config_service import BusinessConfigService
 from infra.models.user import User
 
 from apps.common.base_service import AppBaseService
+from apps.kuaizhizao.constants.rework_business_types import (
+    REWORK_BUSINESS_INVENTORY_VERIFY,
+    REWORK_BUSINESS_MULTI_SIGNOFF,
+    REWORK_BUSINESS_TYPE_DEFAULT,
+    REWORK_BUSINESS_TYPES,
+    REWORK_SIGNOFF_DEPT_DEFAULTS,
+    is_signoff_rework_business,
+)
 from apps.kuaizhizao.models.rework_order import ReworkOrder
 from apps.kuaizhizao.models.rework_order_operation import ReworkOrderOperation
+from apps.kuaizhizao.models.rework_order_signoff import (
+    ReworkOrderMaterialReq,
+    ReworkOrderPositionPlan,
+    ReworkOrderScrapLine,
+    ReworkOrderSignoff,
+)
 from apps.kuaizhizao.models.work_order import WorkOrder
 from apps.kuaizhizao.models.work_order_operation import WorkOrderOperation
 from apps.kuaizhizao.models.reporting_record import ReportingRecord
@@ -35,6 +49,10 @@ from apps.kuaizhizao.schemas.rework_order import (
     ReworkOrderListResponse,
     ReworkOrderFromWorkOrderRequest,
     ReworkOrderOperationItem,
+    ReworkOrderMaterialReqItem,
+    ReworkOrderScrapLineItem,
+    ReworkOrderPositionPlanItem,
+    ReworkOrderSignoffItem,
     ReworkReportingCreate,
     ReworkReportingOptionItem,
     ReworkReportingOptionsResponse,
@@ -42,6 +60,9 @@ from apps.kuaizhizao.schemas.rework_order import (
     ReworkRequestCompleteRequest,
     ReworkQualityReleaseRequest,
     ReworkCloseRequest,
+    ReworkFinanceSignRequest,
+    ReworkPqcCheckRequest,
+    ReworkOqcNotifyRequest,
     ReworkCancelRequest,
     ReworkHoldRequest,
 )
@@ -58,6 +79,7 @@ from apps.kuaizhizao.services.rework_order_workflow import (
     cancel_rework_order,
     close_rework_order,
     compute_capability_context,
+    finance_sign_rework_order,
     hold_rework_order,
     quality_release,
     release_rework_order,
@@ -81,6 +103,7 @@ REWORK_ORDER_SORTABLE_FIELDS = frozenset({
     "product_name",
     "quantity",
     "rework_type",
+    "business_type",
     "status",
     "planned_start_date",
     "planned_end_date",
@@ -347,6 +370,162 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
                 )
             # heal 可能改写 verification_inspection_id，回填最新值
             resp.verification_inspection_id = rework_order.verification_inspection_id
+            await self._attach_signoff_children(tenant_id, resp, rework_order.id)
+
+    async def _attach_signoff_children(
+        self,
+        tenant_id: int,
+        resp: ReworkOrderResponse,
+        rework_order_id: int,
+    ) -> None:
+        mats = await ReworkOrderMaterialReq.filter(
+            tenant_id=tenant_id, rework_order_id=rework_order_id, deleted_at__isnull=True
+        ).order_by("line_no", "id")
+        scraps = await ReworkOrderScrapLine.filter(
+            tenant_id=tenant_id, rework_order_id=rework_order_id, deleted_at__isnull=True
+        ).order_by("line_no", "id")
+        plans = await ReworkOrderPositionPlan.filter(
+            tenant_id=tenant_id, rework_order_id=rework_order_id, deleted_at__isnull=True
+        ).order_by("sequence", "line_no", "id")
+        signs = await ReworkOrderSignoff.filter(
+            tenant_id=tenant_id, rework_order_id=rework_order_id, deleted_at__isnull=True
+        ).order_by("sort_order", "id")
+        resp.material_reqs = [ReworkOrderMaterialReqItem.model_validate(r) for r in mats]
+        resp.scrap_lines = [ReworkOrderScrapLineItem.model_validate(r) for r in scraps]
+        resp.position_plans = [ReworkOrderPositionPlanItem.model_validate(r) for r in plans]
+        resp.signoffs = [ReworkOrderSignoffItem.model_validate(r) for r in signs]
+
+    async def _seed_default_signoffs(
+        self,
+        tenant_id: int,
+        rework_order_id: int,
+        *,
+        actor_id: int,
+        actor_name: str,
+    ) -> None:
+        existing = await ReworkOrderSignoff.filter(
+            tenant_id=tenant_id, rework_order_id=rework_order_id, deleted_at__isnull=True
+        ).count()
+        if existing:
+            return
+        for idx, (code, name) in enumerate(REWORK_SIGNOFF_DEPT_DEFAULTS):
+            await ReworkOrderSignoff.create(
+                tenant_id=tenant_id,
+                uuid=str(uuid.uuid4()),
+                rework_order_id=rework_order_id,
+                dept_code=code,
+                dept_name=name,
+                sort_order=idx,
+                status="pending",
+                created_by=actor_id,
+                created_by_name=actor_name,
+                updated_by=actor_id,
+                updated_by_name=actor_name,
+            )
+
+    async def _replace_child_lines(
+        self,
+        tenant_id: int,
+        rework_order_id: int,
+        *,
+        material_reqs: Optional[List[Any]] = None,
+        scrap_lines: Optional[List[Any]] = None,
+        position_plans: Optional[List[Any]] = None,
+        actor_id: int,
+        actor_name: str,
+    ) -> None:
+        now = resolve_business_datetime()
+
+        async def _soft_clear(model: Any) -> None:
+            await model.filter(
+                tenant_id=tenant_id,
+                rework_order_id=rework_order_id,
+                deleted_at__isnull=True,
+            ).update(deleted_at=now, updated_at=now, updated_by=actor_id, updated_by_name=actor_name)
+
+        if material_reqs is not None:
+            await _soft_clear(ReworkOrderMaterialReq)
+            for idx, raw in enumerate(material_reqs):
+                item = (
+                    raw
+                    if isinstance(raw, ReworkOrderMaterialReqItem)
+                    else ReworkOrderMaterialReqItem.model_validate(raw)
+                )
+                await ReworkOrderMaterialReq.create(
+                    tenant_id=tenant_id,
+                    uuid=str(uuid.uuid4()),
+                    rework_order_id=rework_order_id,
+                    line_no=item.line_no or (idx + 1),
+                    material_id=item.material_id,
+                    material_code=item.material_code,
+                    material_name=item.material_name,
+                    qty=item.qty,
+                    unit=item.unit,
+                    required_at=item.required_at,
+                    arrived_at=item.arrived_at,
+                    remarks=item.remarks,
+                    created_by=actor_id,
+                    created_by_name=actor_name,
+                    updated_by=actor_id,
+                    updated_by_name=actor_name,
+                )
+
+        if scrap_lines is not None:
+            await _soft_clear(ReworkOrderScrapLine)
+            for idx, raw in enumerate(scrap_lines):
+                item = (
+                    raw
+                    if isinstance(raw, ReworkOrderScrapLineItem)
+                    else ReworkOrderScrapLineItem.model_validate(raw)
+                )
+                await ReworkOrderScrapLine.create(
+                    tenant_id=tenant_id,
+                    uuid=str(uuid.uuid4()),
+                    rework_order_id=rework_order_id,
+                    line_no=item.line_no or (idx + 1),
+                    material_id=item.material_id,
+                    material_code=item.material_code,
+                    material_name=item.material_name,
+                    qty=item.qty,
+                    unit=item.unit,
+                    scrap_reason=item.scrap_reason,
+                    remarks=item.remarks,
+                    created_by=actor_id,
+                    created_by_name=actor_name,
+                    updated_by=actor_id,
+                    updated_by_name=actor_name,
+                )
+
+        if position_plans is not None:
+            await _soft_clear(ReworkOrderPositionPlan)
+            for idx, raw in enumerate(position_plans):
+                item = (
+                    raw
+                    if isinstance(raw, ReworkOrderPositionPlanItem)
+                    else ReworkOrderPositionPlanItem.model_validate(raw)
+                )
+                await ReworkOrderPositionPlan.create(
+                    tenant_id=tenant_id,
+                    uuid=str(uuid.uuid4()),
+                    rework_order_id=rework_order_id,
+                    line_no=item.line_no or (idx + 1),
+                    sequence=item.sequence or (idx + 1),
+                    station_name=item.station_name,
+                    section_name=item.section_name,
+                    station_code=item.station_code,
+                    planned_headcount=item.planned_headcount,
+                    standard_minutes=item.standard_minutes,
+                    planned_start_at=item.planned_start_at,
+                    planned_end_at=item.planned_end_at,
+                    planned_qty=item.planned_qty,
+                    owner_user_id=item.owner_user_id,
+                    owner_user_name=item.owner_user_name,
+                    remarks=item.remarks,
+                    created_by=actor_id,
+                    created_by_name=actor_name,
+                    updated_by=actor_id,
+                    updated_by_name=actor_name,
+                )
 
     async def _get_rework_operations(
         self, tenant_id: int, rework_order_id: int
@@ -487,6 +666,18 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
         if routing_mode not in (ROUTING_MODE_DYNAMIC, ROUTING_MODE_PREDEFINED):
             raise ValidationError(f"无效的路线模式: {rework_order_data.routing_mode}")
 
+        business_type = (
+            (getattr(rework_order_data, "business_type", None) or REWORK_BUSINESS_TYPE_DEFAULT)
+            .strip()
+            .lower()
+        )
+        if business_type not in REWORK_BUSINESS_TYPES:
+            raise ValidationError(f"非法返工业务类型: {business_type}")
+        if business_type == REWORK_BUSINESS_INVENTORY_VERIFY:
+            verify_month = (getattr(rework_order_data, "verify_month", None) or "").strip()
+            if len(verify_month) != 7 or verify_month[4] != "-":
+                raise ValidationError("库存验证返工单须填写验证月份（YYYY-MM）")
+
         if rework_order_data.original_work_order_id:
             if routing_mode == ROUTING_MODE_PREDEFINED:
                 predefined_operation_ids = list(rework_order_data.predefined_operation_ids or [])
@@ -522,6 +713,21 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
                 quantity=rework_order_data.quantity,
                 rework_reason=rework_order_data.rework_reason,
                 rework_type=rework_order_data.rework_type,
+                business_type=business_type,
+                no_scrap_confirmed=bool(getattr(rework_order_data, "no_scrap_confirmed", False)),
+                need_warehouse_in=bool(getattr(rework_order_data, "need_warehouse_in", False)),
+                product_line_code=(
+                    (getattr(rework_order_data, "product_line_code", None) or "").strip() or None
+                ),
+                verify_month=(
+                    (getattr(rework_order_data, "verify_month", None) or "").strip() or None
+                ),
+                show_to_customer=bool(getattr(rework_order_data, "show_to_customer", False)),
+                pqc_summary=(getattr(rework_order_data, "pqc_summary", None) or None),
+                pqc_summary_file_uuid=(
+                    (getattr(rework_order_data, "pqc_summary_file_uuid", None) or "").strip()
+                    or None
+                ),
                 route_id=rework_order_data.route_id,
                 route_name=rework_order_data.route_name,
                 status="draft",
@@ -533,6 +739,7 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
                 operator_name=rework_order_data.operator_name,
                 cost=Decimal("0"),
                 remarks=rework_order_data.remarks,
+                attachments=getattr(rework_order_data, "attachments", None),
                 created_by=created_by,
                 created_by_name=user_info["name"],
                 updated_by=created_by,
@@ -547,6 +754,23 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
                     routing_mode=routing_mode,
                     predefined_operation_ids=predefined_operation_ids,
                     quantity=rework_order_data.quantity,
+                )
+
+            await self._replace_child_lines(
+                tenant_id,
+                rework_order.id,
+                material_reqs=getattr(rework_order_data, "material_reqs", None) or [],
+                scrap_lines=getattr(rework_order_data, "scrap_lines", None) or [],
+                position_plans=getattr(rework_order_data, "position_plans", None) or [],
+                actor_id=created_by,
+                actor_name=user_info["name"],
+            )
+            if is_signoff_rework_business(business_type):
+                await self._seed_default_signoffs(
+                    tenant_id,
+                    rework_order.id,
+                    actor_id=created_by,
+                    actor_name=user_info["name"],
                 )
 
         if rework_order_data.original_work_order_id:
@@ -596,6 +820,11 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
                     original_work_order.id,
                     exc,
                 )
+        from apps.kuaizhizao.services.inventory_verify_reminder_service import (
+            InventoryVerifyReminderService,
+        )
+
+        await InventoryVerifyReminderService.sync_after_order_saved(tenant_id, rework_order)
         return resp
 
     async def create_rework_order_from_work_order(
@@ -690,6 +919,8 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
             quantity=quantity,
             rework_reason=request_data.rework_reason,
             rework_type=request_data.rework_type,
+            business_type=request_data.business_type or REWORK_BUSINESS_TYPE_DEFAULT,
+            product_line_code=getattr(request_data, "product_line_code", None),
             routing_mode=request_data.routing_mode,
             verification_required=request_data.verification_required,
             route_id=request_data.route_id,
@@ -790,6 +1021,8 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
         product_name: Optional[str] = None,
         status: Optional[str] = None,
         rework_type: Optional[str] = None,
+        business_type: Optional[str] = None,
+        product_line_code: Optional[str] = None,
         keyword: Optional[str] = None,
         planned_start_from: Optional[date] = None,
         planned_start_to: Optional[date] = None,
@@ -854,6 +1087,14 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
             query = query.filter(status=status)
         if rework_type:
             query = query.filter(rework_type=rework_type)
+        bt = (business_type or "").strip().lower()
+        if bt:
+            if bt not in REWORK_BUSINESS_TYPES:
+                raise ValidationError(f"非法返工业务类型: {bt}")
+            query = query.filter(business_type=bt)
+        plc = (product_line_code or "").strip()
+        if plc:
+            query = query.filter(product_line_code=plc)
         if planned_start_from is not None:
             query = query.filter(planned_start_date__gte=planned_start_from)
         if planned_start_to is not None:
@@ -918,18 +1159,70 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
 
             update_data = rework_order_data.model_dump(exclude_unset=True)
             update_data.pop("status", None)
+            material_reqs = update_data.pop("material_reqs", None)
+            scrap_lines = update_data.pop("scrap_lines", None)
+            position_plans = update_data.pop("position_plans", None)
+            predefined_operation_ids = update_data.pop("predefined_operation_ids", None)
+            if "business_type" in update_data:
+                bt = str(update_data.get("business_type") or "").strip().lower()
+                if bt not in REWORK_BUSINESS_TYPES:
+                    raise ValidationError(f"非法返工业务类型: {bt}")
+                update_data["business_type"] = bt
+            next_bt = (
+                update_data.get("business_type")
+                or rework_order.business_type
+                or REWORK_BUSINESS_TYPE_DEFAULT
+            )
+            next_bt = str(next_bt).strip().lower()
+            next_verify_month = (
+                update_data["verify_month"]
+                if "verify_month" in update_data
+                else rework_order.verify_month
+            )
+            if next_bt == REWORK_BUSINESS_INVENTORY_VERIFY:
+                vm = (str(next_verify_month or "").strip())
+                if len(vm) != 7 or vm[4] != "-":
+                    raise ValidationError("库存验证返工单须填写验证月份（YYYY-MM）")
+            if "product_line_code" in update_data:
+                plc = update_data.get("product_line_code")
+                update_data["product_line_code"] = (str(plc).strip() if plc else None) or None
             update_data["updated_by"] = updated_by
             update_data["updated_by_name"] = user_info["name"]
 
-            await ReworkOrder.filter(
-                tenant_id=tenant_id,
-                id=rework_order_id
-            ).update(**update_data)
+            if update_data:
+                await ReworkOrder.filter(
+                    tenant_id=tenant_id,
+                    id=rework_order_id
+                ).update(**update_data)
 
-            if "start_work_order_operation_id" in update_data or "predefined_operation_ids" in update_data:
+            if material_reqs is not None or scrap_lines is not None or position_plans is not None:
+                await self._replace_child_lines(
+                    tenant_id,
+                    rework_order_id,
+                    material_reqs=material_reqs,
+                    scrap_lines=scrap_lines,
+                    position_plans=position_plans,
+                    actor_id=updated_by,
+                    actor_name=user_info["name"],
+                )
+
+            next_bt = str(
+                update_data.get("business_type")
+                or getattr(rework_order, "business_type", None)
+                or REWORK_BUSINESS_TYPE_DEFAULT
+            ).strip().lower()
+            if is_signoff_rework_business(next_bt):
+                await self._seed_default_signoffs(
+                    tenant_id,
+                    rework_order_id,
+                    actor_id=updated_by,
+                    actor_name=user_info["name"],
+                )
+
+            if "start_work_order_operation_id" in update_data or predefined_operation_ids is not None:
                 start_id = update_data.get("start_work_order_operation_id") or rework_order.start_work_order_operation_id
                 routing_mode = update_data.get("routing_mode") or rework_order.routing_mode
-                predefined_ids = update_data.get("predefined_operation_ids")
+                predefined_ids = predefined_operation_ids
                 if rework_order.original_work_order_id and start_id is not None:
                     if predefined_ids:
                         await self._validate_rework_operation_ids(
@@ -954,6 +1247,12 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
 
             # 返回更新后的返工单
             updated_rework_order = await self.get_rework_order_by_id(tenant_id, rework_order_id)
+            refreshed = await self.get_by_id(tenant_id, rework_order_id, raise_if_not_found=True)
+            from apps.kuaizhizao.services.inventory_verify_reminder_service import (
+                InventoryVerifyReminderService,
+            )
+
+            await InventoryVerifyReminderService.sync_after_order_saved(tenant_id, refreshed)
             return updated_rework_order
 
     async def delete_rework_order(
@@ -1255,6 +1554,11 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
 
     async def release_rework_order(self, tenant_id: int, rework_order_id: int, released_by: int) -> ReworkOrderResponse:
         rework_order = await self.get_by_id(tenant_id, rework_order_id, raise_if_not_found=True)
+        bt = str(getattr(rework_order, "business_type", None) or REWORK_BUSINESS_TYPE_DEFAULT).strip().lower()
+        if is_signoff_rework_business(bt) and rework_order.status == "draft":
+            raise BusinessLogicError("会签型返工单须先提交审核，不能直接下达")
+        if is_signoff_rework_business(bt) and rework_order.status == "pending":
+            raise BusinessLogicError("返工单审核中，通过后方可下达")
         user_info = await self.get_user_info(released_by)
         await release_rework_order(
             tenant_id,
@@ -1263,6 +1567,85 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
             released_by_name=user_info["name"],
             get_user_info=self.get_user_info,
         )
+        return await self.get_rework_order_by_id(tenant_id, rework_order_id)
+
+    async def submit_rework_order(
+        self, tenant_id: int, rework_order_id: int, submitted_by: int
+    ) -> ReworkOrderResponse:
+        """多部门会签型：草稿提交审核。"""
+        from core.services.approval.approval_instance_service import ApprovalInstanceService
+        from core.services.approval.audit_binding_service import AuditBindingService
+
+        rework_order = await self.get_by_id(tenant_id, rework_order_id, raise_if_not_found=True)
+        if rework_order.status != "draft":
+            raise BusinessLogicError("仅草稿可提交审核")
+        bt = str(getattr(rework_order, "business_type", None) or "").strip().lower()
+        if not is_signoff_rework_business(bt):
+            raise BusinessLogicError("仅会签型/库存验证返工单需要提交审核；简化执行请直接下达")
+
+        scrap_count = await ReworkOrderScrapLine.filter(
+            tenant_id=tenant_id, rework_order_id=rework_order_id, deleted_at__isnull=True
+        ).count()
+        if not bool(getattr(rework_order, "no_scrap_confirmed", False)) and scrap_count < 1:
+            raise ValidationError("会签型返工须勾选「无报废确认」或至少填写一行报废明细")
+
+        user_info = await self.get_user_info(submitted_by)
+        await self._seed_default_signoffs(
+            tenant_id,
+            rework_order_id,
+            actor_id=submitted_by,
+            actor_name=user_info["name"],
+        )
+        rework_order.status = "pending"
+        rework_order.updated_by = submitted_by
+        rework_order.updated_by_name = user_info["name"]
+        await rework_order.save()
+
+        if await AuditBindingService.is_audit_enabled(tenant_id, "rework_order"):
+            instance = await ApprovalInstanceService.start_approval_for_node(
+                tenant_id=tenant_id,
+                user_id=submitted_by,
+                node_key="rework_order",
+                entity_type="rework_order",
+                entity_id=rework_order.id,
+                entity_uuid=str(rework_order.uuid),
+                title=f"返工单会签 {rework_order.code}",
+                content=rework_order.rework_reason or rework_order.code,
+                business_type=bt,
+                send_notification=True,
+            )
+            if instance is None:
+                raise ValidationError(
+                    "审核已开启但未找到可用审批流程，请检查 rework_order 会签/库存验证绑定"
+                )
+        return await self.get_rework_order_by_id(tenant_id, rework_order_id)
+
+    async def approve_rework_order(
+        self, tenant_id: int, rework_order_id: int, actor_id: int
+    ) -> ReworkOrderResponse:
+        """会签通过后进入可下达（approved）。"""
+        rework_order = await self.get_by_id(tenant_id, rework_order_id, raise_if_not_found=True)
+        if rework_order.status != "pending":
+            raise BusinessLogicError("仅待审返工单可通过")
+        user_info = await self.get_user_info(actor_id)
+        rework_order.status = "approved"
+        rework_order.updated_by = actor_id
+        rework_order.updated_by_name = user_info["name"]
+        await rework_order.save()
+        return await self.get_rework_order_by_id(tenant_id, rework_order_id)
+
+    async def reject_rework_order(
+        self, tenant_id: int, rework_order_id: int, actor_id: int
+    ) -> ReworkOrderResponse:
+        """会签驳回退回草稿。"""
+        rework_order = await self.get_by_id(tenant_id, rework_order_id, raise_if_not_found=True)
+        if rework_order.status != "pending":
+            raise BusinessLogicError("仅待审返工单可驳回")
+        user_info = await self.get_user_info(actor_id)
+        rework_order.status = "draft"
+        rework_order.updated_by = actor_id
+        rework_order.updated_by_name = user_info["name"]
+        await rework_order.save()
         return await self.get_rework_order_by_id(tenant_id, rework_order_id)
 
     async def advance_rework_next_operation(
@@ -1335,6 +1718,145 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
             actor_id=actor_id,
             actor_name=user_info["name"],
         )
+        refreshed = await self.get_by_id(tenant_id, rework_order_id, raise_if_not_found=True)
+        from apps.kuaizhizao.services.inventory_verify_reminder_service import (
+            InventoryVerifyReminderService,
+        )
+
+        await InventoryVerifyReminderService.sync_after_terminal(
+            tenant_id, refreshed, reason="库存验证已关闭"
+        )
+        return await self.get_rework_order_by_id(tenant_id, rework_order_id)
+
+    async def finance_sign_rework_order(
+        self,
+        tenant_id: int,
+        rework_order_id: int,
+        request: ReworkFinanceSignRequest,
+        actor_id: int,
+    ) -> ReworkOrderResponse:
+        rework_order = await self.get_by_id(tenant_id, rework_order_id, raise_if_not_found=True)
+        user_info = await self.get_user_info(actor_id)
+        await finance_sign_rework_order(
+            tenant_id,
+            rework_order,
+            request,
+            actor_id=actor_id,
+            actor_name=user_info["name"],
+        )
+        return await self.get_rework_order_by_id(tenant_id, rework_order_id)
+
+    async def pqc_check_rework_order(
+        self,
+        tenant_id: int,
+        rework_order_id: int,
+        request: ReworkPqcCheckRequest,
+        actor_id: int,
+    ) -> ReworkOrderResponse:
+        rework_order = await self.get_by_id(tenant_id, rework_order_id, raise_if_not_found=True)
+        ctx = await compute_capability_context(tenant_id, rework_order)
+        caps = derive_rework_order_capabilities(
+            rework_order, **capability_kwargs_from_context(ctx)
+        )
+        from apps.kuaizhizao.services.document_action_policy.rework_order import (
+            assert_rework_order_capability,
+        )
+
+        assert_rework_order_capability(rework_order, "pqc_check", caps)
+        if (rework_order.business_type or "").strip() != REWORK_BUSINESS_INVENTORY_VERIFY:
+            raise BusinessLogicError("仅库存验证返工单可核对 PQC 汇总")
+
+        if request.pqc_summary is not None:
+            rework_order.pqc_summary = (request.pqc_summary or "").strip() or None
+        if request.pqc_summary_file_uuid is not None:
+            rework_order.pqc_summary_file_uuid = (
+                (request.pqc_summary_file_uuid or "").strip() or None
+            )
+        summary = (rework_order.pqc_summary or "").strip()
+        if not summary:
+            raise BusinessLogicError("请先填写 PQC 质量记录汇总")
+
+        user_info = await self.get_user_info(actor_id)
+        now = resolve_business_datetime()
+        rework_order.pqc_checked_at = now
+        rework_order.pqc_checked_by = actor_id
+        rework_order.pqc_checked_by_name = user_info["name"]
+        rework_order.updated_by = actor_id
+        rework_order.updated_by_name = user_info["name"]
+        await rework_order.save()
+
+        from apps.kuaizhizao.services.kuaizhizao_business_notification import (
+            ACTION_PQC_CHECKED,
+            DOC_REWORK_ORDER,
+            dispatch_kuaizhizao_notification,
+        )
+
+        await dispatch_kuaizhizao_notification(
+            tenant_id,
+            trigger_document=DOC_REWORK_ORDER,
+            trigger_action=ACTION_PQC_CHECKED,
+            variables={
+                "verify_month": rework_order.verify_month or "—",
+                "rework_code": rework_order.code or str(rework_order.id),
+                "product_name": rework_order.product_name or "—",
+                "pqc_checked_by_name": user_info["name"],
+                "pqc_summary": summary[:500],
+                "detail_path": (
+                    f"/apps/kuaizhizao/production-execution/rework-orders?highlight={rework_order.id}"
+                ),
+            },
+            context={"creator_user_id": rework_order.created_by},
+        )
+        return await self.get_rework_order_by_id(tenant_id, rework_order_id)
+
+    async def oqc_notify_rework_order(
+        self,
+        tenant_id: int,
+        rework_order_id: int,
+        request: ReworkOqcNotifyRequest,
+        actor_id: int,
+    ) -> ReworkOrderResponse:
+        rework_order = await self.get_by_id(tenant_id, rework_order_id, raise_if_not_found=True)
+        ctx = await compute_capability_context(tenant_id, rework_order)
+        caps = derive_rework_order_capabilities(
+            rework_order, **capability_kwargs_from_context(ctx)
+        )
+        from apps.kuaizhizao.services.document_action_policy.rework_order import (
+            assert_rework_order_capability,
+        )
+
+        assert_rework_order_capability(rework_order, "oqc_notify", caps)
+        recipient_ids = [int(x) for x in (request.recipient_user_ids or []) if int(x) > 0]
+        if not recipient_ids:
+            raise ValidationError("请至少勾选一名通知接收人")
+
+        from apps.kuaizhizao.services.kuaizhizao_business_notification import (
+            ACTION_OQC_NOTIFIED,
+            DOC_REWORK_ORDER,
+            dispatch_kuaizhizao_notification,
+        )
+
+        summary = (rework_order.pqc_summary or "").strip() or "—"
+        await dispatch_kuaizhizao_notification(
+            tenant_id,
+            trigger_document=DOC_REWORK_ORDER,
+            trigger_action=ACTION_OQC_NOTIFIED,
+            variables={
+                "verify_month": rework_order.verify_month or "—",
+                "rework_code": rework_order.code or str(rework_order.id),
+                "product_name": rework_order.product_name or "—",
+                "pqc_summary": summary[:500],
+                "pqc_checked_by_name": rework_order.pqc_checked_by_name or "—",
+                "remarks": (request.remarks or "").strip() or "—",
+                "detail_path": (
+                    f"/apps/kuaizhizao/production-execution/rework-orders?highlight={rework_order.id}"
+                ),
+            },
+            context={
+                "creator_user_id": rework_order.created_by,
+                "form_notify_user_ids": recipient_ids,
+            },
+        )
         return await self.get_rework_order_by_id(tenant_id, rework_order_id)
 
     async def cancel_rework_order_flow(
@@ -1352,6 +1874,14 @@ class ReworkOrderService(AppBaseService[ReworkOrder]):
             request,
             actor_id=actor_id,
             actor_name=user_info["name"],
+        )
+        refreshed = await self.get_by_id(tenant_id, rework_order_id, raise_if_not_found=True)
+        from apps.kuaizhizao.services.inventory_verify_reminder_service import (
+            InventoryVerifyReminderService,
+        )
+
+        await InventoryVerifyReminderService.sync_after_terminal(
+            tenant_id, refreshed, reason="库存验证已取消"
         )
         return await self.get_rework_order_by_id(tenant_id, rework_order_id)
 

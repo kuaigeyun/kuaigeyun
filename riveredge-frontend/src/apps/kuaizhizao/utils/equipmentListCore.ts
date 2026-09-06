@@ -9,6 +9,7 @@ const EQUIPMENT_OPS_STATUS_TAG_COLORS: Record<string, string> = {
   已完成: 'success',
   已修复: 'success',
   已审核: 'success',
+  已批准: 'success',
   合格: 'success',
   正常: 'success',
   进行中: 'processing',
@@ -68,7 +69,16 @@ function resolveOrderBy(sort?: Record<string, unknown>) {
 
 export function buildSpotCheckStatusValueEnum(_t: TFunction): Record<string, { text: string }> {
   return {
-    已完成: { text: '已完成' },
+    待审核: { text: '待审核' },
+    已审核: { text: '已审核' },
+    已驳回: { text: '已驳回' },
+  };
+}
+
+export function buildRoutePatrolStatusValueEnum(t: TFunction): Record<string, { text: string }> {
+  const P = 'app.kuaizhizao.equipmentOps.routePatrol';
+  return {
+    已完成: { text: t(`${P}.status.completed`) },
   };
 }
 
@@ -354,6 +364,7 @@ export function buildApprovalDocStatusValueEnum(): Record<string, { text: string
     草稿: { text: '草稿' },
     已提交: { text: '已提交' },
     已审核: { text: '已审核' },
+    已批准: { text: '已批准' },
     已驳回: { text: '已驳回' },
   };
 }

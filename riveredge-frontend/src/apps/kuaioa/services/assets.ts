@@ -9,8 +9,10 @@ export interface AssetPurchase {
   asset_category?: string | null;
   estimated_amount?: number | null;
   status: string;
+  lifecycle_stage?: string;
   applicant_name?: string | null;
   approval_status?: string | null;
+  lifecycle_events?: Record<string, unknown>[];
 }
 
 export interface FixedAsset {
@@ -20,6 +22,7 @@ export interface FixedAsset {
   asset_category?: string | null;
   custodian_name?: string | null;
   status: string;
+  lifecycle_events?: Record<string, unknown>[];
 }
 
 export const listAssetPurchases = (params?: Record<string, unknown>) =>
@@ -37,6 +40,10 @@ export const revokeAssetPurchase = (id: number) =>
   kuaioaPost<AssetPurchase>(`${BASE}/purchases/${id}/revoke`);
 export const registerAssetFromPurchase = (id: number) =>
   kuaioaPost<FixedAsset>(`${BASE}/purchases/${id}/register`);
+export const advanceAssetPurchaseLifecycle = (
+  id: number,
+  data: { stage: string; remark?: string; file_uuid?: string; payment_amount?: number },
+) => kuaioaPost<AssetPurchase>(`${BASE}/purchases/${id}/lifecycle`, data);
 
 export const listFixedAssets = (params?: Record<string, unknown>) =>
   kuaioaList<FixedAsset>(`${BASE}/registry`, params);
@@ -53,3 +60,7 @@ export const returnFixedAsset = (id: number) =>
   kuaioaPost<FixedAsset>(`${BASE}/registry/${id}/return`);
 export const scrapFixedAsset = (id: number) =>
   kuaioaPost<FixedAsset>(`${BASE}/registry/${id}/scrap`);
+export const financeAuditFixedAsset = (id: number) =>
+  kuaioaPost<FixedAsset>(`${BASE}/registry/${id}/finance-audit`);
+export const writeOffFixedAsset = (id: number) =>
+  kuaioaPost<FixedAsset>(`${BASE}/registry/${id}/write-off`);

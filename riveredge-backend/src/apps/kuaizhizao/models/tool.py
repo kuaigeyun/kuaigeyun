@@ -41,8 +41,18 @@ class Tool(BaseModel):
     manufacturer = fields.CharField(max_length=200, null=True, description="制造商")
     supplier = fields.CharField(max_length=200, null=True, description="供应商")
     purchase_date = fields.DateField(null=True, description="采购日期")
+    inbound_date = fields.DateField(null=True, description="入库日期")
     warranty_expiry = fields.DateField(null=True, description="保修到期日")
-    
+
+    # 台账扩展（R-10）
+    quantity = fields.IntField(default=1, description="数量")
+    custodian_name = fields.CharField(max_length=100, null=True, description="保管人")
+    product_model = fields.CharField(max_length=120, null=True, description="产品型号")
+    current_borrower_name = fields.CharField(max_length=100, null=True, description="当前领用人")
+    current_borrow_at = fields.DatetimeField(null=True, description="当前领用时间")
+    last_return_at = fields.DatetimeField(null=True, description="最近归还时间")
+    last_return_by_name = fields.CharField(max_length=100, null=True, description="最近归还人")
+
     # 生命周期控制
     storage_location = fields.CharField(max_length=200, null=True, description="存放位置")
     maintenance_scheme_id = fields.IntField(null=True, description="默认保养方案ID")

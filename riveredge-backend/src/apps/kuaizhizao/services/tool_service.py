@@ -15,7 +15,7 @@ from datetime import datetime, date
 from tortoise.exceptions import IntegrityError
 from tortoise.expressions import Q
 
-from apps.common.audit_actor import apply_create_audit
+from apps.common.audit_actor import apply_create_audit, apply_update_audit
 from apps.kuaizhizao.models.tool import Tool
 from apps.kuaizhizao.models.tool_ops import ToolMaintenanceScheme, ToolSchemeBinding
 from apps.kuaizhizao.schemas.tool import ToolCreate, ToolUpdate
@@ -36,14 +36,11 @@ class ToolService:
     ) -> Tool:
         try:
             if not data.code:
-                try:
-                    data.code = await CodeGenerationService.generate_code(
-                        tenant_id=tenant_id,
-                        rule_code="TOOL_CODE",
-                        context=None,
-                    )
-                except Exception:
-                    data.code = f"TL{resolve_business_datetime().strftime('%Y%m%d%H%M%S')}"
+                data.code = await CodeGenerationService.generate_code(
+                    tenant_id=tenant_id,
+                    rule_code="TOOL_CODE",
+                    context=None,
+                )
 
             tool = Tool(tenant_id=tenant_id, **data.model_dump(exclude_none=True))
             apply_create_audit(tool, current_user)
@@ -69,6 +66,7 @@ class ToolService:
         is_active: Optional[bool] = None,
         search: Optional[str] = None,
         keyword: Optional[str] = None,
+        product_model: Optional[str] = None,
         order_by: Optional[str] = None,
         created_start_date: Optional[str] = None,
         created_end_date: Optional[str] = None,
@@ -91,10 +89,12 @@ class ToolService:
             query = query.filter(status=status)
         if is_active is not None:
             query = query.filter(is_active=is_active)
+        if product_model:
+            query = query.filter(product_model__icontains=product_model.strip())
         query = apply_equipment_keyword_filter(
             query,
             pick_search_keyword(keyword, search),
-            ["code", "name"],
+            ["code", "name", "product_model", "custodian_name", "supplier"],
         )
         query = apply_equipment_created_date_range(
             query,
@@ -116,22 +116,31 @@ class ToolService:
         return items, total
 
     @staticmethod
-    async def update_tool(tenant_id: int, uuid: str, data: ToolUpdate) -> Tool:
+    async def update_tool(
+        tenant_id: int,
+        uuid: str,
+        data: ToolUpdate,
+        current_user: Optional[User] = None,
+    ) -> Tool:
         tool = await ToolService.get_tool_by_uuid(tenant_id, uuid)
         update_data = data.model_dump(exclude_unset=True)
 
         for key, value in update_data.items():
             setattr(tool, key, value)
 
+        apply_update_audit(tool, current_user)
         await tool.save()
         return tool
 
     @staticmethod
-    async def delete_tool(tenant_id: int, uuid: str) -> None:
-        from tortoise import timezone as tz
-
+    async def delete_tool(
+        tenant_id: int,
+        uuid: str,
+        current_user: Optional[User] = None,
+    ) -> None:
         tool = await ToolService.get_tool_by_uuid(tenant_id, uuid)
-        tool.deleted_at = tz.now()
+        tool.deleted_at = resolve_business_datetime()
+        apply_update_audit(tool, current_user)
         await tool.save()
 
 
