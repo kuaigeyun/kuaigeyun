@@ -26219,6 +26219,10 @@ export default {
     '会计凭证编辑服务器错误修复',
   'pages.dashboard.updateLog.entries.gl-voucher-edit-await-queryset.description':
     '修复凭证详情查询对 Tortoise QuerySet 误用 await（未 .all()），编辑会计凭证不再报 object list / 服务器内部错误。',
+  'pages.dashboard.updateLog.entries.master-data-time-rewrite-fields-map.title':
+    '主数据时间修正误判无更新字段',
+  'pages.dashboard.updateLog.entries.master-data-time-rewrite-fields-map.description':
+    '单据时间修正里「主数据更新日期」此前用 hasattr 判断 Tortoise 模型字段，对继承的 updated_at 恒为假，导致全部失败；现改为查 _meta.fields_map。',
   'pages.dashboard.updateLog.entries.doc-code-use-business-date.title':
     '单据编号日期跟业务日',
   'pages.dashboard.updateLog.entries.doc-code-use-business-date.description':

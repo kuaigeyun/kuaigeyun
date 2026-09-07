@@ -437,6 +437,12 @@ def _load_model(model_path: str) -> Any:
     return getattr(mod, class_name)
 
 
+def _model_has_field(model: Any, field_name: str) -> bool:
+    """Tortoise 字段在 _meta.fields_map；hasattr(Model, name) 对继承字段恒为 False。"""
+    fields_map = getattr(getattr(model, "_meta", None), "fields_map", None) or {}
+    return field_name in fields_map
+
+
 def _as_utc(dt: datetime) -> datetime:
     return resolve_business_datetime(dt)
 
@@ -473,7 +479,7 @@ async def _allocate_unique_code(
         qs = model.filter(tenant_id=tenant_id).filter(**{code_field: candidate}).exclude(
             id=exclude_id
         )
-        if hasattr(model, "deleted_at"):
+        if _model_has_field(model, "deleted_at"):
             qs = qs.filter(deleted_at__isnull=True)
         if not await qs.exists():
             return candidate
@@ -500,7 +506,7 @@ class DocumentTimeRewriteService:
         spec = get_rewrite_spec(doc_type)
         model = _load_model(spec.model_path)
         qs = model.filter(tenant_id=tenant_id)
-        if (not include_deleted) and hasattr(model, "deleted_at"):
+        if (not include_deleted) and _model_has_field(model, "deleted_at"):
             qs = qs.filter(deleted_at__isnull=True)
         keyword = (code_keyword or "").strip()
         if keyword:
@@ -956,7 +962,7 @@ class DocumentTimeRewriteService:
                     }
                 )
                 continue
-            if not hasattr(model, "updated_at"):
+            if not _model_has_field(model, "updated_at"):
                 per_type.append(
                     {
                         "label": label,
@@ -973,7 +979,7 @@ class DocumentTimeRewriteService:
                 continue
             await qs.update(updated_at=issue_utc)
             clamped = 0
-            if hasattr(model, "created_at"):
+            if _model_has_field(model, "created_at"):
                 clamped = await model.filter(
                     tenant_id=tenant_id, created_at__gt=issue_utc
                 ).update(created_at=issue_utc)
