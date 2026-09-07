@@ -309,14 +309,13 @@ async def _allocate_unique_code(
     """若 desired 已被其它单据占用，则递增末尾数字直至唯一。"""
     candidate = desired
     for _ in range(500):
-        clash = (
-            await model.filter(tenant_id=tenant_id)
-            .filter(**{code_field: candidate})
-            .exclude(id=exclude_id)
+        # 勿提前 await QuerySet（await 会变成 list，没有 .exists）
+        qs = model.filter(tenant_id=tenant_id).filter(**{code_field: candidate}).exclude(
+            id=exclude_id
         )
         if hasattr(model, "deleted_at"):
-            clash = clash.filter(deleted_at__isnull=True)
-        if not await clash.exists():
+            qs = qs.filter(deleted_at__isnull=True)
+        if not await qs.exists():
             return candidate
         trail = re.search(r"(\d+)(?!.*\d)", candidate)
         if not trail:
