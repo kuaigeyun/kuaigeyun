@@ -26219,6 +26219,10 @@ export default {
     '会计凭证编辑服务器错误修复',
   'pages.dashboard.updateLog.entries.gl-voucher-edit-await-queryset.description':
     '修复凭证详情查询对 Tortoise QuerySet 误用 await（未 .all()），编辑会计凭证不再报 object list / 服务器内部错误。',
+  'pages.dashboard.updateLog.entries.master-data-time-rewrite-keep-clock.title':
+    '主数据时间修正只改日期、保留时分秒',
+  'pages.dashboard.updateLog.entries.master-data-time-rewrite-keep-clock.description':
+    '单据时间修正接口改写主数据 updated_at 时，仅替换日历日，原有时分秒按站点时区保留；不再统一压到工作时段中午。',
   'pages.dashboard.updateLog.entries.master-data-time-rewrite-fields-map.title':
     '主数据时间修正误判无更新字段',
   'pages.dashboard.updateLog.entries.master-data-time-rewrite-fields-map.description':

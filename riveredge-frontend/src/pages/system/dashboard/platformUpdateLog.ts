@@ -36,6 +36,13 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'master-data-time-rewrite-keep-clock',
+    date: '2026-09-07',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.master-data-time-rewrite-keep-clock.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.master-data-time-rewrite-keep-clock.description',
+  },
+  {
     id: 'master-data-time-rewrite-fields-map',
     date: '2026-09-07',
     type: 'fix',

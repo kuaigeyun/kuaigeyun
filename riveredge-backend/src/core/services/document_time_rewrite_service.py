@@ -924,27 +924,16 @@ class DocumentTimeRewriteService:
         schedule: WorkScheduleParams,
     ) -> dict[str, Any]:
         """
-        将主数据实体 updated_at 改到指定业务日的工作时段内；
-        若 created_at 晚于新 updated_at，则一并压到同一时刻。
+        将主数据实体 updated_at 的日历日改到目标日，时分秒保持原样（站点时区）。
+        若改写后 created_at 晚于 updated_at，则对 created_at 同样只改日期；仍晚则压到 updated_at。
+        schedule 仅保留接口兼容，不参与计算。
         """
-        schedule.validate()
+        del schedule  # 接口兼容；时分秒取自原记录
         timezone_name = site_timezone_name()
         tz = ZoneInfo(timezone_name)
         now_site = now_utc().astimezone(tz)
         if target_day > now_site.date():
             raise ValueError("目标日期不能晚于今天")
-
-        noon = datetime(
-            target_day.year,
-            target_day.month,
-            target_day.day,
-            12,
-            0,
-            0,
-            tzinfo=tz,
-        )
-        issue_site = schedule.clamp_to_work_time(noon)
-        issue_utc = _as_utc(issue_site)
 
         per_type: list[dict[str, Any]] = []
         total_updated = 0
@@ -972,25 +961,50 @@ class DocumentTimeRewriteService:
                     }
                 )
                 continue
-            qs = model.filter(tenant_id=tenant_id)
-            count = await qs.count()
-            if count <= 0:
+            rows = await model.filter(tenant_id=tenant_id).all()
+            if not rows:
                 per_type.append({"label": label, "model": model_path, "updated": 0})
                 continue
-            await qs.update(updated_at=issue_utc)
+            updated = 0
             clamped = 0
-            if _model_has_field(model, "created_at"):
-                clamped = await model.filter(
-                    tenant_id=tenant_id, created_at__gt=issue_utc
-                ).update(created_at=issue_utc)
-            total_updated += count
-            total_created_clamped += int(clamped or 0)
+            for row in rows:
+                raw_updated = getattr(row, "updated_at", None)
+                if raw_updated is None:
+                    continue
+                updated_site = _as_utc(raw_updated).astimezone(tz)
+                new_updated_site = updated_site.replace(
+                    year=target_day.year,
+                    month=target_day.month,
+                    day=target_day.day,
+                )
+                new_updated_utc = _as_utc(new_updated_site)
+                payload: dict[str, Any] = {"updated_at": new_updated_utc}
+                if _model_has_field(model, "created_at"):
+                    raw_created = getattr(row, "created_at", None)
+                    if raw_created is not None:
+                        created_utc = _as_utc(raw_created)
+                        if created_utc > new_updated_utc:
+                            created_site = created_utc.astimezone(tz)
+                            new_created_site = created_site.replace(
+                                year=target_day.year,
+                                month=target_day.month,
+                                day=target_day.day,
+                            )
+                            new_created_utc = _as_utc(new_created_site)
+                            if new_created_utc > new_updated_utc:
+                                new_created_utc = new_updated_utc
+                            payload["created_at"] = new_created_utc
+                            clamped += 1
+                await model.filter(tenant_id=tenant_id, id=int(row.id)).update(**payload)
+                updated += 1
+            total_updated += updated
+            total_created_clamped += clamped
             per_type.append(
                 {
                     "label": label,
                     "model": model_path,
-                    "updated": count,
-                    "created_clamped": int(clamped or 0),
+                    "updated": updated,
+                    "created_clamped": clamped,
                 }
             )
 
@@ -998,7 +1012,7 @@ class DocumentTimeRewriteService:
             "updated": total_updated,
             "created_clamped": total_created_clamped,
             "target_day": target_day.isoformat(),
-            "issued_at": issue_site.strftime("%Y-%m-%d %H:%M:%S"),
+            "issued_at": target_day.isoformat(),
             "timezone": timezone_name,
             "items": per_type,
         }

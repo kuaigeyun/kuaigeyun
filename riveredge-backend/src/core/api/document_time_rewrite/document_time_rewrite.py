@@ -173,7 +173,7 @@ async def expand_operation_logs(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
-@router.post("/rewrite-master-data-updated-at", summary="主数据实体更新时间改到指定日")
+@router.post("/rewrite-master-data-updated-at", summary="主数据实体更新日改到指定日（保留时分秒）")
 async def rewrite_master_data_updated_at(
     body: RewriteMasterDataUpdatedAtRequest,
     auth: AuthContext = Depends(require_permission_codes("system:document-time-rewrite:execute")),
