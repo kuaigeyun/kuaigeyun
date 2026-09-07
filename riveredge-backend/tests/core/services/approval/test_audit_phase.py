@@ -113,3 +113,17 @@ def test_quality_inspection_auto_pending_has_no_submit_withdraw():
     )
     assert audit["phase"] == "pending"
     assert audit["allowed_actions"] == []
+
+
+def test_finance_receivable_rejected_alias_allows_resubmit():
+    """应收/应付驳回写回 review_status=驳回，须派生 rejected 并允许重新提交。"""
+    for entity in ("receivable", "payable", "purchase_invoice"):
+        audit = derive_audit_phase(entity, "未收款", "驳回", enabled=True)
+        assert audit["phase"] == "rejected", entity
+        assert audit["allowed_actions"] == ["submit"], entity
+
+
+def test_finance_payable_rejected_full_label_allows_resubmit():
+    audit = derive_audit_phase("payable", "未付款", "已驳回", enabled=True)
+    assert audit["phase"] == "rejected"
+    assert audit["allowed_actions"] == ["submit"]

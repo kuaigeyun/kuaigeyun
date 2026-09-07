@@ -101,6 +101,12 @@ const SettlementPage: React.FC = () => {
   const [selectedReceipt, setSelectedReceipt] = useState<Record<string, unknown> | null>(null);
   const [selectedPayable, setSelectedPayable] = useState<Record<string, unknown> | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<Record<string, unknown> | null>(null);
+  const selectedReceivableRef = useRef<Record<string, unknown> | null>(null);
+  const selectedPayableRef = useRef<Record<string, unknown> | null>(null);
+  const receivableRowsRef = useRef<Record<string, unknown>[]>([]);
+  const payableRowsRef = useRef<Record<string, unknown>[]>([]);
+  selectedReceivableRef.current = selectedReceivable;
+  selectedPayableRef.current = selectedPayable;
   const [settleAmount, setSettleAmount] = useState<number>(0);
   const [arPreviewLoading, setArPreviewLoading] = useState(false);
   const [arPreviewData, setArPreviewData] = useState<SettlementPreview | null>(null);
@@ -203,6 +209,36 @@ const SettlementPage: React.FC = () => {
     setApPreviewData(null);
     setSettleAmount(0);
   }, []);
+
+  /** 左侧待核销应收：勾选 / 点行 /「选择」共用 */
+  const applyReceivableSelection = useCallback((record: Record<string, unknown> | null) => {
+    setSelectedReceivable(record);
+    setSelectedReceipt(null);
+    setArPreviewData(null);
+    setSettleAmount(0);
+  }, []);
+
+  /** 左侧待核销应付：勾选 / 点行 /「选择」共用 */
+  const applyPayableSelection = useCallback((record: Record<string, unknown> | null) => {
+    setSelectedPayable(record);
+    setSelectedPayment(null);
+    setApPreviewData(null);
+    setSettleAmount(0);
+  }, []);
+
+  const resolveSingleRowSelection = useCallback(
+    (
+      keys: React.Key[],
+      rows: Record<string, unknown>[],
+      prevId: unknown,
+    ): Record<string, unknown> | null => {
+      if (!keys.length) return null;
+      const newlySelected =
+        keys.find((k) => String(k) !== String(prevId ?? '')) ?? keys[keys.length - 1];
+      return rows.find((r) => String(r.id) === String(newlySelected)) ?? null;
+    },
+    [],
+  );
 
   /** 关闭核销确认弹窗：只撤销右侧匹配单据，保留左侧已选应收/应付，便于取消后再次点「匹配」 */
   const dismissArPreview = useCallback(() => {
@@ -570,16 +606,13 @@ const SettlementPage: React.FC = () => {
             key="sel"
             {...rowActionPickSettlement('skip')}
             onClick={() => {
-              setSelectedReceivable(record);
-              setSelectedReceipt(null);
-              setArPreviewData(null);
-              setSettleAmount(0);
+              applyReceivableSelection(record);
             }}
           />,
         ],
       },
     ],
-    [t, searchCustomers],
+    [t, searchCustomers, applyReceivableSelection],
   );
 
   const receiptColumns: ProColumns<Record<string, unknown>>[] = useMemo(
@@ -633,7 +666,7 @@ const SettlementPage: React.FC = () => {
               key="m"
               {...rowActionMatchSettlement('update')}
               onClick={() => {
-                if (!selectedReceivable) {
+                if (!selectedReceivableRef.current) {
                   message.warning(t(`${P}.selectReceivableFirst`));
                   return;
                 }
@@ -644,7 +677,7 @@ const SettlementPage: React.FC = () => {
         },
       },
     ],
-    [t, selectedReceivable, searchCustomers, settlementPerms.canUpdate],
+    [t, searchCustomers, settlementPerms.canUpdate],
   );
 
   const payableColumns: ProColumns<Record<string, unknown>>[] = useMemo(
@@ -696,16 +729,13 @@ const SettlementPage: React.FC = () => {
             key="sel"
             {...rowActionPickSettlement('skip')}
             onClick={() => {
-              setSelectedPayable(record);
-              setSelectedPayment(null);
-              setApPreviewData(null);
-              setSettleAmount(0);
+              applyPayableSelection(record);
             }}
           />,
         ],
       },
     ],
-    [t, searchSuppliers],
+    [t, searchSuppliers, applyPayableSelection],
   );
 
   const paymentColumns: ProColumns<Record<string, unknown>>[] = useMemo(
@@ -759,7 +789,7 @@ const SettlementPage: React.FC = () => {
               key="m"
               {...rowActionMatchSettlement('update')}
               onClick={() => {
-                if (!selectedPayable) {
+                if (!selectedPayableRef.current) {
                   message.warning(t(`${P}.selectPayableFirst`));
                   return;
                 }
@@ -770,7 +800,7 @@ const SettlementPage: React.FC = () => {
         },
       },
     ],
-    [t, selectedPayable, searchSuppliers, settlementPerms.canUpdate],
+    [t, searchSuppliers, settlementPerms.canUpdate],
   );
 
   const historyColumns: ProColumns<SettlementRecord>[] = useMemo(
@@ -951,10 +981,10 @@ const SettlementPage: React.FC = () => {
 
   const partnerCustomerId = selectedReceivable?.customer_id
     ? Number(selectedReceivable.customer_id)
-    : focusCustomerId;
+    : null;
   const partnerSupplierId = selectedPayable?.supplier_id
     ? Number(selectedPayable.supplier_id)
-    : focusSupplierId;
+    : null;
 
   const receivableSettlement = (
     <>
@@ -982,10 +1012,34 @@ const SettlementPage: React.FC = () => {
             actionRef={receivableActionRef}
             rowKey="id"
             viewTypes={[...tableOnlyViewTypes]}
-            columnPersistenceId="apps.kuaicaiwu.pages.finance-management.settlement.list-v4"
+            columnPersistenceId="apps.kuaicaiwu.pages.finance-management.settlement.list-v5"
             search={{ labelWidth: 'auto' }}
             showAdvancedSearch
             skipFuzzyPinyinClientFilter
+            enableRowSelection
+            selectedRowKeys={
+              selectedReceivable?.id != null ? [selectedReceivable.id as React.Key] : []
+            }
+            onRowSelectionChange={(keys) => {
+              applyReceivableSelection(
+                resolveSingleRowSelection(
+                  keys,
+                  receivableRowsRef.current,
+                  selectedReceivableRef.current?.id,
+                ),
+              );
+            }}
+            onTableDataChange={(rows) => {
+              receivableRowsRef.current = rows;
+              if (
+                focusCustomerId != null &&
+                !selectedReceivableRef.current &&
+                rows.length === 1 &&
+                Number(rows[0]?.customer_id) === focusCustomerId
+              ) {
+                applyReceivableSelection(rows[0]);
+              }
+            }}
             request={async (params, sort, _filter, searchFormValues) => {
               const { current, pageSize } = params;
               const listParams = resolveReceivableListParams(searchFormValues, sort);
@@ -1052,7 +1106,7 @@ const SettlementPage: React.FC = () => {
             }}
             columns={alignProColumns(receiptColumns, SALES_DOC_LIST_FIELD_RANK)}
             locale={{
-              emptyText: partnerCustomerId != null
+              emptyText: selectedReceivable
                 ? undefined
                 : t(`${P}.selectReceivableFirst`),
             }}
@@ -1109,10 +1163,34 @@ const SettlementPage: React.FC = () => {
             actionRef={payableActionRef}
             rowKey="id"
             viewTypes={[...tableOnlyViewTypes]}
-            columnPersistenceId="apps.kuaicaiwu.pages.finance-management.settlement:payable.list-v4"
+            columnPersistenceId="apps.kuaicaiwu.pages.finance-management.settlement:payable.list-v5"
             search={{ labelWidth: 'auto' }}
             showAdvancedSearch
             skipFuzzyPinyinClientFilter
+            enableRowSelection
+            selectedRowKeys={
+              selectedPayable?.id != null ? [selectedPayable.id as React.Key] : []
+            }
+            onRowSelectionChange={(keys) => {
+              applyPayableSelection(
+                resolveSingleRowSelection(
+                  keys,
+                  payableRowsRef.current,
+                  selectedPayableRef.current?.id,
+                ),
+              );
+            }}
+            onTableDataChange={(rows) => {
+              payableRowsRef.current = rows;
+              if (
+                focusSupplierId != null &&
+                !selectedPayableRef.current &&
+                rows.length === 1 &&
+                Number(rows[0]?.supplier_id) === focusSupplierId
+              ) {
+                applyPayableSelection(rows[0]);
+              }
+            }}
             request={async (params, sort, _filter, searchFormValues) => {
               const { current, pageSize } = params;
               const listParams = resolvePayableListParams(searchFormValues, sort);
@@ -1179,7 +1257,7 @@ const SettlementPage: React.FC = () => {
             }}
             columns={alignProColumns(paymentColumns, SALES_DOC_LIST_FIELD_RANK)}
             locale={{
-              emptyText: partnerSupplierId != null
+              emptyText: selectedPayable
                 ? undefined
                 : t(`${P}.selectPayableFirst`),
             }}

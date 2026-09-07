@@ -5,9 +5,7 @@
 """
 
 from typing import Optional, Dict, Any, List
-from datetime import datetime
 
-from tortoise.exceptions import DoesNotExist, IntegrityError
 from loguru import logger
 
 from infra.models.package import Package
@@ -43,16 +41,13 @@ class PackageService:
         """
         创建套餐
 
-        创建新套餐并保存到数据库。如果套餐类型已存在，则抛出异常。
+        创建新套餐并保存到数据库。同一内置档位（plan）允许存在多条套餐记录。
 
         Args:
             data: 套餐创建数据
 
         Returns:
             Package: 创建的套餐对象
-
-        Raises:
-            IntegrityError: 当套餐类型已存在时抛出
 
         Example:
             >>> service = PackageService()
@@ -65,11 +60,6 @@ class PackageService:
             ...     )
             ... )
         """
-        # 检查套餐类型是否已存在
-        existing = await Package.get_or_none(plan=data.plan)
-        if existing:
-            raise IntegrityError(f"套餐类型 {data.plan} 已存在")
-
         # 获取数据字典，只包含非None值的字段
         # 这样可以避免传递null值给Tortoise ORM，让模型使用默认值
         create_data = data.model_dump(exclude_unset=True)
@@ -99,15 +89,21 @@ class PackageService:
     
     async def get_package_by_plan(self, plan: TenantPlan) -> Optional[Package]:
         """
-        根据套餐类型获取套餐
-        
-        Args:
-            plan: 套餐类型
-            
-        Returns:
-            Optional[Package]: 套餐对象，如果不存在则返回 None
+        根据套餐类型获取生效套餐。
+
+        同一档位可有多条记录时：优先 is_active，再按更新时间、id 取最新一条。
         """
-        return await Package.get_or_none(plan=plan)
+        packages = await Package.filter(plan=plan).all()
+        if not packages:
+            return None
+        packages.sort(
+            key=lambda pkg: (
+                0 if bool(pkg.is_active) else 1,
+                -(pkg.updated_at.timestamp() if pkg.updated_at else 0),
+                -(int(pkg.id) if pkg.id is not None else 0),
+            )
+        )
+        return packages[0]
 
     async def get_effective_package_config_for_plan(self, plan: TenantPlan) -> Dict[str, Any]:
         """

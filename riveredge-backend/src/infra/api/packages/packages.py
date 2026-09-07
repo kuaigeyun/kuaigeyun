@@ -164,7 +164,7 @@ async def create_package(
         PackageResponse: 创建的套餐
 
     Raises:
-        HTTPException: 当套餐类型已存在时抛出
+        HTTPException: 当创建失败时抛出
     """
     # ⚠️ 第三阶段改进：使用依赖注入的服务
     if not package_service:

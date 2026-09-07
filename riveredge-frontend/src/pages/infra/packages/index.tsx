@@ -183,6 +183,8 @@ export default function PackageManagementPage() {
     setEditFormData(null);
     setCreateModalVisible(false);
     queryClient.invalidateQueries({ queryKey: ['packages'] });
+    queryClient.invalidateQueries({ queryKey: ['package-configs-options'] });
+    queryClient.invalidateQueries({ queryKey: ['packageConfigs'] });
     // 手动刷新表格
     actionRef.current?.reload();
   };
@@ -222,7 +224,7 @@ export default function PackageManagementPage() {
   };
 
 
-  // 套餐类型映射
+  // 套餐类型映射（内置档位文案，不用套餐名称）
   const planMap: Record<string, { text: string; color: string }> = {
     [TenantPlan.TRIAL]: { text: t('pages.infra.package.planTrial'), color: TENANT_PLAN_MARKER_COLORS[TenantPlan.TRIAL] },
     [TenantPlan.BASIC]: { text: t('pages.infra.package.planBasic'), color: TENANT_PLAN_MARKER_COLORS[TenantPlan.BASIC] },

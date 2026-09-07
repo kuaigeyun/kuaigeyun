@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { App, Button, Descriptions, Empty, Modal, Result, Space, Spin, Table } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { DetailDrawerSection } from '../../../../../components/layout-templates';
+import { DictionaryLabel } from '../../../../../components/dictionary-label';
 import { getApiErrorMessage } from '../../../../../utils/errorHandler';
 import { formatBusinessDateOnly } from '../../../../../utils/format';
 import {
@@ -222,7 +223,15 @@ export const SalesReviewReviewModal: React.FC<SalesReviewReviewModalProps> = ({
                 {review.settlement_method || '—'}
               </Descriptions.Item>
               <Descriptions.Item label={t('app.kuaizhizao.salesReview.fieldPaymentCycle')}>
-                {review.payment_cycle || '—'}
+                {review.payment_cycle ? (
+                  <DictionaryLabel
+                    dictionaryCode="PAYMENT_TERMS"
+                    value={review.payment_cycle}
+                    notFoundPlaceholder={review.payment_cycle}
+                  />
+                ) : (
+                  '—'
+                )}
               </Descriptions.Item>
               {review.quotation_code ? (
                 <Descriptions.Item label={t('app.kuaizhizao.salesReview.colQuotation')} span={2}>

@@ -761,6 +761,10 @@ class ApplicationService:
         application['is_installed'] = False
         application['is_active'] = False
 
+        from core.services.application.enabled_apps import clear_enabled_apps_cache
+
+        clear_enabled_apps_cache()
+
         app_code = str(application.get("code") or "")
         from core.services.system.menu_takeover_service import MenuTakeoverService
 
@@ -840,6 +844,10 @@ class ApplicationService:
         
         # 更新本地字典
         application['is_active'] = True
+
+        from core.services.application.enabled_apps import clear_enabled_apps_cache
+
+        clear_enabled_apps_cache()
         
         app_code = str(application.get("code") or "")
         if is_industry_module_app_code(app_code):
@@ -970,6 +978,10 @@ class ApplicationService:
         
         # 更新本地字典
         application['is_active'] = False
+
+        from core.services.application.enabled_apps import clear_enabled_apps_cache
+
+        clear_enabled_apps_cache()
 
         from core.services.system.menu_service import MenuService
         from core.services.system.menu_takeover_service import MenuTakeoverService

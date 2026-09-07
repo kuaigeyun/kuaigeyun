@@ -36,7 +36,8 @@ import {
   getSharedUserQuota,
   syncTenantLimitsFromPlan,
   resolveTenantPlanMarkerColor,
-  compareTenantPlanSort,
+  TENANT_PLAN_SORT_ORDER,
+  resolveTenantPlanLabelKey,
 } from '../../../../services/tenant';
 import { getPlatformSettings, updatePlatformSettings } from '../../../../services/platformSettings';
 // 使用 apiRequest 统一处理 HTTP 请求
@@ -126,13 +127,20 @@ const SuperAdminTenantList: React.FC = () => {
 
   const packagePlanOptions = useMemo(
     () =>
-      Object.entries(packageConfigs)
-        .map(([plan, config]) => ({
-          label: config.name || plan,
-          value: plan as TenantPlan,
-        }))
-        .sort((a, b) => compareTenantPlanSort(a.value, b.value)),
-    [packageConfigs],
+      TENANT_PLAN_SORT_ORDER.map((plan) => {
+        const labelKey = resolveTenantPlanLabelKey(plan);
+        const builtinLabel = labelKey ? t(labelKey) : plan;
+        const configName = packageConfigs[plan]?.name?.trim();
+        return {
+          // 类型用内置档位；若已建套餐名称与档位文案不同，附带名称便于辨认
+          label:
+            configName && configName !== builtinLabel
+              ? `${builtinLabel}（${configName}）`
+              : builtinLabel,
+          value: plan,
+        };
+      }),
+    [packageConfigs, t],
   );
 
   const packagePlanValueEnum = useMemo(() => {

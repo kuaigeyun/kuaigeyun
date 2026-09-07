@@ -38,7 +38,7 @@ from infra.models.tenant import Tenant
 from infra.models.user import User
 
 _APPROVED_REVIEW = ("已审核",)
-_EXCLUDED_REVIEW = ("待审核", "驳回")
+_EXCLUDED_REVIEW = ("待审核", "驳回", "已驳回", "rejected", "审核驳回")
 _MONEY = Decimal("0.01")
 
 # 对账单行 doc_type → 稳定族，用于「已纳入其它对账单」去重

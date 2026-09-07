@@ -2099,7 +2099,12 @@ const SiteSettingsPage: React.FC = () => {
       dataIndex: 'plan',
       key: 'plan',
       render: (value: string) => {
-        const color = value === TenantPlan.ENTERPRISE ? 'gold' : value === TenantPlan.PROFESSIONAL ? 'purple' : 'blue';
+        const color =
+          value === TenantPlan.ENTERPRISE
+            ? 'gold'
+            : value === TenantPlan.PROFESSIONAL
+              ? 'purple'
+              : 'blue';
         const labelMap: Record<string, string> = {
           [TenantPlan.TRIAL]: t('pages.infra.tenant.planTrial'),
           [TenantPlan.BASIC]: t('pages.infra.tenant.planBasic'),

@@ -37,9 +37,10 @@ _REVOKE_DENIED_STATUSES = frozenset({
     "已接受", "accepted",
     "已转订单", "converted",
 })
-_REJECTED_STATUS = {"rejected", "已驳回", "审核驳回"}
+# 含「驳回」：快财务应收/应付/进项发票等写回 review_status=驳回（非仅「已驳回」）
+_REJECTED_STATUS = {"rejected", "已驳回", "审核驳回", "驳回"}
 _REVIEW_APPROVED = {"approved", "审核通过", "已通过", "通过", "已审核"}
-_REVIEW_REJECTED = {"rejected", "已驳回", "审核驳回"}
+_REVIEW_REJECTED = {"rejected", "已驳回", "审核驳回", "驳回"}
 _REVIEW_PENDING = {"待审核", "pending_review", "pending_approval", "已提交", "pending"}
 _REVIEW_DRAFT = {"草稿", "draft", ""}
 

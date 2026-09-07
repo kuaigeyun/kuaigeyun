@@ -58,9 +58,14 @@ def expand_requires_apps(codes: set[str]) -> set[str]:
 
 
 async def resolve_enabled_app_codes(*, tenant_id: int | None = None) -> frozenset[str]:
-    """查询应用中心已安装且启用的应用（含 requires_apps 闭包）。失败抛错，不回落磁盘扫描。"""
+    """查询应用中心已安装且启用的应用（含 requires_apps 闭包）。失败抛错，不回落磁盘扫描。
+
+    tenant_id 为 None（进程 ORM / 路由启动）：合并**全部租户**已启用应用，避免仅按
+    第一个租户裁剪导致其它租户已启用的应用模型未注册（如 navigation-tree 查 KuaioaFormTemplate）。
+    传入 tenant_id 时仅解析该租户启用集。
+    """
     global _CACHE
-    if _CACHE is not None:
+    if tenant_id is None and _CACHE is not None:
         return _CACHE
 
     from infra.infrastructure.database.database import get_db_connection
@@ -68,22 +73,27 @@ async def resolve_enabled_app_codes(*, tenant_id: int | None = None) -> frozense
     conn = await get_db_connection()
     try:
         if tenant_id is None:
-            tenant_row = await conn.fetchrow(
-                "SELECT id FROM infra_tenants ORDER BY id ASC LIMIT 1"
+            rows = await conn.fetch(
+                """
+                SELECT DISTINCT code
+                FROM core_applications
+                WHERE is_installed = TRUE
+                  AND is_active = TRUE
+                  AND deleted_at IS NULL
+                """
             )
-            tenant_id = tenant_row["id"] if tenant_row else 1
-
-        rows = await conn.fetch(
-            """
-            SELECT DISTINCT code
-            FROM core_applications
-            WHERE is_installed = TRUE
-              AND is_active = TRUE
-              AND deleted_at IS NULL
-              AND tenant_id = $1
-            """,
-            tenant_id,
-        )
+        else:
+            rows = await conn.fetch(
+                """
+                SELECT DISTINCT code
+                FROM core_applications
+                WHERE is_installed = TRUE
+                  AND is_active = TRUE
+                  AND deleted_at IS NULL
+                  AND tenant_id = $1
+                """,
+                tenant_id,
+            )
         codes = {str(row["code"]) for row in rows if row.get("code")}
     finally:
         await conn.close()
@@ -98,20 +108,30 @@ async def resolve_enabled_app_codes(*, tenant_id: int | None = None) -> frozense
             await conn2.close()
         if int(total or 0) == 0:
             logger.warning("应用中心尚无记录（首次安装），运行时跳过应用 ORM / 路由")
-            _CACHE = frozenset()
-            return _CACHE
+            if tenant_id is None:
+                _CACHE = frozenset()
+                return _CACHE
+            return frozenset()
         raise RuntimeError(
             "应用中心无已启用应用，无法生成运行时配置。"
             "请先在应用中心安装并启用至少一个应用。"
         )
 
     expanded = expand_requires_apps(codes)
-    _CACHE = frozenset(expanded)
+    if tenant_id is None:
+        _CACHE = frozenset(expanded)
+        logger.info(
+            "启用应用集（全租户并集，含 requires_apps 闭包）: {}",
+            sorted(_CACHE),
+        )
+        return _CACHE
+
     logger.info(
-        "启用应用集（含 requires_apps 闭包）: {}",
-        sorted(_CACHE),
+        "启用应用集（租户 {}，含 requires_apps 闭包）: {}",
+        tenant_id,
+        sorted(expanded),
     )
-    return _CACHE
+    return frozenset(expanded)
 
 
 async def list_active_dependents(tenant_id: int, app_code: str) -> list[tuple[str, str]]:

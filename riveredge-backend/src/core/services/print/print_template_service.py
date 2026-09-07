@@ -1260,9 +1260,28 @@ class PrintTemplateService:
                         header_cells.append(f'<th style="{th_style_attr}">{label or key}</th>')
 
                         if col_type == "image":
+                            # 图片列固定方格居中，避免宽高比与源图留白差异导致整列参差
+                            img_td_parts = []
+                            if cell_border:
+                                img_td_parts.append(f"border:{cell_border}")
+                            img_td_parts.extend(
+                                [
+                                    f"padding:{cell_padding}px",
+                                    f"font-size:{font_size}",
+                                    f"color:{body_tc}",
+                                    "text-align:center",
+                                    "vertical-align:middle",
+                                    "word-break:break-word",
+                                    "overflow-wrap:anywhere",
+                                    "min-width:0",
+                                ]
+                            )
+                            img_td_style_attr = ";".join(img_td_parts)
                             body_cells.append(
-                                f'<td style="{td_style_attr}"><img src="{{{{ {row_alias}.{key} }}}}" '
-                                'style="display:block;max-width:100px;max-height:60px;object-fit:contain;" /></td>'
+                                f'<td style="{img_td_style_attr}">'
+                                f'<span class="print-detail-image-frame">'
+                                f'<img src="{{{{ {row_alias}.{key} }}}}" alt="" />'
+                                f"</span></td>"
                             )
                         elif col_type == "qrcode":
                             qr_expr = f"{row_alias}.{key} | qrcode(size=60)"
@@ -1368,6 +1387,17 @@ class PrintTemplateService:
         parts.append("  thead { display: table-header-group; }")
         parts.append("  tr, td, th { page-break-inside: avoid; }")
         parts.append("  img { max-width: 100%; height: auto; display: block; }")
+        parts.append(
+            "  .print-detail-image-frame {"
+            " display: inline-flex; align-items: center; justify-content: center;"
+            " width: 64px; height: 64px; overflow: hidden; background: #fff;"
+            " box-sizing: border-box; }"
+        )
+        parts.append(
+            "  .print-detail-image-frame img {"
+            " max-width: 100%; max-height: 100%; width: auto; height: auto;"
+            " object-fit: contain; display: block; margin: 0; }"
+        )
         parts.append("  .print-seal-overlay { position: relative; overflow: visible; width: 100%; }")
         parts.append(
             "  .print-seal-overlay-mark { position: absolute !important; z-index: 0; pointer-events: none; }"

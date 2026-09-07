@@ -161,19 +161,28 @@ async def _build_image_data_url_for_local_file(
     """
     将本地文件 UUID 转换为可直接嵌入 <img src> 的 base64 data URL。
     透明处理 RGBA / RGB / 调色板等图像模式，按 size 缩略以控制 PDF 体积。
-    定位、读取或缩略失败必须暴露，禁止塞原图或留空 src 继续打印。
+    MIME 以 FileService.resolve_download_media_type 为准（修正无扩展名被记成 octet-stream 的图片）；
+    仍无法识别时再以 Pillow 打开校验。定位、读取或缩略失败必须暴露。
     """
     try:
         file = await FileService.get_file_by_uuid(tenant_id, file_uuid)
     except Exception as e:
         raise ValidationError(f"打印图片不存在：{file_uuid}") from e
-    file_type = (getattr(file, "file_type", "") or "").lower()
-    if not file_type.startswith("image/"):
-        raise ValidationError(f"打印引用不是图片：{file_uuid}")
     try:
         raw = await FileService.get_file_content(tenant_id, file_uuid)
     except Exception as e:
         raise ValidationError(f"打印图片读取失败：{file_uuid}") from e
+
+    resolved_mime = FileService.resolve_download_media_type(file, raw)
+    if not resolved_mime.startswith("image/"):
+        try:
+            from PIL import Image
+
+            with Image.open(BytesIO(raw)) as probe:
+                probe.load()
+            resolved_mime = "image/png"
+        except Exception as e:
+            raise ValidationError(f"打印引用不是图片：{file_uuid}") from e
 
     target = size if isinstance(size, int) and size > 0 else 512
     target = max(64, min(target, 1024))
@@ -428,7 +437,7 @@ def _first_material_image_ref_for_print(images: Any) -> Tuple[str, str]:
 async def _material_image_data_url_for_pdfme(tenant_id: int, images: Any) -> str:
     """
     pdfme 在浏览器内 fetch 下载 URL 易受鉴权/代理影响；打印变量内直接嵌 data URL，避免二次请求。
-    缩略 256px，与预览下载 size=256 一致，控制 JSON 体积。
+    缩略后垫成 256 正方形白底居中，明细图片列观感整齐。
     """
     kind, ref = _first_material_image_ref_for_print(images)
     if kind == "http" and ref:
@@ -440,24 +449,37 @@ async def _material_image_data_url_for_pdfme(tenant_id: int, images: Any) -> str
     except Exception as e:
         logger.debug("pdfme 嵌图：无法解析文件记录 uuid={} err={}", ref, e)
         return ""
-    ft = (file.file_type or "").lower()
-    if not ft.startswith("image/"):
-        return ""
     try:
         raw = await FileService.get_file_content(tenant_id, ref)
     except Exception as e:
         logger.warning("pdfme 嵌图读取失败 uuid={}: {}", ref, e)
         return ""
+    resolved_mime = FileService.resolve_download_media_type(file, raw)
+    if not resolved_mime.startswith("image/"):
+        try:
+            from PIL import Image
+
+            with Image.open(BytesIO(raw)) as probe:
+                probe.load()
+        except Exception:
+            return ""
     try:
         from PIL import Image
 
+        side = 256
         img = Image.open(BytesIO(raw))
         has_alpha = img.mode in ("RGBA", "LA", "P")
         if has_alpha:
             img = img.convert("RGBA")
-            img.thumbnail((256, 256), Image.Resampling.LANCZOS)
+            img.thumbnail((side, side), Image.Resampling.LANCZOS)
+            canvas = Image.new("RGBA", (side, side), (255, 255, 255, 0))
+            canvas.paste(
+                img,
+                ((side - img.width) // 2, (side - img.height) // 2),
+                img,
+            )
             buf = BytesIO()
-            img.save(buf, format="PNG", optimize=True)
+            canvas.save(buf, format="PNG", optimize=True)
             buf.seek(0)
             out = buf.getvalue()
             mime = "image/png"
@@ -466,16 +488,18 @@ async def _material_image_data_url_for_pdfme(tenant_id: int, images: Any) -> str
                 img = img.convert("RGB")
             elif img.mode not in ("RGB", "L"):
                 img = img.convert("RGB")
-            img.thumbnail((256, 256), Image.Resampling.LANCZOS)
+            img.thumbnail((side, side), Image.Resampling.LANCZOS)
+            canvas = Image.new("RGB", (side, side), (255, 255, 255))
+            canvas.paste(img, ((side - img.width) // 2, (side - img.height) // 2))
             buf = BytesIO()
-            img.save(buf, format="JPEG", quality=85, optimize=True)
+            canvas.save(buf, format="JPEG", quality=85, optimize=True)
             buf.seek(0)
             out = buf.getvalue()
             mime = "image/jpeg"
     except Exception as e:
         logger.warning("pdfme 嵌图缩略失败，回退原图: {}", e)
         out = raw
-        mime = (file.file_type or "image/jpeg").split(";")[0].strip()
+        mime = resolved_mime if resolved_mime.startswith("image/") else "image/jpeg"
         if not mime.startswith("image/"):
             return ""
 

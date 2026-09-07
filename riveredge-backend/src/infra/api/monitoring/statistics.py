@@ -205,21 +205,14 @@ async def get_tenant_statistics(
             plan_count=Count('id')
         ).group_by('plan').values('plan', 'plan_count')
 
-        by_plan = {
-            'basic': 0,
-            'professional': 0,
-            'enterprise': 0
-        }
+        by_plan = {plan.value: 0 for plan in TenantPlan}
 
         for stat in plan_stats:
             plan = stat['plan']
             count = stat['plan_count']
-            if plan in by_plan:
-                by_plan[plan] = count
-
-        # 处理体验套餐（trial）的统计
-        trial_count = await Tenant.filter(plan=TenantPlan.TRIAL).count()
-        by_plan['trial'] = trial_count
+            key = plan.value if hasattr(plan, 'value') else str(plan)
+            if key in by_plan:
+                by_plan[key] = count
 
         return {
             "total": total_tenants,

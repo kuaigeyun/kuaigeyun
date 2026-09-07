@@ -50,6 +50,7 @@ import { formatDateTime, formatBusinessDateOnly, todaySiteDateString, formatAmou
 import { extractProTableSort } from '../../../../../utils/tableQueryKey';
 import { getApiErrorMessage } from '../../../../../utils/errorHandler';
 import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
+import { DictionaryLabel } from '../../../../../components/dictionary-label';
 import { getAntdModal } from '../../../../../utils/antdAppApis';
 import { fetchAllListItems } from '../../../../../utils/fetchAllListPages';
 import { downloadRecordsAsXlsx } from '../../../../../utils/exportRecordsXlsx';
@@ -294,9 +295,10 @@ const SalesReviewsPage: React.FC = () => {
     setReviewModalOpen(true);
   }, []);
 
-    const openEdit = async (record: SalesReviewListItem | SalesReview) => {
+  const openEdit = async (record: SalesReviewListItem | SalesReview) => {
     try {
-      const full = 'items' in record && record.items ? (record as SalesReview) : await salesReviewApi.get(record.id);
+      // 列表 include_items 仅物料名预览，缺 material_id/数量/单价；编辑必须拉详情全量明细
+      const full = await salesReviewApi.get(record.id);
       setEditing(full);
       setModalOpen(true);
     } catch (err) {
@@ -960,7 +962,20 @@ const SalesReviewsPage: React.FC = () => {
             render: (_, row) => renderSalesReviewRiskMarkerTag(t, row.risk_level),
           },
           { title: t('app.kuaizhizao.salesReview.fieldSettlement'), dataIndex: 'settlement_method' },
-          { title: t('app.kuaizhizao.salesReview.fieldPaymentCycle'), dataIndex: 'payment_cycle' },
+          {
+            title: t('app.kuaizhizao.salesReview.fieldPaymentCycle'),
+            dataIndex: 'payment_cycle',
+            render: (_, row) =>
+              row.payment_cycle ? (
+                <DictionaryLabel
+                  dictionaryCode="PAYMENT_TERMS"
+                  value={row.payment_cycle}
+                  notFoundPlaceholder={row.payment_cycle}
+                />
+              ) : (
+                '—'
+              ),
+          },
           {
             title: t('app.kuaizhizao.salesReview.colTotalAmount'),
             dataIndex: 'total_amount',

@@ -27,10 +27,10 @@ export enum TenantPlan {
   TRIAL = 'trial',           // 体验套餐
   BASIC = 'basic',           // 基础版
   PROFESSIONAL = 'professional',  // 专业版
-  ENTERPRISE = 'enterprise',  // 企业版
+  ENTERPRISE = 'enterprise',  // 旗舰版（存库码仍为 enterprise）
 }
 
-/** 套餐档位展示序真源：体验 → 基础 → 专业 → 企业旗舰（与后端 TenantPlan 声明序一致） */
+/** 套餐档位展示序真源：体验 → 基础 → 专业 → 旗舰（与后端 TenantPlan 声明序一致） */
 export const TENANT_PLAN_SORT_ORDER: readonly TenantPlan[] = [
   TenantPlan.TRIAL,
   TenantPlan.BASIC,
@@ -49,6 +49,19 @@ export function compareTenantPlanSort(
   b: string | TenantPlan | null | undefined,
 ): number {
   return tenantPlanSortRank(a) - tenantPlanSortRank(b);
+}
+
+/** 内置套餐类型 i18n key（禁止用套餐名称冒充类型） */
+export const TENANT_PLAN_LABEL_KEYS: Record<TenantPlan, string> = {
+  [TenantPlan.TRIAL]: 'pages.infra.package.planTrial',
+  [TenantPlan.BASIC]: 'pages.infra.package.planBasic',
+  [TenantPlan.PROFESSIONAL]: 'pages.infra.package.planProfessional',
+  [TenantPlan.ENTERPRISE]: 'pages.infra.package.planEnterprise',
+};
+
+export function resolveTenantPlanLabelKey(plan: string | TenantPlan | null | undefined): string | undefined {
+  const key = String(plan || '').trim().toLowerCase() as TenantPlan;
+  return TENANT_PLAN_LABEL_KEYS[key];
 }
 
 /** 套餐类型 MarkerTag 颜色（套餐管理 / 组织管理共用，禁止页面各自映射） */
@@ -466,13 +479,13 @@ function getDefaultPackageConfigs(): AllPackageConfigs {
       description: '适合中型企业使用，提供完整功能和 PRO 应用支持',
     },
     enterprise: {
-      name: '企业版',
+      name: '旗舰版',
       max_users: 1000,
       max_storage_mb: 102400,
       max_branch_organizations: 10,
       allow_pro_apps: true,
       allowed_app_codes: [],
-      description: '适合大型企业使用，提供最高配置和完整功能',
+      description: '适合大型企业使用，提供旗舰级配置和完整功能',
     },
   };
 }

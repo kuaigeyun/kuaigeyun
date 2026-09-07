@@ -15,6 +15,19 @@ from core.utils.timezone_utils import resolve_business_datetime, to_site_date
 
 FINANCE_AGING_BUCKETS = frozenset({"within_30", "31_60", "61_90", "over_90"})
 
+# 财务审核驳回同义值（写路径多为「驳回」，筛选/展示常出现「已驳回」）
+FINANCE_REVIEW_REJECTED_ALIASES = ("驳回", "已驳回", "rejected", "审核驳回")
+
+
+def apply_finance_review_status_filter(query, review_status: Optional[str]):
+    """按审核状态筛选；驳回同义值一并命中。"""
+    rs = (review_status or "").strip()
+    if not rs:
+        return query
+    if rs in FINANCE_REVIEW_REJECTED_ALIASES:
+        return query.filter(review_status__in=list(FINANCE_REVIEW_REJECTED_ALIASES))
+    return query.filter(review_status=rs)
+
 
 def apply_finance_aging_list_filters(
     query,
@@ -314,7 +327,7 @@ def apply_finance_invoice_list_filters(
         if review_status_mode == "sales_status":
             query = apply_sales_invoice_review_status_filter(query, review_status)
         else:
-            query = query.filter(review_status=str(review_status).strip())
+            query = apply_finance_review_status_filter(query, review_status)
     query = apply_finance_doc_date_range(
         query,
         doc_date_field,
@@ -446,13 +459,7 @@ def apply_finance_ar_ap_list_filters(
         keyword_fields=keyword_fields,
     )
     if review_status and str(review_status).strip():
-        query = query.filter(review_status=str(review_status).strip())
-    query = apply_finance_doc_date_range(
-        query,
-        "business_date",
-        start_date=business_date_start,
-        end_date=business_date_end,
-    )
+        query = apply_finance_review_status_filter(query, review_status)
     query = apply_finance_doc_date_range(
         query,
         "due_date",

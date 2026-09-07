@@ -68,6 +68,17 @@ async def append_mounted_form_template_menus(
     if not forms_group:
         return
 
+    # 轻办公未进入本进程 Tortoise 启用集时模型无连接，不可查询
+    if KuaioaFormTemplate._meta.default_connection is None:
+        from loguru import logger
+
+        logger.warning(
+            "navigation-tree 跳过自定义审批挂菜单：KuaioaFormTemplate 未注册到 ORM "
+            "（请确认轻办公已启用并重启后端） tenant_id={}",
+            tenant_id,
+        )
+        return
+
     rows = (
         await KuaioaFormTemplate.filter(
             tenant_id=tenant_id,

@@ -16213,6 +16213,7 @@ export default {
   'app.kuaicaiwu.receivable.lifecycle.refundedFull': '全部退款',
   'app.kuaicaiwu.receivable.lifecycle.suggestionReview': '审核',
   'app.kuaicaiwu.receivable.lifecycle.suggestionRecordReceipt': '登记收款',
+  'app.kuaicaiwu.receivable.lifecycle.suggestionResubmit': '重新提交审核',
   'app.kuaicaiwu.receivable.loadSourceFailed': '加载源单失败',
   'app.kuaicaiwu.receivable.selectSource': '请选择{{label}}',
   'app.kuaicaiwu.receivable.amountRequired': '请输入应收金额',
@@ -16314,6 +16315,7 @@ export default {
   'app.kuaicaiwu.payable.lifecycle.refundedFull': '全部退款',
   'app.kuaicaiwu.payable.lifecycle.suggestionReview': '审核',
   'app.kuaicaiwu.payable.lifecycle.suggestionRecordPayment': '登记付款',
+  'app.kuaicaiwu.payable.lifecycle.suggestionResubmit': '重新提交审核',
   'app.kuaicaiwu.payable.loadSourceFailed': '加载源单失败',
   'app.kuaicaiwu.payable.selectSource': '请选择{{label}}',
   'app.kuaicaiwu.payable.amountRequired': '请输入应付金额',
@@ -26217,6 +26219,42 @@ export default {
     '会计凭证编辑服务器错误修复',
   'pages.dashboard.updateLog.entries.gl-voucher-edit-await-queryset.description':
     '修复凭证详情查询对 Tortoise QuerySet 误用 await（未 .all()），编辑会计凭证不再报 object list / 服务器内部错误。',
+  'pages.dashboard.updateLog.entries.print-detail-image-square-center.title':
+    '打印明细图片列方格居中',
+  'pages.dashboard.updateLog.entries.print-detail-image-square-center.description':
+    '报价等单据打印明细的图片列改为固定方格、水平垂直居中；物料图缩略垫成正方形白底，整列观感更整齐。',
+  'pages.dashboard.updateLog.entries.quotation-print-image-mime.title':
+    '修复报价打印「引用不是图片」',
+  'pages.dashboard.updateLog.entries.quotation-print-image-mime.description':
+    '打印内联图片时按扩展名与文件头识别真实图片 MIME，不再仅因库内 file_type 为 octet-stream 等非 image/* 而报错。',
+  'pages.dashboard.updateLog.entries.finance-ar-ap-reject-resubmit.title':
+    '修复应收/应付误驳回后无法重新提交',
+  'pages.dashboard.updateLog.entries.finance-ar-ap-reject-resubmit.description':
+    '审核相位识别财务写回的「驳回」状态，驳回单据操作列恢复「重新提交」；列表按已驳回筛选可命中同义状态，应付同步生效。',
+  'pages.dashboard.updateLog.entries.nav-tree-kuaioa-orm-ready.title':
+    '修复新环境导航树 500（轻办公 ORM）',
+  'pages.dashboard.updateLog.entries.nav-tree-kuaioa-orm-ready.description':
+    '进程 ORM 启用集改为合并全部租户已启用应用；导航树在轻办公模型未注册时不再查询表单模板，避免 ConfigurationError。',
+  'pages.dashboard.updateLog.entries.package-plan-allow-duplicate.title':
+    '套餐类型允许重复选用',
+  'pages.dashboard.updateLog.entries.package-plan-allow-duplicate.description':
+    '新建套餐时可重复选择体验/基础/专业/旗舰档位；组织按档位取生效套餐时优先启用中且最近更新的记录。',
+  'pages.dashboard.updateLog.entries.settlement-left-row-select.title':
+    '往来核销左侧勾选即可匹配',
+  'pages.dashboard.updateLog.entries.settlement-left-row-select.description':
+    '应收/应付核销左侧待核销单据支持勾选或点行选中；定位入口仅一条时自动选中，避免已勾选仍提示「请先在左侧选择」。',
+  'pages.dashboard.updateLog.entries.package-builtin-plan-four-tiers.title':
+    '新建套餐类型改为内置四档',
+  'pages.dashboard.updateLog.entries.package-builtin-plan-four-tiers.description':
+    '新建套餐的「套餐类型」改为内置档位（体验/基础/专业/旗舰），不再用已建套餐名称冒充类型；名称可自拟。',
+  'pages.dashboard.updateLog.entries.sales-review-payment-cycle-dict-label.title':
+    '订单评审付款周期显示字典中文',
+  'pages.dashboard.updateLog.entries.sales-review-payment-cycle-dict-label.description':
+    '报价下推或编辑订单评审时，付款周期按数据字典「付款条件」展示中文（如月结30天），不再直接显示 NET30 等编码。',
+  'pages.dashboard.updateLog.entries.sales-review-edit-load-items.title':
+    '订单评审编辑正确加载物料明细',
+  'pages.dashboard.updateLog.entries.sales-review-edit-load-items.description':
+    '编辑订单评审时改为拉取详情全量明细，避免误用列表物料预览导致物料未选中、数量单价回落默认值。',
   'pages.dashboard.updateLog.entries.quotation-menu-badge-exclude-pushed.title':
     '报价单菜单徽章不再计入已下推单据',
   'pages.dashboard.updateLog.entries.quotation-menu-badge-exclude-pushed.description':
@@ -28572,7 +28610,7 @@ export default {
   'pages.infra.operation.autoRefreshing': '（自动刷新中...）',
   'pages.infra.operation.planBasic': '基础版',
   'pages.infra.operation.planProfessional': '专业版',
-  'pages.infra.operation.planEnterprise': '企业版',
+  'pages.infra.operation.planEnterprise': '旗舰版',
   'pages.infra.operation.planTrial': '体验套餐',
 
   'pages.infra.operation.tabOrganization': '组织',
@@ -28660,7 +28698,8 @@ export default {
   'pages.infra.package.planTrial': '体验套餐',
   'pages.infra.package.planBasic': '基础版',
   'pages.infra.package.planProfessional': '专业版',
-  'pages.infra.package.planEnterprise': '企业版',
+  'pages.infra.package.planEnterprise': '旗舰版',
+  'pages.infra.package.planBuiltinHelp': '类型为内置档位（体验/基础/专业/旗舰），与套餐名称相互独立；同一档位可创建多条套餐。',
   'pages.infra.package.maxUsers': '用户数限制',
   'pages.infra.package.maxStorage': '存储空间(MB)',
   'pages.infra.package.maxBranchOrganizations': '分支组织上限',
@@ -28694,7 +28733,7 @@ export default {
   'pages.infra.tenant.planTrial': '体验套餐',
   'pages.infra.tenant.planBasic': '基础版',
   'pages.infra.tenant.planProfessional': '专业版',
-  'pages.infra.tenant.planEnterprise': '企业版',
+  'pages.infra.tenant.planEnterprise': '旗舰版',
   'pages.infra.tenant.maxUsers': '最大用户数',
   'pages.infra.tenant.userCount': '已使用用户数',
   'pages.infra.tenant.maxStorage': '存储空间 (MB)',
@@ -28829,7 +28868,7 @@ export default {
   'pages.infra.tenant.planDescriptionTrial': '适合快速体验系统功能，限制用户数和存储空间',
   'pages.infra.tenant.planDescriptionBasic': '适合小型团队使用，提供基础功能',
   'pages.infra.tenant.planDescriptionProfessional': '适合中型企业使用，提供完整功能和 PRO 应用支持',
-  'pages.infra.tenant.planDescriptionEnterprise': '适合大型企业使用，提供最高配置和完整功能',
+  'pages.infra.tenant.planDescriptionEnterprise': '适合大型企业使用，提供旗舰级配置和完整功能',
   'pages.infra.tenant.planType': '套餐类型',
   'pages.infra.tenant.maxUsersShort': '用户数',
   'pages.infra.tenant.maxStorageShort': '存储空间',

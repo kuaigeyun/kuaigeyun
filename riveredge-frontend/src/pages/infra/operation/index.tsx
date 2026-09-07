@@ -204,16 +204,12 @@ export default function OperationsDashboard() {
 
   const planChartData = useMemo(() => {
     if (!tenantStats) return [];
-    const total = tenantStats.total || 0;
-    const basic = tenantStats.by_plan?.basic || 0;
-    const professional = tenantStats.by_plan?.professional || 0;
-    const enterprise = tenantStats.by_plan?.enterprise || 0;
-    const trial = Math.max(0, total - basic - professional - enterprise);
+    const byPlan = tenantStats.by_plan || {};
     return [
-      { name: t('pages.infra.operation.planBasic'), value: basic },
-      { name: t('pages.infra.operation.planProfessional'), value: professional },
-      { name: t('pages.infra.operation.planEnterprise'), value: enterprise },
-      { name: t('pages.infra.operation.planTrial'), value: trial },
+      { name: t('pages.infra.operation.planTrial'), value: byPlan.trial || 0 },
+      { name: t('pages.infra.operation.planBasic'), value: byPlan.basic || 0 },
+      { name: t('pages.infra.operation.planProfessional'), value: byPlan.professional || 0 },
+      { name: t('pages.infra.operation.planEnterprise'), value: byPlan.enterprise || 0 },
     ].filter((item) => item.value > 0);
   }, [tenantStats, t]);
 

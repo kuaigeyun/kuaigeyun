@@ -22,6 +22,7 @@ const STAGE_LABEL_KEYS: Record<string, string> = {
 const NEXT_STEP_KEYS: Record<string, string[]> = {
   pending_review: [`${RL}.suggestionReview`],
   approved: [`${RL}.suggestionRecordReceipt`],
+  rejected: [`${RL}.suggestionResubmit`],
 };
 
 function norm(s: string | undefined): string {
@@ -64,15 +65,15 @@ function buildFallbackLifecycle(record: Record<string, unknown>): BackendLifecyc
 
   if (reviewStatus === '已驳回' || reviewStatus === '驳回') {
     return {
-      current_stage_key: 'pending_review',
+      current_stage_key: 'rejected',
       current_stage_name: '已驳回',
       status: 'exception',
       main_stages: [
         { key: 'pending_review', label: '待审核', status: 'done' },
-        { key: 'approved', label: '已审核', status: 'active' },
+        { key: 'approved', label: '已审核', status: 'pending' },
         { key: 'settled', label: '已结清', status: 'pending' },
       ],
-      next_step_suggestions: [],
+      next_step_suggestions: ['重新提交审核'],
     };
   }
   if (status === '已结清') {

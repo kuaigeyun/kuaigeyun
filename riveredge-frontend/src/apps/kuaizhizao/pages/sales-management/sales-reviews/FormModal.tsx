@@ -37,6 +37,7 @@ import {
 import { toApiDateString } from '../../../../../utils/formDate';
 import { getApiErrorMessage } from '../../../../../utils/errorHandler';
 import { useOptionalLinkedDocumentDetail } from '../../../../../components/linked-document-detail';
+import { getDataDictionaryByCode, getDictionaryItemList } from '../../../../../services/dataDictionary';
 import { SALES_FORM_ROW_GUTTER } from '../shared/salesFormLayout';
 import {
   salesReviewApi,
@@ -99,6 +100,7 @@ export const SalesReviewFormModal: React.FC<SalesReviewFormModalProps> = ({
   const linkedDetail = useOptionalLinkedDocumentDetail();
   const [form] = Form.useForm();
   const [customers, setCustomers] = useState<any[]>([]);
+  const [paymentTermsOptions, setPaymentTermsOptions] = useState<Array<{ label: string; value: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const customerDropdownRef = useRef<any>(null);
 
@@ -119,6 +121,28 @@ export const SalesReviewFormModal: React.FC<SalesReviewFormModalProps> = ({
     void loadCustomerFormReferenceList(KUAIZHIZAO_DOC_HOST.salesReview).then((list) => {
       if (!cancelled) setCustomers(list);
     });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPaymentTerms = async () => {
+      try {
+        const dict = await getDataDictionaryByCode('PAYMENT_TERMS');
+        const items = await getDictionaryItemList(dict.uuid, true);
+        if (cancelled) return;
+        setPaymentTermsOptions(
+          items
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            .map((it) => ({ label: it.label, value: it.value })),
+        );
+      } catch {
+        if (!cancelled) setPaymentTermsOptions([]);
+      }
+    };
+    void loadPaymentTerms();
     return () => {
       cancelled = true;
     };
@@ -368,7 +392,13 @@ export const SalesReviewFormModal: React.FC<SalesReviewFormModalProps> = ({
         </Col>
         <Col xs={24} md={8}>
           <Form.Item name="payment_cycle" label={t('app.kuaizhizao.salesReview.fieldPaymentCycle')}>
-            <Input maxLength={100} />
+            <UniDropdown
+              showSearch
+              allowClear
+              optionFilterProp="label"
+              options={paymentTermsOptions}
+              placeholder={t('app.kuaizhizao.quotation.form.selectPaymentTerms')}
+            />
           </Form.Item>
         </Col>
       </Row>

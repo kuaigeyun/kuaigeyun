@@ -6,8 +6,12 @@ import { ProFormText, ProFormDigit, ProFormSwitch, ProFormSelect, ProFormTextAre
 import SafeProFormSelect from '../../../components/safe-pro-form-select';
 import { useQuery } from '@tanstack/react-query';
 import { getApplicationList } from '../../../services/application';
-import { compareTenantPlanSort, getPackageConfigs } from '../../../services/tenant';
+import {
+  TENANT_PLAN_SORT_ORDER,
+  resolveTenantPlanLabelKey,
+} from '../../../services/tenant';
 import { useTranslation } from 'react-i18next';
+import { useMemo } from 'react';
 
 interface PackageFormProps {
   isEdit?: boolean;
@@ -15,16 +19,19 @@ interface PackageFormProps {
 
 export default function PackageForm({ isEdit = false }: PackageFormProps) {
   const { t } = useTranslation();
-  const { data: packageConfigs = {} } = useQuery({
-    queryKey: ['package-configs-options'],
-    queryFn: async () => getPackageConfigs(),
-  });
-  const planOptions = Object.entries(packageConfigs)
-    .map(([plan, config]) => ({
-      label: config?.name || plan,
-      value: plan,
-    }))
-    .sort((a, b) => compareTenantPlanSort(a.value, b.value));
+
+  /** 新建时类型选项：内置 TenantPlan 档位文案，禁止用套餐名称冒充类型；同档可建多套餐 */
+  const planOptions = useMemo(
+    () =>
+      TENANT_PLAN_SORT_ORDER.map((plan) => {
+        const labelKey = resolveTenantPlanLabelKey(plan);
+        return {
+          label: labelKey ? t(labelKey) : plan,
+          value: plan,
+        };
+      }),
+    [t],
+  );
 
   const { data: applicationOptions = [], isLoading: appOptionsLoading } = useQuery({
     queryKey: ['package-app-options'],
@@ -53,6 +60,7 @@ export default function PackageForm({ isEdit = false }: PackageFormProps) {
           label={t('pages.infra.package.plan')}
           options={planOptions}
           rules={[{ required: true, message: t('pages.infra.package.planRequired') }]}
+          extra={t('pages.infra.package.planBuiltinHelp')}
         />
       )}
 

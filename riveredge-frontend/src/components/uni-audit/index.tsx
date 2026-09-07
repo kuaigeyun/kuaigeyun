@@ -173,7 +173,7 @@ export const UniAuditActions: React.FC<UniAuditActionsProps> = ({
   draftStatuses = ['draft', '草稿'],
   pendingStatuses = ['pending_approval', 'pending_review', '待审核'],
   approvedStatuses = ['approved', 'audited', 'confirmed', '已审核', '已确认', '审核通过'],
-  rejectedStatuses = ['rejected', '已驳回'],
+  rejectedStatuses = ['rejected', '已驳回', '审核驳回', '驳回'],
   workflowAuditEnabled,
   auditNodeKey,
   submitActionLabel = '提交',
@@ -292,9 +292,15 @@ export const UniAuditActions: React.FC<UniAuditActionsProps> = ({
 
   const enabledForLabels = auditFeatureEnabled;
   const approveLabel = enabledForLabels ? '审核' : '确认';
-  const effectiveSubmitLabel = !enabledForLabels && submitActionLabel.includes('审核')
-    ? submitActionLabel.replace(/审核/g, '').trim() || '提交'
-    : submitActionLabel;
+  const effectiveSubmitLabel = (() => {
+    if (isRejected && (!submitActionLabel || submitActionLabel === '提交')) {
+      return '重新提交';
+    }
+    if (!enabledForLabels && submitActionLabel.includes('审核')) {
+      return submitActionLabel.replace(/审核/g, '').trim() || '提交';
+    }
+    return submitActionLabel;
+  })();
 
   const resolvedEndpoints = {
     ...DEFAULT_ENDPOINTS,
