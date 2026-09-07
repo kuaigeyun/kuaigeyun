@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -58,6 +58,7 @@ async def list_documents(
     doc_type: str = Query(...),
     limit: int = Query(50, ge=1, le=500),
     keyword: str = Query(""),
+    include_deleted: bool = Query(True, description="是否包含软删单据（造数工具默认是）"),
     auth: AuthContext = Depends(require_permission_codes("system:document-time-rewrite:read")),
 ) -> dict[str, Any]:
     try:
@@ -66,6 +67,7 @@ async def list_documents(
             doc_type=doc_type,
             limit=limit,
             code_keyword=keyword,
+            include_deleted=bool(include_deleted),
         )
         return {"items": items, "total": len(items)}
     except ValueError as exc:
@@ -133,6 +135,60 @@ async def align_own(
             document_ids=list(body.document_ids),
             sync_operator=bool(body.sync_operator),
             rewrite_code_date=bool(body.rewrite_code_date),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+class ExpandOperationLogsRequest(BaseModel):
+    since: date
+    work: WorkScheduleBody
+    max_rows: int = Field(default=5000, ge=1, le=20000)
+
+
+class RewriteMasterDataUpdatedAtRequest(BaseModel):
+    target_day: date
+    work: WorkScheduleBody
+
+
+@router.post("/expand-operation-logs", summary="将操作日志时间摊开到指定日起")
+async def expand_operation_logs(
+    body: ExpandOperationLogsRequest,
+    auth: AuthContext = Depends(require_permission_codes("system:document-time-rewrite:execute")),
+) -> dict[str, Any]:
+    schedule = WorkScheduleParams(
+        weekdays=list(body.work.weekdays),
+        start_time=body.work.start_time,
+        end_time=body.work.end_time,
+        lookback_days=int(body.work.lookback_days),
+    )
+    try:
+        return await DocumentTimeRewriteService.expand_operation_logs_since(
+            tenant_id=int(auth.tenant_id),
+            since=body.since,
+            schedule=schedule,
+            max_rows=int(body.max_rows),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/rewrite-master-data-updated-at", summary="主数据实体更新时间改到指定日")
+async def rewrite_master_data_updated_at(
+    body: RewriteMasterDataUpdatedAtRequest,
+    auth: AuthContext = Depends(require_permission_codes("system:document-time-rewrite:execute")),
+) -> dict[str, Any]:
+    schedule = WorkScheduleParams(
+        weekdays=list(body.work.weekdays),
+        start_time=body.work.start_time,
+        end_time=body.work.end_time,
+        lookback_days=int(body.work.lookback_days),
+    )
+    try:
+        return await DocumentTimeRewriteService.rewrite_master_data_updated_at(
+            tenant_id=int(auth.tenant_id),
+            target_day=body.target_day,
+            schedule=schedule,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

@@ -99,6 +99,78 @@ REWRITE_SPECS: tuple[RewriteDocSpec, ...] = (
         date_fields=(),
         optional_datetime_fields=("review_time",),
     ),
+    RewriteDocSpec(
+        doc_type="incoming_inspection",
+        label="来料检验",
+        model_path="apps.kuaizhizao.models.incoming_inspection:IncomingInspection",
+        code_field="inspection_code",
+        date_fields=(),
+        optional_datetime_fields=("review_time", "inspection_time"),
+        person_id_field="inspector_id",
+        person_name_field="inspector_name",
+    ),
+    RewriteDocSpec(
+        doc_type="finished_goods_inspection",
+        label="成品检验",
+        model_path="apps.kuaizhizao.models.finished_goods_inspection:FinishedGoodsInspection",
+        code_field="inspection_code",
+        date_fields=(),
+        optional_datetime_fields=("review_time", "inspection_time"),
+        person_id_field="inspector_id",
+        person_name_field="inspector_name",
+    ),
+    RewriteDocSpec(
+        doc_type="production_picking",
+        label="生产领料",
+        model_path="apps.kuaizhizao.models.production_picking:ProductionPicking",
+        code_field="picking_code",
+        date_fields=(),
+        optional_datetime_fields=("review_time", "picking_time"),
+        person_id_field="picker_id",
+        person_name_field="picker_name",
+    ),
+    RewriteDocSpec(
+        doc_type="finished_goods_receipt",
+        label="成品入库",
+        model_path="apps.kuaizhizao.models.finished_goods_receipt:FinishedGoodsReceipt",
+        code_field="receipt_code",
+        date_fields=(),
+        optional_datetime_fields=("review_time", "receipt_time"),
+        person_id_field="receiver_id",
+        person_name_field="receiver_name",
+    ),
+    RewriteDocSpec(
+        doc_type="payable",
+        label="应付单",
+        model_path="apps.kuaicaiwu.models.payable:Payable",
+        code_field="payable_code",
+        date_fields=("business_date",),
+        optional_datetime_fields=("review_time",),
+    ),
+    RewriteDocSpec(
+        doc_type="receivable",
+        label="应收单",
+        model_path="apps.kuaicaiwu.models.receivable:Receivable",
+        code_field="receivable_code",
+        date_fields=("business_date",),
+        optional_datetime_fields=("review_time",),
+    ),
+    RewriteDocSpec(
+        doc_type="payment",
+        label="付款单",
+        model_path="apps.kuaicaiwu.models.payment:Payment",
+        code_field="payment_code",
+        date_fields=("payment_date",),
+        optional_datetime_fields=("review_time",),
+    ),
+    RewriteDocSpec(
+        doc_type="receipt",
+        label="收款单",
+        model_path="apps.kuaicaiwu.models.receipt:Receipt",
+        code_field="receipt_code",
+        date_fields=("receipt_date",),
+        optional_datetime_fields=("review_time",),
+    ),
 )
 
 
@@ -259,6 +331,94 @@ class WorkScheduleParams:
 
         return [dt.astimezone(timezone.utc) for dt in times_site]
 
+    def issue_times_utc_since(
+        self,
+        count: int,
+        *,
+        timezone_name: str,
+        since: date,
+    ) -> list[datetime]:
+        """从 since（含）到当前工作时刻，均匀铺 count 个业务时刻。"""
+        if count < 1:
+            raise ValueError("数量至少为 1")
+        # 校验工作日/上下班，但不套用 lookback_days≤365 限制（起始日可更早）
+        days = sorted({int(d) for d in self.weekdays})
+        if not days:
+            raise ValueError("至少勾选一个工作日")
+        if any(d < 0 or d > 6 for d in days):
+            raise ValueError("工作日须在周一至周日范围内")
+        start = _parse_hhmm(self.start_time, field_name="上班时间")
+        end = _parse_hhmm(self.end_time, field_name="下班时间")
+        if start >= end:
+            raise ValueError("上班时间必须早于下班时间")
+
+        tz = ZoneInfo(timezone_name)
+        now_site = now_utc().astimezone(tz)
+        if since > now_site.date():
+            raise ValueError("起始日期不能晚于今天")
+        end_site = self.clamp_to_work_time(now_site)
+
+        segments: list[tuple[datetime, datetime]] = []
+        day = since
+        while day <= end_site.date():
+            window = self.window_on(day, tz)
+            if window is not None:
+                a, b = window
+                if b > a and a < end_site + timedelta(microseconds=1):
+                    segments.append((a, min(b, end_site + timedelta(microseconds=1))))
+            day += timedelta(days=1)
+        segments = [(a, b) for a, b in segments if b > a]
+        if not segments:
+            raise ValueError("起始日至今日之间没有可用工作时段")
+
+        total = sum((b - a).total_seconds() for a, b in segments)
+        if total <= 0:
+            raise ValueError("可用工作时长为 0")
+
+        times_site: list[datetime] = []
+        if count == 1:
+            times_site.append(end_site)
+        else:
+            span = max(total - 1.0, 0.0)
+            for i in range(count):
+                target = (i / (count - 1)) * span
+                cursor = 0.0
+                chosen = end_site
+                for a, b in segments:
+                    length = (b - a).total_seconds()
+                    if cursor + length >= target:
+                        chosen = a + timedelta(seconds=target - cursor)
+                        break
+                    cursor += length
+                if chosen > end_site:
+                    chosen = end_site
+                times_site.append(chosen)
+
+        return [dt.astimezone(timezone.utc) for dt in times_site]
+
+
+# 主数据实体：改 updated_at（造数测试用）
+MASTER_DATA_UPDATE_SPECS: tuple[tuple[str, str], ...] = (
+    ("apps.master_data.models.customer:Customer", "客户"),
+    ("apps.master_data.models.supplier:Supplier", "供应商"),
+    ("apps.master_data.models.material:Material", "物料"),
+    ("apps.master_data.models.material:MaterialGroup", "物料分组"),
+    ("apps.master_data.models.material:BOM", "物料清单"),
+    ("apps.master_data.models.warehouse:Warehouse", "仓库"),
+    ("apps.master_data.models.warehouse:StorageArea", "库区"),
+    ("apps.master_data.models.warehouse:StorageLocation", "库位"),
+    ("apps.master_data.models.factory:Plant", "厂区"),
+    ("apps.master_data.models.factory:Workshop", "车间"),
+    ("apps.master_data.models.factory:ProductionLine", "产线"),
+    ("apps.master_data.models.factory:Workstation", "工位"),
+    ("apps.master_data.models.factory:WorkCenter", "工作中心"),
+    ("apps.master_data.models.process:Operation", "工序"),
+    ("apps.master_data.models.process:ProcessRoute", "工艺路线"),
+    ("apps.master_data.models.process:DefectType", "不良品类型"),
+    ("apps.master_data.models.unit:MaterialUnit", "单位"),
+    ("apps.master_data.models.product:Product", "产品"),
+)
+
 
 def list_rewrite_doc_types() -> list[dict[str, str]]:
     return [{"doc_type": s.doc_type, "label": s.label} for s in REWRITE_SPECS]
@@ -334,11 +494,13 @@ class DocumentTimeRewriteService:
         doc_type: str,
         limit: int = 50,
         code_keyword: str = "",
+        include_deleted: bool = True,
     ) -> list[dict[str, Any]]:
+        """列出最近单据。造数/时间修正默认含软删，避免测试单被删后工具侧「无数据」。"""
         spec = get_rewrite_spec(doc_type)
         model = _load_model(spec.model_path)
         qs = model.filter(tenant_id=tenant_id)
-        if hasattr(model, "deleted_at"):
+        if (not include_deleted) and hasattr(model, "deleted_at"):
             qs = qs.filter(deleted_at__isnull=True)
         keyword = (code_keyword or "").strip()
         if keyword:
@@ -351,6 +513,7 @@ class DocumentTimeRewriteService:
                     "id": int(row.id),
                     "code": str(getattr(row, spec.code_field, None) or row.id),
                     "created_at": getattr(row, "created_at", None),
+                    "deleted": bool(getattr(row, "deleted_at", None)),
                 }
             )
         return out
@@ -696,5 +859,141 @@ class DocumentTimeRewriteService:
             "errors": errors,
             "timezone": timezone_name,
             "codes": codes_out,
+        }
+
+    @staticmethod
+    async def expand_operation_logs_since(
+        *,
+        tenant_id: int,
+        since: date,
+        schedule: WorkScheduleParams,
+        max_rows: int = 5000,
+    ) -> dict[str, Any]:
+        """
+        将本租户已有操作日志的 created_at 按工作时段均匀摊开到
+        「since ～ 当前」区间（保持 id 升序相对先后），使时间线扩充到指定日起。
+        """
+        from core.models.operation_log import OperationLog
+
+        schedule.validate()
+        timezone_name = site_timezone_name()
+        tz = ZoneInfo(timezone_name)
+        now_site = now_utc().astimezone(tz)
+        if since > now_site.date():
+            raise ValueError("起始日期不能晚于今天")
+
+        limit = max(1, min(int(max_rows), 20000))
+        rows = (
+            await OperationLog.filter(tenant_id=tenant_id)
+            .order_by("id")
+            .limit(limit)
+            .all()
+        )
+        if not rows:
+            raise ValueError("该租户暂无操作日志，无法扩充")
+
+        times = schedule.issue_times_utc_since(
+            len(rows), timezone_name=timezone_name, since=since
+        )
+        updated = 0
+        for row, issued in zip(rows, times):
+            await OperationLog.filter(id=row.id, tenant_id=tenant_id).update(
+                created_at=issued
+            )
+            updated += 1
+
+        return {
+            "updated": updated,
+            "scanned": len(rows),
+            "since": since.isoformat(),
+            "timezone": timezone_name,
+            "truncated": len(rows) >= limit,
+        }
+
+    @staticmethod
+    async def rewrite_master_data_updated_at(
+        *,
+        tenant_id: int,
+        target_day: date,
+        schedule: WorkScheduleParams,
+    ) -> dict[str, Any]:
+        """
+        将主数据实体 updated_at 改到指定业务日的工作时段内；
+        若 created_at 晚于新 updated_at，则一并压到同一时刻。
+        """
+        schedule.validate()
+        timezone_name = site_timezone_name()
+        tz = ZoneInfo(timezone_name)
+        now_site = now_utc().astimezone(tz)
+        if target_day > now_site.date():
+            raise ValueError("目标日期不能晚于今天")
+
+        noon = datetime(
+            target_day.year,
+            target_day.month,
+            target_day.day,
+            12,
+            0,
+            0,
+            tzinfo=tz,
+        )
+        issue_site = schedule.clamp_to_work_time(noon)
+        issue_utc = _as_utc(issue_site)
+
+        per_type: list[dict[str, Any]] = []
+        total_updated = 0
+        total_created_clamped = 0
+        for model_path, label in MASTER_DATA_UPDATE_SPECS:
+            try:
+                model = _load_model(model_path)
+            except Exception as exc:
+                per_type.append(
+                    {
+                        "label": label,
+                        "model": model_path,
+                        "updated": 0,
+                        "error": str(exc),
+                    }
+                )
+                continue
+            if not hasattr(model, "updated_at"):
+                per_type.append(
+                    {
+                        "label": label,
+                        "model": model_path,
+                        "updated": 0,
+                        "error": "无 updated_at 字段",
+                    }
+                )
+                continue
+            qs = model.filter(tenant_id=tenant_id)
+            count = await qs.count()
+            if count <= 0:
+                per_type.append({"label": label, "model": model_path, "updated": 0})
+                continue
+            await qs.update(updated_at=issue_utc)
+            clamped = 0
+            if hasattr(model, "created_at"):
+                clamped = await model.filter(
+                    tenant_id=tenant_id, created_at__gt=issue_utc
+                ).update(created_at=issue_utc)
+            total_updated += count
+            total_created_clamped += int(clamped or 0)
+            per_type.append(
+                {
+                    "label": label,
+                    "model": model_path,
+                    "updated": count,
+                    "created_clamped": int(clamped or 0),
+                }
+            )
+
+        return {
+            "updated": total_updated,
+            "created_clamped": total_created_clamped,
+            "target_day": target_day.isoformat(),
+            "issued_at": issue_site.strftime("%Y-%m-%d %H:%M:%S"),
+            "timezone": timezone_name,
+            "items": per_type,
         }
 
