@@ -230,9 +230,9 @@ const LoginLogsPage: React.FC = () => {
       key: 'login_location',
       ellipsis: true,
       search: false,
-      width: 220,
-      minWidth: 220,
-      uniTableKeepWidth: true,
+      minWidth: 180,
+      uniTableRemainderFlex: true,
+      uniTablePrimaryFlex: true,
       resizable: false,
     },
     {
@@ -270,15 +270,14 @@ const LoginLogsPage: React.FC = () => {
       resizable: false,
     },
     {
-      // 失败原因长短不一：唯一 RemainderFlex
       title: t('pages.system.loginLogs.failureReason'),
       dataIndex: 'failure_reason',
       key: 'failure_reason',
       ellipsis: true,
       search: false,
+      width: 140,
       minWidth: 140,
-      uniTableRemainderFlex: true,
-      uniTablePrimaryFlex: true,
+      uniTableKeepWidth: true,
       resizable: false,
       render: (_: unknown, record: LoginLog) => record.failure_reason || '-',
     },
@@ -307,7 +306,7 @@ const LoginLogsPage: React.FC = () => {
         <UniTable<LoginLog>
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('system.loginLogs')}
-          columnPersistenceId="pages.system.login-logs.list-v5"
+          columnPersistenceId="pages.system.login-logs.list-v6"
           actionRef={actionRef}
           columns={columns}
           request={async (params, sort, _filter, searchFormValues) => {

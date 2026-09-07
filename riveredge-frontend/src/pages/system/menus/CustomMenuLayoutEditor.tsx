@@ -514,12 +514,13 @@ export function buildCustomLayoutPayload(
         children: [],
       };
     });
+    // 与编辑器展示一致：同级先挂菜单叶子，再挂子分组（报表等目录在模块末尾）
     return {
       id: group.id,
       type: group.type,
       title: group.title,
       icon: group.icon,
-      children: [...childGroups, ...menuRefs],
+      children: [...menuRefs, ...childGroups],
     };
   };
 

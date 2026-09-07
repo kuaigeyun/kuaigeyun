@@ -104,7 +104,7 @@ class GlIntegrationReconcileService:
         from apps.kuaicaiwu.models.voucher import Voucher
         from apps.kuaicaiwu.services.posting_service import PostingService
 
-        events = await AccountingEvent.filter(tenant_id=tenant_id).order_by("-id").limit(limit * 3)
+        events = await AccountingEvent.filter(tenant_id=tenant_id).order_by("-id").limit(limit * 3).all()
         posting = PostingService()
         created = []
         skipped = 0

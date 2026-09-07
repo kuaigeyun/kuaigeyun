@@ -204,6 +204,19 @@ const SettlementPage: React.FC = () => {
     setSettleAmount(0);
   }, []);
 
+  /** 关闭核销确认弹窗：只撤销右侧匹配单据，保留左侧已选应收/应付，便于取消后再次点「匹配」 */
+  const dismissArPreview = useCallback(() => {
+    setSelectedReceipt(null);
+    setArPreviewData(null);
+    setSettleAmount(0);
+  }, []);
+
+  const dismissApPreview = useCallback(() => {
+    setSelectedPayment(null);
+    setApPreviewData(null);
+    setSettleAmount(0);
+  }, []);
+
   const clearFocusContext = useCallback(() => {
     setFocusSupplierId(null);
     setFocusCustomerId(null);
@@ -967,7 +980,6 @@ const SettlementPage: React.FC = () => {
           <UniTable
             headerTitle={t(`${P}.pendingReceivables`)}
             actionRef={receivableActionRef}
-            enableRowSelection
             rowKey="id"
             viewTypes={[...tableOnlyViewTypes]}
             columnPersistenceId="apps.kuaicaiwu.pages.finance-management.settlement.list-v4"
@@ -1006,7 +1018,6 @@ const SettlementPage: React.FC = () => {
           <UniTable
             headerTitle={t(`${P}.availableReceipts`)}
             actionRef={receiptActionRef}
-            enableRowSelection
             rowKey="id"
             viewTypes={[...tableOnlyViewTypes]}
             columnPersistenceId="apps.kuaicaiwu.pages.finance-management.settlement:2.list-v4"
@@ -1054,7 +1065,7 @@ const SettlementPage: React.FC = () => {
         open={arPreviewOpen}
         width={MODAL_CONFIG.EXTRA_LARGE_WIDTH}
         onOk={handleManualSettleReceivable}
-        onCancel={resetArSelection}
+        onCancel={dismissArPreview}
         confirmLoading={settleSubmitting}
         okText={t(`${P}.confirmSettle`)}
         okButtonProps={{
@@ -1096,7 +1107,6 @@ const SettlementPage: React.FC = () => {
           <UniTable
             headerTitle={t(`${P}.pendingPayables`)}
             actionRef={payableActionRef}
-            enableRowSelection
             rowKey="id"
             viewTypes={[...tableOnlyViewTypes]}
             columnPersistenceId="apps.kuaicaiwu.pages.finance-management.settlement:payable.list-v4"
@@ -1135,7 +1145,6 @@ const SettlementPage: React.FC = () => {
           <UniTable
             headerTitle={t(`${P}.availablePayments`)}
             actionRef={paymentActionRef}
-            enableRowSelection
             rowKey="id"
             viewTypes={[...tableOnlyViewTypes]}
             columnPersistenceId="apps.kuaicaiwu.pages.finance-management.settlement:payment.list-v4"
@@ -1183,7 +1192,7 @@ const SettlementPage: React.FC = () => {
         open={apPreviewOpen}
         width={MODAL_CONFIG.EXTRA_LARGE_WIDTH}
         onOk={handleManualSettlePayable}
-        onCancel={resetApSelection}
+        onCancel={dismissApPreview}
         confirmLoading={settleSubmitting}
         okText={t(`${P}.confirmSettle`)}
         okButtonProps={{

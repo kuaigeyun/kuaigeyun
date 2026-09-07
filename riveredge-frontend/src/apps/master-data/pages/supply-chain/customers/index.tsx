@@ -742,8 +742,8 @@ const CustomersPage: React.FC = () => {
     {
       title: t('field.customer.name'),
       dataIndex: 'name',
-      width: 180,
-      minWidth: 180,
+      width: 230,
+      minWidth: 230,
       uniTableKeepWidth: true,
       resizable: false,
       ellipsis: true,
@@ -1028,7 +1028,7 @@ const CustomersPage: React.FC = () => {
       <UniTable<Customer>
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('masterData.customers')}
-        columnPersistenceId="apps.master-data.pages.supply-chain.customers.list-v4"
+        columnPersistenceId="apps.master-data.pages.supply-chain.customers.list-v5"
         actionRef={actionRef}
         columns={alignProColumns(columns, GLOBAL_DOC_LIST_FIELD_RANK)}
         request={async (params, sort, __filter, searchFormValues, meta?: UniTableRequestMeta) => {

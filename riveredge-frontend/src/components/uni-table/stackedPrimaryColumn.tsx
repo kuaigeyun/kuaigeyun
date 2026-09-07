@@ -282,6 +282,89 @@ export function formatMaterialCodeSpecLine(code?: string | null, spec?: string |
   return c || s || '-';
 }
 
+/**
+ * 按容器像素宽做中间省略（保留首尾）。悬停 title 仍为全文。
+ * 用于物料次行规格等「可截断」段；编号等标识段勿用本组件。
+ */
+export function UniTableMiddleEllipsisText({
+  text,
+  style,
+  className,
+}: {
+  text: string;
+  style?: React.CSSProperties;
+  className?: string;
+}) {
+  const ref = React.useRef<HTMLSpanElement>(null);
+  const [display, setDisplay] = React.useState(text);
+
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const measure = (sample: string): number => {
+      if (!ctx) return sample.length * 8;
+      const cs = window.getComputedStyle(el);
+      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`.trim();
+      return ctx.measureText(sample).width;
+    };
+
+    const fit = () => {
+      const available = el.clientWidth;
+      if (!(available > 0)) {
+        setDisplay(text);
+        return;
+      }
+      if (measure(text) <= available) {
+        setDisplay(text);
+        return;
+      }
+      let lo = 0;
+      let hi = Math.floor(text.length / 2);
+      let best = '…';
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (mid <= 0) {
+          hi = mid - 1;
+          continue;
+        }
+        const candidate = `${text.slice(0, mid)}…${text.slice(text.length - mid)}`;
+        if (measure(candidate) <= available) {
+          best = candidate;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      setDisplay(best);
+    };
+
+    fit();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => fit()) : null;
+    if (ro) ro.observe(el);
+    return () => ro?.disconnect();
+  }, [text]);
+
+  return (
+    <span
+      ref={ref}
+      className={className}
+      title={text}
+      style={{
+        minWidth: 0,
+        flex: '1 1 auto',
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+        ...style,
+      }}
+    >
+      {display}
+    </span>
+  );
+}
+
 export interface MaterialStackedCellProps {
   material_name?: string | null;
   material_code?: string | null;
@@ -290,7 +373,7 @@ export interface MaterialStackedCellProps {
   primaryExtra?: React.ReactNode;
 }
 
-/** 物料主从堆叠单元格：名称 / 编号·规格 */
+/** 物料主从堆叠单元格：名称 / 编号·规格（规格过长时中间省略，编号不截断） */
 export function MaterialStackedCell({
   material_name,
   material_code,
@@ -298,12 +381,94 @@ export function MaterialStackedCell({
   secondaryCopyable = true,
   primaryExtra,
 }: MaterialStackedCellProps) {
+  const { token } = theme.useToken();
+  const name = String(material_name ?? '').trim() || '-';
+  const code = String(material_code ?? '').trim();
+  const spec = String(material_spec ?? '').trim();
+  const secondaryFull = formatMaterialCodeSpecLine(code, spec);
+  const copyIconStyle: React.CSSProperties = { color: DOC_FOLDER_COPY_ICON_COLOR, fontSize: 11 };
+  const primaryRowHeight = Math.round(token.fontSize * 1.25);
+  const secondaryLineStyle: React.CSSProperties = {
+    fontSize: token.fontSizeSM,
+    lineHeight: 1.2,
+    whiteSpace: 'nowrap',
+    color: token.colorTextSecondary,
+  };
+
   return (
-    <UniTableStackedPrimaryCell
-      primary={String(material_name ?? '')}
-      secondary={formatMaterialCodeSpecLine(material_code, material_spec)}
-      secondaryCopyable={secondaryCopyable}
-      primaryExtra={primaryExtra}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, maxWidth: '100%' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          columnGap: 6,
+          flexWrap: 'nowrap',
+          maxWidth: '100%',
+          minWidth: 0,
+          minHeight: primaryRowHeight,
+          width: '100%',
+        }}
+      >
+        <span
+          title={name}
+          style={{
+            margin: 0,
+            fontSize: token.fontSize,
+            fontWeight: 500,
+            lineHeight: `${primaryRowHeight}px`,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            ...(primaryExtra
+              ? { flex: '0 1 auto', maxWidth: '100%' }
+              : { flex: '1 1 auto', width: '100%' }),
+          }}
+        >
+          {name}
+        </span>
+        {primaryExtra}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          columnGap: 6,
+          marginTop: 1,
+          flexWrap: 'nowrap',
+          minWidth: 0,
+          maxWidth: '100%',
+          overflow: 'hidden',
+          width: '100%',
+        }}
+      >
+        {code ? (
+          <span className={UNI_TABLE_STACKED_IDENTITY_CLASS} style={{ ...secondaryLineStyle, flexShrink: 0 }}>
+            {code}
+          </span>
+        ) : null}
+        {code && spec ? <span style={{ ...secondaryLineStyle, flexShrink: 0 }}>-</span> : null}
+        {spec ? (
+          <UniTableMiddleEllipsisText text={spec} style={secondaryLineStyle} />
+        ) : !code ? (
+          <Typography.Text type="secondary" style={secondaryLineStyle}>
+            -
+          </Typography.Text>
+        ) : null}
+        {secondaryCopyable && secondaryFull !== '-' ? (
+          <Typography.Text
+            copyable={{
+              text: secondaryFull,
+              icon: [
+                <CopyOutlined key="copy" style={copyIconStyle} />,
+                <CopyOutlined key="copied" style={{ ...copyIconStyle, color: '#52c41a' }} />,
+              ],
+              tooltips: ['复制', '已复制'],
+            }}
+            style={{ margin: 0, flexShrink: 0 }}
+          />
+        ) : null}
+      </div>
+    </div>
   );
 }

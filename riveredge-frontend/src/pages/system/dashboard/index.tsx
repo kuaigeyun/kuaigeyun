@@ -394,10 +394,10 @@ export default function DashboardPage() {
   }, [currentUser]);
 
   // 获取待办事项（使用真实API）
-  // 列表上限 50：9 个 Tab × 最多 5 条展示 = 45，50 足够且显著降低后端/序列化成本
+  // 列表上限 100：与后端 Query le=100 对齐，便于评估是否够用
   const { data: todosResult, isLoading: todosLoading, refetch: refetchTodos } = useQuery<TodoListResponse>({
     queryKey: ['dashboard-todos'],
-    queryFn: () => getTodos(50),
+    queryFn: () => getTodos(100),
     refetchInterval: 60000,
   });
 

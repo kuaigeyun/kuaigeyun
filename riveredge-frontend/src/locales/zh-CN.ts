@@ -26205,6 +26205,62 @@ export default {
     '切换组织后工作台 UniTabs 留白恢复',
   'pages.dashboard.updateLog.entries.tenant-switch-unitabs-padding.description':
     '切换组织清空标签且首页路径未变时，会主动补回当前页标签；无标签时仍保留 page-outer 16px 内容壳，避免工作台贴边需整页刷新。',
+  'pages.dashboard.updateLog.entries.kuaiai-menu-leaf-no-icon.title':
+    'KU-AI 二级菜单去掉图标',
+  'pages.dashboard.updateLog.entries.kuaiai-menu-leaf-no-icon.description':
+    'KU-AI 分组下叶子菜单在 manifest 中不再配置 icon，仅保留应用根与分组图标；同步菜单后侧栏与菜单管理一致无叶子图标。',
+  'pages.dashboard.updateLog.entries.kuaielectronics-menu-leaf-no-icon.title':
+    '电子制造二级菜单去掉图标',
+  'pages.dashboard.updateLog.entries.kuaielectronics-menu-leaf-no-icon.description':
+    '电子制造行业包叶子菜单在 manifest 中不再配置 icon；同步菜单后 ESD 看板/点检/管理与 OEM 标签签样不再显示叶子图标。',
+  'pages.dashboard.updateLog.entries.gl-voucher-edit-await-queryset.title':
+    '会计凭证编辑服务器错误修复',
+  'pages.dashboard.updateLog.entries.gl-voucher-edit-await-queryset.description':
+    '修复凭证详情查询对 Tortoise QuerySet 误用 await（未 .all()），编辑会计凭证不再报 object list / 服务器内部错误。',
+  'pages.dashboard.updateLog.entries.quotation-menu-badge-exclude-pushed.title':
+    '报价单菜单徽章不再计入已下推单据',
+  'pages.dashboard.updateLog.entries.quotation-menu-badge-exclude-pushed.description':
+    '侧栏报价单蓝/红徽章只统计尚未关联销售订单、销售合同或订单评审的待办；已下推订单评审但状态仍为「已发送」的报价不再占位。',
+  'pages.dashboard.updateLog.entries.quotation-push-progress-sales-review.title':
+    '报价单下推进度计入订单评审',
+  'pages.dashboard.updateLog.entries.quotation-push-progress-sales-review.description':
+    '报价单已下推订单评审（与直推销售订单互斥路径）时，列表下推进度记为 100%，并在进度气泡中展示关联评审单号。',
+  'pages.dashboard.updateLog.entries.customer-supplier-name-width.title':
+    '客户与供应商名称列加宽',
+  'pages.dashboard.updateLog.entries.customer-supplier-name-width.description':
+    '客户管理、供应商管理名称列由 180 加宽至 230，便于多数公司全称直接完整显示。',
+  'pages.dashboard.updateLog.entries.material-spec-middle-ellipsis.title':
+    '物料名称列规格过长时中间省略',
+  'pages.dashboard.updateLog.entries.material-spec-middle-ellipsis.description':
+    '物料叠列次行保留完整编号参与列宽，规格按列宽做中间省略（悬停仍可看全文），避免规格文字压到邻列。',
+  'pages.dashboard.updateLog.entries.plants-audit-operator-name.title':
+    '厂区等工厂主数据补齐更新人姓名',
+  'pages.dashboard.updateLog.entries.plants-audit-operator-name.description':
+    '种子脚本创建厂区/车间等未写入审计人名导致列表「更新时间」上行显示为横线；已按写路径回填姓名，并修正种子创建必须带操作人。',
+  'pages.dashboard.updateLog.entries.plants-address-remainder.title':
+    '厂区管理地址列吸收列表余量',
+  'pages.dashboard.updateLog.entries.plants-address-remainder.description':
+    '厂区管理列表将「地址」设为唯一余量列，备注改回定宽，宽屏下地址不再被截成省略号后空一大截。',
+  'pages.dashboard.updateLog.entries.dashboard-todos-limit-100.title':
+    '工作台待办事项拉取上限调至 100',
+  'pages.dashboard.updateLog.entries.dashboard-todos-limit-100.description':
+    '系统工作台「待办事项」一次最多展示 100 条（后端允许上限），便于评估是否够用；完整处理仍可走查看全部。',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-reports-last.title':
+    '自组菜单报表分组排到模块末尾',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-reports-last.description':
+    '自组菜单保存时同级先挂业务页再挂子分组，避免销售报表等目录被排到模块最前；并校正已启用自组布局的租户数据。',
+  'pages.dashboard.updateLog.entries.login-logs-location-remainder.title':
+    '登录日志余量留给登录地点',
+  'pages.dashboard.updateLog.entries.login-logs-location-remainder.description':
+    '列表列宽余量改由登录地点列吸收，失败原因改为定宽，减少地点被截断、失败原因空列过宽。',
+  'pages.dashboard.updateLog.entries.settlement-cancel-rematch.title':
+    '往来核销取消后可再次匹配',
+  'pages.dashboard.updateLog.entries.settlement-cancel-rematch.description':
+    '应收/应付核销关闭确认弹窗时保留左侧已选单据，仅撤销右侧匹配；去掉列表勾选与「选择/匹配」双状态，避免取消后再点「匹配」提示请先选择应付单。',
+  'pages.dashboard.updateLog.entries.playwright-chromium-deps-probe.title':
+    '打印 PDF Chromium 系统库检测',
+  'pages.dashboard.updateLog.entries.playwright-chromium-deps-probe.description':
+    '特殊依赖检测改为用 ldd 校验 Chromium 共享库，不再仅看文件存在；补装时自动 install-deps，避免检测就绪但打印仍报 loading shared libraries。',
   'pages.dashboard.updateLog.entries.tenant-selector-sort-id-height.title':
     '顶栏组织选择器按 ID 排序并加高下拉',
   'pages.dashboard.updateLog.entries.tenant-selector-sort-id-height.description':

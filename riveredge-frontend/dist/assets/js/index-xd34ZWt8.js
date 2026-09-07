@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-CC_RGxZu.js";import{N as a}from"./clientRelease-Aaf-Lume.js";const s=()=>t.jsx(a,{to:"/apps/kuaicaiwu/cost-management/cost-calculations?cat=optimization",replace:!0});export{s as default};

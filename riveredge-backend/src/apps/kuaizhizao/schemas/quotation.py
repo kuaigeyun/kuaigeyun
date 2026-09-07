@@ -200,6 +200,10 @@ class QuotationResponse(QuotationBase):
         None,
         description="仍有关联 contract_id，但下游销售合同已不存在（如已删除）时为 True，可再次下推合同",
     )
+    sales_review_downstream_missing: Optional[bool] = Field(
+        None,
+        description="仍有关联 sales_review_id，但下游订单评审已不存在（如已删除）时为 True",
+    )
     capabilities: Optional[QuotationCapabilities] = Field(
         None,
         description="业务态动作 capabilities（不含 RBAC，与 service 门禁一致）",

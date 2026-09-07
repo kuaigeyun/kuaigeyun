@@ -14,28 +14,24 @@
     "children": [
       {
         "title": "app.kuaielectronics.menu.esdDashboard",
-        "icon": "dashboard",
         "path": "/apps/kuaielectronics/esd/dashboard",
         "permission": "kuaielectronics:esd:read",
         "sort_order": 1
       },
       {
         "title": "app.kuaielectronics.menu.esdInspection",
-        "icon": "safety-certificate",
         "path": "/apps/kuaielectronics/esd/inspection",
         "permission": "kuaielectronics:esd:read",
         "sort_order": 2
       },
       {
         "title": "app.kuaielectronics.menu.esd",
-        "icon": "thunderbolt",
         "path": "/apps/kuaielectronics/esd",
         "permission": "kuaielectronics:esd:read",
         "sort_order": 3
       },
       {
         "title": "app.kuaielectronics.menu.labelOem",
-        "icon": "barcode",
         "path": "/apps/kuaielectronics/label-oem",
         "permission": "kuaielectronics:label-oem:read",
         "sort_order": 4

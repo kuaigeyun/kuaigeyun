@@ -1264,6 +1264,7 @@ class QuotationService:
                 "lifecycle": lifecycle,
                 "conversion_downstream_missing": conv_missing,
                 "contract_downstream_missing": contract_missing,
+                "sales_review_downstream_missing": review_missing,
             }
         )
         result = await enrich_quotation_capabilities_on_model(
@@ -1678,6 +1679,9 @@ class QuotationService:
                         "lifecycle": lifecycle,
                         "conversion_downstream_missing": conv_missing,
                         "contract_downstream_missing": contract_missing,
+                        "sales_review_downstream_missing": review_missing_by_id[
+                            int(q.id)
+                        ],
                     }
                 )
             )

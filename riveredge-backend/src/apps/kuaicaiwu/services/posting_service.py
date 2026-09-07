@@ -428,7 +428,7 @@ class PostingService:
         voucher_ids = [v.id for v in vouchers]
         lines = await VoucherLine.filter(
             tenant_id=tenant_id, voucher_id__in=voucher_ids
-        ).order_by("voucher_id", "line_no")
+        ).order_by("voucher_id", "line_no").all()
         lines_by_voucher: Dict[int, List[VoucherLine]] = defaultdict(list)
         for line in lines:
             lines_by_voucher[line.voucher_id].append(line)
@@ -443,10 +443,12 @@ class PostingService:
 
     async def get_voucher_detail(self, tenant_id: int, voucher_id: int) -> Dict[str, Any]:
         voucher = await self._get(tenant_id, voucher_id)
-        lines = await VoucherLine.filter(tenant_id=tenant_id, voucher_id=voucher.id).order_by("line_no")
+        lines = await VoucherLine.filter(
+            tenant_id=tenant_id, voucher_id=voucher.id
+        ).order_by("line_no").all()
         return {
             **self.voucher_to_dict(voucher),
-            "lines": [self.line_to_dict(l) for l in await lines],
+            "lines": [self.line_to_dict(line) for line in lines],
         }
 
     async def _get(self, tenant_id: int, voucher_id: int) -> Voucher:

@@ -376,7 +376,9 @@ class PriceSettlementService(AppBaseService):
         )
         if not batch:
             raise NotFoundError(f"定价单不存在: {batch_id}")
-        lines = await PriceSettlementLine.filter(tenant_id=tenant_id, batch_id=batch.id).order_by("id")
+        lines = await PriceSettlementLine.filter(
+            tenant_id=tenant_id, batch_id=batch.id
+        ).order_by("id").all()
         return self._batch_to_response(batch, lines)
 
     def _batch_to_response(
@@ -433,7 +435,9 @@ class PriceSettlementService(AppBaseService):
         if batch.status == PriceSettlementBatchStatus.CANCELLED.value:
             raise BusinessLogicError("定价单已作废")
 
-        lines = await PriceSettlementLine.filter(tenant_id=tenant_id, batch_id=batch.id).order_by("id")
+        lines = await PriceSettlementLine.filter(
+            tenant_id=tenant_id, batch_id=batch.id
+        ).order_by("id").all()
         if not lines:
             raise BusinessLogicError("定价单无明细")
 

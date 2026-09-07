@@ -7,10 +7,13 @@ import {
 type QuotationPushRow = {
   sales_order_id?: number | null;
   contract_id?: number | null;
+  sales_review_id?: number | null;
   sales_order_code?: string | null;
   contract_code?: string | null;
+  sales_review_code?: string | null;
   conversion_downstream_missing?: boolean | null;
   contract_downstream_missing?: boolean | null;
+  sales_review_downstream_missing?: boolean | null;
 };
 
 type ShipmentNoticeOutboundRow = {
@@ -27,10 +30,13 @@ type ReceiptNoticeInboundRow = {
 const SHIPPED_NOTICE_STATUSES = new Set(['已出库', 'completed', '已完成']);
 const RECEIVED_NOTICE_STATUSES = new Set(['已入库', 'received', '已完成']);
 
+/** 报价下游已选定：销售订单 / 销售合同 / 订单评审（与下推门禁互斥路径一致） */
 export function isQuotationDownstreamPushed(row: QuotationPushRow): boolean {
   const orderPushed = Boolean(row.sales_order_id) && row.conversion_downstream_missing !== true;
   const contractPushed = Boolean(row.contract_id) && row.contract_downstream_missing !== true;
-  return orderPushed || contractPushed;
+  const reviewPushed =
+    Boolean(row.sales_review_id) && row.sales_review_downstream_missing !== true;
+  return orderPushed || contractPushed || reviewPushed;
 }
 
 export function quotationDownstreamPushPercent(row: QuotationPushRow): number {
@@ -57,10 +63,10 @@ function appendPushDocs(
   for (const code of codes) appendPushDoc(docs, label, code);
 }
 
-/** 报价单 → 已下推销售订单 / 销售合同 */
+/** 报价单 → 已下推销售订单 / 销售合同 / 订单评审 */
 export function collectQuotationPushDocuments(
   row: QuotationPushRow,
-  labels: { salesOrder: string; salesContract: string },
+  labels: { salesOrder: string; salesContract: string; salesReview: string },
 ): PushProgressDocument[] {
   const docs: PushProgressDocument[] = [];
   if (Boolean(row.sales_order_id) && row.conversion_downstream_missing !== true) {
@@ -68,6 +74,9 @@ export function collectQuotationPushDocuments(
   }
   if (Boolean(row.contract_id) && row.contract_downstream_missing !== true) {
     appendPushDoc(docs, labels.salesContract, row.contract_code);
+  }
+  if (Boolean(row.sales_review_id) && row.sales_review_downstream_missing !== true) {
+    appendPushDoc(docs, labels.salesReview, row.sales_review_code);
   }
   return docs;
 }

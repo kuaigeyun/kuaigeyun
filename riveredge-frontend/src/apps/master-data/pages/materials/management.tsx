@@ -4428,7 +4428,7 @@ const MaterialsManagementPage: React.FC = () => {
               }}
             >
               <UniTable<Material>
-                columnPersistenceId="apps.master-data.pages.materials.management.list-v3"
+                columnPersistenceId="apps.master-data.pages.materials.management.list-v4"
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('masterData.materials')}
                 tanstackQuery={{ queryKeyPrefix: ['apps.master-data.pages.materials.management', String(selectedGroupKeys[0] ?? 'all')] }}

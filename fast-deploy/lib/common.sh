@@ -88,6 +88,7 @@ special_deps_status_label() {
     case "$1" in
         ok) echo "就绪" ;;
         missing) echo "未安装" ;;
+        deps-missing) echo "缺系统库" ;;
         installing) echo "补装中" ;;
         skipped) echo "已禁用(关闭补装)" ;;
         disabled-present) echo "补装已关 · 浏览器仍在" ;;
@@ -2179,21 +2180,58 @@ playwright_uv_extra_args() {
 }
 
 _playwright_chromium_probe() {
+    # 0=可运行；1=浏览器未装；2=二进制在但系统共享库缺失（打印会 exit 127）
     local uv_bin="$1"
     playwright_export_env
     (cd "$BACKEND_DIR" && export PYTHONPATH="$BACKEND_DIR/src" && \
-        "$uv_bin" run --extra pdf python - <<'PY' >/dev/null 2>&1
+        "$uv_bin" run --extra pdf python - <<'PY'
 import os
+import subprocess
 import sys
 from playwright.sync_api import sync_playwright
 
 with sync_playwright() as p:
     exe = p.chromium.executable_path
-    if exe and os.path.isfile(exe):
-        sys.exit(0)
-sys.exit(1)
+    if not exe or not os.path.isfile(exe):
+        sys.exit(1)
+    if sys.platform.startswith("linux"):
+        try:
+            out = subprocess.check_output(["ldd", exe], text=True, stderr=subprocess.STDOUT)
+        except (OSError, subprocess.CalledProcessError) as exc:
+            text = getattr(exc, "output", None) or str(exc)
+            if "not found" in text:
+                sys.exit(2)
+            sys.exit(1)
+        if "not found" in out:
+            sys.exit(2)
+sys.exit(0)
 PY
     )
+}
+
+_playwright_install_system_deps() {
+    # Linux：为 chrome-headless-shell 安装系统 .so（需 sudo）；无权限时只打印指引
+    local uv_bin="$1"
+    [ "$(uname -s)" = "Linux" ] || return 0
+    playwright_export_env
+    if ! _sudo_can_run; then
+        log_warn "无免密 sudo，无法自动安装 Chromium 系统库"
+        log_warn "请手动执行: cd ${BACKEND_DIR} && sudo $(resolve_uv) run --extra pdf python -m playwright install-deps chromium"
+        return 1
+    fi
+    log_info "安装 Chromium 系统依赖（playwright install-deps）..."
+    if (cd "$BACKEND_DIR" && "$uv_bin" run --extra pdf python -m playwright install-deps chromium); then
+        log_ok "Chromium 系统依赖已安装"
+        return 0
+    fi
+    log_warn "playwright install-deps 未完全成功，详见上方日志"
+    return 1
+}
+
+_playwright_install_chromium_browser() {
+    local uv_bin="$1"
+    playwright_export_env
+    (cd "$BACKEND_DIR" && "$uv_bin" run --extra pdf python -m playwright install chromium)
 }
 
 playwright_current_version() {
@@ -2499,15 +2537,20 @@ check_playwright_chromium() {
         fi
     fi
 
-    local uv_bin on_disk=0
+    local uv_bin probe_rc=0 on_disk=0 deps_ok=0
     uv_bin="$(resolve_uv)"
-    if _playwright_chromium_probe "$uv_bin"; then
-        on_disk=1
-    fi
+    _playwright_chromium_probe "$uv_bin" || probe_rc=$?
+    case "$probe_rc" in
+        0) on_disk=1; deps_ok=1 ;;
+        2) on_disk=1; deps_ok=0 ;;
+        *) on_disk=0; deps_ok=0 ;;
+    esac
 
     if ! playwright_postinstall_enabled; then
-        if [ "$on_disk" -eq 1 ]; then
+        if [ "$on_disk" -eq 1 ] && [ "$deps_ok" -eq 1 ]; then
             echo "disabled-present"
+        elif [ "$on_disk" -eq 1 ]; then
+            echo "deps-missing"
         else
             echo "disabled-missing"
         fi
@@ -2522,11 +2565,13 @@ check_playwright_chromium() {
         *) echo "missing"; return ;;
     esac
 
-    if [ "$on_disk" -eq 1 ]; then
+    if [ "$on_disk" -eq 1 ] && [ "$deps_ok" -eq 1 ]; then
         if playwright_chromium_marker_stale; then
             playwright_write_chromium_marker
         fi
         echo "ok"
+    elif [ "$on_disk" -eq 1 ]; then
+        echo "deps-missing"
     else
         echo "missing"
     fi
@@ -2539,7 +2584,8 @@ ensure_playwright_chromium_sync() {
     ensure_logs_dir
     [ -d "$BACKEND_DIR" ] || return 0
 
-    local st
+    local st uv_bin
+    uv_bin="$(resolve_uv)"
     st="$(check_playwright_chromium)"
     case "$st" in
         ok|skipped|disabled-present) return 0 ;;
@@ -2549,10 +2595,15 @@ ensure_playwright_chromium_sync() {
             st="$(check_playwright_chromium)"
             [ "$st" = "ok" ] && return 0
             ;;
+        deps-missing)
+            log_warn "Chromium 已下载但缺系统共享库，尝试 install-deps..."
+            _playwright_install_system_deps "$uv_bin" || true
+            st="$(check_playwright_chromium)"
+            [ "$st" = "ok" ] && { log_ok "Playwright Chromium 已就绪"; return 0; }
+            ;;
     esac
 
-    local uv_bin logf marker
-    uv_bin="$(resolve_uv)"
+    local logf marker
     logf="$LOGS_DIR/playwright-install.log"
     marker="$LOGS_DIR/playwright-chromium.ready"
     playwright_export_env
@@ -2564,6 +2615,11 @@ ensure_playwright_chromium_sync() {
         if ! "$uv_bin" run --extra pdf python -m playwright --version >>"$logf" 2>&1; then
             echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] skip: Playwright 模块不可用" >>"$logf"
             exit 1
+        fi
+        if [ "$(uname -s)" = "Linux" ]; then
+            echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] start: playwright install-deps chromium" >>"$logf"
+            "$uv_bin" run --extra pdf python -m playwright install-deps chromium >>"$logf" 2>&1 || \
+                echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] warn: install-deps 失败（可能缺 sudo）" >>"$logf"
         fi
         echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] start: playwright install chromium (sync)" >>"$logf"
         if "$uv_bin" run --extra pdf python -m playwright install chromium >>"$logf" 2>&1; then
@@ -2577,6 +2633,15 @@ ensure_playwright_chromium_sync() {
         log_error "Playwright Chromium 安装失败，详见 $logf"
         return 1
     }
+    if [ "$(check_playwright_chromium)" = "deps-missing" ]; then
+        log_warn "Chromium 仍缺系统库，再次尝试 install-deps..."
+        _playwright_install_system_deps "$uv_bin" || true
+    fi
+    if [ "$(check_playwright_chromium)" != "ok" ]; then
+        log_error "Chromium 仍不可用（状态: $(check_playwright_chromium)），详见 $logf"
+        log_error "可手动: cd ${BACKEND_DIR} && sudo $(resolve_uv) run --extra pdf python -m playwright install-deps chromium"
+        return 1
+    fi
     log_ok "Playwright Chromium 已就绪"
     return 0
 }
@@ -2593,14 +2658,28 @@ ensure_playwright_chromium_postinstall() {
     local pidf="$LOGS_DIR/playwright-install.pid"
     [ -d "$BACKEND_DIR" ] || return 0
 
-    local uv_bin
+    local uv_bin probe_rc=0
     uv_bin="$(resolve_uv)"
-    if _playwright_chromium_probe "$uv_bin"; then
+    _playwright_chromium_probe "$uv_bin" || probe_rc=$?
+    if [ "$probe_rc" -eq 0 ]; then
         if playwright_chromium_marker_stale; then
             playwright_write_chromium_marker
         fi
         log_special_ok "Playwright Chromium 已就绪"
         return 0
+    fi
+    if [ "$probe_rc" -eq 2 ]; then
+        log_special "Chromium 已下载但缺系统库，尝试 install-deps..."
+        if _playwright_install_system_deps "$uv_bin"; then
+            probe_rc=0
+            _playwright_chromium_probe "$uv_bin" || probe_rc=$?
+            if [ "$probe_rc" -eq 0 ]; then
+                playwright_write_chromium_marker
+                log_special_ok "Playwright Chromium 已就绪"
+                return 0
+            fi
+        fi
+        log_warn "Chromium 系统库仍缺失；打印 PDF 会失败。请执行: cd ${BACKEND_DIR} && sudo $(resolve_uv) run --extra pdf python -m playwright install-deps chromium"
     fi
 
     if [ -f "$pidf" ]; then
@@ -2626,6 +2705,11 @@ ensure_playwright_chromium_postinstall() {
         if ! "$uv_bin" run --extra pdf python -m playwright --version; then
             echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] skip: Playwright 模块不可用"
             exit 0
+        fi
+        if [ "$(uname -s)" = "Linux" ]; then
+            echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] start: playwright install-deps chromium"
+            "$uv_bin" run --extra pdf python -m playwright install-deps chromium || \
+                echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] warn: install-deps 失败（可能缺 sudo）"
         fi
         echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] start: playwright install chromium"
         if "$uv_bin" run --extra pdf python -m playwright install chromium; then
@@ -3967,6 +4051,11 @@ cmd_check_special() {
     case "$st" in ok|skipped) ;; *) failed=1 ;; esac
     st="$(check_playwright_chromium)"; print_dep_check_line "Chromium" "$st"
     case "$st" in ok|skipped|installing|disabled-present) ;; *) failed=1 ;; esac
+    if [ "$st" = "deps-missing" ]; then
+        echo "  说明: Chromium 二进制已在，但缺 Linux 共享库（打印会报 error while loading shared libraries）。"
+        echo "  修复: cd riveredge-backend && sudo $(resolve_uv) run --extra pdf python -m playwright install-deps chromium"
+        echo "  然后: ./fast-deploy/deploy.sh details   # 应显示 Chromium 就绪"
+    fi
     if [ "$st" = "disabled-missing" ] || [ "$st" = "disabled-present" ] || [ "$st" = "skipped" ]; then
         if low_spec_mode_enabled 2>/dev/null; then
             echo "  说明: 低配模式关闭了 Chromium 后台补装；已装的浏览器仍可用，打印 PDF 不自动补装。"

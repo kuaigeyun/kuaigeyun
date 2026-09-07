@@ -187,6 +187,30 @@ function isSidebarAppGroupTitleItem(item: { key?: React.Key; className?: string 
   );
 }
 
+/** 末级菜单展开后滚入侧栏可视区，避免被底栏挡住且无需预留大块 padding */
+function scrollSidebarOpenedSubmenuIntoView(menuKey: string) {
+  const escaped =
+    typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+      ? CSS.escape(menuKey)
+      : menuKey.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const roots = document.querySelectorAll('.ant-pro-sider-menu');
+  for (const root of roots) {
+    let submenu = root.querySelector(
+      `.ant-menu-submenu[data-menu-id="${escaped}"]`,
+    ) as HTMLElement | null;
+    if (!submenu) {
+      const title = root.querySelector(
+        `.ant-menu-submenu-title[data-menu-id="${escaped}"]`,
+      ) as HTMLElement | null;
+      submenu = title?.closest('.ant-menu-submenu') as HTMLElement | null;
+    }
+    if (!submenu) continue;
+    const subList = submenu.querySelector(':scope > .ant-menu') as HTMLElement | null;
+    (subList || submenu).scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    return;
+  }
+}
+
 /** 与 git HEAD 应用分组标题一致；写在标题文字节点上，避开父级灰色 !important 竞争 */
 const APP_GROUP_TITLE_TEXT_STYLE: React.CSSProperties = {
   fontSize: 12,
@@ -2465,6 +2489,22 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
   );
   const siderFooterRef = useRef<HTMLDivElement>(null);
 
+  const handleSidebarOpenChange = useCallback((keys: string[]) => {
+    setSidebarOpenKeys((prev) => {
+      const next = keys as string[];
+      const newlyOpened = next.filter((k) => !prev.includes(k));
+      if (newlyOpened.length > 0) {
+        const targetKey = newlyOpened[newlyOpened.length - 1];
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            scrollSidebarOpenedSubmenuIntoView(targetKey);
+          });
+        });
+      }
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     if (useSplitSidebarMenu) {
       setSidebarOpenKeys(
@@ -2738,7 +2778,7 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
         collapsed={false}
         selectedKeys={selectedKeys}
         openKeys={sidebarOpenKeys}
-        onOpenChange={setSidebarOpenKeys}
+        onOpenChange={handleSidebarOpenChange}
         searchExtra={sidebarSearchExtra}
         onNavigate={handleSplitNavigate}
       />
@@ -2750,6 +2790,7 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
       sidebarOpenKeys,
       sidebarSearchExtra,
       handleSplitNavigate,
+      handleSidebarOpenChange,
     ],
   );
 
@@ -3355,7 +3396,7 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
             : {
                 openKeys: sidebarOpenKeys,
                 onOpenChange: (keys) => {
-                  setSidebarOpenKeys(keys as string[]);
+                  handleSidebarOpenChange(keys as string[]);
                 },
               }),
           selectedKeys: selectedKeys, // 只选中精确匹配的路径，不选中父级菜单

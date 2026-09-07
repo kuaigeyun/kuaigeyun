@@ -106,6 +106,8 @@ export interface Quotation {
   conversion_downstream_missing?: boolean;
   /** 仍有关联 contract_id，但下游销售合同已不存在（如已删除） */
   contract_downstream_missing?: boolean;
+  /** 仍有关联 sales_review_id，但下游订单评审已不存在（如已删除） */
+  sales_review_downstream_missing?: boolean;
   notes?: string;
   is_active?: boolean;
   created_by?: number;

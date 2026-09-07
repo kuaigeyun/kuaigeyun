@@ -684,8 +684,8 @@ const SuppliersPage: React.FC = () => {
     {
       title: t('field.supplier.name'),
       dataIndex: 'name',
-      width: 180,
-      minWidth: 180,
+      width: 230,
+      minWidth: 230,
       uniTableKeepWidth: true,
       resizable: false,
       ellipsis: true,
@@ -1006,7 +1006,7 @@ const SuppliersPage: React.FC = () => {
       <UniTable<Supplier>
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('masterData.suppliers')}
-        columnPersistenceId="apps.master-data.pages.supply-chain.suppliers.list-v4"
+        columnPersistenceId="apps.master-data.pages.supply-chain.suppliers.list-v5"
         actionRef={actionRef}
         columns={alignProColumns(columns, GLOBAL_DOC_LIST_FIELD_RANK)}
         request={async (params, sort, __filter, searchFormValues, meta?: UniTableRequestMeta) => {

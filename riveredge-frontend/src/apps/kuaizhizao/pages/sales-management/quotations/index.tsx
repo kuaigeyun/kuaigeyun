@@ -1281,6 +1281,7 @@ const QuotationsPage: React.FC = () => {
             documents={collectQuotationPushDocuments(r, {
               salesOrder: t('components.documentTrackingPanel.docType.sales_order'),
               salesContract: t('components.documentTrackingPanel.docType.sales_contract'),
+              salesReview: t('components.documentTrackingPanel.docType.sales_review'),
             })}
             formatMoreDocs={(count) =>
               t('app.kuaizhizao.salesManagement.pushProgress.moreDocs', { count })
@@ -1492,6 +1493,7 @@ const QuotationsPage: React.FC = () => {
                   documents={collectQuotationPushDocuments(record, {
                     salesOrder: t('components.documentTrackingPanel.docType.sales_order'),
                     salesContract: t('components.documentTrackingPanel.docType.sales_contract'),
+                    salesReview: t('components.documentTrackingPanel.docType.sales_review'),
                   })}
                   formatMoreDocs={(count) =>
                     t('app.kuaizhizao.salesManagement.pushProgress.moreDocs', { count })

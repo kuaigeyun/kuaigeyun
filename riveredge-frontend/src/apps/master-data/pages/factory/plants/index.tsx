@@ -542,23 +542,23 @@ const PlantsPage: React.FC = () => {
         hideInSearch: true,
       },
       {
+        // 地址长短不一：唯一 RemainderFlex（稀疏不叠；须同时挂 primaryFlex）
         title: t('app.master-data.plants.address'),
         dataIndex: 'address',
-        width: 220,
-        minWidth: 220,
-        uniTableKeepWidth: true,
+        minWidth: 200,
+        uniTableRemainderFlex: true,
+        uniTablePrimaryFlex: true,
         resizable: false,
         ellipsis: true,
         hideInSearch: true,
         render: (_, r) => r.address || '—',
       },
       {
-        // 备注长短不一：唯一 RemainderFlex（稀疏不叠）
         title: t('common.remark'),
         dataIndex: 'description',
-        minWidth: 160,
-        uniTableRemainderFlex: true,
-        uniTablePrimaryFlex: true,
+        width: 200,
+        minWidth: 200,
+        uniTableKeepWidth: true,
         resizable: false,
         ellipsis: true,
         hideInSearch: true,
@@ -623,7 +623,7 @@ const PlantsPage: React.FC = () => {
     <>
       <ListPageTemplate>
         <UniTable<Plant>
-          columnPersistenceId="apps.master-data.pages.factory.plants.list-v3"
+          columnPersistenceId="apps.master-data.pages.factory.plants.list-v4"
           actionRef={actionRef}
           columns={alignProColumns(columns, MASTER_DATA_LIST_FIELD_RANK)}
           viewTypes={['table', 'help']}

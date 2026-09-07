@@ -478,17 +478,24 @@ async def _section_sales_docs(ctx: BadgeScopeCtx, now_date) -> BadgeFragment:
     sr = SalesReturn.filter(tenant_id=tid, deleted_at__isnull=True)
 
     qb_done = list(dict.fromkeys([*_DOC_TERMINAL_STATUSES, "已接受", "已拒绝", "已转订单"]))
+    # 已选定下游（销售订单 / 合同 / 订单评审）的报价不再占菜单待办：
+    # 下推订单评审不改报价状态（仍可能为「已发送」），若不排除会误显示蓝徽章。
+    qb_open = qb.filter(
+        sales_order_id__isnull=True,
+        contract_id__isnull=True,
+        sales_review_id__isnull=True,
+    )
     rn_done = list(dict.fromkeys([*_DOC_TERMINAL_STATUSES, "已入库", "已签收"]))
     sn_done = list(dict.fromkeys([*_DOC_TERMINAL_STATUSES, "已出库", "已签收"]))
     return_done = list(dict.fromkeys([*_DOC_TERMINAL_STATUSES, "已退货", "RETURNED", "returned"]))
     qb_od, qb_p, qb_x, rn_od, rn_p, rn_x, prt_p, prt_x, sn_od, sn_p, sn_x, sr_p, sr_x = await _gather_counts(
         badge_count(
-            qb.filter(valid_until__lt=now_date, valid_until__isnull=False).exclude(status__in=qb_done),
+            qb_open.filter(valid_until__lt=now_date, valid_until__isnull=False).exclude(status__in=qb_done),
             ctx,
             RES_QUOTATION,
         ),
-        badge_count(qb.filter(review_status__in=_RV_PENDING).exclude(status__in=qb_done), ctx, RES_QUOTATION),
-        badge_count(qb.filter(status="已发送").exclude(review_status__in=_RV_PENDING), ctx, RES_QUOTATION),
+        badge_count(qb_open.filter(review_status__in=_RV_PENDING).exclude(status__in=qb_done), ctx, RES_QUOTATION),
+        badge_count(qb_open.filter(status="已发送").exclude(review_status__in=_RV_PENDING), ctx, RES_QUOTATION),
         rn.filter(planned_receipt_date__lt=now_date, planned_receipt_date__isnull=False)
         .exclude(status__in=rn_done).count(),
         rn.filter(status="待收货").count(),

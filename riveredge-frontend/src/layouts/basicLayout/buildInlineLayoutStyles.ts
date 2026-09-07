@@ -1460,7 +1460,9 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
         
         /* （菜单图标颜色由 currentColor 继承自上面的菜单项文字色，无需单独的 .anticon 规则，已清理） */
         
-        /* 侧栏 flex：ProLayout 中间滚动区承载 overflow，底栏固定，避免最后一项被遮挡 */
+        /* 侧栏 flex：中间滚动区 flex:1，底栏贴底；底部仅留小间距。
+         * 末项展开靠滚动进可视区（见 BasicLayout scrollSidebarMenuIntoView），
+         * 不再用页脚等高 padding 预留，避免菜单少时大块留白。 */
         .ant-pro-layout .ant-pro-sider .ant-layout-sider-children {
           display: flex !important;
           flex-direction: column !important;
@@ -1469,11 +1471,12 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
         }
         .ant-pro-layout .ant-pro-sider .ant-layout-sider-children > div:has(> .ant-pro-sider-menu),
         .ant-pro-layout .ant-pro-sider .ant-layout-sider-children > div:has(> .riveredge-split-sidebar) {
-          flex: 1 1 auto !important;
+          flex: 1 1 0 !important;
           min-height: 0 !important;
           overflow-x: hidden !important;
           overflow-y: auto !important;
-          padding-bottom: var(--riveredge-sider-footer-height, 0px) !important;
+          padding-bottom: 12px !important;
+          scroll-padding-bottom: 12px !important;
           box-sizing: border-box !important;
         }
         html[data-sidebar-menu-layout="split"] .ant-pro-sider .ant-layout-sider-children > div:has(> .riveredge-split-sidebar) {
@@ -1483,6 +1486,7 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           min-height: 0 !important;
           height: 100% !important;
           padding-bottom: 0 !important;
+          scroll-padding-bottom: 0 !important;
           overflow: hidden !important;
         }
         .ant-pro-layout .ant-pro-sider-menu {
@@ -2701,6 +2705,8 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           overflow-y: auto !important;
           scrollbar-width: none !important;
           background: ${siderBgColor} !important;
+          padding-bottom: 12px !important;
+          scroll-padding-bottom: 12px !important;
           --riveredge-split-menu-row-margin: 3px;
           --riveredge-split-menu-row-width: calc(100% - 6px);
           --riveredge-split-menu-pad-l1: 8px;
@@ -2724,7 +2730,7 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
           border-inline-end: none !important;
           background: ${siderBgColor} !important;
           padding-top: 4px !important;
-          padding-bottom: 8px !important;
+          padding-bottom: 0 !important;
         }
         html[data-sidebar-menu-layout="split"] .riveredge-split-sidebar-secondary .ant-pro-sider-menu.ant-menu-inline .ant-menu-sub.ant-menu-inline {
           padding-inline-start: 0 !important;
@@ -2777,6 +2783,30 @@ export function buildThemeLayoutStyles(ctx: BasicLayoutStyleContext): string {
         html[data-sidebar-menu-layout="split"] .riveredge-split-sidebar-secondary .ant-pro-sider-menu .ant-menu-item.ant-menu-item-selected .ant-menu-title-content a,
         html[data-sidebar-menu-layout="split"] .riveredge-split-sidebar-secondary .ant-pro-sider-menu .ant-menu-item.ant-menu-item-selected .ant-menu-title-content span {
           color: #fff !important;
+        }
+        /*
+         * APP 分组标题与上方菜单的间距：打在分组容器上用 padding-top（不折叠）。
+         * 放在样式表末尾；同时兼容 ant-pro-sider-menu 与 ant-menu 同节点 / 嵌套两种 DOM。
+         */
+        .ant-pro-layout .ant-pro-sider-menu > .ant-menu-item-group.menu-group-title-app,
+        .ant-pro-layout .ant-pro-sider-menu > .ant-menu-item-group.app-menu-container-start,
+        .ant-pro-layout .ant-pro-sider-menu > .ant-menu-item-group:has([data-app-menu-group]),
+        .ant-pro-layout .ant-pro-sider-menu > .ant-menu-item-group:has(.menu-group-title-app-inner),
+        .ant-pro-layout .ant-pro-sider-menu > .ant-menu-item-group:has(.app-group-placeholder-item),
+        .ant-pro-layout .ant-pro-sider-menu > .ant-menu-item-group:has([data-menu-id*="app-group-placeholder"]),
+        .ant-pro-layout .ant-pro-sider-menu > .ant-menu-submenu.menu-group-title-app,
+        .ant-pro-layout .ant-pro-sider-menu > .ant-menu-item.menu-group-title-app,
+        .ant-pro-layout .ant-pro-sider-menu > .ant-menu-item[class*="menu-group-title-app"]:not(.app-group-placeholder-item),
+        .ant-pro-layout .ant-pro-sider-menu .ant-menu > .ant-menu-item-group.menu-group-title-app,
+        .ant-pro-layout .ant-pro-sider-menu .ant-menu > .ant-menu-item-group.app-menu-container-start,
+        .ant-pro-layout .ant-pro-sider-menu .ant-menu > .ant-menu-item-group:has([data-app-menu-group]),
+        .ant-pro-layout .ant-pro-sider-menu .ant-menu > .ant-menu-item-group:has(.menu-group-title-app-inner),
+        .ant-pro-layout .ant-pro-sider-menu .ant-menu > .ant-menu-item-group:has(.app-group-placeholder-item),
+        .ant-pro-layout .ant-pro-sider-menu .ant-menu > .ant-menu-item-group:has([data-menu-id*="app-group-placeholder"]),
+        .ant-pro-layout .ant-pro-sider-menu .ant-menu > .ant-menu-submenu.menu-group-title-app,
+        .ant-pro-layout .ant-pro-sider-menu .ant-menu > .ant-menu-item.menu-group-title-app,
+        .ant-pro-layout .ant-pro-sider-menu .ant-menu > .ant-menu-item[class*="menu-group-title-app"]:not(.app-group-placeholder-item) {
+          padding-top: 8px !important;
         }
       `;
 }
