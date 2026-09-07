@@ -26219,6 +26219,10 @@ export default {
     '会计凭证编辑服务器错误修复',
   'pages.dashboard.updateLog.entries.gl-voucher-edit-await-queryset.description':
     '修复凭证详情查询对 Tortoise QuerySet 误用 await（未 .all()），编辑会计凭证不再报 object list / 服务器内部错误。',
+  'pages.dashboard.updateLog.entries.doc-code-use-business-date.title':
+    '单据编号日期跟业务日',
+  'pages.dashboard.updateLog.entries.doc-code-use-business-date.description':
+    '生成报价/订单等单号时，日期段优先使用单据业务日（如报价日期、订单日期），不再一律取当前自然日；便于补录历史单据时单号与业务日一致。',
   'pages.dashboard.updateLog.entries.print-detail-image-square-center.title':
     '打印明细图片列方格居中',
   'pages.dashboard.updateLog.entries.print-detail-image-square-center.description':

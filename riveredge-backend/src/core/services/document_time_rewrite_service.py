@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
 from importlib import import_module
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from core.utils.timezone_utils import now_utc, site_timezone_name, to_site_date
+from core.utils.timezone_utils import (
+    now_utc,
+    resolve_business_datetime,
+    site_timezone_name,
+    to_site_date,
+)
 
 
 @dataclass(frozen=True)
@@ -20,6 +26,11 @@ class RewriteDocSpec:
     date_fields: tuple[str, ...] = ()
     datetime_fields: tuple[str, ...] = ("created_at", "updated_at")
     optional_datetime_fields: tuple[str, ...] = ("review_time",)
+    # 造数对齐：更新人/创建人 ← 单据业务人员
+    person_id_field: str | None = None
+    person_name_field: str | None = None
+    # 与主单号同步改写日期段（如报价系列号）
+    extra_code_fields: tuple[str, ...] = ()
 
 
 REWRITE_SPECS: tuple[RewriteDocSpec, ...] = (
@@ -30,6 +41,8 @@ REWRITE_SPECS: tuple[RewriteDocSpec, ...] = (
         code_field="order_code",
         date_fields=("order_date",),
         optional_datetime_fields=("review_time",),
+        person_id_field="salesman_id",
+        person_name_field="salesman_name",
     ),
     RewriteDocSpec(
         doc_type="purchase_order",
@@ -38,6 +51,8 @@ REWRITE_SPECS: tuple[RewriteDocSpec, ...] = (
         code_field="order_code",
         date_fields=("order_date",),
         optional_datetime_fields=("review_time",),
+        person_id_field="buyer_id",
+        person_name_field="buyer_name",
     ),
     RewriteDocSpec(
         doc_type="work_order",
@@ -54,6 +69,9 @@ REWRITE_SPECS: tuple[RewriteDocSpec, ...] = (
         code_field="quotation_code",
         date_fields=("quotation_date", "valid_until", "delivery_date"),
         optional_datetime_fields=("review_time",),
+        person_id_field="salesman_id",
+        person_name_field="salesman_name",
+        extra_code_fields=("quotation_series_code",),
     ),
     RewriteDocSpec(
         doc_type="demand",
@@ -62,6 +80,8 @@ REWRITE_SPECS: tuple[RewriteDocSpec, ...] = (
         code_field="demand_code",
         date_fields=("start_date", "end_date"),
         optional_datetime_fields=("review_time",),
+        person_id_field="salesman_id",
+        person_name_field="salesman_name",
     ),
     RewriteDocSpec(
         doc_type="sales_delivery",
@@ -258,9 +278,53 @@ def _load_model(model_path: str) -> Any:
 
 
 def _as_utc(dt: datetime) -> datetime:
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+    return resolve_business_datetime(dt)
+
+
+_DATE_IN_CODE_RE = re.compile(r"^(\D*)(\d{8})")
+
+
+def _replace_code_date(code: str, biz_day: date) -> str:
+    """将单号中紧随前缀的 YYYYMMDD 换成业务日；无日期段则原样返回。"""
+    text = (code or "").strip()
+    if not text:
+        return text
+    match = _DATE_IN_CODE_RE.match(text)
+    if not match:
+        return text
+    new_token = biz_day.strftime("%Y%m%d")
+    if match.group(2) == new_token:
+        return text
+    return f"{match.group(1)}{new_token}{text[match.end() :]}"
+
+
+async def _allocate_unique_code(
+    *,
+    model: Any,
+    tenant_id: int,
+    code_field: str,
+    desired: str,
+    exclude_id: int,
+) -> str:
+    """若 desired 已被其它单据占用，则递增末尾数字直至唯一。"""
+    candidate = desired
+    for _ in range(500):
+        clash = (
+            await model.filter(tenant_id=tenant_id)
+            .filter(**{code_field: candidate})
+            .exclude(id=exclude_id)
+        )
+        if hasattr(model, "deleted_at"):
+            clash = clash.filter(deleted_at__isnull=True)
+        if not await clash.exists():
+            return candidate
+        trail = re.search(r"(\d+)(?!.*\d)", candidate)
+        if not trail:
+            raise ValueError(f"单号冲突且无法递增: {candidate}")
+        width = len(trail.group(1))
+        nxt = int(trail.group(1)) + 1
+        candidate = candidate[: trail.start(1)] + str(nxt).zfill(width) + candidate[trail.end(1) :]
+    raise ValueError(f"单号冲突次数过多: {desired}")
 
 
 class DocumentTimeRewriteService:
@@ -293,12 +357,115 @@ class DocumentTimeRewriteService:
         return out
 
     @staticmethod
+    async def _build_payload(
+        *,
+        row: Any,
+        model: Any,
+        tenant_id: int,
+        spec: RewriteDocSpec,
+        issue_at: datetime,
+        sync_operator: bool,
+        rewrite_code_date: bool,
+        preserve_relative_dates: bool,
+    ) -> dict[str, Any]:
+        issue_utc = _as_utc(issue_at)
+        biz_day = to_site_date(issue_utc)
+        payload: dict[str, Any] = {}
+
+        primary_date_field = spec.date_fields[0] if spec.date_fields else None
+        primary_before: date | None = None
+        if primary_date_field and hasattr(row, primary_date_field):
+            raw = getattr(row, primary_date_field, None)
+            if isinstance(raw, datetime):
+                primary_before = to_site_date(raw)
+            elif isinstance(raw, date):
+                primary_before = raw
+
+        for field_name in spec.date_fields:
+            if not hasattr(row, field_name):
+                continue
+            current = getattr(row, field_name, None)
+            if (
+                preserve_relative_dates
+                and primary_before is not None
+                and field_name != primary_date_field
+                and isinstance(current, date)
+                and not isinstance(current, datetime)
+            ):
+                delta = current - primary_before
+                payload[field_name] = biz_day + delta
+            else:
+                payload[field_name] = biz_day
+
+        for field_name in spec.datetime_fields:
+            if hasattr(row, field_name):
+                payload[field_name] = issue_utc
+        for field_name in spec.optional_datetime_fields:
+            if not hasattr(row, field_name):
+                continue
+            current = getattr(row, field_name, None)
+            if current is None:
+                continue
+            if isinstance(current, date) and not isinstance(current, datetime):
+                payload[field_name] = biz_day
+            else:
+                payload[field_name] = issue_utc
+
+        if sync_operator and spec.person_id_field and hasattr(row, spec.person_id_field):
+            person_id = getattr(row, spec.person_id_field, None)
+            person_name = None
+            if spec.person_name_field and hasattr(row, spec.person_name_field):
+                person_name = getattr(row, spec.person_name_field, None)
+            if person_id is not None:
+                if hasattr(row, "created_by"):
+                    payload["created_by"] = int(person_id)
+                if hasattr(row, "updated_by"):
+                    payload["updated_by"] = int(person_id)
+                if person_name:
+                    name = str(person_name).strip()
+                    if name:
+                        if hasattr(row, "created_by_name"):
+                            payload["created_by_name"] = name
+                        if hasattr(row, "updated_by_name"):
+                            payload["updated_by_name"] = name
+
+        if rewrite_code_date and spec.code_field and hasattr(row, spec.code_field):
+            old_code = str(getattr(row, spec.code_field, "") or "")
+            desired = _replace_code_date(old_code, biz_day)
+            if desired and desired != old_code:
+                unique = await _allocate_unique_code(
+                    model=model,
+                    tenant_id=tenant_id,
+                    code_field=spec.code_field,
+                    desired=desired,
+                    exclude_id=int(row.id),
+                )
+                payload[spec.code_field] = unique
+                for extra in spec.extra_code_fields:
+                    if not hasattr(row, extra):
+                        continue
+                    old_extra = str(getattr(row, extra, "") or "")
+                    if not old_extra:
+                        continue
+                    # 系列号通常等于旧主号；主号改写后同步替换日期段
+                    if old_extra == old_code:
+                        payload[extra] = unique
+                    else:
+                        payload[extra] = _replace_code_date(old_extra, biz_day)
+
+        if not payload:
+            raise ValueError("无可改写字段")
+        return payload
+
+    @staticmethod
     async def rewrite_document_times(
         *,
         tenant_id: int,
         doc_type: str,
         document_ids: list[int],
         schedule: WorkScheduleParams,
+        sync_operator: bool = True,
+        rewrite_code_date: bool = True,
     ) -> dict[str, Any]:
         schedule.validate()
         timezone_name = site_timezone_name()
@@ -312,34 +479,29 @@ class DocumentTimeRewriteService:
         updated = 0
         failed = 0
         errors: list[str] = []
+        codes_out: list[dict[str, Any]] = []
 
         for doc_id, issue_at in zip(ids, issue_times):
             try:
                 row = await model.get_or_none(tenant_id=tenant_id, id=doc_id)
                 if not row:
                     raise ValueError(f"单据不存在: {doc_id}")
-                biz_day = to_site_date(issue_at)
-                payload: dict[str, Any] = {}
-                for field_name in spec.date_fields:
-                    if hasattr(row, field_name):
-                        payload[field_name] = biz_day
-                for field_name in spec.datetime_fields:
-                    if hasattr(row, field_name):
-                        payload[field_name] = _as_utc(issue_at)
-                for field_name in spec.optional_datetime_fields:
-                    if not hasattr(row, field_name):
-                        continue
-                    current = getattr(row, field_name, None)
-                    if current is None:
-                        continue
-                    if isinstance(current, date) and not isinstance(current, datetime):
-                        payload[field_name] = biz_day
-                    else:
-                        payload[field_name] = _as_utc(issue_at)
-                if not payload:
-                    raise ValueError("无可改写字段")
+                payload = await DocumentTimeRewriteService._build_payload(
+                    row=row,
+                    model=model,
+                    tenant_id=tenant_id,
+                    spec=spec,
+                    issue_at=issue_at,
+                    sync_operator=sync_operator,
+                    rewrite_code_date=rewrite_code_date,
+                    preserve_relative_dates=True,
+                )
                 await model.filter(tenant_id=tenant_id, id=doc_id).update(**payload)
                 updated += 1
+                new_code = payload.get(spec.code_field)
+                if new_code is None:
+                    new_code = getattr(row, spec.code_field, None)
+                codes_out.append({"id": doc_id, "code": str(new_code or doc_id)})
             except Exception as exc:
                 failed += 1
                 errors.append(f"id={doc_id}: {exc}")
@@ -349,4 +511,191 @@ class DocumentTimeRewriteService:
             "failed": failed,
             "errors": errors,
             "timezone": timezone_name,
+            "codes": codes_out,
         }
+
+    @staticmethod
+    async def rewrite_documents_at_exact_times(
+        *,
+        tenant_id: int,
+        doc_type: str,
+        items: list[dict[str, Any]],
+        sync_operator: bool = True,
+        rewrite_code_date: bool = True,
+        preserve_business_dates: bool = True,
+    ) -> dict[str, Any]:
+        """
+        按明确业务时刻改写（造数链条逐步对齐）。
+
+        preserve_business_dates=True：不改业务日字段（已由生成器写入），
+        只改 created_at/updated_at、可选审核时刻、更新人、单号日期。
+        """
+        timezone_name = site_timezone_name()
+        spec = get_rewrite_spec(doc_type)
+        model = _load_model(spec.model_path)
+        if not items:
+            raise ValueError("未选择单据")
+
+        updated = 0
+        failed = 0
+        errors: list[str] = []
+        codes_out: list[dict[str, Any]] = []
+
+        for item in items:
+            doc_id = int(item["id"])
+            try:
+                issued_raw = item.get("issued_at")
+                if issued_raw is None:
+                    raise ValueError("缺少 issued_at")
+                if isinstance(issued_raw, datetime):
+                    issue_at = issued_raw
+                else:
+                    text = str(issued_raw).strip().replace("Z", "+00:00")
+                    issue_at = datetime.fromisoformat(text)
+                row = await model.get_or_none(tenant_id=tenant_id, id=doc_id)
+                if not row:
+                    raise ValueError(f"单据不存在: {doc_id}")
+
+                if preserve_business_dates:
+                    # 只动系统戳 / 人 / 单号；业务日保持生成器写入值
+                    slim = RewriteDocSpec(
+                        doc_type=spec.doc_type,
+                        label=spec.label,
+                        model_path=spec.model_path,
+                        code_field=spec.code_field,
+                        date_fields=(),
+                        datetime_fields=spec.datetime_fields,
+                        optional_datetime_fields=spec.optional_datetime_fields,
+                        person_id_field=spec.person_id_field,
+                        person_name_field=spec.person_name_field,
+                        extra_code_fields=spec.extra_code_fields,
+                    )
+                    payload = await DocumentTimeRewriteService._build_payload(
+                        row=row,
+                        model=model,
+                        tenant_id=tenant_id,
+                        spec=slim,
+                        issue_at=issue_at,
+                        sync_operator=sync_operator,
+                        rewrite_code_date=rewrite_code_date,
+                        preserve_relative_dates=False,
+                    )
+                else:
+                    payload = await DocumentTimeRewriteService._build_payload(
+                        row=row,
+                        model=model,
+                        tenant_id=tenant_id,
+                        spec=spec,
+                        issue_at=issue_at,
+                        sync_operator=sync_operator,
+                        rewrite_code_date=rewrite_code_date,
+                        preserve_relative_dates=True,
+                    )
+                await model.filter(tenant_id=tenant_id, id=doc_id).update(**payload)
+                updated += 1
+                new_code = payload.get(spec.code_field)
+                if new_code is None:
+                    new_code = getattr(row, spec.code_field, None)
+                codes_out.append({"id": doc_id, "code": str(new_code or doc_id)})
+            except Exception as exc:
+                failed += 1
+                errors.append(f"id={doc_id}: {exc}")
+
+        return {
+            "updated": updated,
+            "failed": failed,
+            "errors": errors,
+            "timezone": timezone_name,
+            "codes": codes_out,
+        }
+
+    @staticmethod
+    async def align_documents_to_own_fields(
+        *,
+        tenant_id: int,
+        doc_type: str,
+        document_ids: list[int],
+        sync_operator: bool = True,
+        rewrite_code_date: bool = True,
+    ) -> dict[str, Any]:
+        """
+        用单据自身业务日/业务人员对齐审计戳与单号日期（不重排业务日）。
+        无业务日字段时，保留 created_at 的日历日，仅同步人员与单号。
+        """
+        timezone_name = site_timezone_name()
+        tz = ZoneInfo(timezone_name)
+        spec = get_rewrite_spec(doc_type)
+        model = _load_model(spec.model_path)
+        ids = [int(i) for i in document_ids]
+        if not ids:
+            raise ValueError("未选择单据")
+
+        updated = 0
+        failed = 0
+        errors: list[str] = []
+        codes_out: list[dict[str, Any]] = []
+
+        for doc_id in ids:
+            try:
+                row = await model.get_or_none(tenant_id=tenant_id, id=doc_id)
+                if not row:
+                    raise ValueError(f"单据不存在: {doc_id}")
+
+                biz_day: date | None = None
+                primary = spec.date_fields[0] if spec.date_fields else None
+                if primary and hasattr(row, primary):
+                    raw = getattr(row, primary, None)
+                    if isinstance(raw, datetime):
+                        biz_day = to_site_date(raw)
+                    elif isinstance(raw, date):
+                        biz_day = raw
+                if biz_day is None:
+                    created = getattr(row, "created_at", None)
+                    if isinstance(created, datetime):
+                        biz_day = to_site_date(created)
+                if biz_day is None:
+                    raise ValueError("无业务日可对齐")
+
+                issue_at = datetime(
+                    biz_day.year, biz_day.month, biz_day.day, 12, 0, 0, tzinfo=tz
+                )
+                slim = RewriteDocSpec(
+                    doc_type=spec.doc_type,
+                    label=spec.label,
+                    model_path=spec.model_path,
+                    code_field=spec.code_field,
+                    date_fields=(),
+                    datetime_fields=spec.datetime_fields,
+                    optional_datetime_fields=spec.optional_datetime_fields,
+                    person_id_field=spec.person_id_field,
+                    person_name_field=spec.person_name_field,
+                    extra_code_fields=spec.extra_code_fields,
+                )
+                payload = await DocumentTimeRewriteService._build_payload(
+                    row=row,
+                    model=model,
+                    tenant_id=tenant_id,
+                    spec=slim,
+                    issue_at=issue_at,
+                    sync_operator=sync_operator,
+                    rewrite_code_date=rewrite_code_date,
+                    preserve_relative_dates=False,
+                )
+                await model.filter(tenant_id=tenant_id, id=doc_id).update(**payload)
+                updated += 1
+                new_code = payload.get(spec.code_field)
+                if new_code is None:
+                    new_code = getattr(row, spec.code_field, None)
+                codes_out.append({"id": doc_id, "code": str(new_code or doc_id)})
+            except Exception as exc:
+                failed += 1
+                errors.append(f"id={doc_id}: {exc}")
+
+        return {
+            "updated": updated,
+            "failed": failed,
+            "errors": errors,
+            "timezone": timezone_name,
+            "codes": codes_out,
+        }
+

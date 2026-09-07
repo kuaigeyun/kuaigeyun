@@ -9,10 +9,44 @@ Date: 2026-01-20
 """
 
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import date, datetime
 import re
 from loguru import logger
 from core.utils.timezone_utils import resolve_business_datetime
+
+# 编码日期组件优先使用的上下文业务日（造数/补录历史单据）
+_CODE_DATE_CONTEXT_KEYS = (
+    "quotation_date",
+    "order_date",
+    "business_date",
+    "doc_date",
+    "receipt_date",
+    "demand_date",
+    "plan_date",
+)
+
+
+def resolve_code_render_datetime(context: Optional[Dict[str, Any]] = None) -> datetime:
+    """编码日期段：有上下文业务日则用之，否则当前业务时刻。"""
+    if context:
+        for key in _CODE_DATE_CONTEXT_KEYS:
+            raw = context.get(key)
+            if raw is None:
+                continue
+            if isinstance(raw, datetime):
+                return resolve_business_datetime(raw)
+            if isinstance(raw, date):
+                return resolve_business_datetime(
+                    datetime(raw.year, raw.month, raw.day, 12, 0, 0)
+                )
+            text = str(raw).strip()
+            if len(text) >= 10:
+                try:
+                    d = date.fromisoformat(text[:10])
+                except ValueError:
+                    continue
+                return resolve_business_datetime(datetime(d.year, d.month, d.day, 12, 0, 0))
+    return resolve_business_datetime()
 
 
 class CodeRuleComponentService:
@@ -217,7 +251,7 @@ class CodeRuleComponentService:
         )
 
         parts = []
-        now = resolve_business_datetime()
+        now = resolve_code_render_datetime(context)
         group_code_field_index = 0
         group_code_field_total = _count_group_code_fields_before_counter(sorted_components)
         render_ctx = dict(context) if context else None

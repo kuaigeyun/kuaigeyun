@@ -21,7 +21,10 @@ from core.models.code_rule import CodeRule
 from core.models.code_sequence import CodeSequence
 from core.models.model_fields import model_has_field
 from core.services.business.code_rule_service import CodeRuleService
-from core.services.code_rule.code_rule_component_service import CodeRuleComponentService
+from core.services.code_rule.code_rule_component_service import (
+    CodeRuleComponentService,
+    resolve_code_render_datetime,
+)
 from core.config.code_rule_pages import get_seq_sync_entity_for_rule
 from infra.exceptions.exceptions import ValidationError
 from core.utils.timezone_utils import resolve_business_datetime, to_site_date
@@ -201,7 +204,11 @@ def _render_prefix_before_auto_counter(
             parts.append(str(val).strip())
         elif ct == "date":
             format_type = comp.get("format_type", "preset")
-            now = resolve_business_datetime()
+            from core.services.code_rule.code_rule_component_service import (
+                resolve_code_render_datetime,
+            )
+
+            now = resolve_code_render_datetime(render_ctx)
             if format_type == "preset":
                 preset_format = comp.get("preset_format", "YYYYMMDD")
                 format_map = {
@@ -387,7 +394,7 @@ class CodeGenerationService:
 
             # 检查是否需要重置序号（业务日历日与编码日期组件一致，用站点时区）
             if seq_reset_rule and seq_reset_rule != "never":
-                now = to_site_date(resolve_business_datetime())
+                now = to_site_date(resolve_code_render_datetime(context))
                 # 如果 reset_date 为空，初始化它但不重置序号（或者是第一次创建）
                 if not sequence.reset_date:
                     sequence.reset_date = now
@@ -524,7 +531,7 @@ class CodeGenerationService:
                     )
 
             if seq_reset_rule and seq_reset_rule != "never":
-                now = to_site_date(resolve_business_datetime())
+                now = to_site_date(resolve_code_render_datetime(context))
                 if not sequence.reset_date:
                     sequence.reset_date = now
                 elif sequence.reset_date != now:
@@ -671,7 +678,7 @@ class CodeGenerationService:
             base_seq = sequence.current_seq
             # 与 generate_code 相同的重置检查（不写库；站点业务日）
             if seq_reset_rule and seq_reset_rule != "never":
-                now = to_site_date(resolve_business_datetime())
+                now = to_site_date(resolve_code_render_datetime(context))
                 if not sequence.reset_date:
                      # 假设 reset_date 会被更新为 now
                      pass

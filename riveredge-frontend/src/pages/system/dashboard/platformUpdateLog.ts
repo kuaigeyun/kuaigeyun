@@ -36,6 +36,13 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'doc-code-use-business-date',
+    date: '2026-09-07',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.doc-code-use-business-date.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.doc-code-use-business-date.description',
+  },
+  {
     id: 'print-detail-image-square-center',
     date: '2026-09-07',
     type: 'improvement',

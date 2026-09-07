@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -28,6 +29,21 @@ class RewriteRequest(BaseModel):
     doc_type: str
     document_ids: list[int] = Field(min_length=1)
     work: WorkScheduleBody
+    sync_operator: bool = True
+    rewrite_code_date: bool = True
+
+
+class RewriteExactItem(BaseModel):
+    id: int
+    issued_at: datetime
+
+
+class RewriteExactRequest(BaseModel):
+    doc_type: str
+    items: list[RewriteExactItem] = Field(min_length=1)
+    sync_operator: bool = True
+    rewrite_code_date: bool = True
+    preserve_business_dates: bool = True
 
 
 @router.get("/doc-types", summary="可修正的单据类型")
@@ -73,6 +89,50 @@ async def rewrite_times(
             doc_type=body.doc_type,
             document_ids=list(body.document_ids),
             schedule=schedule,
+            sync_operator=bool(body.sync_operator),
+            rewrite_code_date=bool(body.rewrite_code_date),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/rewrite-exact", summary="按明确业务时刻改写单据时间/人员/单号日期")
+async def rewrite_times_exact(
+    body: RewriteExactRequest,
+    auth: AuthContext = Depends(require_permission_codes("system:document-time-rewrite:execute")),
+) -> dict[str, Any]:
+    try:
+        return await DocumentTimeRewriteService.rewrite_documents_at_exact_times(
+            tenant_id=int(auth.tenant_id),
+            doc_type=body.doc_type,
+            items=[{"id": it.id, "issued_at": it.issued_at} for it in body.items],
+            sync_operator=bool(body.sync_operator),
+            rewrite_code_date=bool(body.rewrite_code_date),
+            preserve_business_dates=bool(body.preserve_business_dates),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+class AlignOwnRequest(BaseModel):
+    doc_type: str
+    document_ids: list[int] = Field(min_length=1)
+    sync_operator: bool = True
+    rewrite_code_date: bool = True
+
+
+@router.post("/align-own", summary="按单据自身业务日/人员对齐更新时间与单号日期")
+async def align_own(
+    body: AlignOwnRequest,
+    auth: AuthContext = Depends(require_permission_codes("system:document-time-rewrite:execute")),
+) -> dict[str, Any]:
+    try:
+        return await DocumentTimeRewriteService.align_documents_to_own_fields(
+            tenant_id=int(auth.tenant_id),
+            doc_type=body.doc_type,
+            document_ids=list(body.document_ids),
+            sync_operator=bool(body.sync_operator),
+            rewrite_code_date=bool(body.rewrite_code_date),
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
