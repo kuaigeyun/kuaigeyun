@@ -28,12 +28,27 @@ class TenantPlan(str, Enum):
     """
     组织套餐枚举
     
-    定义组织的套餐类型
+    定义组织的套餐类型。枚举声明序即档位展示序：体验 → 基础 → 专业 → 企业旗舰。
     """
     TRIAL = "trial"                    # 体验套餐
     BASIC = "basic"                    # 基础套餐
     PROFESSIONAL = "professional"     # 专业套餐
     ENTERPRISE = "enterprise"          # 企业套餐
+
+
+# 套餐档位展示序真源（列表 / 下拉 / 排序共用；与 TenantPlan 声明序一致）
+TENANT_PLAN_SORT_ORDER: tuple[TenantPlan, ...] = tuple(TenantPlan)
+
+
+def tenant_plan_sort_rank(plan: TenantPlan | str | None) -> int:
+    """返回套餐档位排序权重；未知套餐排在末尾。"""
+    if plan is None:
+        return len(TENANT_PLAN_SORT_ORDER)
+    key = plan.value if isinstance(plan, TenantPlan) else str(plan).strip().lower()
+    for index, item in enumerate(TENANT_PLAN_SORT_ORDER):
+        if item.value == key:
+            return index
+    return len(TENANT_PLAN_SORT_ORDER)
 
 
 class Tenant(BaseModel):

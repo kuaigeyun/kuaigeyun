@@ -182,7 +182,7 @@ class AuthService:
         tenant_ids = [u.tenant_id for u in users_with_same_account if u.tenant_id is not None]
         if not tenant_ids:
             return []
-        tenants = await Tenant.filter(id__in=tenant_ids, status=TenantStatus.ACTIVE).all()
+        tenants = await Tenant.filter(id__in=tenant_ids, status=TenantStatus.ACTIVE).order_by("id").all()
         return [
             {
                 "id": tenant.id,
@@ -197,7 +197,7 @@ class AuthService:
     async def get_accessible_tenants(self, current_user: User) -> list[dict]:
         """获取当前登录账号可访问组织列表。"""
         if bool(getattr(current_user, "is_infra_admin", False)):
-            tenants = await Tenant.filter(status=TenantStatus.ACTIVE).all()
+            tenants = await Tenant.filter(status=TenantStatus.ACTIVE).order_by("id").all()
             return [
                 {
                     "id": tenant.id,

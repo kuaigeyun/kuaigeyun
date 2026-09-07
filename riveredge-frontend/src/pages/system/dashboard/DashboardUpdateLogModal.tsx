@@ -39,19 +39,33 @@ import {
 
 
 /** 日期导航固定展示的节点数 */
-
 export const UPDATE_LOG_DATE_NAV_NODE_COUNT = 10;
 
+/** 锚点落在窗口首/末且外侧仍有日期时，一次移轴揭示的相邻节点数（须 < nodeCount-1，避免来回抖） */
+export const UPDATE_LOG_DATE_NAV_EDGE_SHIFT = 3;
+
+/** 滚动取锚时在窗口外侧额外扫描的节点数，便于滚到相邻日期时发现锚点并触发移轴 */
+export const UPDATE_LOG_DATE_NAV_PEEK = 2;
+
+/** 单个日期节点占位高度：item 34 + gap 2 */
+export const UPDATE_LOG_DATE_NAV_ITEM_STRIDE = 36;
+
+/** 10 节点视口高度：10*34 + 9*2 */
+export const UPDATE_LOG_DATE_NAV_VIEWPORT_HEIGHT = 358;
 
 
 /**
- * 固定 nodeCount 个日期节点；窗口仅在锚点移出当前窗口时才滑动，避免切换抖动。
+ * 固定 nodeCount 个日期节点。
+ * - 锚点在窗口内部：窗口滞后不跟抖
+ * - 锚点完全跑出窗口：按中心重定位
+ * - 锚点落在窗口首/末且外侧还有日期：向该侧移轴，加载相邻剩余节点
  */
 export function resolveUpdateLogDateNavWindow(
   anchorIndex: number,
   totalGroups: number,
   currentWindowStart: number | null,
   nodeCount: number = UPDATE_LOG_DATE_NAV_NODE_COUNT,
+  edgeShift: number = UPDATE_LOG_DATE_NAV_EDGE_SHIFT,
 ): { indices: number[]; windowStart: number } {
   if (totalGroups <= 0) return { indices: [], windowStart: 0 };
 
@@ -70,6 +84,21 @@ export function resolveUpdateLogDateNavWindow(
     windowStart = Math.max(0, anchorIndex - lead);
   } else if (anchorIndex >= windowStart + nodeCount) {
     windowStart = Math.min(maxStart, anchorIndex - lead);
+  } else {
+    const lastVisible = windowStart + nodeCount - 1;
+    const step = Math.max(1, Math.min(edgeShift, Math.max(1, nodeCount - 2)));
+
+    if (anchorIndex === lastVisible && windowStart < maxStart) {
+      windowStart = Math.min(maxStart, windowStart + step);
+      if (anchorIndex < windowStart) {
+        windowStart = Math.max(0, Math.min(anchorIndex, maxStart));
+      }
+    } else if (anchorIndex === windowStart && windowStart > 0) {
+      windowStart = Math.max(0, windowStart - step);
+      if (anchorIndex >= windowStart + nodeCount) {
+        windowStart = Math.min(maxStart, Math.max(0, anchorIndex - nodeCount + 1));
+      }
+    }
   }
 
   windowStart = Math.max(0, Math.min(windowStart, maxStart));
@@ -248,11 +277,13 @@ function useUpdateLogTimelineAnchor(groupCount: number, resetKey: string) {
 
 
 
-      const navIndices = resolveUpdateLogDateNavWindow(
-        anchorIndexRef.current,
-        groupCount,
-        navWindowStartRef.current,
-      ).indices;
+      const renderedWindowStart = navWindowStartRef.current;
+      const renderedCount = Math.min(UPDATE_LOG_DATE_NAV_NODE_COUNT, groupCount);
+      const scanFrom = Math.max(0, renderedWindowStart - UPDATE_LOG_DATE_NAV_PEEK);
+      const scanTo = Math.min(
+        groupCount - 1,
+        renderedWindowStart + renderedCount - 1 + UPDATE_LOG_DATE_NAV_PEEK,
+      );
 
       let nextAnchor = anchorIndexRef.current;
 
@@ -260,7 +291,7 @@ function useUpdateLogTimelineAnchor(groupCount: number, resetKey: string) {
 
 
 
-      for (const index of navIndices) {
+      for (let index = scanFrom; index <= scanTo; index += 1) {
 
         const header = groupHeaderRefs.current[index];
 
@@ -426,6 +457,8 @@ function useUpdateLogTimelineAnchor(groupCount: number, resetKey: string) {
 
     anchorIndex,
 
+    navWindowStart,
+
     navIndices: resolveUpdateLogDateNavWindow(anchorIndex, groupCount, navWindowStart).indices,
 
     jumpToGroup,
@@ -492,7 +525,7 @@ function UpdateLogDateNavigator({
 
   dateGroups,
 
-  navIndices,
+  navWindowStart,
 
   anchorIndex,
 
@@ -506,7 +539,7 @@ function UpdateLogDateNavigator({
 
   dateGroups: PlatformUpdateDateGroup[];
 
-  navIndices: number[];
+  navWindowStart: number;
 
   anchorIndex: number;
 
@@ -518,48 +551,80 @@ function UpdateLogDateNavigator({
 
 }) {
 
+  const visibleCount = Math.min(UPDATE_LOG_DATE_NAV_NODE_COUNT, dateGroups.length);
+
+  const trackOffset = -navWindowStart * UPDATE_LOG_DATE_NAV_ITEM_STRIDE;
+
+  const viewportHeight =
+    visibleCount <= 0
+      ? 0
+      : visibleCount * 34 + Math.max(0, visibleCount - 1) * 2;
+
   return (
 
     <nav className="dashboard-update-log-date-nav" aria-label={t('pages.dashboard.updateLogDateNavAria')}>
 
-      <div className="dashboard-update-log-date-nav__items">
+      <div
 
-        {navIndices.map((index) => {
+        className="dashboard-update-log-date-nav__viewport"
 
-          const tier = getUpdateLogDateNavTier(index, anchorIndex);
+        style={{ height: viewportHeight || UPDATE_LOG_DATE_NAV_VIEWPORT_HEIGHT }}
 
-          return (
+      >
 
-            <button
+        <div className="dashboard-update-log-date-nav__rail" aria-hidden />
 
-              key={`${dateGroups[index].date}-${index}`}
+        <div
 
-              ref={(element) => setNavItemRef(index, element)}
+          className="dashboard-update-log-date-nav__track"
 
-              type="button"
+          style={{ transform: `translate3d(0, ${trackOffset}px, 0)` }}
 
-              className={[
+        >
 
-                'dashboard-update-log-date-nav__item',
+          {dateGroups.map((group, index) => {
 
-                `dashboard-update-log-date-nav__item--${tier}`,
+            const tier = getUpdateLogDateNavTier(index, anchorIndex);
 
-              ].join(' ')}
+            return (
 
-              aria-current={tier === 'active' ? 'date' : undefined}
+              <button
 
-              onClick={() => onSelect(index)}
+                key={`${group.date}-${index}`}
 
-            >
-              <span className="dashboard-update-log-date-nav__label">
-                {dateGroups[index].date}
-              </span>
-              <span className="dashboard-update-log-date-nav__dot" aria-hidden />
-            </button>
+                ref={(element) => setNavItemRef(index, element)}
 
-          );
+                type="button"
 
-        })}
+                className={[
+
+                  'dashboard-update-log-date-nav__item',
+
+                  `dashboard-update-log-date-nav__item--${tier}`,
+
+                ].join(' ')}
+
+                aria-current={tier === 'active' ? 'date' : undefined}
+
+                onClick={() => onSelect(index)}
+
+              >
+
+                <span className="dashboard-update-log-date-nav__label">
+
+                  {group.date}
+
+                </span>
+
+                <span className="dashboard-update-log-date-nav__dot" aria-hidden />
+
+              </button>
+
+            );
+
+          })}
+
+        </div>
 
       </div>
 
@@ -673,7 +738,7 @@ function UpdateLogTimeline({
 
     anchorIndex,
 
-    navIndices,
+    navWindowStart,
 
     jumpToGroup,
 
@@ -705,7 +770,7 @@ function UpdateLogTimeline({
 
         dateGroups={dateGroups}
 
-        navIndices={navIndices}
+        navWindowStart={navWindowStart}
 
         anchorIndex={anchorIndex}
 

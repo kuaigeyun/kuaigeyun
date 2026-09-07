@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
@@ -84,6 +84,25 @@ const ALERT_KIND_COLOR: Record<string, string> = {
   repair_arrival_overdue: 'error',
 };
 
+const EQUIPMENT_ALERT_MARQUEE_STYLE_ID = 'kz-equipment-alert-marquee-style';
+
+function ensureEquipmentAlertMarqueeStyles() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById(EQUIPMENT_ALERT_MARQUEE_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = EQUIPMENT_ALERT_MARQUEE_STYLE_ID;
+  style.textContent = `
+    @keyframes kz-equipment-alert-marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .kz-equipment-alert-ticker:hover .kz-equipment-alert-ticker__track {
+      animation-play-state: paused;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function stripLeadingAlertLabel(label: string, text: string): string {
   const trimmed = text.trim();
   if (!label || !trimmed) return trimmed;
@@ -111,6 +130,10 @@ const EquipmentDashboard: React.FC = () => {
   const [visitSaving, setVisitSaving] = useState(false);
   const [visitForm] = Form.useForm();
   const visitPerms = useResourcePermissions('kuaizhizao:equipment-board-visit');
+
+  useEffect(() => {
+    ensureEquipmentAlertMarqueeStyles();
+  }, []);
 
   const { data: plantsResult } = useDashboardRequest(
     () => mesDashboardService.getEquipmentBoardPlants(),
@@ -664,15 +687,6 @@ const EquipmentDashboard: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <style>{`
-                @keyframes kz-equipment-alert-marquee {
-                  0% { transform: translateX(0); }
-                  100% { transform: translateX(-50%); }
-                }
-                .kz-equipment-alert-ticker:hover .kz-equipment-alert-ticker__track {
-                  animation-play-state: paused;
-                }
-              `}</style>
             </div>
           ) : null}
           <ModuleKpiRow items={kpis} colProps={{ xs: 24, sm: 12, lg: 6 }} />

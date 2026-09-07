@@ -11,7 +11,7 @@ from tortoise.exceptions import DoesNotExist, IntegrityError
 from loguru import logger
 
 from infra.models.package import Package
-from infra.models.tenant import TenantPlan
+from infra.models.tenant import TenantPlan, tenant_plan_sort_rank
 from infra.schemas.package import PackageCreate, PackageUpdate
 from infra.domain.package_config import get_package_config as get_package_config_fallback
 
@@ -189,41 +189,52 @@ class PackageService:
         # 应用文本字段的模糊搜索
         if name:
             query = query.filter(name__icontains=name)
-        
-        # 应用排序
-        if sort:
-            # 处理排序字段映射
-            sort_field_map = {
-                'name': 'name',
-                'plan': 'plan',
-                'created_at': 'created_at',
-                'updated_at': 'updated_at',
-                'max_users': 'max_users',
-                'max_storage_mb': 'max_storage_mb',
-                'max_branch_organizations': 'max_branch_organizations',
+
+        use_plan_tier_sort = (not sort) or sort == "plan"
+        if use_plan_tier_sort:
+            # 套餐表体量极小（按 plan 唯一）；按档位序内存排序，避免 plan 字母序错乱
+            total = await query.count()
+            all_items = await query.all()
+            descending = bool(order and order.lower() == "desc")
+            all_items.sort(
+                key=lambda pkg: tenant_plan_sort_rank(pkg.plan),
+                reverse=descending,
+            )
+            start = (page - 1) * page_size
+            items = all_items[start : start + page_size]
+            return {
+                "items": items,
+                "total": total,
+                "page": page,
+                "page_size": page_size,
             }
-            sort_field = sort_field_map.get(sort, 'created_at')
-            
-            # 处理排序顺序
-            if order and order.lower() == 'asc':
-                query = query.order_by(sort_field)
-            else:
-                query = query.order_by(f'-{sort_field}')
+
+        # 应用排序（非档位字段）
+        sort_field_map = {
+            "name": "name",
+            "created_at": "created_at",
+            "updated_at": "updated_at",
+            "max_users": "max_users",
+            "max_storage_mb": "max_storage_mb",
+            "max_branch_organizations": "max_branch_organizations",
+        }
+        sort_field = sort_field_map.get(sort, "created_at")
+        if order and order.lower() == "asc":
+            query = query.order_by(sort_field)
         else:
-            # 默认按创建时间倒序
-            query = query.order_by('-created_at')
-        
+            query = query.order_by(f"-{sort_field}")
+
         # 获取总数（在分页前）
         total = await query.count()
-        
+
         # 应用分页
         items = await query.offset((page - 1) * page_size).limit(page_size).all()
-        
+
         return {
-            'items': items,
-            'total': total,
-            'page': page,
-            'page_size': page_size
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
         }
     
     async def update_package(

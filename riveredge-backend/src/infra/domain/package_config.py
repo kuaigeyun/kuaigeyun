@@ -41,7 +41,7 @@ PACKAGE_CONFIG: Dict[str, Dict[str, Any]] = {
         "name": "企业版",
         "max_users": 1000,
         "max_storage_mb": 102400,  # 100GB
-        "max_branch_organizations": 5,
+        "max_branch_organizations": 10,
         "allow_pro_apps": True,  # 允许使用 PRO 应用
         "allowed_app_codes": [],
         "description": "适合大型企业使用，提供最高配置和完整功能",

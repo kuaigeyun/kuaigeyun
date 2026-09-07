@@ -8,13 +8,13 @@
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { rowActionKind, rowActionLabelKeep, rowActionToneDestructive } from '../../../../components/uni-action';
 import { useTranslation } from 'react-i18next';
-import { ActionType, ProColumns, ProForm, ProFormText, ProFormSelect, ProFormDigit, ProFormDateTimePicker, ProFormInstance, ProFormGroup, ProFormSwitch } from '@ant-design/pro-components';
+import { ActionType, ProColumns, ProFormText, ProFormDigit, ProFormDateTimePicker, ProFormInstance, ProFormSwitch } from '@ant-design/pro-components';
 import type { ProDescriptionsItemProps } from '@ant-design/pro-components';
 import SafeProFormSelect from '../../../../components/safe-pro-form-select';
 import { App, Popconfirm, Button, Modal, List, Typography, Divider, Spin, Alert, Tooltip } from 'antd';
 import { SyncOutlined, StarFilled } from '@ant-design/icons';
 import { UniTable } from '../../../../components/uni-table';
-import { ListPageTemplate, FormModalTemplate, MODAL_CONFIG } from '../../../../components/layout-templates';
+import { ListPageTemplate, FormModalTemplate, FormModalGridBlock, MODAL_CONFIG } from '../../../../components/layout-templates';
 import { getApiErrorMessage } from '../../../../utils/errorHandler';
 import { SystemMasterDetailDrawer } from '../../../system/shared/systemMasterDetailDrawer';
 import { MarkerTag, StatusTag } from '../../../../constants/statusBadges';
@@ -36,6 +36,7 @@ import {
   getSharedUserQuota,
   syncTenantLimitsFromPlan,
   resolveTenantPlanMarkerColor,
+  compareTenantPlanSort,
 } from '../../../../services/tenant';
 import { getPlatformSettings, updatePlatformSettings } from '../../../../services/platformSettings';
 // 使用 apiRequest 统一处理 HTTP 请求
@@ -130,7 +131,7 @@ const SuperAdminTenantList: React.FC = () => {
           label: config.name || plan,
           value: plan as TenantPlan,
         }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
+        .sort((a, b) => compareTenantPlanSort(a.value, b.value)),
     [packageConfigs],
   );
 
@@ -1535,7 +1536,11 @@ const SuperAdminTenantList: React.FC = () => {
             initialValue={String(createParentTenantId)}
           />
         )}
-        <ProFormGroup title={t('pages.infra.tenant.basicInfoTitle')} colProps={{ span: 24 }}>
+        <FormModalGridBlock>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>
+            {t('pages.infra.tenant.basicInfoTitle')}
+          </div>
+        </FormModalGridBlock>
         <ProFormText
           name="name"
           label={t('pages.infra.tenant.name')}
@@ -1584,8 +1589,6 @@ const SuperAdminTenantList: React.FC = () => {
           extra={t('pages.infra.tenant.formSensitiveWordEnabledExtra')}
           colProps={{ span: 8 }}
         />
-        </ProFormGroup>
-        <ProFormGroup colProps={{ span: 24 }}>
         <SafeProFormSelect
           name="plan"
           label={t('pages.infra.tenant.formPlanLabel')}
@@ -1630,9 +1633,13 @@ const SuperAdminTenantList: React.FC = () => {
           colProps={{ span: 8 }}
           fieldProps={{ style: { width: '100%' } }}
         />
-        </ProFormGroup>
         {!isEdit && (
-          <ProFormGroup title={t('pages.infra.tenant.adminAccountTitle')} colProps={{ span: 24 }}>
+          <>
+            <FormModalGridBlock>
+              <div style={{ fontWeight: 600, marginBottom: 8, marginTop: 8 }}>
+                {t('pages.infra.tenant.adminAccountTitle')}
+              </div>
+            </FormModalGridBlock>
             <ProFormText
               name={['admin_account', 'username']}
               label={t('pages.infra.tenant.adminUsername')}
@@ -1697,7 +1704,7 @@ const SuperAdminTenantList: React.FC = () => {
                 }),
               ]}
             />
-          </ProFormGroup>
+          </>
         )}
     </FormModalTemplate>
 

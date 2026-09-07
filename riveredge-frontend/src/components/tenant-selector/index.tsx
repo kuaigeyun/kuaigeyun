@@ -42,6 +42,9 @@ function rememberTenantLabel(id: string | number | null | undefined, name: strin
   knownTenantLabels.set(idStr, label);
 }
 
+/** 下拉可视高度：约 11 行选项（主+子演示组织一屏内看完） */
+const TENANT_SELECTOR_LIST_HEIGHT = 11 * 32;
+
 /**
  * 组织选择器组件
  */
@@ -71,11 +74,24 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ headerLightText }) => {
     queryKey: ['tenant-selector-options', isInfraSuperAdmin],
     queryFn: async (): Promise<TenantOption[]> => {
       if (isInfraSuperAdmin) {
-        const resp = await getTenantList({ page: 1, page_size: 100, status: TenantStatus.ACTIVE }, true);
-        return resp.items.map((tenant) => ({ id: Number(tenant.id), name: tenant.name }));
+        const resp = await getTenantList(
+          {
+            page: 1,
+            page_size: 100,
+            status: TenantStatus.ACTIVE,
+            sort: 'id',
+            order: 'asc',
+          },
+          true,
+        );
+        return resp.items
+          .map((tenant) => ({ id: Number(tenant.id), name: tenant.name }))
+          .sort((a, b) => a.id - b.id);
       }
       const tenants = await getMyTenants();
-      return tenants.map((tenant) => ({ id: Number(tenant.id), name: tenant.name }));
+      return tenants
+        .map((tenant) => ({ id: Number(tenant.id), name: tenant.name }))
+        .sort((a, b) => a.id - b.id);
     },
     enabled: !!currentUser,
   });
@@ -123,10 +139,10 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ headerLightText }) => {
       const cached =
         currentTenantName || knownTenantLabels.get(currentTenantIdStr) || '';
       if (cached) {
-        mapped.unshift({ value: currentTenantIdStr, label: cached });
+        mapped.push({ value: currentTenantIdStr, label: cached });
       }
     }
-    return mapped;
+    return mapped.sort((a, b) => Number(a.value) - Number(b.value));
   })();
 
   const resolveTenantLabel = (
@@ -277,6 +293,7 @@ const TenantSelector: React.FC<TenantSelectorProps> = ({ headerLightText }) => {
             size="small"
             className="tenant-selector-select"
             suffixIcon={<SwapOutlined />}
+            listHeight={TENANT_SELECTOR_LIST_HEIGHT}
             options={selectOptions}
             labelRender={(props) => {
               const resolved = resolveTenantLabel(props.value, props.label);

@@ -649,6 +649,31 @@ export default function UniTabs({ menuConfig, children, isFullscreen = false, on
 
   const prevTenantIdStrRef = useRef<string | null>(tenantIdStrForTabs);
 
+  /** 当前路由对应的标签 key（与路由同步 effect 一致） */
+  const getCurrentRouteTabKey = useCallback(() => {
+    const searchParams = new URLSearchParams(location.search || '');
+    searchParams.delete('_refresh');
+    const cleanSearch = searchParams.toString();
+    return location.pathname + (cleanSearch ? `?${cleanSearch}` : '');
+  }, [location.pathname, location.search]);
+
+  /**
+   * 切换租户清空会话后：若首页 path 未变，路由 effect 不会重跑，须主动补回当前页标签，
+   * 否则 tabs=[] 会走无 page-outer 的早期 return，工作台 UniTabs 16px 留白丢失直至整页刷新。
+   */
+  const seedTabsAfterTenantSwitch = useCallback(() => {
+    const routeKey = getCurrentRouteTabKey();
+    queueMicrotask(() => {
+      if (tenantHomePath) {
+        addTabRef.current(tenantHomePath);
+      }
+      if (routeKey && routeKey !== '/login') {
+        addTabRef.current(routeKey);
+        setActiveKey(routeKey);
+      }
+    });
+  }, [getCurrentRouteTabKey, tenantHomePath]);
+
   /** 切换租户时从该租户的会话/持久化恢复标签（替代 UniTabs key remount） */
   useEffect(() => {
     const prev = prevTenantIdStrRef.current;
@@ -675,6 +700,7 @@ export default function UniTabs({ menuConfig, children, isFullscreen = false, on
     if (!tabsPersistence) {
       setTabs([]);
       didRestoreFromSyncRef.current = true;
+      seedTabsAfterTenantSwitch();
       return;
     }
 
@@ -687,9 +713,10 @@ export default function UniTabs({ menuConfig, children, isFullscreen = false, on
       }
     } else {
       setTabs([]);
+      seedTabsAfterTenantSwitch();
     }
     didRestoreFromSyncRef.current = true;
-  }, [tenantIdStrForTabs, menuConfig, t, tenantHomePath, tabsPersistence]);
+  }, [tenantIdStrForTabs, menuConfig, t, tenantHomePath, tabsPersistence, seedTabsAfterTenantSwitch]);
 
   /** 会话内实时缓存标签，跨 APP / 组件 remount 不丢 */
   useLayoutEffect(() => {
@@ -1329,12 +1356,24 @@ export default function UniTabs({ menuConfig, children, isFullscreen = false, on
       <RouteTransition key={`route-refresh-${refreshKey}`}>{content}</RouteTransition>
     );
 
-  // 如果没有标签，直接渲染子组件
+  // 无标签时仍保留 UniTabs 内容壳（page-outer 16px），避免切换租户清空标签后内容贴边
   if (tabs.length === 0) {
+    const flushOuter = location.pathname.replace(/\/$/, '') === '/system/dashboard/analysis';
+    const dashboardScroll = isDashboardLikePage(location.pathname);
     return (
-      <RouteTransition>
-        {children}
-      </RouteTransition>
+      <div className="uni-tabs-wrapper uni-tabs-wrapper--empty">
+        <div
+          className={`uni-tabs-content${dashboardScroll ? ' uni-tabs-content-dashboard' : ''}`}
+        >
+          <div
+            className={`uni-tabs-content-page-outer${flushOuter ? ' uni-tabs-content-page-outer--flush' : ''}`}
+          >
+            <div className="uni-tabs-content-page-inner">
+              <RouteTransition>{children}</RouteTransition>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 

@@ -136,7 +136,7 @@ export default function KuaiElectronicsEsdDashboardPage() {
   }, [alerts]);
 
   const hasAlerts = alertFeedItems.length > 0;
-  const masonryEmptyFallback = resolveMasonryEmptyFallback(loading, [hasAlerts]);
+  const masonryEmptyFallback = resolveMasonryEmptyFallback(loading && !board, [hasAlerts]);
 
   return (
     <ListPageTemplate>
@@ -208,11 +208,11 @@ export default function KuaiElectronicsEsdDashboardPage() {
         }
         actionRow={
           <ModuleActionMasonry>
-            {showMasonryCard(loading, hasAlerts, masonryEmptyFallback) ? (
+            {showMasonryCard(loading && !board, hasAlerts, masonryEmptyFallback) ? (
               <ModuleActionPanel
                 layout="masonry"
                 title={t('app.kuaielectronics.esd.alertsTitle')}
-                loading={loading}
+                loading={loading && !board}
                 masonryWeight={masonryWeightFromRows(Math.min(alertFeedItems.length, 8))}
               >
                 <ModuleFeedList

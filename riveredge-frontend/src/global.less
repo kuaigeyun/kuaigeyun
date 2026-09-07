@@ -230,6 +230,48 @@
   width: calc(100% + 32px);
 }
 
+/*
+ * UniTabs 内容壳留白（真源）：须在 global 常驻。
+ * 切换租户时若 tabs 短暂为空会跳过 UniTabs 内联 <style>，仅靠组件内样式会丢 16px padding。
+ */
+.uni-tabs-content-page-outer {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 16px;
+}
+.uni-tabs-content-page-outer.uni-tabs-content-page-outer--flush {
+  padding: 0;
+}
+.uni-tabs-content-page-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.uni-tabs-wrapper--empty {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+.uni-tabs-wrapper--empty > .uni-tabs-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+
 .document-form-page-header {
   padding-left: 16px;
   padding-right: 16px;
@@ -1596,6 +1638,62 @@ code {
   border-radius: var(--ant-borderRadius) !important;
 }
 
+/* 树形表展开按钮：加号十字几何居中
+ * antd 默认用 expandIconHalfInner 定位横竖线，相对 17px 盒会偏左上；
+ * 再叠加 transform: scale 易出亚像素，肉眼看加号不对称。 */
+.ant-table-wrapper .ant-table-row-expand-icon {
+  box-sizing: border-box !important;
+  border-radius: 50% !important;
+  width: 16px !important;
+  height: 16px !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+  transform: none !important;
+
+  &::before,
+  &::after {
+    position: absolute !important;
+    inset: auto !important;
+    background: currentcolor !important;
+    transition: transform 0.2s ease-out !important;
+    content: '' !important;
+  }
+
+  /* 横杠：始终居中 */
+  &::before {
+    top: 50% !important;
+    left: 50% !important;
+    width: 8px !important;
+    height: 1px !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  /* 竖杠：默认隐藏（展开态为减号）；折叠态显示成加号 */
+  &::after {
+    top: 50% !important;
+    left: 50% !important;
+    width: 1px !important;
+    height: 8px !important;
+    transform: translate(-50%, -50%) scaleY(0) !important;
+  }
+
+  &-collapsed::before {
+    transform: translate(-50%, -50%) !important;
+  }
+
+  &-collapsed::after {
+    transform: translate(-50%, -50%) scaleY(1) !important;
+  }
+
+  &-spaced {
+    &::before,
+    &::after {
+      display: none !important;
+      content: none !important;
+    }
+  }
+}
+
 /* 同一系列树：父行 / 子行单元格高度一致，避免 V2/V1 看起来比 V3 行高不同 */
 .kuaizhizao-quotations-table .ant-table-tbody > tr > td {
   vertical-align: middle !important;
@@ -2754,16 +2852,13 @@ code {
   padding: 8px 14px 8px 6px;
   align-self: flex-start;
 }
-.dashboard-update-log-date-nav__items {
+.dashboard-update-log-date-nav__viewport {
   position: relative;
   z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 358px;
+  overflow: hidden;
+  width: 100%;
 }
-.dashboard-update-log-date-nav__items::before {
-  content: '';
+.dashboard-update-log-date-nav__rail {
   position: absolute;
   top: 10px;
   right: calc(4px + 9px - 1px);
@@ -2772,6 +2867,15 @@ code {
   background: var(--ant-color-border-secondary, rgba(0, 0, 0, 0.06));
   pointer-events: none;
   z-index: 0;
+}
+.dashboard-update-log-date-nav__track {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  will-change: transform;
+  transition: transform 0.38s cubic-bezier(0.33, 1, 0.68, 1);
 }
 .dashboard-update-log-date-nav__item {
   position: relative;
@@ -2885,6 +2989,9 @@ code {
   font-weight: 600;
 }
 @media (prefers-reduced-motion: reduce) {
+  .dashboard-update-log-date-nav__track {
+    transition: none;
+  }
   .dashboard-update-log-date-nav__item,
   .dashboard-update-log-date-nav__label,
   .dashboard-update-log-date-nav__dot::after {

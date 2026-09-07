@@ -30,6 +30,27 @@ export enum TenantPlan {
   ENTERPRISE = 'enterprise',  // 企业版
 }
 
+/** 套餐档位展示序真源：体验 → 基础 → 专业 → 企业旗舰（与后端 TenantPlan 声明序一致） */
+export const TENANT_PLAN_SORT_ORDER: readonly TenantPlan[] = [
+  TenantPlan.TRIAL,
+  TenantPlan.BASIC,
+  TenantPlan.PROFESSIONAL,
+  TenantPlan.ENTERPRISE,
+] as const;
+
+export function tenantPlanSortRank(plan: string | TenantPlan | null | undefined): number {
+  const key = String(plan || '').trim().toLowerCase() as TenantPlan;
+  const index = TENANT_PLAN_SORT_ORDER.indexOf(key);
+  return index >= 0 ? index : TENANT_PLAN_SORT_ORDER.length;
+}
+
+export function compareTenantPlanSort(
+  a: string | TenantPlan | null | undefined,
+  b: string | TenantPlan | null | undefined,
+): number {
+  return tenantPlanSortRank(a) - tenantPlanSortRank(b);
+}
+
 /** 套餐类型 MarkerTag 颜色（套餐管理 / 组织管理共用，禁止页面各自映射） */
 export const TENANT_PLAN_MARKER_COLORS: Record<TenantPlan, string> = {
   [TenantPlan.TRIAL]: 'blue',
@@ -448,7 +469,7 @@ function getDefaultPackageConfigs(): AllPackageConfigs {
       name: '企业版',
       max_users: 1000,
       max_storage_mb: 102400,
-      max_branch_organizations: 5,
+      max_branch_organizations: 10,
       allow_pro_apps: true,
       allowed_app_codes: [],
       description: '适合大型企业使用，提供最高配置和完整功能',

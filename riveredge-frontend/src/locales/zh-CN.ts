@@ -26181,6 +26181,42 @@ export default {
     '设备看板指标一行与跑马灯可读性',
   'pages.dashboard.updateLog.entries.equipment-dashboard-kpi-ticker.description':
     '设备总览四张 KPI 改为一行四列；滚动异常改为徽章+单号/设备分栏卡片滚动，去掉类型文案重复拼接。',
+  'pages.dashboard.updateLog.entries.page-flash-poll-focus.title':
+    '页面间歇闪烁排查与修复',
+  'pages.dashboard.updateLog.entries.page-flash-poll-focus.description':
+    '设备看板跑马灯样式改为一次性注入，避免轮询重绘重启动画；ESD 看板轮询不再把 loading 传给事项卡；部门列表去掉窗口聚焦整表 reload。',
+  'pages.dashboard.updateLog.entries.update-log-timeline-edge-shift.title':
+    '更新日志时间轴端点移轴',
+  'pages.dashboard.updateLog.entries.update-log-timeline-edge-shift.description':
+    '左侧日期轴仍固定展示 10 个节点；滚到或点到窗口首/末且外侧还有日期时，向该侧加载相邻节点并移轴，可继续浏览更早记录。',
+  'pages.dashboard.updateLog.entries.update-log-timeline-slide-anim.title':
+    '更新日志时间轴滑动动画',
+  'pages.dashboard.updateLog.entries.update-log-timeline-slide-anim.description':
+    '日期轴改为固定视口内整轨平移，移轴时平滑滑动而不再硬切节点；系统开启减少动效时仍瞬时到位。',
+  'pages.dashboard.updateLog.entries.tenant-edit-basic-info-gap.title':
+    '组织编辑基本信息空行修复',
+  'pages.dashboard.updateLog.entries.tenant-edit-basic-info-gap.description':
+    '编辑组织弹窗「基本信息」标题下不再出现多余空白；分区标题改为栅格通栏标题，去掉 ProFormGroup 默认大间距。',
+  'pages.dashboard.updateLog.entries.tenant-plan-tier-sort.title':
+    '套餐档位排序优化',
+  'pages.dashboard.updateLog.entries.tenant-plan-tier-sort.description':
+    '套餐管理列表与组织套餐下拉默认按体验、基础、专业、企业旗舰档位排序，不再按创建时间或名称字母序打乱。',
+  'pages.dashboard.updateLog.entries.tenant-switch-unitabs-padding.title':
+    '切换组织后工作台 UniTabs 留白恢复',
+  'pages.dashboard.updateLog.entries.tenant-switch-unitabs-padding.description':
+    '切换组织清空标签且首页路径未变时，会主动补回当前页标签；无标签时仍保留 page-outer 16px 内容壳，避免工作台贴边需整页刷新。',
+  'pages.dashboard.updateLog.entries.tenant-selector-sort-id-height.title':
+    '顶栏组织选择器按 ID 排序并加高下拉',
+  'pages.dashboard.updateLog.entries.tenant-selector-sort-id-height.description':
+    '组织切换下拉改为按组织 ID 升序；可视高度约 11 行，主组织与演示子组织可一屏看完。',
+  'pages.dashboard.updateLog.entries.tenant-list-tree-with-children.title':
+    '组织列表子组织树挂载修复',
+  'pages.dashboard.updateLog.entries.tenant-list-tree-with-children.description':
+    '平台组织列表改为按主组织分页并附带本页全部子组织，避免父子被分页拆散后无法树状展开；搜索命中子组织时也会上溯带出主组织。',
+  'pages.dashboard.updateLog.entries.table-tree-expand-icon-center.title':
+    '树形表展开加号居中',
+  'pages.dashboard.updateLog.entries.table-tree-expand-icon-center.description':
+    '菜单等树形列表的展开圆钮内加号改为几何居中绘制，避免偏左上与十字不对称。',
   'pages.dashboard.updateLog.entries.unitable-empty-operation-column-width.title':
     '空列表操作列过宽修复',
   'pages.dashboard.updateLog.entries.unitable-empty-operation-column-width.description':

@@ -190,7 +190,8 @@ class TenantService:
         获取组织列表
         
         支持分页、状态筛选、套餐筛选、文本字段模糊搜索、排序。
-        使用 ProTable 原生搜索逻辑，简单可靠。
+        未指定 parent_tenant_id / is_subtenant 时：按主组织分页，并附带本页主组织的全部子组织，
+        供前端树表挂载（避免父子因分页拆散而无法成树）。
         
         Args:
             page: 页码（默认 1）
@@ -206,17 +207,105 @@ class TenantService:
         Returns:
             dict: 包含 items、total、page、page_size 的字典
         """
-        # ⭐ 恢复为 ProTable 原生搜索逻辑：简单的字段过滤
-        # 不使用复杂的搜索工具，直接使用 Tortoise ORM 的简单查询
-        
-        # 获取查询集
-        query = Tenant.all()
-        if not skip_tenant_filter:
-            # 如果不需要跳过组织过滤，这里可以添加组织过滤逻辑
-            # 但对于超级管理员，通常 skip_tenant_filter=True
-            pass
-        
-        # 应用精确匹配条件（status、plan）
+        order_by = self._tenant_list_order_by(sort=sort, order=order)
+        # 显式按父组织 / 是否子组织筛选时保持扁平分页，不改语义
+        tree_list_mode = parent_tenant_id is None and is_subtenant is None
+
+        if not tree_list_mode:
+            query = Tenant.all()
+            query = self._apply_tenant_list_filters(
+                query,
+                status=status,
+                plan=plan,
+                parent_tenant_id=parent_tenant_id,
+                is_subtenant=is_subtenant,
+                name=name,
+                domain=domain,
+            )
+            query = query.order_by(order_by)
+            total = await query.count()
+            offset = (page - 1) * page_size
+            items = await query.offset(offset).limit(page_size).all()
+            return await self._tenant_list_payload(
+                items=items,
+                total=total,
+                page=page,
+                page_size=page_size,
+            )
+
+        root_ids = await self._resolve_tenant_list_root_ids(
+            status=status,
+            plan=plan,
+            name=name,
+            domain=domain,
+        )
+        if not root_ids:
+            return {
+                "items": [],
+                "total": 0,
+                "page": page,
+                "page_size": page_size,
+            }
+
+        roots_query = Tenant.filter(id__in=root_ids, is_subtenant=False).order_by(order_by)
+        total = await roots_query.count()
+        offset = (page - 1) * page_size
+        roots = await roots_query.offset(offset).limit(page_size).all()
+        root_page_ids = [t.id for t in roots]
+        children = (
+            await Tenant.filter(parent_tenant_id__in=root_page_ids, is_subtenant=True)
+            .order_by(order_by)
+            .all()
+            if root_page_ids
+            else []
+        )
+        children_by_parent: Dict[int, List[Tenant]] = {}
+        for child in children:
+            children_by_parent.setdefault(int(child.parent_tenant_id), []).append(child)
+
+        items: List[Tenant] = []
+        for root in roots:
+            items.append(root)
+            items.extend(children_by_parent.get(root.id, []))
+
+        return await self._tenant_list_payload(
+            items=items,
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+    @staticmethod
+    def _tenant_list_order_by(*, sort: Optional[str], order: Optional[str]) -> str:
+        allowed_sort_fields = {
+            "id",
+            "name",
+            "domain",
+            "status",
+            "plan",
+            "is_subtenant",
+            "parent_tenant_id",
+            "max_users",
+            "max_storage",
+            "created_at",
+            "updated_at",
+        }
+        field = sort if sort in allowed_sort_fields else "created_at"
+        if order == "asc":
+            return field
+        return f"-{field}"
+
+    @staticmethod
+    def _apply_tenant_list_filters(
+        query,
+        *,
+        status: Optional[TenantStatus] = None,
+        plan: Optional[TenantPlan] = None,
+        parent_tenant_id: Optional[int] = None,
+        is_subtenant: Optional[bool] = None,
+        name: Optional[str] = None,
+        domain: Optional[str] = None,
+    ):
         if status is not None:
             query = query.filter(status=status)
         if plan is not None:
@@ -225,50 +314,62 @@ class TenantService:
             query = query.filter(parent_tenant_id=parent_tenant_id)
         if is_subtenant is not None:
             query = query.filter(is_subtenant=is_subtenant)
-        
-        # 应用文本字段的模糊搜索（name、domain）
-        # ProTable 默认对文本字段使用模糊搜索
         if name:
             query = query.filter(name__icontains=name.strip())
         if domain:
             query = query.filter(domain__icontains=domain.strip())
-        
-        # 应用排序
-        if sort:
-            # 验证排序字段是否允许
-            allowed_sort_fields = [
-                'id', 'name', 'domain', 'status', 'plan',
-                'is_subtenant', 'parent_tenant_id',
-                'max_users', 'max_storage', 'created_at', 'updated_at'
-            ]
-            if sort in allowed_sort_fields:
-                if order == 'desc':
-                    query = query.order_by(f'-{sort}')
-                else:
-                    query = query.order_by(sort)
-            else:
-                # 默认排序
-                query = query.order_by('-created_at')
-        else:
-            # 默认排序
-            query = query.order_by('-created_at')
-        
-        # 分页查询
-        total = await query.count()
-        offset = (page - 1) * page_size
-        items = await query.offset(offset).limit(page_size).all()
+        return query
 
+    async def _resolve_tenant_list_root_ids(
+        self,
+        *,
+        status: Optional[TenantStatus] = None,
+        plan: Optional[TenantPlan] = None,
+        name: Optional[str] = None,
+        domain: Optional[str] = None,
+    ) -> List[int]:
+        """树表模式：解析应出现在列表中的主组织 ID（命中子组织时上溯到父组织）。"""
+        has_text_search = bool((name or "").strip() or (domain or "").strip())
+        if not has_text_search:
+            query = Tenant.filter(is_subtenant=False)
+            query = self._apply_tenant_list_filters(query, status=status, plan=plan)
+            return list(await query.values_list("id", flat=True))
+
+        matched_query = Tenant.all()
+        matched_query = self._apply_tenant_list_filters(
+            matched_query,
+            status=status,
+            plan=plan,
+            name=name,
+            domain=domain,
+        )
+        matched = await matched_query.values("id", "is_subtenant", "parent_tenant_id")
+        root_ids: set[int] = set()
+        for row in matched:
+            if row["is_subtenant"] and row["parent_tenant_id"]:
+                root_ids.add(int(row["parent_tenant_id"]))
+            else:
+                root_ids.add(int(row["id"]))
+        return list(root_ids)
+
+    async def _tenant_list_payload(
+        self,
+        *,
+        items: List[Tenant],
+        total: int,
+        page: int,
+        page_size: int,
+    ) -> Dict[str, Any]:
         last_login_map = await self._get_tenant_last_login_map([t.id for t in items])
         user_count_map = await self._get_tenant_user_count_map([t.id for t in items])
         for tenant in items:
             setattr(tenant, "last_login_at", last_login_map.get(tenant.id))
             setattr(tenant, "user_count", user_count_map.get(tenant.id, 0))
-        
         return {
-            'items': items,
-            'total': total,
-            'page': page,
-            'page_size': page_size
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
         }
 
     async def _get_tenant_last_login_map(self, tenant_ids: List[int]) -> Dict[int, datetime]:

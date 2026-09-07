@@ -6,7 +6,7 @@ import { ProFormText, ProFormDigit, ProFormSwitch, ProFormSelect, ProFormTextAre
 import SafeProFormSelect from '../../../components/safe-pro-form-select';
 import { useQuery } from '@tanstack/react-query';
 import { getApplicationList } from '../../../services/application';
-import { getPackageConfigs } from '../../../services/tenant';
+import { compareTenantPlanSort, getPackageConfigs } from '../../../services/tenant';
 import { useTranslation } from 'react-i18next';
 
 interface PackageFormProps {
@@ -24,7 +24,7 @@ export default function PackageForm({ isEdit = false }: PackageFormProps) {
       label: config?.name || plan,
       value: plan,
     }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort((a, b) => compareTenantPlanSort(a.value, b.value));
 
   const { data: applicationOptions = [], isLoading: appOptionsLoading } = useQuery({
     queryKey: ['package-app-options'],

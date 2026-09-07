@@ -8,6 +8,17 @@ GUEST_TENANT_ADMIN_DOMAINS: FrozenSet[str] = frozenset(
         "default",  # 无锡快格信息技术有限公司
         "kgsoft",  # 无锡快格软件有限公司
         "kgsoft-cali",  # Kgsoft California Branch
+        # 租户1制造类型演示分支（江苏中型产业矩阵）
+        "eto-project",
+        "ato-config",
+        "mts-stock",
+        "mto-order",
+        "job-shop",
+        "oem-mfg",
+        "assy-os",
+        "batch-mfg",
+        "textile-dye",
+        "print-pack",
     }
 )
 

@@ -128,12 +128,6 @@ const DepartmentListPage: React.FC = () => {
   const [bindingColumnsLoading, setBindingColumnsLoading] = useState(false);
   const [syncIntroModalOpen, setSyncIntroModalOpen] = useState(false);
 
-  useEffect(() => {
-    const refresh = () => actionRef.current?.reload();
-    window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
-  }, []);
-
   const getAllKeys = (data: DepartmentTreeItem[]): string[] => {
     let keys: string[] = [];
     data.forEach((item) => {
