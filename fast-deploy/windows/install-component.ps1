@@ -112,24 +112,36 @@ function Invoke-WingetInstall([string[]]$WingetArgs) {
 }
 
 function Invoke-WingetInstallVerified([string[]]$WingetArgs, [scriptblock]$VerifyFn) {
-    if (Invoke-WingetInstall $WingetArgs) {
-        if (& $VerifyFn) { return $true }
-        Write-Info 'winget reported success but component not detected, trying fallback...'
-    }
-
     $backupSources = @(
         @{ Name = 'winget-ustc'; Url = 'https://mirrors.ustc.edu.cn/winget-source' },
         @{ Name = 'winget-bfsu'; Url = 'https://mirrors.bfsu.edu.cn/winget-source' }
     )
-    foreach ($src in $backupSources) {
-        if (-not (Ensure-WingetBackupSource $src.Name $src.Url)) { continue }
-        $argsWithSource = @('--source', $src.Name) + $WingetArgs
-        if (Invoke-WingetInstall $argsWithSource) {
-            if (& $VerifyFn) { return $true }
-            Write-Info "winget ($($src.Name)) reported success but component not detected"
-        }
+
+    $ordered = @()
+    if ($UseMirror -eq '1') {
+        # 国内优先：先 USTC/BFSU，再默认 winget 源
+        $ordered += $backupSources
+        $ordered += @{ Name = ''; Url = '' }
+    } else {
+        $ordered += @{ Name = ''; Url = '' }
+        $ordered += $backupSources
     }
 
+    foreach ($src in $ordered) {
+        $wingetArgsToRun = $WingetArgs
+        if ($src.Name) {
+            if (-not (Ensure-WingetBackupSource $src.Name $src.Url)) { continue }
+            $wingetArgsToRun = @('--source', $src.Name) + $WingetArgs
+        }
+        if (Invoke-WingetInstall $wingetArgsToRun) {
+            if (& $VerifyFn) { return $true }
+            if ($src.Name) {
+                Write-Info "winget ($($src.Name)) reported success but component not detected"
+            } else {
+                Write-Info 'winget reported success but component not detected, trying next source...'
+            }
+        }
+    }
     return $false
 }
 
@@ -210,9 +222,9 @@ function Get-NodeDistBases([bool]$Mirror) {
         'https://mirrors.tuna.tsinghua.edu.cn/nodejs-release'
     )
     if ($Mirror) {
-        return Get-UniqueUrls @($cn[0]) + @($official) + $cn[1..($cn.Length - 1)]
+        return Get-UniqueUrls ($cn + @($official))
     }
-    return Get-UniqueUrls @($official) + $cn
+    return Get-UniqueUrls (@($official) + $cn)
 }
 
 function Get-NodeReleaseVersion([bool]$Mirror) {
@@ -343,9 +355,9 @@ function Get-PythonInstallerUrls([bool]$Mirror, [string]$Version = '3.12.9') {
         "https://mirrors.aliyun.com/python-release-windows/$Version/$file"
     )
     if ($Mirror) {
-        return Get-UniqueUrls @($cn[0]) + @($official) + $cn[1..($cn.Length - 1)]
+        return Get-UniqueUrls ($cn + @($official))
     }
-    return Get-UniqueUrls @($official) + $cn
+    return Get-UniqueUrls (@($official) + $cn)
 }
 
 function Install-Python {
@@ -376,11 +388,19 @@ function Install-Python {
 }
 
 function Install-Uv {
-    $scripts = Get-UniqueUrls @(
-        'https://astral.sh/uv/install.ps1',
-        'https://ghproxy.net/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.ps1',
-        'https://mirror.ghproxy.com/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.ps1'
-    )
+    $scripts = if ($UseMirror -eq '1') {
+        Get-UniqueUrls @(
+            'https://ghproxy.net/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.ps1',
+            'https://mirror.ghproxy.com/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.ps1',
+            'https://astral.sh/uv/install.ps1'
+        )
+    } else {
+        Get-UniqueUrls @(
+            'https://astral.sh/uv/install.ps1',
+            'https://ghproxy.net/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.ps1',
+            'https://mirror.ghproxy.com/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.ps1'
+        )
+    }
     foreach ($url in $scripts) {
         try {
             Write-Info "installing uv via $url"
@@ -513,6 +533,13 @@ function Install-Postgresql {
 }
 
 function Get-GhProxyUrls([string]$Url) {
+    if ($UseMirror -eq '1') {
+        return Get-UniqueUrls @(
+            "https://ghproxy.net/$Url",
+            "https://mirror.ghproxy.com/$Url",
+            $Url
+        )
+    }
     return Get-UniqueUrls @(
         $Url,
         "https://ghproxy.net/$Url",

@@ -336,7 +336,7 @@ apply_cn_mirrors() {
     if command -v npm >/dev/null 2>&1; then
         npm config set registry https://registry.npmmirror.com 2>/dev/null || true
     fi
-    log_info "已启用国内镜像 (uv=${UV_INDEX_URL}；npm=npmmirror)；Node 仍使用官方源以保证 22+ 版本"
+    log_info "已启用国内镜像 (uv=${UV_INDEX_URL}；npm=npmmirror)；环境软件安装亦优先国内源"
 }
 
 detect_server_ip() {
@@ -2355,6 +2355,50 @@ _sudo_can_run() {
     return 1
 }
 
+# 向导/安装前预热 sudo：避免密码提示被重定向到日志后整段假死
+ensure_sudo_ready() {
+    if [ "$(id -u)" -eq 0 ]; then
+        return 0
+    fi
+    command -v sudo >/dev/null 2>&1 || {
+        log_error "未找到 sudo"
+        return 1
+    }
+    if _sudo_can_run; then
+        return 0
+    fi
+    if [ -t 0 ] && [ -t 2 ]; then
+        log_info "需要 sudo 权限，请输入密码（之后约 15 分钟内免再输入）..."
+        sudo -v || {
+            log_error "sudo 认证失败"
+            return 1
+        }
+        return 0
+    fi
+    log_error "需要 sudo 权限，但当前无免密/缓存凭据，且非交互终端无法输入密码"
+    log_error "请先执行: sudo -v  后再重试安装"
+    return 1
+}
+
+# 带超时的 curl，避免境外源/镜像无响应时无限卡住
+curl_fsSL() {
+    curl -fsSL --connect-timeout 10 --max-time 90 "$@"
+}
+
+# 非交互 apt-get：禁止 needrestart/配置交互；限制 Acquire 超时，避免 apt update 假死
+apt_noninteractive() {
+    export DEBIAN_FRONTEND=noninteractive
+    export NEEDRESTART_MODE="${NEEDRESTART_MODE:-a}"
+    # -E 保留上述环境变量进入 sudo
+    sudo -E apt-get \
+        -o Dpkg::Options::=--force-confdef \
+        -o Dpkg::Options::=--force-confold \
+        -o Acquire::Retries=2 \
+        -o Acquire::http::Timeout=30 \
+        -o Acquire::https::Timeout=30 \
+        "$@"
+}
+
 check_zbar() {
     if is_windows_gitbash; then
         local dll="$BACKEND_DIR/.venv/Lib/site-packages/pyzbar/libzbar-64.dll"
@@ -2979,7 +3023,9 @@ stop_system_caddy() {
     if ! command -v systemctl >/dev/null 2>&1; then
         return 0
     fi
-    if ! systemctl list-unit-files caddy.service >/dev/null 2>&1; then
+    # 勿用 list-unit-files（全量枚举可能极慢）；有单元文件或已加载即可
+    if ! { [ -f /lib/systemd/system/caddy.service ] || [ -f /usr/lib/systemd/system/caddy.service ] \
+        || [ -f /etc/systemd/system/caddy.service ] || systemctl cat caddy.service >/dev/null 2>&1; }; then
         return 0
     fi
     if systemctl is-active --quiet caddy 2>/dev/null || systemctl is-enabled --quiet caddy 2>/dev/null; then
@@ -2994,14 +3040,14 @@ stop_system_caddy() {
             return 0
         fi
         log_info "停止系统 caddy.service（apt 安装后会自启，与本项目 Caddyfile 冲突）..."
-        sudo systemctl stop caddy || {
+        if ! sudo systemctl stop caddy; then
             log_error "无法停止 caddy.service，请执行: sudo systemctl stop caddy"
             return 1
-        }
-        sudo systemctl disable caddy || {
+        fi
+        if ! sudo systemctl disable caddy; then
             log_error "无法禁用 caddy.service 自启，请执行: sudo systemctl disable caddy"
             return 1
-        }
+        fi
         sleep 1
         if systemctl is-active --quiet caddy 2>/dev/null; then
             log_error "caddy.service 仍在运行，请执行: sudo systemctl stop caddy && sudo systemctl disable caddy"
@@ -4270,12 +4316,12 @@ ensure_pgdg_apt_repo() {
     fi
     pgdg_base="$(pgdg_apt_base_url)"
     log_info "配置 PGDG 源以安装 pgvector: ${pgdg_base} (${codename}-pgdg)"
-    sudo apt-get update || return 1
-    sudo apt-get install -y ca-certificates curl gnupg postgresql-common || return 1
+    apt_noninteractive update || return 1
+    apt_noninteractive install -y ca-certificates curl gnupg postgresql-common || return 1
     sudo install -d /usr/share/postgresql-common/pgdg
-    curl -fsSL "${pgdg_base}/ACCC4CF8.asc" | sudo tee "$key_path" > /dev/null || return 1
+    curl_fsSL "${pgdg_base}/ACCC4CF8.asc" | sudo tee "$key_path" > /dev/null || return 1
     echo "deb [signed-by=${key_path}] ${pgdg_base} ${codename}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
-    sudo apt-get update || return 1
+    apt_noninteractive update || return 1
 }
 
 # 确保 PGDG yum/dnf 源可用（不安装服务端）
@@ -4342,6 +4388,13 @@ install_pgvector_from_source() {
         "https://ghproxy.net/https://github.com/pgvector/pgvector.git"
         "https://mirror.ghproxy.com/https://github.com/pgvector/pgvector.git"
     )
+    if [ "${USE_MIRROR}" = "1" ]; then
+        urls=(
+            "https://ghproxy.net/https://github.com/pgvector/pgvector.git"
+            "https://mirror.ghproxy.com/https://github.com/pgvector/pgvector.git"
+            "https://github.com/pgvector/pgvector.git"
+        )
+    fi
 
     work="$(mktemp -d /tmp/pgvector-build.XXXXXX)" || return 1
     src_dir="${work}/pgvector"
@@ -4612,10 +4665,11 @@ nodesource_setup_urls() {
     local kind=$1
     if [ "$kind" = "rpm" ]; then
         if [ "${USE_MIRROR}" = "1" ]; then
+            # 国内优先，官方兜底
             printf '%s\n' \
-                "https://rpm.nodesource.com/setup_22.x" \
                 "https://mirrors.tuna.tsinghua.edu.cn/nodesource/rpm/setup_22.x" \
-                "https://mirrors.huaweicloud.com/nodesource/setup_22.x"
+                "https://mirrors.huaweicloud.com/nodesource/setup_22.x" \
+                "https://rpm.nodesource.com/setup_22.x"
         else
             echo "https://rpm.nodesource.com/setup_22.x"
         fi
@@ -4623,8 +4677,9 @@ nodesource_setup_urls() {
     fi
     if [ "${USE_MIRROR}" = "1" ]; then
         printf '%s\n' \
-            "https://deb.nodesource.com/setup_22.x" \
-            "https://mirrors.tuna.tsinghua.edu.cn/nodesource/deb/setup_22.x"
+            "https://mirrors.tuna.tsinghua.edu.cn/nodesource/deb/setup_22.x" \
+            "https://mirrors.huaweicloud.com/nodesource/setup_22.x" \
+            "https://deb.nodesource.com/setup_22.x"
     else
         echo "https://deb.nodesource.com/setup_22.x"
     fi
@@ -4644,8 +4699,8 @@ install_node_nodesource_deb() {
     local urls
     mapfile -t urls < <(nodesource_setup_urls deb)
     curl_pipe_bash_fallback "${urls[@]}" || return 1
-    sudo apt update || return 1
-    sudo apt install -y nodejs || return 1
+    apt_noninteractive update || return 1
+    apt_noninteractive install -y nodejs || return 1
     log_ok "Node.js 已通过 NodeSource (apt) 安装"
 }
 
@@ -4670,10 +4725,17 @@ install_python_rhel() {
     }
 
     if ! python3.12 -m pip --version >/dev/null 2>&1; then
-        pip_urls=(
-            "https://bootstrap.pypa.io/get-pip.py"
-            "https://npmmirror.com/mirrors/pypi/get-pip.py"
-        )
+        if [ "${USE_MIRROR}" = "1" ]; then
+            pip_urls=(
+                "https://npmmirror.com/mirrors/pypi/get-pip.py"
+                "https://bootstrap.pypa.io/get-pip.py"
+            )
+        else
+            pip_urls=(
+                "https://bootstrap.pypa.io/get-pip.py"
+                "https://npmmirror.com/mirrors/pypi/get-pip.py"
+            )
+        fi
         tmp="$(mktemp)"
         if curl_download_fallback "$tmp" "${pip_urls[@]}"; then
             python3.12 "$tmp"
@@ -4684,15 +4746,24 @@ install_python_rhel() {
 }
 
 install_uv_shell() {
-    local urls=(
-        "https://astral.sh/uv/install.sh"
-        "https://ghproxy.net/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.sh"
-        "https://mirror.ghproxy.com/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.sh"
-    )
+    local urls
+    if [ "${USE_MIRROR}" = "1" ]; then
+        urls=(
+            "https://ghproxy.net/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.sh"
+            "https://mirror.ghproxy.com/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.sh"
+            "https://astral.sh/uv/install.sh"
+        )
+    else
+        urls=(
+            "https://astral.sh/uv/install.sh"
+            "https://ghproxy.net/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.sh"
+            "https://mirror.ghproxy.com/https://raw.githubusercontent.com/astral-sh/uv/main/scripts/install.sh"
+        )
+    fi
     local url
     for url in "${urls[@]}"; do
         log_info "install uv: $url"
-        if curl -LsSf "$url" | sh; then
+        if curl_fsSL "$url" | sh; then
             if [ "$(check_uv)" = "ok" ]; then
                 log_ok "uv 已安装"
                 return 0
@@ -4705,12 +4776,95 @@ install_uv_shell() {
     return 1
 }
 
+# 启动本机 PostgreSQL（带超时，避免 systemctl/pg_ctlcluster 永久卡住）
+ensure_local_postgresql_running() {
+    local ver name unit
+    [ "$(uname -s)" = "Linux" ] || return 0
+    if command -v pg_lsclusters >/dev/null 2>&1 && command -v pg_ctlcluster >/dev/null 2>&1; then
+        while read -r ver name; do
+            [ -n "$ver" ] || continue
+            log_info "启动 PostgreSQL 集群 ${ver}/${name}..."
+            if command -v timeout >/dev/null 2>&1; then
+                timeout 60 sudo pg_ctlcluster "$ver" "$name" start >/dev/null 2>&1 || true
+            else
+                sudo pg_ctlcluster "$ver" "$name" start >/dev/null 2>&1 || true
+            fi
+        done < <(pg_lsclusters -h 2>/dev/null | awk '$1+0>=15 {print $1, $2}')
+    fi
+    for unit in postgresql postgresql@15-main postgresql@16-main postgresql-15 postgresql-16; do
+        if systemctl cat "${unit}.service" >/dev/null 2>&1; then
+            if command -v timeout >/dev/null 2>&1; then
+                timeout 60 sudo systemctl start "$unit" >/dev/null 2>&1 || true
+            else
+                sudo systemctl start "$unit" >/dev/null 2>&1 || true
+            fi
+        fi
+    done
+}
+
+# Debian/Ubuntu：已安装的 postgresql-15+ 服务端包名
+debian_postgresql_server_pkg_installed() {
+    local pkg
+    for pkg in postgresql-16 postgresql-17 postgresql-15 postgresql-18; do
+        if dpkg -s "$pkg" >/dev/null 2>&1; then
+            echo "$pkg"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# 系统源 postgresql 元包候选主版本（如 16）；无候选则失败
+debian_postgresql_apt_candidate_major() {
+    local ver
+    ver="$(apt-cache policy postgresql 2>/dev/null | awk '/Candidate:/ {print $2; exit}')"
+    [ -n "$ver" ] && [ "$ver" != "(none)" ] || return 1
+    echo "$ver" | sed -n 's/^\([0-9][0-9]*\).*/\1/p'
+}
+
+# 若本机已有可用 PostgreSQL 15+：启动服务并确认，避免重复 apt / 假死
+postgresql_reuse_if_ready() {
+    if [ "$(check_postgres)" = "ok" ]; then
+        ensure_local_postgresql_running
+        if [ "$(check_postgres)" = "ok" ]; then
+            log_ok "PostgreSQL 已就绪，跳过安装"
+            return 0
+        fi
+    fi
+    if [ -f /etc/debian_version ]; then
+        local pkg
+        if pkg="$(debian_postgresql_server_pkg_installed)"; then
+            log_info "检测到已安装 ${pkg}，正在启动服务..."
+            ensure_local_postgresql_running
+            if [ "$(check_postgres)" = "ok" ]; then
+                log_ok "PostgreSQL 已就绪（使用已安装的 ${pkg}）"
+                return 0
+            fi
+            log_warn "已安装 ${pkg} 但客户端检测未通过，将继续安装/修复"
+        fi
+    fi
+    if is_linux_rhel_family || is_linux_fedora; then
+        if [ -x /usr/pgsql-15/bin/psql ] || [ -x /usr/pgsql-16/bin/psql ]; then
+            log_info "检测到 PGDG PostgreSQL 二进制，正在启动服务..."
+            ensure_local_postgresql_running
+            if [ "$(check_postgres)" = "ok" ]; then
+                log_ok "PostgreSQL 已就绪，跳过安装"
+                return 0
+            fi
+        fi
+    fi
+    return 1
+}
+
 install_postgresql_pgdg_rhel() {
     local pkg_mgr pgdg_base arch repo_rpm el_ver
     is_linux_rhel_family || is_linux_fedora || {
         log_error "PostgreSQL PGDG (dnf/yum) 安装仅支持 RHEL/CentOS/Rocky/Alma/Fedora"
         return 1
     }
+    if postgresql_reuse_if_ready; then
+        return 0
+    fi
     pkg_mgr="$(linux_pkg_manager)"
     [ "$pkg_mgr" = "dnf" ] || [ "$pkg_mgr" = "yum" ] || { log_error "未找到 dnf/yum"; return 1; }
     pgdg_base="$(pgdg_yum_base_url)"
@@ -4735,7 +4889,16 @@ install_postgresql_pgdg_rhel() {
         sudo /usr/pgsql-15/bin/postgresql-15-setup initdb || return 1
     fi
     sudo systemctl enable postgresql-15 || true
-    sudo systemctl start postgresql-15 || return 1
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 90 sudo systemctl start postgresql-15 || return 1
+    else
+        sudo systemctl start postgresql-15 || return 1
+    fi
+    ensure_local_postgresql_running
+    if [ "$(check_postgres)" != "ok" ]; then
+        log_error "PostgreSQL 15 安装后检测仍未通过"
+        return 1
+    fi
     log_ok "PostgreSQL 15 已安装 (/usr/pgsql-15/bin，含 pgvector)"
 }
 
@@ -4743,8 +4906,8 @@ caddy_rpm_repo_urls() {
     local distro=$1 codename=$2
     if [ "${USE_MIRROR}" = "1" ]; then
         printf '%s\n' \
-            "https://dl.cloudsmith.io/public/caddy/stable/config.rpm.txt?distro=${distro}&codename=${codename}" \
-            "https://mirrors.china.12306.work/repository/caddy/stable/config.rpm.txt?distro=${distro}&codename=${codename}"
+            "https://mirrors.china.12306.work/repository/caddy/stable/config.rpm.txt?distro=${distro}&codename=${codename}" \
+            "https://dl.cloudsmith.io/public/caddy/stable/config.rpm.txt?distro=${distro}&codename=${codename}"
     else
         echo "https://dl.cloudsmith.io/public/caddy/stable/config.rpm.txt?distro=${distro}&codename=${codename}"
     fi
@@ -4756,8 +4919,24 @@ install_caddy_dnf() {
         log_error "Caddy dnf/yum 安装仅支持 RHEL/CentOS/Rocky/Alma/Fedora"
         return 1
     }
+    if [ "$(check_caddy)" = "ok" ]; then
+        stop_system_caddy || return 1
+        log_ok "Caddy 已就绪，跳过安装"
+        return 0
+    fi
     pkg_mgr="$(linux_pkg_manager)"
     [ "$pkg_mgr" = "dnf" ] || [ "$pkg_mgr" = "yum" ] || { log_error "未找到 dnf/yum"; return 1; }
+
+    # 优先系统/EPEL 源，避免 Cloudsmith 拉取卡住
+    log_info "优先尝试系统源安装 Caddy（dnf/yum install caddy）..."
+    if sudo "$pkg_mgr" install -y caddy; then
+        stop_system_caddy || return 1
+        if command -v caddy >/dev/null 2>&1; then
+            log_ok "Caddy 已通过系统源安装: $(command -v caddy)"
+            return 0
+        fi
+    fi
+    log_info "系统源无可用 caddy，改用官方 rpm 源..."
 
     if is_linux_fedora; then
         load_os_release
@@ -4777,7 +4956,7 @@ install_caddy_dnf() {
     local configured=0
     for url in "${repo_urls[@]}"; do
         log_info "配置 Caddy dnf/yum 源: $url"
-        if curl -fsSL "$url" | sudo tee /etc/yum.repos.d/caddy-stable.repo >/dev/null; then
+        if curl_fsSL "$url" | sudo tee /etc/yum.repos.d/caddy-stable.repo >/dev/null; then
             configured=1
             break
         fi
@@ -4801,7 +4980,7 @@ enabled=1
 EOF
     fi
 
-    curl -fsSL "$gpg_url" | sudo tee "$keyring" >/dev/null || return 1
+    curl_fsSL "$gpg_url" | sudo tee "$keyring" >/dev/null || return 1
     sudo "$pkg_mgr" makecache -y 2>/dev/null || sudo "$pkg_mgr" makecache || true
     sudo "$pkg_mgr" install -y caddy || return 1
     stop_system_caddy || return 1
@@ -4810,11 +4989,31 @@ EOF
 }
 
 install_postgresql_pgdg() {
-    local pgdg_base codename key_path
+    local pgdg_base codename key_path major
     if [ ! -f /etc/debian_version ]; then
         log_error "PostgreSQL PGDG 安装仅支持 Debian/Ubuntu"
         return 1
     fi
+    if postgresql_reuse_if_ready; then
+        return 0
+    fi
+
+    # Ubuntu 24.04+ / Debian 新版：系统源 postgresql 已是 15+，无需拉 PGDG（易卡）
+    major="$(debian_postgresql_apt_candidate_major || true)"
+    if [ -n "$major" ] && [ "$major" -ge 15 ] 2>/dev/null; then
+        log_info "系统源 PostgreSQL 候选主版本 ${major}，直接 apt 安装（跳过 PGDG）..."
+        apt_noninteractive update || return 1
+        apt_noninteractive install -y postgresql postgresql-contrib || return 1
+        # pgvector 尽力安装，失败不阻断（migrate 时 ensure_postgresql_pgvector 再处理）
+        apt_noninteractive install -y "postgresql-${major}-pgvector" 2>/dev/null || true
+        ensure_local_postgresql_running
+        if [ "$(check_postgres)" = "ok" ]; then
+            log_ok "PostgreSQL ${major} 已通过系统源安装"
+            return 0
+        fi
+        log_warn "系统源安装后检测未通过，改尝试 PGDG 安装 PostgreSQL 15"
+    fi
+
     # shellcheck disable=SC1091
     . /etc/os-release
     codename="${VERSION_CODENAME:-}"
@@ -4823,14 +5022,24 @@ install_postgresql_pgdg() {
     pgdg_base="$(pgdg_apt_base_url)"
     key_path="/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc"
     log_info "配置 PGDG 源: ${pgdg_base} (${codename}-pgdg)"
-    sudo apt update || return 1
-    sudo apt install -y ca-certificates curl gnupg postgresql-common || return 1
+    apt_noninteractive update || return 1
+    apt_noninteractive install -y ca-certificates curl gnupg postgresql-common || return 1
     sudo install -d /usr/share/postgresql-common/pgdg
-    curl -fsSL "${pgdg_base}/ACCC4CF8.asc" | sudo tee "$key_path" > /dev/null || return 1
+    if ! curl_fsSL "${pgdg_base}/ACCC4CF8.asc" | sudo tee "$key_path" > /dev/null; then
+        log_error "下载 PGDG GPG 密钥失败（网络超时或镜像不可达）: ${pgdg_base}/ACCC4CF8.asc"
+        return 1
+    fi
     echo "deb [signed-by=${key_path}] ${pgdg_base} ${codename}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
-    sudo apt update || return 1
-    sudo apt install -y postgresql-15 postgresql-contrib-15 postgresql-15-pgvector || return 1
-    log_ok "PostgreSQL 15 已安装（含 pgvector）"
+    apt_noninteractive update || return 1
+    apt_noninteractive install -y postgresql-15 postgresql-contrib-15 || return 1
+    apt_noninteractive install -y postgresql-15-pgvector 2>/dev/null || \
+        log_warn "postgresql-15-pgvector 暂未装上，迁移时将再尝试"
+    ensure_local_postgresql_running
+    if [ "$(check_postgres)" != "ok" ]; then
+        log_error "PostgreSQL 15 安装后检测仍未通过（请检查: pg_lsclusters / systemctl status postgresql）"
+        return 1
+    fi
+    log_ok "PostgreSQL 15 已安装（含 pgvector 尽力安装）"
 }
 
 caddy_apt_deb_base() {
@@ -4851,17 +5060,42 @@ caddy_gpg_url() {
 
 install_caddy_apt() {
     local apt_base gpg_url keyring=/usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    if [ "$(check_caddy)" = "ok" ]; then
+        stop_system_caddy || return 1
+        log_ok "Caddy 已就绪，跳过安装"
+        return 0
+    fi
+
+    # 与手动安装一致：优先系统源 apt install caddy（Ubuntu universe / Debian），避免 Cloudsmith 卡住
+    log_info "优先使用系统源安装 Caddy（apt install caddy）..."
+    apt_noninteractive update || true
+    if apt-cache show caddy >/dev/null 2>&1; then
+        if apt_noninteractive install -y caddy; then
+            stop_system_caddy || return 1
+            if command -v caddy >/dev/null 2>&1; then
+                log_ok "Caddy 已通过系统源安装: $(command -v caddy)"
+                return 0
+            fi
+        fi
+        log_warn "系统源安装 caddy 未成功，改用官方 apt 源"
+    else
+        log_info "系统源无 caddy 包，改用官方 apt 源"
+    fi
+
     apt_base="$(caddy_apt_deb_base)"
     gpg_url="$(caddy_gpg_url)"
     log_info "配置 Caddy apt 源: ${apt_base}"
-    sudo apt update || return 1
-    sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl ca-certificates gnupg || return 1
-    curl -fsSL "$gpg_url" | sudo gpg --dearmor -o "$keyring" || return 1
+    apt_noninteractive install -y debian-keyring debian-archive-keyring apt-transport-https curl ca-certificates gnupg || return 1
+    if ! curl_fsSL "$gpg_url" | sudo gpg --dearmor -o "$keyring"; then
+        log_error "下载 Caddy GPG 密钥失败（网络超时）: $gpg_url"
+        log_error "也可手动执行: sudo apt-get install -y caddy"
+        return 1
+    fi
     sudo chmod o+r "$keyring"
     echo "deb [signed-by=${keyring}] ${apt_base} any-version main" | sudo tee /etc/apt/sources.list.d/caddy-stable.list > /dev/null
     sudo chmod o+r /etc/apt/sources.list.d/caddy-stable.list
-    sudo apt update || return 1
-    sudo apt install -y caddy || return 1
+    apt_noninteractive update || return 1
+    apt_noninteractive install -y caddy || return 1
     stop_system_caddy || return 1
     command -v caddy >/dev/null 2>&1 || { log_error "apt 安装后未找到 caddy"; return 1; }
     log_ok "Caddy 已通过 apt 安装: $(command -v caddy)"
@@ -4922,7 +5156,8 @@ run_install_component() {
             install_node_nodesource_rpm || return 1
             return 0
         fi
-        if [ "$(get_install_platform_key)" = "debian" ]; then
+        # Ubuntu/Debian 统一走可切换国内源的 NodeSource 安装（勿再走 install-scripts.json 硬编码官方 URL）
+        if [ -f /etc/debian_version ]; then
             log_info "安装 node..."
             install_node_nodesource_deb || return 1
             return 0
@@ -4982,6 +5217,7 @@ cmd_install() {
         log_info "Windows 环境：优先 winget，不可用时走官方安装包..."
     elif [ "$(uname -s)" = "Linux" ]; then
         log_info "Linux 发行版: $(linux_platform_label) · 平台标识: $(get_install_platform_key)"
+        ensure_sudo_ready || exit 1
     fi
     run_install_component node "$(check_node)" || true
     run_install_component python "$(check_python)" || true

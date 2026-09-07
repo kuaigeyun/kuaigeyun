@@ -3,10 +3,10 @@
     "node": {
       "windows": "winget install OpenJS.NodeJS.LTS --accept-package-agreements",
       "linux": "sudo apt update && sudo apt install -y nodejs npm || sudo dnf install -y nodejs npm",
-      "ubuntu22": "sudo rm -f /etc/apt/sources.list.d/caddy-stable.list 2>/dev/null; sudo apt update && sudo apt install -y ca-certificates curl gnupg && sudo mkdir -p /etc/apt/keyrings && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && echo 'deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main' | sudo tee /etc/apt/sources.list.d/nodesource.list && sudo apt update && sudo apt install -y nodejs",
-      "debian": "fast-deploy 在 Debian 上由 install_node_nodesource_deb 安装（USE_MIRROR=1 时 NodeSource 走国内备用源）",
-      "rhel": "fast-deploy 在 RHEL/CentOS/Rocky/Alma 上由 install_node_nodesource_rpm 安装（USE_MIRROR=1 时 NodeSource 走国内备用源）",
-      "fedora": "fast-deploy 在 Fedora 上由 install_node_nodesource_rpm 安装（USE_MIRROR=1 时 NodeSource 走国内备用源）"
+      "ubuntu22": "fast-deploy：install_node_nodesource_deb（USE_MIRROR=1 时清华/华为优先，官方兜底）",
+      "debian": "fast-deploy 在 Debian 上由 install_node_nodesource_deb 安装（USE_MIRROR=1 时国内源优先）",
+      "rhel": "fast-deploy 在 RHEL/CentOS/Rocky/Alma 上由 install_node_nodesource_rpm 安装（USE_MIRROR=1 时国内源优先）",
+      "fedora": "fast-deploy 在 Fedora 上由 install_node_nodesource_rpm 安装（USE_MIRROR=1 时国内源优先）"
     },
     "python": {
       "windows": "winget install Python.Python.3.12 --accept-package-agreements",
@@ -27,18 +27,18 @@
     "postgresql": {
       "windows": "winget install PostgreSQL.PostgreSQL --accept-package-agreements",
       "linux": "sudo apt install -y postgresql postgresql-contrib || sudo dnf install -y postgresql-server postgresql-contrib",
-      "ubuntu22": "fast-deploy 在 Debian/Ubuntu 上由 install_postgresql_pgdg 安装（USE_MIRROR=1 时走阿里云 PGDG 镜像）",
-      "debian": "fast-deploy 在 Debian 上由 install_postgresql_pgdg 安装（USE_MIRROR=1 时走阿里云 PGDG 镜像）",
-      "rhel": "fast-deploy 在 RHEL/CentOS/Rocky/Alma 上由 install_postgresql_pgdg_rhel 安装（USE_MIRROR=1 时走阿里云 PGDG yum 镜像）",
-      "fedora": "fast-deploy 在 Fedora 上由 install_postgresql_pgdg_rhel 安装（USE_MIRROR=1 时走阿里云 PGDG yum 镜像）"
+      "ubuntu22": "fast-deploy：已装则复用；系统源 PG≥15 直接 apt；否则 PGDG 装 15（USE_MIRROR=1 走阿里云）",
+      "debian": "fast-deploy：已装则复用；系统源 PG≥15 直接 apt；否则 PGDG 装 15（USE_MIRROR=1 走阿里云）",
+      "rhel": "fast-deploy 在 RHEL/CentOS/Rocky/Alma 上由 install_postgresql_pgdg_rhel 安装（已装则复用；USE_MIRROR=1 走阿里云）",
+      "fedora": "fast-deploy 在 Fedora 上由 install_postgresql_pgdg_rhel 安装（已装则复用；USE_MIRROR=1 走阿里云）"
     },
     "caddy": {
       "windows": "winget install -e --id CaddyServer.Caddy --accept-package-agreements --accept-source-agreements",
-      "linux": "fast-deploy 在 Debian/Ubuntu 上由 install_caddy_apt 安装（USE_MIRROR=1 时走国内 apt 镜像）",
-      "ubuntu22": "fast-deploy 在 Debian/Ubuntu 上由 install_caddy_apt 安装（USE_MIRROR=1 时走国内 apt 镜像）",
-      "debian": "fast-deploy 在 Debian 上由 install_caddy_apt 安装（USE_MIRROR=1 时走国内 apt 镜像）",
-      "rhel": "fast-deploy 在 RHEL/CentOS/Rocky/Alma 上由 install_caddy_dnf 安装（USE_MIRROR=1 时走国内 rpm 镜像）",
-      "fedora": "fast-deploy 在 Fedora 上由 install_caddy_dnf 安装（USE_MIRROR=1 时走国内 rpm 镜像）"
+      "linux": "fast-deploy：优先系统源 apt/dnf install caddy，失败再官方源",
+      "ubuntu22": "fast-deploy：优先 apt install caddy（系统源），失败再官方 Cloudsmith/国内镜像",
+      "debian": "fast-deploy：优先 apt install caddy（系统源），失败再官方 Cloudsmith/国内镜像",
+      "rhel": "fast-deploy：优先 dnf install caddy，失败再官方 rpm 源",
+      "fedora": "fast-deploy：优先 dnf install caddy，失败再官方 rpm 源"
     },
     "zbar": {
       "windows": "fast-deploy 由 ensure_pyzbar_windows_native 重装 pyzbar（自带 libzbar DLL）",

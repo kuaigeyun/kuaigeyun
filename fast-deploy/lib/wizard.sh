@@ -1502,30 +1502,26 @@ wizard_install_method_hint() {
     case "$1" in
         node|python)
             case "$plat" in
-                rhel|fedora) echo "NodeSource / dnf 官方源 + 国内备用" ;;
-                debian|ubuntu22) echo "NodeSource / apt 官方源 + 国内备用" ;;
-                *) echo "官方源安装" ;;
+                rhel|fedora) echo "国内源优先 / NodeSource·dnf" ;;
+                debian|ubuntu22) echo "国内源优先 / NodeSource·apt" ;;
+                *) echo "国内源优先安装" ;;
             esac
             ;;
-        uv) echo "官方安装脚本 + ghproxy 备用" ;;
+        uv) echo "国内 ghproxy 优先 / 官方兜底" ;;
         postgresql)
             case "$plat" in
                 rhel|fedora)
-                    if [ "${USE_MIRROR}" = "1" ]; then echo "阿里云 PGDG yum 镜像"; else echo "PGDG 官方 yum 源"; fi
+                    if [ "${USE_MIRROR}" = "1" ]; then echo "已装则复用 / 阿里云 PGDG yum"; else echo "已装则复用 / PGDG yum"; fi
                     ;;
                 *)
-                    if [ "${USE_MIRROR}" = "1" ]; then echo "阿里云 PGDG 镜像"; else echo "PGDG 官方源"; fi
+                    echo "已装则复用 / 系统源优先 / 必要时 PGDG"
                     ;;
             esac
             ;;
         caddy)
             case "$plat" in
-                rhel|fedora)
-                    if [ "${USE_MIRROR}" = "1" ]; then echo "dnf 国内 rpm 镜像"; else echo "Cloudsmith rpm 官方源"; fi
-                    ;;
-                *)
-                    if [ "${USE_MIRROR}" = "1" ]; then echo "apt 国内镜像"; else echo "apt 官方源"; fi
-                    ;;
+                rhel|fedora) echo "系统源优先 / 必要时官方 rpm" ;;
+                *) echo "系统源 apt install caddy（优先）" ;;
             esac
             ;;
         zbar|invoice-runtime)
@@ -1545,6 +1541,7 @@ wizard_install_deps() {
 
     local -a plan=()
     local st comp status name hint item
+    local needs_sudo=0
 
     st="$(check_node)"; [ "$st" != "ok" ] && plan+=("node:$st")
     st="$(check_python)"; [ "$st" != "ok" ] && plan+=("python:$st")
@@ -1573,27 +1570,49 @@ wizard_install_deps() {
         status="${item#*:}"
         hint="$(wizard_install_method_hint "$comp")"
         echo "    · $(wizard_component_display_name "$comp") — $(wizard_install_reason "$status")${hint:+ · ${hint}}"
+        case "$comp" in
+            postgresql|caddy|node|python|invoice-runtime|zbar) needs_sudo=1 ;;
+        esac
     done
-    wizard_say "安装过程可能较慢，完成后会逐项提示；详细日志: ${log}"
+    wizard_say "安装过程会实时输出到终端，同时写入日志: ${log}"
     echo ""
 
     [ -f "$INSTALL_SCRIPTS_JSON" ] || { wizard_say_fail "缺少 $INSTALL_SCRIPTS_JSON"; return 1; }
     apply_cn_mirrors
 
+    # Linux：先交互预热 sudo，避免密码提示被重定向到日志后整段假死
+    if [ "$(uname -s)" = "Linux" ] && [ "$needs_sudo" -eq 1 ] && [ "$(id -u)" -ne 0 ]; then
+        if ! ensure_sudo_ready; then
+            wizard_say_fail "无法获取 sudo 权限，无法继续安装系统依赖"
+            return 1
+        fi
+        wizard_say_ok "sudo 已就绪"
+    fi
+
+    local install_rc stop_rc check_rc
     for item in "${plan[@]}"; do
         comp="${item%%:*}"
         status="${item#*:}"
         name="$(wizard_component_display_name "$comp")"
         hint="$(wizard_install_method_hint "$comp")"
         wizard_say "正在安装 ${name}${hint:+（${hint}）}，请稍候..."
-        if run_install_component "$comp" "$status" >>"$log" 2>&1; then
+        # tee 到终端：可见 apt 进度；PIPESTATUS 须在 local 赋值之外读取
+        set +e
+        run_install_component "$comp" "$status" 2>&1 | tee -a "$log"
+        install_rc=${PIPESTATUS[0]}
+        set -e
+        if [ "$install_rc" -eq 0 ]; then
             wizard_say_ok "${name} 已安装完成"
             if [ "$comp" = "caddy" ]; then
-                stop_system_caddy >>"$log" 2>&1 || {
+                set +e
+                stop_system_caddy 2>&1 | tee -a "$log"
+                stop_rc=${PIPESTATUS[0]}
+                set -e
+                if [ "$stop_rc" -ne 0 ]; then
                     wizard_say_fail "Caddy 已安装但无法停止系统服务"
                     tail -15 "$log" >&2
                     return 1
-                }
+                fi
                 wizard_say_ok "系统 caddy.service 已停止，将在项目启动时使用项目 Caddyfile"
             fi
         else
@@ -1605,7 +1624,11 @@ wizard_install_deps() {
     done
 
     wizard_say "正在复核基线依赖..."
-    if cmd_check_baseline >>"$log" 2>&1; then
+    set +e
+    cmd_check_baseline 2>&1 | tee -a "$log"
+    check_rc=${PIPESTATUS[0]}
+    set -e
+    if [ "$check_rc" -eq 0 ]; then
         wizard_finalize_local_database || return 1
         wizard_say_ok "环境软件安装全部完成"
         wizard_say "特殊依赖将在迁移/启动时处理，状态见菜单 [5] 详情"
