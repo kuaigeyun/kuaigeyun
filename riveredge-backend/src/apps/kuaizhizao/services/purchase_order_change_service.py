@@ -1128,6 +1128,8 @@ class PurchaseOrderChangeService(AppBaseService[PurchaseOrderChangeOrder]):
                     required_date = ch.after_delivery_date or order.order_date
                     if not ch.material_id:
                         raise BusinessLogicError("新增行缺少物料")
+                    if qty <= 0:
+                        raise BusinessLogicError("新增行采购数量必须大于 0")
                     total_price = line_amount(qty, price)
                     await PurchaseOrderChange.create(
                         tenant_id=tenant_id,
@@ -1176,6 +1178,26 @@ class PurchaseOrderChangeService(AppBaseService[PurchaseOrderChangeOrder]):
                     )
                     await po_item.delete()
                     continue
+                after_qty = (
+                    Decimal(str(ch.after_quantity))
+                    if ch.after_quantity is not None
+                    else Decimal(str(po_item.ordered_quantity or 0))
+                )
+                # 数量改为 0 等价于取消行，避免留下 ordered_quantity=0 拖垮列表序列化
+                if after_qty <= 0:
+                    await PurchaseOrderChange.create(
+                        tenant_id=tenant_id,
+                        order_id=order.id,
+                        change_type="Cancel",
+                        field_name=f"line_{po_item.id}",
+                        old_value=str(po_item.ordered_quantity),
+                        new_value="0",
+                        reason=doc.change_reason,
+                        operator_id=operator_id,
+                        operator_name=operator_name,
+                    )
+                    await po_item.delete()
+                    continue
                 if ch.after_quantity != ch.before_quantity:
                     await PurchaseOrderChange.create(
                         tenant_id=tenant_id,
@@ -1200,8 +1222,9 @@ class PurchaseOrderChangeService(AppBaseService[PurchaseOrderChangeOrder]):
                         operator_id=operator_id,
                         operator_name=operator_name,
                     )
-                po_item.ordered_quantity = ch.after_quantity or po_item.ordered_quantity
-                po_item.unit_price = ch.after_unit_price or po_item.unit_price
+                po_item.ordered_quantity = after_qty
+                if ch.after_unit_price is not None:
+                    po_item.unit_price = Decimal(str(ch.after_unit_price))
                 po_item.required_date = ch.after_delivery_date or po_item.required_date
                 received = Decimal(str(po_item.received_quantity or 0))
                 po_item.outstanding_quantity = max(Decimal("0"), po_item.ordered_quantity - received)

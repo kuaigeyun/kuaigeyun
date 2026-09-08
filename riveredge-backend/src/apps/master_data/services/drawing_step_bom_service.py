@@ -39,7 +39,9 @@ class DrawingStepBomService:
         current_user: User | None = None,
     ) -> DrawingStepBomImportResponse:
         drawing = await DrawingService._get_active_or_404(tenant_id, drawing_uuid)
-        DrawingService._require_checkout_owner(drawing, current_user, action="导入 BOM")
+        status = (drawing.status or "").strip()
+        if status == "Obsolete":
+            raise ValidationError("已作废图纸不可导入 BOM")
 
         file_meta = await FileService.get_file_by_uuid(tenant_id, drawing.file_uuid)
         ext = (file_meta.file_extension or "").lower().lstrip(".")

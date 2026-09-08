@@ -92,7 +92,8 @@ const STATUS_COLOR: Record<DrawingStatus, string> = {
 };
 
 function canImportStepBom(record: EngineeringDrawing): boolean {
-  if (record.status !== 'Editing') return false;
+  // 导入只回写关联 BOM，不改 CAD 主文件；已发布装配体也应可用（仅作废不可）
+  if (record.status === 'Obsolete') return false;
   if (record.drawingType !== 'assembly') return false;
   if (!record.file) return false;
   return isStepFile({
@@ -113,6 +114,7 @@ type InlinePreviewPaneProps = {
   file: FileBrief | null;
   activeDrawing: EngineeringDrawing | null;
   previewPending: boolean;
+  canImportStepBomAction: boolean;
   onOpenLargePreview: () => void;
   onOpenStepBom: (drawing: EngineeringDrawing) => void;
 };
@@ -121,12 +123,13 @@ const InlinePreviewPane = React.memo(function InlinePreviewPane({
   file,
   activeDrawing,
   previewPending,
+  canImportStepBomAction,
   onOpenLargePreview,
   onOpenStepBom,
 }: InlinePreviewPaneProps) {
   const { t } = useTranslation();
   const { token } = theme.useToken();
-  const showStepBom = activeDrawing && canImportStepBom(activeDrawing);
+  const showStepBom = canImportStepBomAction && activeDrawing && canImportStepBom(activeDrawing);
   const showLarge = !!activeDrawing?.file?.uuid;
 
   return (
@@ -231,7 +234,7 @@ const DrawingsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { message: messageApi } = App.useApp();
   const currentUser = useCurrentUser();
-  const { canCreate, canUpdate, canDelete, canPrint, canAction } = useResourcePermissions(DRAWING_PERMISSION);
+  const { canCreate, canUpdate, canDelete, canPrint, canImport, canAction } = useResourcePermissions(DRAWING_PERMISSION);
   const changePerms = useResourcePermissions('kuaiplm.change');
   const canSubmit = !!canAction?.('submit');
   const canApprove = !!canAction?.('approve');
@@ -787,6 +790,17 @@ ${data.previewUrl ? `<img src="${escapeHtml(data.previewUrl)}" alt="${escapeHtml
   const renderLifecycleActions = useCallback(
     (record: EngineeringDrawing, compact = false) => (
       <Space size={compact ? 8 : 0} style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap' }}>
+        {canImport && canImportStepBom(record) ? (
+          <Button
+            key="importStepBom"
+            {...rowActionKind('create')}
+            {...rowActionLabelKeep()}
+            icon={<PartitionOutlined />}
+            onClick={() => openStepBomWizard(record)}
+          >
+            {t('app.master-data.drawings.importStepBom')}
+          </Button>
+        ) : null}
         {canUpdate ? (
           <Button
             key="moveFolder"
@@ -923,6 +937,7 @@ ${data.previewUrl ? `<img src="${escapeHtml(data.previewUrl)}" alt="${escapeHtml
     [
       t,
       showInlinePreview,
+      canImport,
       canUpdate,
       canDelete,
       canSubmit,
@@ -933,6 +948,7 @@ ${data.previewUrl ? `<img src="${escapeHtml(data.previewUrl)}" alt="${escapeHtml
       canObsolete,
       canPrint,
       openDrawingPrint,
+      openStepBomWizard,
       changePerms.canCreate,
       navigate,
       isCheckoutOwner,
@@ -981,7 +997,7 @@ ${data.previewUrl ? `<img src="${escapeHtml(data.previewUrl)}" alt="${escapeHtml
               <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openPreview(r.file)}>
                 {r.file.originalName}
               </Button>
-              {canImportStepBom(r) && (
+              {canImport && canImportStepBom(r) && (
                 <Button
                   type="link"
                   size="small"
@@ -1074,7 +1090,7 @@ ${data.previewUrl ? `<img src="${escapeHtml(data.previewUrl)}" alt="${escapeHtml
       { title: t('common.createdAt'), dataIndex: 'createdAt', valueType: 'dateTime' },
       { title: t('common.updatedAt'), dataIndex: 'updatedAt', valueType: 'dateTime' },
     ],
-    [t, showInlinePreview, navigate, openStepBomWizard],
+    [t, showInlinePreview, navigate, openStepBomWizard, canImport],
   );
 
   const columns: ProColumns<EngineeringDrawing>[] = useMemo(
@@ -1467,6 +1483,7 @@ ${data.previewUrl ? `<img src="${escapeHtml(data.previewUrl)}" alt="${escapeHtml
                   file={deferredPreviewFile}
                   activeDrawing={selectedDrawing}
                   previewPending={previewPending}
+                  canImportStepBomAction={canImport}
                   onOpenLargePreview={handleOpenLargePreview}
                   onOpenStepBom={openStepBomWizard}
                 />

@@ -161,6 +161,8 @@ class PurchaseOrderItemUpdate(PurchaseOrderItemBase):
 
 class PurchaseOrderItemResponse(PurchaseOrderItemBase):
     """采购订单明细响应Schema"""
+    # 读侧允许 0：历史/变更残留行不得拖垮列表；写侧 Create/Update 仍用 gt=0
+    ordered_quantity: Decimal = Field(..., ge=0, description="采购数量")
     id: int = Field(..., description="明细ID")
     order_id: int = Field(..., description="订单ID")
     price_settled_at: Optional[datetime] = Field(None, description="定价时间")

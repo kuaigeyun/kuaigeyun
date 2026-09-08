@@ -26218,6 +26218,14 @@ export default {
     '电子制造二级菜单去掉图标',
   'pages.dashboard.updateLog.entries.kuaielectronics-menu-leaf-no-icon.description':
     '电子制造行业包叶子菜单在 manifest 中不再配置 icon；同步菜单后 ESD 看板/点检/管理与 OEM 标签签样不再显示叶子图标。',
+  'pages.dashboard.updateLog.entries.purchase-order-item-zero-qty-list-500.title':
+    '修复采购订单列表因明细数量为 0 整页 500',
+  'pages.dashboard.updateLog.entries.purchase-order-item-zero-qty-list-500.description':
+    '列表读侧允许展示数量为 0 的历史明细；新建仍须大于 0。变更单将数量改为 0 时按取消行删除，避免再写入非法数量。',
+  'pages.dashboard.updateLog.entries.drawing-step-bom-released-restore.title':
+    '恢复已发布装配图「从 STP 生成 BOM」入口',
+  'pages.dashboard.updateLog.entries.drawing-step-bom-released-restore.description':
+    '不再要求图纸处于检出编辑中；已发布装配体在操作列可见，后端也不再强制检出后才能导入。',
   'pages.dashboard.updateLog.entries.sales-print-require-audit-config.title':
     '销售管理增加「打印须审核」业务配置',
   'pages.dashboard.updateLog.entries.sales-print-require-audit-config.description':

@@ -36,6 +36,20 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'purchase-order-item-zero-qty-list-500',
+    date: '2026-09-08',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.purchase-order-item-zero-qty-list-500.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.purchase-order-item-zero-qty-list-500.description',
+  },
+  {
+    id: 'drawing-step-bom-released-restore',
+    date: '2026-09-08',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.drawing-step-bom-released-restore.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.drawing-step-bom-released-restore.description',
+  },
+  {
     id: 'sales-print-require-audit-config',
     date: '2026-09-08',
     type: 'feature',
