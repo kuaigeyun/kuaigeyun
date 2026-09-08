@@ -129,6 +129,16 @@ export const PARAMETER_CATEGORIES: ConfigCategory[] = createCategories({
       groupDescriptionKey: 'pages.system.configCenter.paramGroup.common_numeric_precision_desc',
     },
   ],
+  sales: [
+    {
+      key: 'sales.require_audit_before_print',
+      nameKey: 'pages.system.configCenter.param.sales_require_audit_before_print',
+      descriptionKey: 'pages.system.configCenter.param.sales_require_audit_before_print_desc',
+      source: 'business_config',
+      sourcePath: 'parameters.sales.require_audit_before_print',
+      type: 'boolean',
+    },
+  ],
   planning: [
     { key: 'bom.bom_multi_version_allowed', nameKey: 'pages.system.configCenter.param.bom_bom_multi_version_allowed', descriptionKey: 'pages.system.configCenter.param.bom_bom_multi_version_allowed_desc', source: 'business_config', sourcePath: 'parameters.bom.bom_multi_version_allowed', type: 'boolean' },
     { key: 'work_order.score_enabled', nameKey: 'pages.system.configCenter.param.work_order_score_enabled', descriptionKey: 'pages.system.configCenter.param.work_order_score_enabled_desc', source: 'business_config', sourcePath: 'parameters.work_order.score_enabled', type: 'boolean' },

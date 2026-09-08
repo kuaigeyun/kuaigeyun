@@ -69,10 +69,14 @@ class QuotationService:
         sales_review_downstream_missing: bool = False,
     ) -> None:
         audit_required = await self._quotation_audit_required(tenant_id)
+        require_audit_before_print = (
+            await self.business_config_service.get_sales_require_audit_before_print(tenant_id)
+        )
         assert_quotation_capability(
             quotation,
             action,
             audit_required=audit_required,
+            require_audit_before_print=require_audit_before_print,
             conversion_downstream_missing=conversion_downstream_missing,
             contract_downstream_missing=contract_downstream_missing,
             sales_review_downstream_missing=sales_review_downstream_missing,
@@ -1327,6 +1331,20 @@ class QuotationService:
         if scope == "department":
             return query.filter(await resolve_scope_department(ctx))
         return query
+
+    async def list_salesmen(
+        self,
+        tenant_id: int,
+        *,
+        current_user: Optional[User] = None,
+        list_scope: Optional[str] = None,
+    ) -> list[dict]:
+        """当前可见报价单中的去重销售人员（供列表筛选下拉）。"""
+        from apps.kuaizhizao.services.document_salesmen import collect_document_salesmen
+
+        query = Quotation.filter(tenant_id=tenant_id, deleted_at__isnull=True)
+        query = await self._apply_quotation_list_scope(query, tenant_id, current_user, list_scope)
+        return await collect_document_salesmen(query)
 
     async def _batch_quotation_downstream_missing(
         self,

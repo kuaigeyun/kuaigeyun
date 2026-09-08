@@ -83,6 +83,7 @@ def derive_quotation_capabilities(
     quotation: Any,
     *,
     audit_required: bool,
+    require_audit_before_print: bool = False,
     conversion_downstream_missing: bool = False,
     contract_downstream_missing: bool = False,
     sales_review_downstream_missing: bool = False,
@@ -248,10 +249,13 @@ def derive_quotation_capabilities(
     print_allowed = st in ("已接受", "已转订单") or (
         st == "已发送" and (not audit_required or _is_approved(rs))
     )
-    print_cap = _cap(
-        print_allowed,
-        "quotation.print.not_allowed" if not print_allowed else None,
-    )
+    print_reason: Optional[str] = None
+    if require_audit_before_print and not _is_approved(rs):
+        print_allowed = False
+        print_reason = "quotation.print.requires_audit"
+    elif not print_allowed:
+        print_reason = "quotation.print.not_allowed"
+    print_cap = _cap(print_allowed, print_reason)
 
     return QuotationCapabilities(
         update=update_cap,
@@ -277,6 +281,7 @@ def assert_quotation_capability(
     action: str,
     *,
     audit_required: bool,
+    require_audit_before_print: bool = False,
     conversion_downstream_missing: bool = False,
     contract_downstream_missing: bool = False,
     sales_review_downstream_missing: bool = False,
@@ -284,6 +289,7 @@ def assert_quotation_capability(
     caps = derive_quotation_capabilities(
         quotation,
         audit_required=audit_required,
+        require_audit_before_print=require_audit_before_print,
         conversion_downstream_missing=conversion_downstream_missing,
         contract_downstream_missing=contract_downstream_missing,
         sales_review_downstream_missing=sales_review_downstream_missing,

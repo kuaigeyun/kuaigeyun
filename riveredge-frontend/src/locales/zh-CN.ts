@@ -21946,6 +21946,9 @@ export default {
   'pages.system.configCenter.param.sales_price_deviation_approval_threshold_percent_desc': '实际定价与基准价偏差超过此比例时触发审批。',
   'pages.system.configCenter.param.sales_require_contract_before_order': '新建销售订单须关联合同',
   'pages.system.configCenter.param.sales_require_contract_before_order_desc': '已废弃：框架合同与单次订单已合并，请勿开启。',
+  'pages.system.configCenter.param.sales_require_audit_before_print': '报价单/销售订单打印须审核',
+  'pages.system.configCenter.param.sales_require_audit_before_print_desc':
+    '默认关闭。开启后，未审核通过的报价单与销售订单不可打印，打印按钮会提示原因。',
   'pages.system.configCenter.param.sales_contract_expiry_alert_days': '合同终止预警天数',
   'pages.system.configCenter.param.sales_contract_expiry_alert_days_desc': '合同终止日前多少天开始在预警面板提示。',
   'pages.system.configCenter.param.sales_contract_auto_close_on_full_release': '释放完毕自动关闭合同',
@@ -26215,6 +26218,22 @@ export default {
     '电子制造二级菜单去掉图标',
   'pages.dashboard.updateLog.entries.kuaielectronics-menu-leaf-no-icon.description':
     '电子制造行业包叶子菜单在 manifest 中不再配置 icon；同步菜单后 ESD 看板/点检/管理与 OEM 标签签样不再显示叶子图标。',
+  'pages.dashboard.updateLog.entries.sales-print-require-audit-config.title':
+    '销售管理增加「打印须审核」业务配置',
+  'pages.dashboard.updateLog.entries.sales-print-require-audit-config.description':
+    '配置中心参数设置销售管理可开启报价单/销售订单打印须审核通过；默认关闭，开启后未审核单据打印按钮禁用并提示原因。',
+  'pages.dashboard.updateLog.entries.sales-list-salesman-options-unwrap-fix.title':
+    '销售人员筛选下拉无选项修复',
+  'pages.dashboard.updateLog.entries.sales-list-salesman-options-unwrap-fix.description':
+    '报价单、销售订单工具栏销售人员下拉此前误把已解包的数组再取 data，导致一直显示暂无数据；现按接口解包结果正确列出单据中的销售人员。',
+  'pages.dashboard.updateLog.entries.sales-list-salesman-from-documents.title':
+    '销售人员筛选改为取自当前单据',
+  'pages.dashboard.updateLog.entries.sales-list-salesman-from-documents.description':
+    '报价单、销售订单列表工具栏的销售人员下拉，改为仅列出当前可见单据中已出现的销售人员，不再从全员用户目录选择；随「全部 / 我的 / 我的部门」范围联动。',
+  'pages.dashboard.updateLog.entries.sales-list-salesman-toolbar-filter.title':
+    '报价单与销售订单可按销售人员快速筛选',
+  'pages.dashboard.updateLog.entries.sales-list-salesman-toolbar-filter.description':
+    '报价单、销售订单列表在「全部 / 我的 / 我的部门」分段选择器后增加销售人员下拉，选中后立即按归属销售人员筛选列表。',
   'pages.dashboard.updateLog.entries.gl-voucher-edit-await-queryset.title':
     '会计凭证编辑服务器错误修复',
   'pages.dashboard.updateLog.entries.gl-voucher-edit-await-queryset.description':

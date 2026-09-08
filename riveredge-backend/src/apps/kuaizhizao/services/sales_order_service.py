@@ -127,6 +127,26 @@ class SalesOrderService:
             return query.filter(await resolve_scope_department(ctx))
         return query
 
+    async def list_salesmen(
+        self,
+        tenant_id: int,
+        *,
+        current_user: Optional["User"] = None,
+        list_scope: Optional[str] = None,
+    ) -> list[dict]:
+        """当前可见销售订单中的去重销售人员（供列表筛选下拉）。"""
+        from apps.kuaizhizao.models.sales_order import SalesOrder
+        from apps.kuaizhizao.services.document_salesmen import collect_document_salesmen
+
+        query = SalesOrder.filter(tenant_id=tenant_id, deleted_at__isnull=True)
+        query = await self._apply_sales_order_list_scope(
+            query,
+            tenant_id=tenant_id,
+            current_user=current_user,
+            list_scope=list_scope,
+        )
+        return await collect_document_salesmen(query)
+
     @staticmethod
     def _process_sales_order_item_pricing(
         item_data: SalesOrderItemCreate,
@@ -1087,7 +1107,15 @@ class SalesOrderService:
             order, items, demand, pushable_by_item=pushable_by_item,
             has_existing_delivery_project=has_existing_delivery_project,
         )
-        assert_sales_order_capability(order, action, **ctx)
+        require_audit_before_print = (
+            await self.business_config_service.get_sales_require_audit_before_print(tenant_id)
+        )
+        assert_sales_order_capability(
+            order,
+            action,
+            require_audit_before_print=require_audit_before_print,
+            **ctx,
+        )
 
     async def _sync_demand_if_exists(self, tenant_id: int, order_id: int, operator_id: int) -> bool:
         """销售订单保存后，将关联 Demand/DemandItem 与订单明细对齐（策略 A）。"""
@@ -1812,6 +1840,9 @@ class SalesOrderService:
         ).get(sales_order_id, {})
 
         audit_enabled = await self.business_config_service.check_audit_required(tenant_id, "sales_order")
+        require_audit_before_print = (
+            await self.business_config_service.get_sales_require_audit_before_print(tenant_id)
+        )
         from apps.kuaizhizao.utils.sales_order_push_qty import get_pushable_qty_for_order_items
 
         pushable_by_item = await get_pushable_qty_for_order_items(
@@ -1843,6 +1874,7 @@ class SalesOrderService:
                 shippable_hint=shippable_map.get(sales_order_id),
                 audit_enabled=audit_enabled,
             ),
+            require_audit_before_print=require_audit_before_print,
             **self._sales_order_capability_context(
                 order, items, demand, pushable_by_item=pushable_by_item,
                 has_existing_delivery_project=has_existing_delivery_project,
@@ -2373,6 +2405,9 @@ class SalesOrderService:
             sales_order_ids=order_ids,
         )
         audit_enabled = await self.business_config_service.check_audit_required(tenant_id, "sales_order")
+        require_audit_before_print = (
+            await self.business_config_service.get_sales_require_audit_before_print(tenant_id)
+        )
 
         eligible_ship_check_ids: List[int] = []
         delivery_progress_by_order: Dict[int, float] = {}
@@ -2441,6 +2476,7 @@ class SalesOrderService:
                         shippable_hint=shippable_map.get(order.id),
                         audit_enabled=audit_enabled,
                     ),
+                    require_audit_before_print=require_audit_before_print,
                     **self._sales_order_capability_context(
                         order,
                         items,

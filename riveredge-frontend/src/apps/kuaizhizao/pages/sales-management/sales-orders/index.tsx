@@ -98,6 +98,10 @@ import { buildDocumentAuditColumns } from '../../shared/documentAuditColumns';
 import { UniWorkflowActions } from '../../../../../components/uni-workflow-actions';
 import { ListUniLifecycleCell } from '../shared/ListUniLifecycleCell';
 import { createListAuditPhaseColumn } from '../shared/listAuditPhaseColumn';
+import {
+  SalesDocumentSalesmanListFilter,
+  resolveListSalesmanId,
+} from '../shared/SalesDocumentSalesmanListFilter';
 import { getSalesOrderLifecycle, isSalesOrderDeliveryOverdue, isSalesOrderLineDeliveryOverdue, buildSalesOrderLifecycleValueEnum, resolveSalesOrderListLifecycleParams } from '../../../utils/salesOrderLifecycle';
 import { LIST_LIFECYCLE_STAGE_FIELD } from '../../../../../utils/listLifecycleStage';
 import {
@@ -201,6 +205,7 @@ import {
   bulkReopenSalesOrders,
   deleteSalesOrder,
   getSalesOrderStatistics,
+  listSalesOrderSalesmen,
   getSalesOrderSyncBinding,
   SalesOrder,
   SalesOrderItem,
@@ -623,6 +628,18 @@ const SalesOrdersPage: React.FC = () => {
 
   /** 表格搜索表单 ref，用于 statCard 点击时设置筛选并刷新 */
   const tableSearchFormRef = useRef<any>(null);
+  const [salesmanFilterId, setSalesmanFilterId] = useState<number | undefined>();
+  const salesmanFilterIdRef = useRef<number | undefined>(undefined);
+  const handleSalesmanFilterChange = useCallback((next: number | undefined) => {
+    salesmanFilterIdRef.current = next;
+    setSalesmanFilterId(next);
+    tableSearchFormRef.current?.setFieldsValue({ salesman_id: next ?? null });
+    actionRef.current?.reload();
+  }, []);
+  const loadSalesmanFilterOptions = useCallback(
+    () => listSalesOrderSalesmen({ list_scope: listScopeFilter }),
+    [listScopeFilter],
+  );
   const rowKeyToOrderIdRef = useRef<Map<string, number>>(new Map());
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const leaveSalesOrderFormPage = useLeaveFormTab(SALES_ORDER_LIST_PATH);
@@ -4899,18 +4916,26 @@ const SalesOrdersPage: React.FC = () => {
           actionRef={actionRef}
           toolBarButtonSize="middle"
           beforeSearchButtons={
-            <ThemedSegmented
-              key="sales-order-list-scope"
-              surfaceBackground
-              size="medium"
-              value={listScopeFilter}
-              onChange={(v) => setListScopeFilter(v as SalesOrderListScope)}
-              options={[
-                { label: t('app.kuaizhizao.salesOrder.listScopeAll'), value: 'all' },
-                { label: t('app.kuaizhizao.salesOrder.listScopeMine'), value: 'mine' },
-                { label: t('app.kuaizhizao.salesOrder.listScopeDepartment'), value: 'department' },
-              ]}
-            />
+            <Space size={8} wrap>
+              <ThemedSegmented
+                key="sales-order-list-scope"
+                surfaceBackground
+                size="medium"
+                value={listScopeFilter}
+                onChange={(v) => setListScopeFilter(v as SalesOrderListScope)}
+                options={[
+                  { label: t('app.kuaizhizao.salesOrder.listScopeAll'), value: 'all' },
+                  { label: t('app.kuaizhizao.salesOrder.listScopeMine'), value: 'mine' },
+                  { label: t('app.kuaizhizao.salesOrder.listScopeDepartment'), value: 'department' },
+                ]}
+              />
+              <SalesDocumentSalesmanListFilter
+                value={salesmanFilterId}
+                onChange={handleSalesmanFilterChange}
+                loadOptions={loadSalesmanFilterOptions}
+                reloadToken={listScopeFilter}
+              />
+            </Space>
           }
           columns={columns}
           rowKey={dataViewMode === 'detail' ? '_rowKey' : 'id'}
@@ -4946,8 +4971,9 @@ const SalesOrdersPage: React.FC = () => {
             if (sf.customer_id != null && sf.customer_id !== '') {
               apiParams.customer_id = Number(sf.customer_id);
             }
-            if (sf.salesman_id != null && sf.salesman_id !== '') {
-              apiParams.salesman_id = Number(sf.salesman_id);
+            const salesmanId = resolveListSalesmanId(salesmanFilterIdRef.current, sf);
+            if (salesmanId != null) {
+              apiParams.salesman_id = salesmanId;
             }
             const contractCode = sf.contract_code != null ? String(sf.contract_code).trim() : '';
             if (contractCode) apiParams.contract_code = contractCode;
@@ -5136,27 +5162,50 @@ const SalesOrdersPage: React.FC = () => {
           ]}
           toolBarActionsEnd={[salesOrderHighlightOverdueToolbar]}
           rightToolBarActionsBeforeExport={[
-            <UniCapabilityBatchButton
-              key="sales-order-batch-print"
-              selectedRowKeys={selectedRowKeys}
-              selectedRecords={selectedOrdersForBatch}
-              capabilityKey="print"
-              permAllowed={salesOrderPerms.canPrint}
-              batchAllowed={(records, perm) =>
-                Boolean(perm) && records.some((record) => record.capabilities?.print?.allowed === true)
+            <Tooltip
+              key="sales-order-batch-print-tip"
+              title={
+                selectedOrdersForBatch.length === 1 &&
+                selectedOrdersForBatch[0]?.capabilities?.print?.allowed !== true
+                  ? salesOrderCapabilityReasonMessage(
+                      selectedOrdersForBatch[0]?.capabilities?.print?.reason,
+                      t,
+                    ) || t('components.uniAction.print')
+                  : t('components.uniAction.print')
               }
-              singleOnly
-              onRun={async (id) => {
-                openPrint({ documentType: 'sales_order', documentId: id });
-              }}
-              resolveId={(key, record) => resolveSalesOrderBatchId(key, record)}
-              labels={{
-                single: t('components.uniAction.print'),
-                batch: t('components.uniAction.print'),
-              }}
-              icon={<PrinterOutlined />}
-              size="medium"
-            />,
+            >
+              <span>
+                <UniCapabilityBatchButton
+                  key="sales-order-batch-print"
+                  selectedRowKeys={selectedRowKeys}
+                  selectedRecords={selectedOrdersForBatch}
+                  capabilityKey="print"
+                  permAllowed={salesOrderPerms.canPrint}
+                  batchAllowed={(records, perm) =>
+                    Boolean(perm) && records.some((record) => record.capabilities?.print?.allowed === true)
+                  }
+                  singleOnly
+                  notAllowedMessage={
+                    selectedOrdersForBatch.length === 1
+                      ? salesOrderCapabilityReasonMessage(
+                          selectedOrdersForBatch[0]?.capabilities?.print?.reason,
+                          t,
+                        ) || undefined
+                      : undefined
+                  }
+                  onRun={async (id) => {
+                    openPrint({ documentType: 'sales_order', documentId: id });
+                  }}
+                  resolveId={(key, record) => resolveSalesOrderBatchId(key, record)}
+                  labels={{
+                    single: t('components.uniAction.print'),
+                    batch: t('components.uniAction.print'),
+                  }}
+                  icon={<PrinterOutlined />}
+                  size="medium"
+                />
+              </span>
+            </Tooltip>,
           ]}
           // 表头固定；scroll.y 由 UniTable 全局常量模板自动计算（统一行为）
           sticky
@@ -5361,13 +5410,28 @@ const SalesOrdersPage: React.FC = () => {
                     : t('app.kuaizhizao.salesOrder.submitConfirmAuto'),
                 }}
               />
-              {currentSalesOrder.id != null && !detailCapabilityGates.print.disabled && (
-                <Button
-                  icon={<PrinterOutlined />}
-                  onClick={() => openPrint({ documentType: 'sales_order', documentId: currentSalesOrder.id! })}
+              {currentSalesOrder.id != null && (
+                <Tooltip
+                  title={
+                    detailCapabilityGates.print.disabled
+                      ? detailCapabilityGates.print.title || t('components.uniAction.print')
+                      : t('components.uniAction.print')
+                  }
                 >
-                  {t('components.uniAction.print')}
-                </Button>
+                  <Button
+                    icon={<PrinterOutlined />}
+                    disabled={detailCapabilityGates.print.disabled}
+                    onClick={() =>
+                      !detailCapabilityGates.print.disabled &&
+                      openPrint({
+                        documentType: 'sales_order',
+                        documentId: currentSalesOrder.id!,
+                      })
+                    }
+                  >
+                    {t('components.uniAction.print')}
+                  </Button>
+                </Tooltip>
               )}
             </Space>
           ) : null

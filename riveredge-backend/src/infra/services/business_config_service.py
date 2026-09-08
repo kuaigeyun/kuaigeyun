@@ -249,6 +249,7 @@ REGISTRY_PARAM_CONTROL_META: Dict[str, Dict[str, Any]] = {
     "parameters.sales.low_margin_threshold_percent": {"type": "number", "min": 0, "max": 100},
     "parameters.sales.price_deviation_approval_threshold_percent": {"type": "number", "min": 0, "max": 100},
     "parameters.sales.require_contract_before_order": {"type": "boolean"},
+    "parameters.sales.require_audit_before_print": {"type": "boolean"},
     "parameters.sales.contract_expiry_alert_days": {"type": "number", "min": 1, "max": 365},
     "parameters.sales.contract_auto_close_on_full_release": {"type": "boolean"},
     "parameters.sales.contract_milestone_required": {"type": "boolean"},
@@ -363,6 +364,7 @@ PARAMETER_KEYS = {
     "parameters.finance.gl_closed_periods",
     "parameters.sales.low_margin_threshold_percent",
     "parameters.sales.price_deviation_approval_threshold_percent",
+    "parameters.sales.require_audit_before_print",
     "parameters.sales.contract_expiry_alert_days",
     "parameters.sales.contract_auto_close_on_full_release",
     "parameters.sales.sales_review",
@@ -439,6 +441,7 @@ IMPLEMENTED_PARAMETER_KEYS = {
     "parameters.finance.gl_closed_periods",
     "parameters.sales.low_margin_threshold_percent",
     "parameters.sales.price_deviation_approval_threshold_percent",
+    "parameters.sales.require_audit_before_print",
     "parameters.sales.contract_expiry_alert_days",
     "parameters.sales.contract_auto_close_on_full_release",
     "parameters.sales.sales_review",
@@ -606,6 +609,7 @@ DEFAULT_PARAMETERS: Dict[str, Dict[str, Any]] = {
         "low_margin_threshold_percent": 0,
         "price_deviation_approval_threshold_percent": 0,
         "require_contract_before_order": False,
+        "require_audit_before_print": False,
         "contract_expiry_alert_days": 30,
         "contract_auto_close_on_full_release": True,
         "contract_milestone_required": False,
@@ -984,6 +988,11 @@ class BusinessConfigService:
 
     async def get_sales_price_deviation_approval_threshold_percent(self, tenant_id: int) -> float:
         return await self._get_percentage_param(tenant_id, "sales", "price_deviation_approval_threshold_percent")
+
+    async def get_sales_require_audit_before_print(self, tenant_id: int) -> bool:
+        """报价单/销售订单：开启后须审核通过才可打印（默认关闭）。"""
+        config = await self.get_business_config(tenant_id)
+        return bool(config["parameters"].get("sales", {}).get("require_audit_before_print", False))
 
     async def get_finance_auto_write_off_precision_limit(self, tenant_id: int) -> float:
         return await self._get_percentage_param(tenant_id, "finance", "auto_write_off_precision_limit")

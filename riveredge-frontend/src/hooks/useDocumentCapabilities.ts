@@ -56,6 +56,7 @@ export const QUOTATION_CAPABILITY_REASON_MESSAGES: Record<string, string> = {
   'quotation.reopen.not_rejected': '仅已驳回的报价单可重新编辑',
   'quotation.revision.not_allowed': '仅非草稿的最新系列版本可新建修订版',
   'quotation.print.not_allowed': '须审核通过、客户确认或已转订单后方可打印',
+  'quotation.print.requires_audit': '已开启「打印须审核」，未审核通过的报价单不可打印',
 };
 
 export function quotationCapabilityReasonMessage(
@@ -216,6 +217,7 @@ export const SALES_ORDER_CAPABILITY_REASON_MESSAGES: Record<string, string> = {
   'sales_order.delete.not_allowed': '只能删除草稿或待审核状态的订单',
   'sales_order.submit.not_draft': '只能提交草稿状态的订单',
   'sales_order.approve.not_pending': '只有待审核状态的订单可审核',
+  'sales_order.print.requires_audit': '已开启「打印须审核」，未审核通过的销售订单不可打印',
   'sales_order.close.not_allowed': '当前状态不可关闭订单',
   'sales_order.close.already_closed': '订单已关闭',
   'sales_order.close.cancelled': '已取消的订单不能关闭',

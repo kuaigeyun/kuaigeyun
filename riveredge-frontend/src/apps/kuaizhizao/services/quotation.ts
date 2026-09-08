@@ -160,6 +160,23 @@ export async function listQuotations(params: QuotationListParams = {}): Promise<
   });
 }
 
+export interface QuotationSalesmanOption {
+  id: number;
+  name: string;
+}
+
+/** 当前可见报价单中的去重销售人员（列表筛选下拉） */
+export async function listQuotationSalesmen(
+  params: { list_scope?: 'all' | 'mine' | 'department' } = {},
+): Promise<QuotationSalesmanOption[]> {
+  const res = await apiRequest<QuotationSalesmanOption[] | { data?: QuotationSalesmanOption[] }>(
+    '/apps/kuaizhizao/quotations/salesmen',
+    { method: 'GET', params },
+  );
+  if (Array.isArray(res)) return res;
+  return Array.isArray(res?.data) ? res.data : [];
+}
+
 export async function getQuotation(id: number, includeItems: boolean = true): Promise<Quotation> {
   return apiRequest<Quotation>(`/apps/kuaizhizao/quotations/${id}`, {
     method: 'GET',

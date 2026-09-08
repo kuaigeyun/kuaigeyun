@@ -138,6 +138,7 @@ def derive_sales_order_capabilities(
     has_returnable_qty: bool = False,
     has_pushable_qty: bool = False,
     has_existing_delivery_project: bool = False,
+    require_audit_before_print: bool = False,
 ) -> SalesOrderCapabilities:
     status = getattr(order, "status", None)
     review_status = getattr(order, "review_status", None)
@@ -202,8 +203,11 @@ def derive_sales_order_capabilities(
         "sales_order.reopen.not_closed" if not reopen_allowed else None,
     )
 
-    # print — 无业务态限制（RBAC 门控）
-    print_cap = _cap(True)
+    # print — 默认无业务态限制；开启「打印须审核」后仅审核通过可打
+    if require_audit_before_print and not _is_review_approved(review_status):
+        print_cap = _cap(False, "sales_order.print.requires_audit")
+    else:
+        print_cap = _cap(True)
 
     # withdraw_submit — 批量撤回提交
     withdraw_submit_allowed = False
@@ -408,6 +412,7 @@ def assert_sales_order_capability(
     has_returnable_qty: bool = False,
     has_pushable_qty: bool = False,
     has_existing_delivery_project: bool = False,
+    require_audit_before_print: bool = False,
 ) -> None:
     caps = derive_sales_order_capabilities(
         order,
@@ -418,6 +423,7 @@ def assert_sales_order_capability(
         has_returnable_qty=has_returnable_qty,
         has_pushable_qty=has_pushable_qty,
         has_existing_delivery_project=has_existing_delivery_project,
+        require_audit_before_print=require_audit_before_print,
     )
     cap_map = {
         "update": caps.update,

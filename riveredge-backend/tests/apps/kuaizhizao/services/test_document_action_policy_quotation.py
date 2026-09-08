@@ -208,3 +208,29 @@ def test_audit_phase_no_revoke_on_accepted():
         enabled=True,
     )
     assert "revoke" not in audit["allowed_actions"]
+
+
+def test_require_audit_before_print_blocks_unapproved():
+    caps = derive_quotation_capabilities(
+        _q(status="已发送", review_status="待审核"),
+        audit_required=False,
+        require_audit_before_print=True,
+    )
+    assert not caps.print_formal.allowed
+    assert caps.print_formal.reason == "quotation.print.requires_audit"
+
+    caps_ok = derive_quotation_capabilities(
+        _q(status="已发送", review_status="审核通过"),
+        audit_required=False,
+        require_audit_before_print=True,
+    )
+    assert caps_ok.print_formal.allowed
+
+
+def test_require_audit_before_print_off_keeps_existing_rules():
+    caps = derive_quotation_capabilities(
+        _q(status="已发送", review_status=""),
+        audit_required=False,
+        require_audit_before_print=False,
+    )
+    assert caps.print_formal.allowed

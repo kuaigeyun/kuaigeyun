@@ -392,14 +392,34 @@ async def _html_to_pdf_bytes(html_string: str, *, tenant_id: Optional[int] = Non
 html_to_pdf_bytes = _html_to_pdf_bytes
 
 
-def _quotation_formal_print_allowed(quotation: Quotation, *, audit_required: bool = True) -> bool:
+def _quotation_formal_print_allowed(
+    quotation: Quotation,
+    *,
+    audit_required: bool = True,
+    require_audit_before_print: bool = False,
+) -> bool:
     """正式对外报价 PDF：与 document_action_policy 一致。"""
     from apps.kuaizhizao.services.document_action_policy import derive_quotation_capabilities
 
     return derive_quotation_capabilities(
         quotation,
         audit_required=audit_required,
+        require_audit_before_print=require_audit_before_print,
     ).print_formal.allowed
+
+
+def _sales_order_print_allowed(
+    order: SalesOrder,
+    *,
+    require_audit_before_print: bool = False,
+) -> bool:
+    """销售订单打印：与 document_action_policy 一致。"""
+    from apps.kuaizhizao.services.document_action_policy import derive_sales_order_capabilities
+
+    return derive_sales_order_capabilities(
+        order,
+        require_audit_before_print=require_audit_before_print,
+    ).print.allowed
 
 
 def _sales_contract_formal_print_allowed(contract: SalesContract) -> bool:
@@ -1164,6 +1184,23 @@ class DocumentPrintService:
             document = await SalesOrder.get_or_none(tenant_id=tenant_id, id=document_id)
             if not document:
                 raise NotFoundError(f"销售订单不存在: {document_id}")
+            from infra.services.business_config_service import BusinessConfigService
+            from apps.kuaizhizao.services.document_action_policy.types import (
+                CAPABILITY_REASON_MESSAGES,
+            )
+
+            require_audit_before_print = (
+                await BusinessConfigService().get_sales_require_audit_before_print(tenant_id)
+            )
+            if not _sales_order_print_allowed(
+                document, require_audit_before_print=require_audit_before_print
+            ):
+                raise BusinessLogicError(
+                    CAPABILITY_REASON_MESSAGES.get(
+                        "sales_order.print.requires_audit",
+                        "已开启「打印须审核」，未审核通过的销售订单不可打印",
+                    )
+                )
             return await self._format_sales_order_data(document, loc)
 
         elif document_type == "sales_order_change":
@@ -1219,13 +1256,28 @@ class DocumentPrintService:
             if not document:
                 raise NotFoundError(f"报价单不存在: {document_id}")
             from infra.services.business_config_service import BusinessConfigService
+            from apps.kuaizhizao.services.document_action_policy import derive_quotation_capabilities
+            from apps.kuaizhizao.services.document_action_policy.types import (
+                CAPABILITY_REASON_MESSAGES,
+            )
 
             audit_required = await BusinessConfigService().check_audit_required(
                 tenant_id, "quotation"
             )
-            if not _quotation_formal_print_allowed(document, audit_required=audit_required):
+            require_audit_before_print = (
+                await BusinessConfigService().get_sales_require_audit_before_print(tenant_id)
+            )
+            print_cap = derive_quotation_capabilities(
+                document,
+                audit_required=audit_required,
+                require_audit_before_print=require_audit_before_print,
+            ).print_formal
+            if not print_cap.allowed:
                 raise BusinessLogicError(
-                    "正式报价单需在审核通过、客户确认或已转订单后方可打印"
+                    CAPABILITY_REASON_MESSAGES.get(
+                        print_cap.reason or "",
+                        print_cap.reason or "正式报价单当前状态不可打印",
+                    )
                 )
             return await self._format_quotation_data(document)
 

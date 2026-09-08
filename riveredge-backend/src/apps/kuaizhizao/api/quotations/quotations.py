@@ -183,6 +183,31 @@ async def list_quotations(
         )
 
 
+@router.get("/salesmen", summary="List salesmen appearing on quotations")
+async def list_quotation_salesmen(
+    list_scope: Optional[str] = Query(
+        None,
+        description="数据范围：all 全部 / mine 我的 / department 我的部门",
+    ),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """当前可见报价单中的去重销售人员，供列表筛选下拉。"""
+    try:
+        items = await quotation_service.list_salesmen(
+            tenant_id,
+            current_user=current_user,
+            list_scope=list_scope,
+        )
+        return {"success": True, "data": items}
+    except Exception as e:
+        logger.error("获取报价单销售人员选项失败: %s", e)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取报价单销售人员选项失败",
+        )
+
+
 @router.get("/{quotation_id}", response_model=QuotationResponse, summary="Get quotation")
 async def get_quotation(
     quotation_id: int = Path(..., description="报价单ID"),

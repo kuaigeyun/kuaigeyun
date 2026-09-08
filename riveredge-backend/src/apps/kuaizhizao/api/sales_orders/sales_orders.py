@@ -335,6 +335,30 @@ async def list_shipment_notice_pull_lines(
         )
 
 
+@router.get("/salesmen", summary="List salesmen appearing on sales orders")
+async def list_sales_order_salesmen(
+    list_scope: Optional[str] = Query(None, description="列表范围：all/mine/department"),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+) -> Dict[str, Any]:
+    """当前可见销售订单中的去重销售人员，供列表筛选下拉。"""
+    try:
+        items = await sales_order_service.list_salesmen(
+            tenant_id,
+            current_user=current_user,
+            list_scope=list_scope,
+        )
+        return {"success": True, "data": items}
+    except Exception as e:
+        logger.error("获取销售订单销售人员选项失败: %s", e)
+        raise _http_exception_with_trace(
+            http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "获取销售订单销售人员选项失败",
+            "/sales-orders/salesmen",
+            tenant_id,
+        )
+
+
 @router.get("/statistics", summary="Sales order statistics (KPI cards)")
 async def get_sales_order_statistics(
     list_scope: Optional[str] = Query(None, description="列表范围：all/mine/department"),

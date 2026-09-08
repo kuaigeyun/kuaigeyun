@@ -36,6 +36,34 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'sales-print-require-audit-config',
+    date: '2026-09-08',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-print-require-audit-config.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.sales-print-require-audit-config.description',
+  },
+  {
+    id: 'sales-list-salesman-options-unwrap-fix',
+    date: '2026-09-08',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-list-salesman-options-unwrap-fix.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.sales-list-salesman-options-unwrap-fix.description',
+  },
+  {
+    id: 'sales-list-salesman-from-documents',
+    date: '2026-09-08',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-list-salesman-from-documents.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.sales-list-salesman-from-documents.description',
+  },
+  {
+    id: 'sales-list-salesman-toolbar-filter',
+    date: '2026-09-08',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-list-salesman-toolbar-filter.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.sales-list-salesman-toolbar-filter.description',
+  },
+  {
     id: 'master-data-time-rewrite-keep-clock',
     date: '2026-09-07',
     type: 'fix',

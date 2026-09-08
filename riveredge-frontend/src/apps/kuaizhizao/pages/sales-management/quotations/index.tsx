@@ -76,12 +76,17 @@ import { ListPageTemplate, DetailDrawerTemplate, DetailDrawerSection, DRAWER_CON
 import { LIST_LIFECYCLE_STAGE_FIELD } from '../../../../../utils/listLifecycleStage';
 import { ListUniLifecycleCell } from '../shared/ListUniLifecycleCell';
 import { createListAuditPhaseColumn } from '../shared/listAuditPhaseColumn';
+import {
+  SalesDocumentSalesmanListFilter,
+  resolveListSalesmanId,
+} from '../shared/SalesDocumentSalesmanListFilter';
 import { AmountDisplay } from '../../../../../components/permission';
 import { DocumentAmountSummaryWatch } from '../../../components/document-amount-summary/DocumentAmountSummary';
 import { DictionaryLabel } from '../../../../../components/dictionary-label';
 import { MaterialUnitLabel } from '../../../../../components/material-unit-label';
 import {
   listQuotations,
+  listQuotationSalesmen,
   getQuotation,
   createQuotation,
   updateQuotation,
@@ -771,6 +776,18 @@ const QuotationsPage: React.FC = () => {
     [t, i18n.language, quotationImportDict],
   );
   const tableSearchFormRef = useRef<any>(null);
+  const [salesmanFilterId, setSalesmanFilterId] = useState<number | undefined>();
+  const salesmanFilterIdRef = useRef<number | undefined>(undefined);
+  const handleSalesmanFilterChange = useCallback((next: number | undefined) => {
+    salesmanFilterIdRef.current = next;
+    setSalesmanFilterId(next);
+    tableSearchFormRef.current?.setFieldsValue({ salesman_id: next ?? null });
+    actionRef.current?.reload();
+  }, []);
+  const loadSalesmanFilterOptions = useCallback(
+    () => listQuotationSalesmen({ list_scope: listScopeFilter }),
+    [listScopeFilter],
+  );
   const [listTotal, setListTotal] = useState(0);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   /** 列表当前页扁平数据（唯一源：UniTable onTableDataChange，与表格展示一致） */
@@ -2251,7 +2268,10 @@ const QuotationsPage: React.FC = () => {
       try {
         const latest = await getQuotation(numericId);
         if (!latest.capabilities?.print_formal?.allowed) {
-          messageApi.warning(t('app.kuaizhizao.quotation.formalPrintDenied'));
+          messageApi.warning(
+            quotationCapabilityReasonMessage(latest.capabilities?.print_formal?.reason, t) ||
+              t('app.kuaizhizao.quotation.formalPrintDenied'),
+          );
           return;
         }
         await handlePrint(latest);
@@ -2383,6 +2403,24 @@ const QuotationsPage: React.FC = () => {
     const q = toolbarSingleSelectionQuotation;
     return q?.capabilities?.create_revision?.allowed === true && quotationPerms.canCreate;
   }, [selectedRowKeys.length, toolbarSingleSelectionQuotation, quotationPerms.canCreate]);
+
+  const toolbarPrintDisabledReason = useMemo(() => {
+    if (!quotationPerms.canPrint) return permDeniedTitle;
+    if (selectedRowKeys.length !== 1) return undefined;
+    const q = toolbarSingleSelectionQuotation;
+    if (!q) return undefined;
+    if (q.capabilities?.print_formal?.allowed === true) return undefined;
+    return (
+      quotationCapabilityReasonMessage(q.capabilities?.print_formal?.reason, t) ||
+      t('app.kuaizhizao.quotation.formalPrintDenied')
+    );
+  }, [
+    quotationPerms.canPrint,
+    permDeniedTitle,
+    selectedRowKeys.length,
+    toolbarSingleSelectionQuotation,
+    t,
+  ]);
 
   const handleTableDataChange = useCallback((data: QuotationTableRow[]) => {
     const flat = flattenQuotationTableRows(data);
@@ -3840,18 +3878,26 @@ const QuotationsPage: React.FC = () => {
           showAdvancedSearch
           skipFuzzyPinyinClientFilter
           beforeSearchButtons={
-            <ThemedSegmented
-              key="quotation-list-scope"
-              surfaceBackground
-              size="medium"
-              value={listScopeFilter}
-              onChange={(v) => setListScopeFilter(v as QuotationListScope)}
-              options={[
-                { label: t('app.kuaizhizao.quotation.listScopeAll'), value: 'all' },
-                { label: t('app.kuaizhizao.quotation.listScopeMine'), value: 'mine' },
-                { label: t('app.kuaizhizao.quotation.listScopeDepartment'), value: 'department' },
-              ]}
-            />
+            <Space size={8} wrap>
+              <ThemedSegmented
+                key="quotation-list-scope"
+                surfaceBackground
+                size="medium"
+                value={listScopeFilter}
+                onChange={(v) => setListScopeFilter(v as QuotationListScope)}
+                options={[
+                  { label: t('app.kuaizhizao.quotation.listScopeAll'), value: 'all' },
+                  { label: t('app.kuaizhizao.quotation.listScopeMine'), value: 'mine' },
+                  { label: t('app.kuaizhizao.quotation.listScopeDepartment'), value: 'department' },
+                ]}
+              />
+              <SalesDocumentSalesmanListFilter
+                value={salesmanFilterId}
+                onChange={handleSalesmanFilterChange}
+                loadOptions={loadSalesmanFilterOptions}
+                reloadToken={listScopeFilter}
+              />
+            </Space>
           }
           toolBarButtonSize="middle"
           showCreateButton
@@ -3954,14 +4000,21 @@ const QuotationsPage: React.FC = () => {
           rightToolBarActionsBeforeExport={
             quotationPerms.canPrint
               ? [
-                  <Button
-                    key="toolbar-print-direct"
-                    icon={<PrinterOutlined />}
-                    disabled={!quotationPerms.canPrint}
-                    onClick={() => void handleToolbarPrint(selectedRowKeys)}
+                  <Tooltip
+                    key="toolbar-print-direct-tip"
+                    title={toolbarPrintDisabledReason || t('components.uniAction.print')}
                   >
-                    {t('components.uniAction.print')}
-                  </Button>,
+                    <span>
+                      <Button
+                        key="toolbar-print-direct"
+                        icon={<PrinterOutlined />}
+                        disabled={Boolean(toolbarPrintDisabledReason) || selectedRowKeys.length !== 1}
+                        onClick={() => void handleToolbarPrint(selectedRowKeys)}
+                      >
+                        {t('components.uniAction.print')}
+                      </Button>
+                    </span>
+                  </Tooltip>,
                 ]
               : undefined
           }
@@ -4032,10 +4085,7 @@ const QuotationsPage: React.FC = () => {
                   searchFormValues?.customer_id != null && searchFormValues.customer_id !== ''
                     ? Number(searchFormValues.customer_id)
                     : undefined,
-                salesman_id:
-                  searchFormValues?.salesman_id != null && searchFormValues.salesman_id !== ''
-                    ? Number(searchFormValues.salesman_id)
-                    : undefined,
+                salesman_id: resolveListSalesmanId(salesmanFilterIdRef.current, searchFormValues),
                 start_date: startDate,
                 end_date: endDate,
                 order_by: orderBy,

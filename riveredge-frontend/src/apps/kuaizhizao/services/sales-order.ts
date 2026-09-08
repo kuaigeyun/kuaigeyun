@@ -274,6 +274,23 @@ export async function getSalesOrderStatistics(
   });
 }
 
+export interface SalesOrderSalesmanOption {
+  id: number;
+  name: string;
+}
+
+/** 当前可见销售订单中的去重销售人员（列表筛选下拉） */
+export async function listSalesOrderSalesmen(
+  params: { list_scope?: 'all' | 'mine' | 'department' } = {},
+): Promise<SalesOrderSalesmanOption[]> {
+  const res = await apiRequest<SalesOrderSalesmanOption[] | { data?: SalesOrderSalesmanOption[] }>(
+    '/apps/kuaizhizao/sales-orders/salesmen',
+    { method: 'GET', params },
+  );
+  if (Array.isArray(res)) return res;
+  return Array.isArray(res?.data) ? res.data : [];
+}
+
 /**
  * 获取销售订单列表
  */

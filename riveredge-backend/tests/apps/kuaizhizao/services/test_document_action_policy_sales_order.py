@@ -126,3 +126,23 @@ def test_push_sales_return_requires_delivered_qty():
 def test_assert_raises_on_delete_audited():
     with pytest.raises(BusinessLogicError):
         assert_sales_order_capability(_o(status="已审核", review_status="审核通过"), "delete")
+
+
+def test_require_audit_before_print_blocks_unapproved():
+    caps = derive_sales_order_capabilities(
+        _o(status="草稿", review_status="待审核"),
+        require_audit_before_print=True,
+    )
+    assert not caps.print.allowed
+    assert caps.print.reason == "sales_order.print.requires_audit"
+
+    caps_ok = derive_sales_order_capabilities(
+        _o(status="已审核", review_status="审核通过"),
+        require_audit_before_print=True,
+    )
+    assert caps_ok.print.allowed
+
+
+def test_require_audit_before_print_default_allows():
+    caps = derive_sales_order_capabilities(_o(status="草稿", review_status="待审核"))
+    assert caps.print.allowed

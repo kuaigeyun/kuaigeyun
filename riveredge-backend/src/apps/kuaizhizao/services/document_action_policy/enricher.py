@@ -241,6 +241,10 @@ async def _quotation_audit_required(tenant_id: int) -> bool:
     return await BusinessConfigService().check_audit_required(tenant_id, "quotation")
 
 
+async def _sales_require_audit_before_print(tenant_id: int) -> bool:
+    return await BusinessConfigService().get_sales_require_audit_before_print(tenant_id)
+
+
 async def enrich_quotation_capabilities_on_model(
     tenant_id: int,
     quotation_model: Any,
@@ -251,9 +255,11 @@ async def enrich_quotation_capabilities_on_model(
     sales_review_downstream_missing: bool = False,
 ) -> T:
     audit_required = await _quotation_audit_required(tenant_id)
+    require_audit_before_print = await _sales_require_audit_before_print(tenant_id)
     caps = derive_quotation_capabilities(
         quotation_model,
         audit_required=audit_required,
+        require_audit_before_print=require_audit_before_print,
         conversion_downstream_missing=conversion_downstream_missing,
         contract_downstream_missing=contract_downstream_missing,
         sales_review_downstream_missing=sales_review_downstream_missing,
@@ -273,6 +279,7 @@ async def enrich_quotation_list_capabilities(
     sales_review_downstream_missing_by_id: Optional[dict[int, bool]] = None,
 ) -> List[T]:
     audit_required = await _quotation_audit_required(tenant_id)
+    require_audit_before_print = await _sales_require_audit_before_print(tenant_id)
     missing_map = conversion_downstream_missing_by_id or {}
     contract_missing_map = contract_downstream_missing_by_id or {}
     review_missing_map = sales_review_downstream_missing_by_id or {}
@@ -282,6 +289,7 @@ async def enrich_quotation_list_capabilities(
         caps = derive_quotation_capabilities(
             q_model,
             audit_required=audit_required,
+            require_audit_before_print=require_audit_before_print,
             conversion_downstream_missing=missing_map.get(qid, False),
             contract_downstream_missing=contract_missing_map.get(qid, False),
             sales_review_downstream_missing=review_missing_map.get(qid, False),
@@ -297,6 +305,7 @@ def get_quotation_capabilities_from_record(
     quotation: Any,
     *,
     audit_required: bool,
+    require_audit_before_print: bool = False,
     conversion_downstream_missing: bool = False,
     contract_downstream_missing: bool = False,
     sales_review_downstream_missing: bool = False,
@@ -304,6 +313,7 @@ def get_quotation_capabilities_from_record(
     return derive_quotation_capabilities(
         quotation,
         audit_required=audit_required,
+        require_audit_before_print=require_audit_before_print,
         conversion_downstream_missing=conversion_downstream_missing,
         contract_downstream_missing=contract_downstream_missing,
         sales_review_downstream_missing=sales_review_downstream_missing,
@@ -321,6 +331,7 @@ def enrich_sales_order_capabilities_on_response(
     has_returnable_qty: bool = False,
     has_pushable_qty: bool = False,
     has_existing_delivery_project: bool = False,
+    require_audit_before_print: bool = False,
 ) -> T:
     caps = derive_sales_order_capabilities(
         order_model,
@@ -331,6 +342,7 @@ def enrich_sales_order_capabilities_on_response(
         has_returnable_qty=has_returnable_qty,
         has_pushable_qty=has_pushable_qty,
         has_existing_delivery_project=has_existing_delivery_project,
+        require_audit_before_print=require_audit_before_print,
     )
     if hasattr(response, "model_copy"):
         return _attach_capabilities_to_response(response, caps)
@@ -348,6 +360,7 @@ def enrich_sales_order_list_capabilities(
     has_returnable_qty_by_id: Optional[dict[int, bool]] = None,
     has_pushable_qty_by_id: Optional[dict[int, bool]] = None,
     has_existing_delivery_project_by_id: Optional[dict[int, bool]] = None,
+    require_audit_before_print: bool = False,
 ) -> List[T]:
     pushed_map = pushed_to_computation_by_id or {}
     items_map = has_items_by_id or {}
@@ -368,6 +381,7 @@ def enrich_sales_order_list_capabilities(
             has_returnable_qty=returnable_map.get(oid, False),
             has_pushable_qty=pushable_map.get(oid, False),
             has_existing_delivery_project=delivery_project_map.get(oid, False),
+            require_audit_before_print=require_audit_before_print,
         )
         if hasattr(resp, "model_copy"):
             out.append(_attach_capabilities_to_response(resp, caps))
@@ -386,6 +400,7 @@ def get_sales_order_capabilities_from_record(
     has_returnable_qty: bool = False,
     has_pushable_qty: bool = False,
     has_existing_delivery_project: bool = False,
+    require_audit_before_print: bool = False,
 ) -> SalesOrderCapabilities:
     return derive_sales_order_capabilities(
         order,
@@ -396,6 +411,7 @@ def get_sales_order_capabilities_from_record(
         has_returnable_qty=has_returnable_qty,
         has_pushable_qty=has_pushable_qty,
         has_existing_delivery_project=has_existing_delivery_project,
+        require_audit_before_print=require_audit_before_print,
     )
 
 
