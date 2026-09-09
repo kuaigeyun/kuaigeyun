@@ -28109,6 +28109,10 @@ export default {
     '修复物料编辑保存后仍跳回全部物料',
   'pages.dashboard.updateLog.entries.material-management-keep-group-after-edit-v2.description':
     '物料管理进编辑时列表标签会卸载，返回时整页重建；现将分组筛选写入浏览会话并禁止用「全部」冲掉原分组，保存或取消后仍停留在编辑前所在分组。',
+  'pages.dashboard.updateLog.entries.quality-inspection-auto-pass-sync-approve.title':
+    '质检空审批人自动通过后同步落审核',
+  'pages.dashboard.updateLog.entries.quality-inspection-auto-pass-sync-approve.description':
+    '来料/过程/成品/出货检验在审批节点空审批人 auto_pass 时，流程已通过但单据仍待审；现与销售订单一致，检验完成后自动写回已审核，并补齐审批完成回调。此前卡住的待审单再点审核亦可补齐写回。',
   'pages.dashboard.updateLog.entries.bom-list-material-master-cache-merge.title':
     '修复 BOM 列表再次出现物料主数据未加载',
   'pages.dashboard.updateLog.entries.bom-list-material-master-cache-merge.description':

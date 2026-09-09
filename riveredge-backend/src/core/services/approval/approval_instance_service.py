@@ -3006,6 +3006,82 @@ class ApprovalInstanceService:
                     await svc.reject(tenant_id, int(entity_id), approver)
                 logger.info(f"开模/打样 {entity_id} 审批回调完成: {approval_instance.status}")
 
+            async def _handle_incoming_inspection() -> None:
+                from apps.kuaizhizao.services.quality_service import IncomingInspectionService
+
+                if not entity_id:
+                    return
+                service = IncomingInspectionService()
+                if approval_instance.status == "approved":
+                    await service.approve_inspection(
+                        tenant_id, int(entity_id), approver_id, is_auto_approve=True
+                    )
+                elif approval_instance.status == "rejected":
+                    await service.approve_inspection(
+                        tenant_id,
+                        int(entity_id),
+                        approver_id,
+                        rejection_reason="审批驳回",
+                        is_auto_approve=True,
+                    )
+                logger.info(f"来料检验 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_process_inspection() -> None:
+                from apps.kuaizhizao.services.quality_service import ProcessInspectionService
+
+                if not entity_id:
+                    return
+                service = ProcessInspectionService()
+                if approval_instance.status == "approved":
+                    await service.approve_inspection(
+                        tenant_id, int(entity_id), approver_id, is_auto_approve=True
+                    )
+                elif approval_instance.status == "rejected":
+                    await service.approve_inspection(
+                        tenant_id,
+                        int(entity_id),
+                        approver_id,
+                        rejection_reason="审批驳回",
+                        is_auto_approve=True,
+                    )
+                logger.info(f"过程检验 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_finished_goods_inspection() -> None:
+                from apps.kuaizhizao.services.quality_service import FinishedGoodsInspectionService
+
+                if not entity_id:
+                    return
+                service = FinishedGoodsInspectionService()
+                if approval_instance.status == "approved":
+                    await service.approve_inspection(
+                        tenant_id, int(entity_id), approver_id, is_auto_approve=True
+                    )
+                elif approval_instance.status == "rejected":
+                    await service.approve_inspection(
+                        tenant_id,
+                        int(entity_id),
+                        approver_id,
+                        rejection_reason="审批驳回",
+                        is_auto_approve=True,
+                    )
+                logger.info(f"成品检验 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_oqc_inspection() -> None:
+                from apps.kuaizhizao.services.quality_improvement_service import OQCInspectionService
+
+                if not entity_id:
+                    return
+                service = OQCInspectionService()
+                if approval_instance.status == "approved":
+                    await service.approve(
+                        tenant_id, int(entity_id), approver_id, approve=True, is_auto_approve=True
+                    )
+                elif approval_instance.status == "rejected":
+                    await service.approve(
+                        tenant_id, int(entity_id), approver_id, approve=False, is_auto_approve=True
+                    )
+                logger.info(f"出货检验 {entity_id} 审批回调完成: {approval_instance.status}")
+
             completion_handlers = {
                 "sales_order": _handle_sales_order,
                 "demand": _handle_demand,
@@ -3031,6 +3107,10 @@ class ApprovalInstanceService:
                 "bom_collaboration": _handle_bom_collaboration,
                 "project_proposal": _handle_project_proposal,
                 "mold_sample": _handle_mold_sample,
+                "incoming_inspection": _handle_incoming_inspection,
+                "process_inspection": _handle_process_inspection,
+                "finished_goods_inspection": _handle_finished_goods_inspection,
+                "oqc_inspection": _handle_oqc_inspection,
             }
             handler = completion_handlers.get(entity_type)
             if handler:

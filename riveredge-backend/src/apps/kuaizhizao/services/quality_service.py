@@ -272,14 +272,18 @@ async def _start_quality_inspection_approval_after_conduct(
     stage_code: str,
     inspection: Any,
     doc_label: str,
-) -> None:
-    """开审时执行检验进入待审后必须创建审批实例。"""
+) -> Any | None:
+    """开审时执行检验进入待审后必须创建审批实例。
+
+    返回审批实例；空审批人 auto_pass 等可能导致提交瞬间已通过，
+    调用方须据此同步落业务审核（与销售订单 submit 契约一致）。
+    """
     if not await _is_quality_audit_required(tenant_id, stage_code):
-        return
+        return None
     from core.services.approval.audit_flow_guard import start_document_approval_or_raise
 
     code = getattr(inspection, "inspection_code", None) or str(inspection.id)
-    await start_document_approval_or_raise(
+    return await start_document_approval_or_raise(
         tenant_id=tenant_id,
         user_id=user_id,
         node_key=stage_code,
@@ -299,17 +303,38 @@ async def _assert_quality_inspection_pending_approval(
     inspection_id: int,
     doc_label: str,
     verb: str,
+    is_auto_approve: bool = False,
+    allow_approved_instance_sync: bool = False,
 ) -> None:
+    """审核已开时须有进行中流程；auto_pass 完成写回或补齐已通过实例时放行。"""
+    if is_auto_approve:
+        return
     audit_required = await _is_quality_audit_required(tenant_id, stage_code)
-    from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+    if not audit_required:
+        return
+    from core.services.approval.approval_instance_service import ApprovalInstanceService
 
-    await assert_pending_approval_instance(
+    approval_status = await ApprovalInstanceService.get_approval_status(
         tenant_id=tenant_id,
         entity_type=stage_code,
         entity_id=inspection_id,
-        audit_required=audit_required,
-        doc_label=doc_label,
-        verb=verb,
+    )
+    has_pending_flow = bool(
+        approval_status.get("has_instance")
+        and approval_status.get("status") == "pending"
+    )
+    if has_pending_flow:
+        return
+    # 流程已通过、单据仍待审：补齐业务写回（空审批人 auto_pass / 完成回调曾缺失）
+    if allow_approved_instance_sync and bool(
+        approval_status.get("has_instance")
+        and approval_status.get("status") == "approved"
+    ):
+        return
+    from infra.exceptions.exceptions import BusinessLogicError
+
+    raise BusinessLogicError(
+        f"{doc_label}审核已开启但无进行中的审批流程，请先提交审批后再{verb}"
     )
 
 
@@ -1215,7 +1240,7 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
             await IncomingInspection.filter(tenant_id=tenant_id, id=inspection_id).update(**conduct_update)
 
             updated_inspection = await self.get_incoming_inspection_by_id(tenant_id, inspection_id)
-            await _start_quality_inspection_approval_after_conduct(
+            approval_instance = await _start_quality_inspection_approval_after_conduct(
                 tenant_id=tenant_id,
                 user_id=inspected_by,
                 stage_code="incoming_inspection",
@@ -1251,6 +1276,15 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
                         logger.info(f"来料检验合格 -> 关联采购入库单 {receipt.receipt_code} 可执行确认")
                 except Exception as e:
                     logger.warning(f"来料检验合格 -> 关联入库单处理失败: {e}")
+
+            # 空审批人 auto_pass 等：流程已通过，须同步落业务审核
+            if getattr(approval_instance, "status", None) == "approved":
+                return await self.approve_inspection(
+                    tenant_id=tenant_id,
+                    inspection_id=inspection_id,
+                    approved_by=inspected_by,
+                    is_auto_approve=True,
+                )
             
             return updated_inspection
 
@@ -1545,7 +1579,15 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
 
         return {"return_id": ret_bill.id, "return_code": ret_bill.return_code}
 
-    async def approve_inspection(self, tenant_id: int, inspection_id: int, approved_by: int, rejection_reason: Optional[str] = None) -> IncomingInspectionResponse:
+    async def approve_inspection(
+        self,
+        tenant_id: int,
+        inspection_id: int,
+        approved_by: int,
+        rejection_reason: Optional[str] = None,
+        *,
+        is_auto_approve: bool = False,
+    ) -> IncomingInspectionResponse:
         """审核检验单"""
         from apps.kuaizhizao.services.document_action_policy.quality_inspection_record import (
             assert_quality_inspection_capability,
@@ -1555,16 +1597,27 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
             inspection = await IncomingInspection.get_or_none(tenant_id=tenant_id, id=inspection_id)
             if not inspection:
                 raise NotFoundError(f"来料检验单不存在: {inspection_id}")
+            # auto_pass 完成回调与 conduct 补齐可能先后触发，已审则幂等返回
+            if is_auto_approve and str(getattr(inspection, "status", "") or "").strip() == "已审核":
+                return await self.get_incoming_inspection_by_id(tenant_id, inspection_id)
             assert_quality_inspection_capability(
                 inspection,
                 "reject" if rejection_reason else "approve",
             )
+            review_pending = str(getattr(inspection, "review_status", None) or "").strip() in {
+                "PENDING",
+                "待审核",
+            }
             await _assert_quality_inspection_pending_approval(
                 tenant_id=tenant_id,
                 stage_code="incoming_inspection",
                 inspection_id=inspection_id,
                 doc_label="来料检验",
                 verb="驳回" if rejection_reason else "审核",
+                is_auto_approve=is_auto_approve,
+                allow_approved_instance_sync=bool(
+                    review_pending and not rejection_reason
+                ),
             )
 
             approver_name = await self.get_user_name(approved_by)
@@ -3211,7 +3264,7 @@ class ProcessInspectionService(AppBaseService[ProcessInspection]):
             )
 
             updated_inspection = await self.get_process_inspection_by_id(tenant_id, inspection_id)
-            await _start_quality_inspection_approval_after_conduct(
+            approval_instance = await _start_quality_inspection_approval_after_conduct(
                 tenant_id=tenant_id,
                 user_id=inspected_by,
                 stage_code="process_inspection",
@@ -3251,11 +3304,25 @@ class ProcessInspectionService(AppBaseService[ProcessInspection]):
                     tenant_id=tenant_id,
                     work_order_id=int(inspection_model.work_order_id),
                 )
+
+            if getattr(approval_instance, "status", None) == "approved":
+                return await self.approve_inspection(
+                    tenant_id=tenant_id,
+                    inspection_id=inspection_id,
+                    approved_by=inspected_by,
+                    is_auto_approve=True,
+                )
             
             return updated_inspection
 
     async def approve_inspection(
-        self, tenant_id: int, inspection_id: int, approved_by: int, rejection_reason: Optional[str] = None
+        self,
+        tenant_id: int,
+        inspection_id: int,
+        approved_by: int,
+        rejection_reason: Optional[str] = None,
+        *,
+        is_auto_approve: bool = False,
     ) -> ProcessInspectionResponse:
         """审核工序检验单"""
         from apps.kuaizhizao.services.document_action_policy.quality_inspection_record import (
@@ -3266,16 +3333,26 @@ class ProcessInspectionService(AppBaseService[ProcessInspection]):
             inspection = await ProcessInspection.get_or_none(tenant_id=tenant_id, id=inspection_id)
             if not inspection:
                 raise NotFoundError(f"过程检验单不存在: {inspection_id}")
+            if is_auto_approve and str(getattr(inspection, "status", "") or "").strip() == "已审核":
+                return await self.get_process_inspection_by_id(tenant_id, inspection_id)
             assert_quality_inspection_capability(
                 inspection,
                 "reject" if rejection_reason else "approve",
             )
+            review_pending = str(getattr(inspection, "review_status", None) or "").strip() in {
+                "PENDING",
+                "待审核",
+            }
             await _assert_quality_inspection_pending_approval(
                 tenant_id=tenant_id,
                 stage_code="process_inspection",
                 inspection_id=inspection_id,
                 doc_label="过程检验",
                 verb="驳回" if rejection_reason else "审核",
+                is_auto_approve=is_auto_approve,
+                allow_approved_instance_sync=bool(
+                    review_pending and not rejection_reason
+                ),
             )
 
             approver_name = await self.get_user_name(approved_by)
@@ -4684,7 +4761,7 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
             )
 
             updated_inspection = await self.get_finished_goods_inspection_by_id(tenant_id, inspection_id)
-            await _start_quality_inspection_approval_after_conduct(
+            approval_instance = await _start_quality_inspection_approval_after_conduct(
                 tenant_id=tenant_id,
                 user_id=inspected_by,
                 stage_code="finished_goods_inspection",
@@ -4711,10 +4788,24 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
                 source_type="finished_goods_inspection",
             )
 
+            if getattr(approval_instance, "status", None) == "approved":
+                return await self.approve_inspection(
+                    tenant_id=tenant_id,
+                    inspection_id=inspection_id,
+                    approved_by=inspected_by,
+                    is_auto_approve=True,
+                )
+
             return updated_inspection
 
     async def approve_inspection(
-        self, tenant_id: int, inspection_id: int, approved_by: int, rejection_reason: Optional[str] = None
+        self,
+        tenant_id: int,
+        inspection_id: int,
+        approved_by: int,
+        rejection_reason: Optional[str] = None,
+        *,
+        is_auto_approve: bool = False,
     ) -> FinishedGoodsInspectionResponse:
         """审核成品检验单"""
         from apps.kuaizhizao.services.document_action_policy.quality_inspection_record import (
@@ -4725,16 +4816,26 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
             inspection = await FinishedGoodsInspection.get_or_none(tenant_id=tenant_id, id=inspection_id)
             if not inspection:
                 raise NotFoundError(f"成品检验单不存在: {inspection_id}")
+            if is_auto_approve and str(getattr(inspection, "status", "") or "").strip() == "已审核":
+                return await self.get_finished_goods_inspection_by_id(tenant_id, inspection_id)
             assert_quality_inspection_capability(
                 inspection,
                 "reject" if rejection_reason else "approve",
             )
+            review_pending = str(getattr(inspection, "review_status", None) or "").strip() in {
+                "PENDING",
+                "待审核",
+            }
             await _assert_quality_inspection_pending_approval(
                 tenant_id=tenant_id,
                 stage_code="finished_goods_inspection",
                 inspection_id=inspection_id,
                 doc_label="成品检验",
                 verb="驳回" if rejection_reason else "审核",
+                is_auto_approve=is_auto_approve,
+                allow_approved_instance_sync=bool(
+                    review_pending and not rejection_reason
+                ),
             )
 
             approver_name = await self.get_user_name(approved_by)

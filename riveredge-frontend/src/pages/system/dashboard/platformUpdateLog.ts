@@ -36,6 +36,15 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'quality-inspection-auto-pass-sync-approve',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-auto-pass-sync-approve.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-auto-pass-sync-approve.description',
+  },
+  {
     id: 'bom-list-material-master-cache-merge',
     date: '2026-09-09',
     type: 'fix',

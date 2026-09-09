@@ -1111,7 +1111,7 @@ class OQCInspectionService(AppBaseService[OQCInspection]):
         row.updated_by_name = user_info["name"]
         await row.save()
 
-        await _start_quality_inspection_approval_after_conduct(
+        approval_instance = await _start_quality_inspection_approval_after_conduct(
             tenant_id=tenant_id,
             user_id=user_id,
             stage_code="oqc_inspection",
@@ -1127,6 +1127,10 @@ class OQCInspectionService(AppBaseService[OQCInspection]):
                 inspected_by=user_id,
                 problem_description=payload.notes or f"出货检验不合格：{row.inspection_code}",
             )
+        if getattr(approval_instance, "status", None) == "approved":
+            return await self.approve(
+                tenant_id, inspection_id, user_id, approve=True, is_auto_approve=True
+            )
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             enrich_oqc_inspection_capabilities_on_response,
         )
@@ -1135,7 +1139,15 @@ class OQCInspectionService(AppBaseService[OQCInspection]):
             OQCInspectionResponse.model_validate(row),
         )
 
-    async def approve(self, tenant_id: int, inspection_id: int, user_id: int, approve: bool) -> OQCInspectionResponse:
+    async def approve(
+        self,
+        tenant_id: int,
+        inspection_id: int,
+        user_id: int,
+        approve: bool,
+        *,
+        is_auto_approve: bool = False,
+    ) -> OQCInspectionResponse:
         from apps.kuaizhizao.services.document_action_policy.oqc_inspection import (
             assert_oqc_inspection_capability,
         )
@@ -1146,13 +1158,27 @@ class OQCInspectionService(AppBaseService[OQCInspection]):
         row = await OQCInspection.get_or_none(id=inspection_id, tenant_id=tenant_id, deleted_at__isnull=True)
         if not row:
             raise NotFoundError("OQC 检验单不存在")
+        if is_auto_approve and str(getattr(row, "status", "") or "").strip() == "已审核":
+            from apps.kuaizhizao.services.document_action_policy.enricher import (
+                enrich_oqc_inspection_capabilities_on_response,
+            )
+            return enrich_oqc_inspection_capabilities_on_response(
+                row,
+                OQCInspectionResponse.model_validate(row),
+            )
         assert_oqc_inspection_capability(row, "approve" if approve else "reject")
+        review_pending = str(getattr(row, "review_status", None) or "").strip() in {
+            "PENDING",
+            "待审核",
+        }
         await _assert_quality_inspection_pending_approval(
             tenant_id=tenant_id,
             stage_code="oqc_inspection",
             inspection_id=inspection_id,
             doc_label="出货检验",
             verb="审核" if approve else "驳回",
+            is_auto_approve=is_auto_approve,
+            allow_approved_instance_sync=bool(review_pending and approve),
         )
         user_info = await self.get_user_info(user_id)
         row.review_status = "已审核" if approve else "已驳回"
