@@ -6476,7 +6476,8 @@ class DemandComputationService(AppBaseService):
         """
         try:
             from apps.kuaizhizao.models.purchase_order import PurchaseOrder, PurchaseOrderItem
-            from datetime import date, timedelta
+            from apps.master_data.models import Supplier
+            from datetime import timedelta
             from decimal import Decimal
 
             # 从物料来源配置获取默认供应商和采购价格（物料来源控制增强）
@@ -6501,13 +6502,14 @@ class DemandComputationService(AppBaseService):
 
             # 确定交货日期
             delivery_date = item.procurement_completion_date or item.delivery_date
+            site_today = to_site_date(resolve_business_datetime())
             if not delivery_date:
                 # 从物料来源配置获取采购提前期
                 lead_time_days = 7  # 默认7天
                 if item.material_source_config:
                     source_config = resolve_computation_item_source_config(item.material_source_config)
                     lead_time_days = source_config.get("purchase_lead_time", 7)
-                delivery_date = date.today() + timedelta(days=lead_time_days)
+                delivery_date = site_today + timedelta(days=lead_time_days)
             
             # 创建采购订单（须写 created/updated_by_name，列表「更新时间」列依赖反范式姓名）
             user = await User.get_or_none(id=created_by)
@@ -6516,7 +6518,7 @@ class DemandComputationService(AppBaseService):
                 "order_code": order_code,
                 "supplier_id": supplier_id,
                 "supplier_name": supplier_name,
-                "order_date": date.today(),
+                "order_date": site_today,
                 "delivery_date": delivery_date,
                 "order_type": "标准采购",
                 "status": "草稿",
@@ -6524,6 +6526,18 @@ class DemandComputationService(AppBaseService):
                 "source_id": computation.id,
                 "notes": f"从需求计算 {computation.computation_code} 自动生成",
             }
+            # 采购员：优先供应商归属采购员，否则用下推操作人（避免列表采购员空白）
+            _sup = (
+                await Supplier.get_or_none(tenant_id=tenant_id, id=int(supplier_id))
+                if int(supplier_id or 0) > 0
+                else None
+            )
+            if _sup and getattr(_sup, "buyer_id", None):
+                order_data["buyer_id"] = int(_sup.buyer_id)
+                order_data["buyer_name"] = (getattr(_sup, "buyer_name", None) or "").strip() or None
+            elif created_by:
+                order_data["buyer_id"] = int(created_by)
+                order_data["buyer_name"] = operator_name_from_user(user) or None
             apply_create_audit(order_data, user)
             purchase_order = await PurchaseOrder.create(**order_data)
             
@@ -6595,11 +6609,12 @@ class DemandComputationService(AppBaseService):
             from apps.kuaizhizao.models.purchase_order import PurchaseOrder, PurchaseOrderItem
             from apps.master_data.models import Supplier
             from core.services.business.code_generation_service import CodeGenerationService
-            from datetime import datetime, date, timedelta
+            from datetime import timedelta
             from decimal import Decimal
             
             # 验证供应商（supplier_id<=0 为草稿待定供应商，不查主数据）
             supplier_name = "待定供应商"
+            supplier = None
             if int(supplier_id or 0) > 0:
                 supplier = await Supplier.get_or_none(tenant_id=tenant_id, id=supplier_id)
                 if not supplier:
@@ -6627,13 +6642,14 @@ class DemandComputationService(AppBaseService):
                     if not delivery_date or item_delivery_date < delivery_date:
                         delivery_date = item_delivery_date
             
+            site_today = to_site_date(resolve_business_datetime())
             if not delivery_date:
                 # 从物料来源配置获取采购提前期
                 lead_time_days = 7  # 默认7天
                 if items and items[0].material_source_config:
                     source_config = resolve_computation_item_source_config(items[0].material_source_config)
                     lead_time_days = source_config.get("purchase_lead_time", 7)
-                delivery_date = date.today() + timedelta(days=lead_time_days)
+                delivery_date = site_today + timedelta(days=lead_time_days)
             
             # 创建采购订单（须写 created/updated_by_name，列表「更新时间」列依赖反范式姓名）
             user = await User.get_or_none(id=created_by)
@@ -6642,7 +6658,7 @@ class DemandComputationService(AppBaseService):
                 "order_code": order_code,
                 "supplier_id": int(supplier_id or 0),
                 "supplier_name": supplier_name,
-                "order_date": date.today(),
+                "order_date": site_today,
                 "delivery_date": delivery_date,
                 "order_type": "标准采购",
                 "status": "草稿",
@@ -6650,6 +6666,14 @@ class DemandComputationService(AppBaseService):
                 "source_id": computation.id,
                 "notes": f"从需求计算 {computation.computation_code} 自动生成（按供应商分组）",
             }
+            if supplier and getattr(supplier, "buyer_id", None):
+                order_data["buyer_id"] = int(supplier.buyer_id)
+                order_data["buyer_name"] = (
+                    (getattr(supplier, "buyer_name", None) or "").strip() or None
+                )
+            elif created_by:
+                order_data["buyer_id"] = int(created_by)
+                order_data["buyer_name"] = operator_name_from_user(user) or None
             if attachments:
                 order_data["attachments"] = attachments
             apply_create_audit(order_data, user)
