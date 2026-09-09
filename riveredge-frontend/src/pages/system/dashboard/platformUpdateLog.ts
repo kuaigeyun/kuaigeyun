@@ -36,6 +36,24 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'dashboard-quick-entry-icons-restore',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.dashboard-quick-entry-icons-restore.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.dashboard-quick-entry-icons-restore.description',
+  },
+  {
+    id: 'purchase-sales-return-confirm-nested-tx',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.purchase-sales-return-confirm-nested-tx.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.purchase-sales-return-confirm-nested-tx.description',
+  },
+  {
     id: 'quality-inspection-auto-pass-sync-approve',
     date: '2026-09-09',
     type: 'fix',

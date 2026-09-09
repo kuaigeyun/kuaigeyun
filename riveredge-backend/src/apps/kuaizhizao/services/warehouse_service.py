@@ -12077,7 +12077,7 @@ class SalesReturnService(AppBaseService[SalesReturn]):
         confirmed_by: int,
         confirmation_data: Optional[InboundConfirmationRequest] = None,
     ) -> SalesReturnResponse:
-        """确认退货"""
+        """确认退货。过账事务提交后再生成红字应收，避免嵌套事务回滚库存/状态却仍返回成功。"""
         async with in_transaction():
             return_obj = await SalesReturn.get_or_none(tenant_id=tenant_id, id=return_id)
             if not return_obj:
@@ -12211,10 +12211,10 @@ class SalesReturnService(AppBaseService[SalesReturn]):
                         source_doc_id=return_id,
                         source_doc_code=return_obj.return_code,
                         ledger_production_date=to_site_date(receipt_time),
-                    movement_type="other_inbound",
-                    operator_id=returner_id,
-                    operator_name=returner_name,
-                )
+                        movement_type="other_inbound",
+                        operator_id=returner_id,
+                        operator_name=returner_name,
+                    )
             except Exception as inv_e:
                 logger.error("销售退货确认-更新库存失败: %s", inv_e)
                 raise
@@ -12225,86 +12225,87 @@ class SalesReturnService(AppBaseService[SalesReturn]):
             except Exception as cost_e:
                 logger.warning("销售退货确认-成本处理失败: %s", cost_e)
 
-            # 创建红字应收单（销售退货冲减）；手工立账时不自动生成
-            try:
-                from apps.kuaicaiwu.services.finance_service import ReceivableService
-                from apps.kuaicaiwu.schemas.finance import ReceivableCreate
+        # 过账事务已提交。红字应收须在外层创建：create_receivable 内部另有 in_transaction()，
+        # 嵌套时部分环境会回滚退货状态/库存，但接口仍返回成功体。
+        updated_return = await self.get_sales_return_by_id(tenant_id, return_id)
+        try:
+            from apps.kuaicaiwu.services.finance_service import ReceivableService
+            from apps.kuaicaiwu.schemas.finance import ReceivableCreate
 
-                ret_obj = await SalesReturn.get(tenant_id=tenant_id, id=return_id)
-                total_amount = float(ret_obj.total_amount or 0)
-                cust_id = int(ret_obj.customer_id) if ret_obj.customer_id else None
-                if (
-                    total_amount > 0
-                    and cust_id
-                    and await BusinessConfigService().should_auto_generate_receivable_on_sales_return(
-                        tenant_id, cust_id
-                    )
-                ):
-                    from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
+            ret_obj = await SalesReturn.get(tenant_id=tenant_id, id=return_id)
+            total_amount = float(ret_obj.total_amount or 0)
+            cust_id = int(ret_obj.customer_id) if ret_obj.customer_id else None
+            if (
+                total_amount > 0
+                and cust_id
+                and await BusinessConfigService().should_auto_generate_receivable_on_sales_return(
+                    tenant_id, cust_id
+                )
+            ):
+                from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
 
-                    receivable_service = ReceivableService()
-                    biz_date = to_site_date(resolve_business_datetime())
-                    due_date = await resolve_partner_due_date(
-                        tenant_id, "customer", cust_id, biz_date
+                receivable_service = ReceivableService()
+                biz_date = to_site_date(resolve_business_datetime())
+                due_date = await resolve_partner_due_date(
+                    tenant_id, "customer", cust_id, biz_date
+                )
+                receivable_data = ReceivableCreate(
+                    source_type="销售退货",
+                    source_id=return_id,
+                    source_code=ret_obj.return_code,
+                    customer_id=ret_obj.customer_id,
+                    customer_name=ret_obj.customer_name,
+                    total_amount=total_amount,
+                    received_amount=0.0,
+                    # 冲减台账：不进入待收款；对账贷方取 total_amount 绝对值
+                    remaining_amount=0.0,
+                    due_date=due_date,
+                    business_date=biz_date,
+                    status="已冲减",
+                    notes=f"销售退货冲减-由销售退货单 {ret_obj.return_code} 自动生成",
+                )
+                receivable = await receivable_service.create_receivable(
+                    tenant_id=tenant_id,
+                    receivable_data=receivable_data,
+                    created_by=confirmed_by,
+                )
+                try:
+                    from apps.kuaicaiwu.services.finance_integration_hooks import (
+                        link_finance_document_relation,
+                        record_finance_accounting_event,
                     )
-                    receivable_data = ReceivableCreate(
-                        source_type="销售退货",
+
+                    await link_finance_document_relation(
+                        tenant_id=tenant_id,
+                        source_type="sales_return",
                         source_id=return_id,
                         source_code=ret_obj.return_code,
-                        customer_id=ret_obj.customer_id,
-                        customer_name=ret_obj.customer_name,
-                        total_amount=total_amount,
-                        received_amount=0.0,
-                        # 冲减台账：不进入待收款；对账贷方取 total_amount 绝对值
-                        remaining_amount=0.0,
-                        due_date=due_date,
-                        business_date=biz_date,
-                        status="已冲减",
-                        notes=f"销售退货冲减-由销售退货单 {ret_obj.return_code} 自动生成",
-                    )
-                    receivable = await receivable_service.create_receivable(
-                        tenant_id=tenant_id,
-                        receivable_data=receivable_data,
+                        target_type="receivable",
+                        target_id=receivable.id,
+                        target_code=getattr(receivable, "receivable_code", None),
+                        relation_desc="销售退货确认自动生成红字应收单",
                         created_by=confirmed_by,
                     )
-                    try:
-                        from apps.kuaicaiwu.services.finance_integration_hooks import (
-                            link_finance_document_relation,
-                            record_finance_accounting_event,
-                        )
+                    await record_finance_accounting_event(
+                        tenant_id=tenant_id,
+                        event_type="SALES_RETURN_TO_RECEIVABLE",
+                        business_type="receivable",
+                        source_doc_type="sales_return",
+                        source_doc_id=return_id,
+                        source_doc_code=ret_obj.return_code,
+                        target_doc_type="Receivable",
+                        target_doc_id=receivable.id,
+                        target_doc_code=receivable.receivable_code,
+                        amount=Decimal(str(total_amount)),
+                        operator_id=confirmed_by,
+                        notes=f"销售退货单 {ret_obj.return_code} 自动生成红字应收单",
+                    )
+                except Exception as rel_e:
+                    logger.warning("销售退货确认-创建应收单关联/会计事件失败: %s", rel_e)
+        except Exception as fin_e:
+            logger.warning("销售退货确认-创建红字应收单失败: %s", fin_e)
 
-                        await link_finance_document_relation(
-                            tenant_id=tenant_id,
-                            source_type="sales_return",
-                            source_id=return_id,
-                            source_code=ret_obj.return_code,
-                            target_type="receivable",
-                            target_id=receivable.id,
-                            target_code=getattr(receivable, "receivable_code", None),
-                            relation_desc="销售退货确认自动生成红字应收单",
-                            created_by=confirmed_by,
-                        )
-                        await record_finance_accounting_event(
-                            tenant_id=tenant_id,
-                            event_type="SALES_RETURN_TO_RECEIVABLE",
-                            business_type="receivable",
-                            source_doc_type="sales_return",
-                            source_doc_id=return_id,
-                            source_doc_code=ret_obj.return_code,
-                            target_doc_type="Receivable",
-                            target_doc_id=receivable.id,
-                            target_doc_code=receivable.receivable_code,
-                            amount=Decimal(str(total_amount)),
-                            operator_id=confirmed_by,
-                            notes=f"销售退货单 {ret_obj.return_code} 自动生成红字应收单",
-                        )
-                    except Exception as rel_e:
-                        logger.warning("销售退货确认-创建应收单关联/会计事件失败: %s", rel_e)
-            except Exception as fin_e:
-                logger.warning("销售退货确认-创建红字应收单失败: %s", fin_e)
-
-            updated_return = await self.get_sales_return_by_id(tenant_id, return_id)
-            return updated_return
+        return updated_return
 
     async def update_sales_return(
         self,
@@ -13756,7 +13757,7 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
         }
 
     async def confirm_return(self, tenant_id: int, return_id: int, confirmed_by: int) -> PurchaseReturnResponse:
-        """确认退货"""
+        """确认退货。过账事务提交后再生成红字应付，避免嵌套事务回滚库存/状态却仍返回成功。"""
         async with in_transaction():
             return_obj = await PurchaseReturn.get_or_none(
                 tenant_id=tenant_id, id=return_id, deleted_at__isnull=True
@@ -13809,6 +13810,8 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                     .get("fifo", False)
                 )
                 wh_id = ret_obj.warehouse_id if ret_obj.warehouse_id else None
+                if wh_id is None:
+                    raise BusinessLogicError("采购退货确认失败：未指定出库仓库")
                 for item in items:
                     qty = item.return_quantity or Decimal(0)
                     if qty <= 0:
@@ -13823,10 +13826,10 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                         source_doc_id=return_id,
                         source_doc_code=ret_obj.return_code,
                         enforce_fifo=enforce_fifo,
-                    movement_type="other_outbound",
-                    operator_id=confirmed_by,
-                    operator_name=None,
-                )
+                        movement_type="other_outbound",
+                        operator_id=confirmed_by,
+                        operator_name=None,
+                    )
             except Exception as inv_e:
                 logger.error("采购退货确认-更新库存失败: %s", inv_e)
                 if isinstance(inv_e, BusinessLogicError):
@@ -13839,85 +13842,86 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
             except Exception as cost_e:
                 logger.warning("采购退货确认-成本处理失败: %s", cost_e)
 
-            # 创建红字应付单（采购退货冲减）；手工立账时不自动生成
-            try:
-                from apps.kuaicaiwu.services.finance_service import PayableService
-                from apps.kuaicaiwu.schemas.finance import PayableCreate
+        # 过账事务已提交。红字应付须在外层创建：create_payable 内部另有 in_transaction()，
+        # 嵌套时部分环境会回滚退货状态/库存，但接口仍返回成功体。
+        updated_return = await self.get_purchase_return_by_id(tenant_id, return_id)
+        try:
+            from apps.kuaicaiwu.services.finance_service import PayableService
+            from apps.kuaicaiwu.schemas.finance import PayableCreate
 
-                ret_obj = await PurchaseReturn.get(tenant_id=tenant_id, id=return_id)
-                total_amount = float(ret_obj.total_amount or 0)
-                supplier_id = int(ret_obj.supplier_id) if ret_obj.supplier_id else None
-                if (
-                    total_amount > 0
-                    and supplier_id
-                    and await BusinessConfigService().should_auto_generate_payable_on_purchase_return(
-                        tenant_id, supplier_id
-                    )
-                ):
-                    from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
+            ret_obj = await PurchaseReturn.get(tenant_id=tenant_id, id=return_id)
+            total_amount = float(ret_obj.total_amount or 0)
+            supplier_id = int(ret_obj.supplier_id) if ret_obj.supplier_id else None
+            if (
+                total_amount > 0
+                and supplier_id
+                and await BusinessConfigService().should_auto_generate_payable_on_purchase_return(
+                    tenant_id, supplier_id
+                )
+            ):
+                from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
 
-                    payable_service = PayableService()
-                    biz_date = to_site_date(resolve_business_datetime())
-                    due_date = await resolve_partner_due_date(
-                        tenant_id, "supplier", supplier_id, biz_date
+                payable_service = PayableService()
+                biz_date = to_site_date(resolve_business_datetime())
+                due_date = await resolve_partner_due_date(
+                    tenant_id, "supplier", supplier_id, biz_date
+                )
+                payable_data = PayableCreate(
+                    source_type="采购退货",
+                    source_id=return_id,
+                    source_code=ret_obj.return_code,
+                    supplier_id=ret_obj.supplier_id,
+                    supplier_name=ret_obj.supplier_name,
+                    total_amount=total_amount,
+                    paid_amount=0.0,
+                    remaining_amount=total_amount,
+                    due_date=due_date,
+                    business_date=biz_date,
+                    status="已冲减",
+                    notes=f"采购退货冲减-由采购退货单 {ret_obj.return_code} 自动生成",
+                )
+                payable = await payable_service.create_payable(
+                    tenant_id=tenant_id,
+                    payable_data=payable_data,
+                    created_by=confirmed_by,
+                )
+                try:
+                    from apps.kuaicaiwu.services.finance_integration_hooks import (
+                        link_finance_document_relation,
+                        record_finance_accounting_event,
                     )
-                    payable_data = PayableCreate(
-                        source_type="采购退货",
+
+                    await link_finance_document_relation(
+                        tenant_id=tenant_id,
+                        source_type="purchase_return",
                         source_id=return_id,
                         source_code=ret_obj.return_code,
-                        supplier_id=ret_obj.supplier_id,
-                        supplier_name=ret_obj.supplier_name,
-                        total_amount=total_amount,
-                        paid_amount=0.0,
-                        remaining_amount=total_amount,
-                        due_date=due_date,
-                        business_date=biz_date,
-                        status="已冲减",
-                        notes=f"采购退货冲减-由采购退货单 {ret_obj.return_code} 自动生成",
-                    )
-                    payable = await payable_service.create_payable(
-                        tenant_id=tenant_id,
-                        payable_data=payable_data,
+                        target_type="payable",
+                        target_id=payable.id,
+                        target_code=getattr(payable, "payable_code", None),
+                        relation_desc="采购退货确认自动生成红字应付单",
                         created_by=confirmed_by,
                     )
-                    try:
-                        from apps.kuaicaiwu.services.finance_integration_hooks import (
-                            link_finance_document_relation,
-                            record_finance_accounting_event,
-                        )
+                    await record_finance_accounting_event(
+                        tenant_id=tenant_id,
+                        event_type="PURCHASE_RETURN_TO_PAYABLE",
+                        business_type="payable",
+                        source_doc_type="purchase_return",
+                        source_doc_id=return_id,
+                        source_doc_code=ret_obj.return_code,
+                        target_doc_type="Payable",
+                        target_doc_id=payable.id,
+                        target_doc_code=payable.payable_code,
+                        amount=Decimal(str(total_amount)),
+                        operator_id=confirmed_by,
+                        notes=f"采购退货单 {ret_obj.return_code} 自动生成红字应付单",
+                    )
+                except Exception as rel_e:
+                    logger.warning("采购退货确认-创建应付单关联/会计事件失败: %s", rel_e)
+        except Exception as fin_e:
+            logger.warning("采购退货确认-创建红字应付单失败: %s", fin_e)
 
-                        await link_finance_document_relation(
-                            tenant_id=tenant_id,
-                            source_type="purchase_return",
-                            source_id=return_id,
-                            source_code=ret_obj.return_code,
-                            target_type="payable",
-                            target_id=payable.id,
-                            target_code=getattr(payable, "payable_code", None),
-                            relation_desc="采购退货确认自动生成红字应付单",
-                            created_by=confirmed_by,
-                        )
-                        await record_finance_accounting_event(
-                            tenant_id=tenant_id,
-                            event_type="PURCHASE_RETURN_TO_PAYABLE",
-                            business_type="payable",
-                            source_doc_type="purchase_return",
-                            source_doc_id=return_id,
-                            source_doc_code=ret_obj.return_code,
-                            target_doc_type="Payable",
-                            target_doc_id=payable.id,
-                            target_doc_code=payable.payable_code,
-                            amount=Decimal(str(total_amount)),
-                            operator_id=confirmed_by,
-                            notes=f"采购退货单 {ret_obj.return_code} 自动生成红字应付单",
-                        )
-                    except Exception as rel_e:
-                        logger.warning("采购退货确认-创建应付单关联/会计事件失败: %s", rel_e)
-            except Exception as fin_e:
-                logger.warning("采购退货确认-创建红字应付单失败: %s", fin_e)
-
-            updated_return = await self.get_purchase_return_by_id(tenant_id, return_id)
-            return updated_return
+        return updated_return
 
     async def update_purchase_return(
         self,

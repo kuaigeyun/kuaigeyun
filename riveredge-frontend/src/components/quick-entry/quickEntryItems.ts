@@ -14,7 +14,12 @@ import {
   translatePathTitle,
 } from '../../utils/menuTranslation';
 import type { QuickEntryItem } from './QuickEntryGrid';
-import { getQuickEntryIconByPath, renderQuickEntryMenuIcon } from './renderQuickEntryMenuIcon';
+import {
+  findMenuAncestryByPath,
+  findMenuAncestryByUuid,
+  renderQuickEntryMenuIcon,
+  resolveQuickEntryIconFromTree,
+} from './renderQuickEntryMenuIcon';
 
 export function findMenuInTree(menus: MenuTree[], uuid: string): MenuTree | null {
   const target = String(uuid);
@@ -108,27 +113,28 @@ export function getTranslatedMenuTitle(
 
 export function buildQuickEntriesFromMenuTree(
   menus: MenuTree[],
-  renderIcon: (menu: MenuTree) => ReactNode,
   t: (key: string, options?: any) => string,
   limit = 10,
 ): QuickEntryItem[] {
-  const allPathMenus: MenuTree[] = [];
+  const allPathMenus: Array<{ menu: MenuTree; ancestors: MenuTree[] }> = [];
 
-  const walk = (nodes: MenuTree[]) => {
+  const walk = (nodes: MenuTree[], ancestors: MenuTree[]) => {
     nodes.forEach((menu) => {
       if (menu.children?.length) {
-        walk(menu.children);
+        walk(menu.children, [...ancestors, menu]);
       }
       if (menu.path && !menu.is_external && menu.path !== '/system/dashboard/workplace') {
-        allPathMenus.push(menu);
+        allPathMenus.push({ menu, ancestors });
       }
     });
   };
 
-  walk(menus);
+  walk(menus, []);
 
-  const uniqueMenus = Array.from(new Map(allPathMenus.map((menu) => [menu.uuid, menu])).values());
-  const businessMenus = uniqueMenus.filter((menu) => menu.path?.startsWith('/apps/'));
+  const uniqueMenus = Array.from(
+    new Map(allPathMenus.map((entry) => [entry.menu.uuid, entry])).values(),
+  );
+  const businessMenus = uniqueMenus.filter((entry) => entry.menu.path?.startsWith('/apps/'));
   const sourceMenus = businessMenus.length > 0 ? businessMenus : uniqueMenus;
   const priorityPatterns = [
     '/production-execution/work-orders',
@@ -144,21 +150,21 @@ export function buildQuickEntriesFromMenuTree(
   ];
 
   const sortedMenus = [...sourceMenus].sort((a, b) => {
-    const aPath = a.path || '';
-    const bPath = b.path || '';
+    const aPath = a.menu.path || '';
+    const bPath = b.menu.path || '';
     const aPriority = priorityPatterns.findIndex((pattern) => aPath.includes(pattern));
     const bPriority = priorityPatterns.findIndex((pattern) => bPath.includes(pattern));
     const aRank = aPriority === -1 ? Number.MAX_SAFE_INTEGER : aPriority;
     const bRank = bPriority === -1 ? Number.MAX_SAFE_INTEGER : bPriority;
     if (aRank !== bRank) return aRank - bRank;
-    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    return (a.menu.sort_order ?? 0) - (b.menu.sort_order ?? 0);
   });
 
-  return sortedMenus.slice(0, limit).map((menu, index) => ({
-    menu_uuid: menu.uuid,
-    menu_name: getTranslatedMenuTitle(menu, t),
-    menu_path: menu.path || '',
-    menu_icon: renderIcon(menu),
+  return sortedMenus.slice(0, limit).map((entry, index) => ({
+    menu_uuid: entry.menu.uuid,
+    menu_name: getTranslatedMenuTitle(entry.menu, t),
+    menu_path: entry.menu.path || '',
+    menu_icon: renderQuickEntryMenuIcon(entry.menu, entry.ancestors),
     sort_order: index,
   }));
 }
@@ -179,22 +185,29 @@ export function resolveQuickEntryDisplayItems(
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       .slice(0, limit)
       .map((entry) => {
-        let menu = menuTree.length ? findMenuInTree(menuTree, entry.menu_uuid) : null;
-        const resolvedPath = entry.menu_path || menu?.path || '';
+        let hit =
+          menuTree.length && entry.menu_uuid
+            ? findMenuAncestryByUuid(menuTree, entry.menu_uuid)
+            : null;
+        const resolvedPath = entry.menu_path || hit?.menu.path || '';
         if (!resolvedPath) return null;
-        if (!menu && menuTree.length) {
-          menu = findMenuInTreeByPath(menuTree, resolvedPath);
+        if (!hit && menuTree.length) {
+          hit = findMenuAncestryByPath(menuTree, resolvedPath);
         }
 
+        const menu = hit?.menu ?? null;
         const menuName = resolveQuickEntryMenuLabel(entry, resolvedPath, t, menu);
 
         return {
           ...entry,
           menu_name: menuName,
           menu_path: resolvedPath,
-          menu_icon: menu
-            ? renderQuickEntryMenuIcon(menu)
-            : getQuickEntryIconByPath(resolvedPath, menuName),
+          menu_icon: menuTree.length
+            ? resolveQuickEntryIconFromTree(menuTree, {
+                menu_uuid: entry.menu_uuid,
+                menu_path: resolvedPath,
+              })
+            : null,
         };
       })
       .filter((item): item is QuickEntryDisplayItem => item !== null);
@@ -204,5 +217,5 @@ export function resolveQuickEntryDisplayItems(
     return [];
   }
 
-  return buildQuickEntriesFromMenuTree(menuTree, renderQuickEntryMenuIcon, t, limit) as QuickEntryDisplayItem[];
+  return buildQuickEntriesFromMenuTree(menuTree, t, limit) as QuickEntryDisplayItem[];
 }

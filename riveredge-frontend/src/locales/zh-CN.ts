@@ -28109,6 +28109,14 @@ export default {
     '修复物料编辑保存后仍跳回全部物料',
   'pages.dashboard.updateLog.entries.material-management-keep-group-after-edit-v2.description':
     '物料管理进编辑时列表标签会卸载，返回时整页重建；现将分组筛选写入浏览会话并禁止用「全部」冲掉原分组，保存或取消后仍停留在编辑前所在分组。',
+  'pages.dashboard.updateLog.entries.dashboard-quick-entry-icons-restore.title':
+    '修复工作台快捷入口图标全部变成加号',
+  'pages.dashboard.updateLog.entries.dashboard-quick-entry-icons-restore.description':
+    '去掉路径猜测后叶子菜单多未登记 icon，快捷入口又用加号掩盖；现按菜单树向上取分组已登记键，并在工单/报工/仓储等高频叶子补齐 ManufacturingIcons 预置键（同步菜单后显示独立图标），禁止再回退加号。',
+  'pages.dashboard.updateLog.entries.purchase-sales-return-confirm-nested-tx.title':
+    '采购/销售退货确认成功后状态与库存能真正落账',
+  'pages.dashboard.updateLog.entries.purchase-sales-return-confirm-nested-tx.description':
+    '确认退货时红字应付/应收改在库存过账事务提交之后生成，避免嵌套事务把已退货状态与库存回滚却仍提示成功，列表仍显示待退货。',
   'pages.dashboard.updateLog.entries.quality-inspection-auto-pass-sync-approve.title':
     '质检空审批人自动通过后同步落审核',
   'pages.dashboard.updateLog.entries.quality-inspection-auto-pass-sync-approve.description':

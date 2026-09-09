@@ -15,6 +15,7 @@ import {
   ArrowDownCircle,
   ArrowDownToLine,
   ArrowLeft,
+  ArrowLeftRight,
   ArrowRight,
   ArrowUp,
   ArrowUpCircle,
@@ -171,6 +172,7 @@ const LUCIDE_BY_NAME: Record<string, React.ComponentType<any>> = {
   ArrowDownCircle,
   ArrowDownToLine,
   ArrowLeft,
+  ArrowLeftRight,
   ArrowRight,
   ArrowUp,
   ArrowUpCircle,
@@ -539,6 +541,7 @@ export const ManufacturingIcons = {
   upload: getLucideIcon('Upload'),
   'arrow-down-to-line': getLucideIcon('ArrowDownToLine'), // 入库（向下箭头到线）
   'arrow-up-from-line': getLucideIcon('ArrowUpFromLine'), // 出库（向上箭头从线）
+  'arrow-left-right': getLucideIcon('ArrowLeftRight'), // 调拨
   'file-search': getLucideIcon('FileSearch'),
   'file-edit': getLucideIcon('FileEdit'),
   'file-plus': getLucideIcon('FilePlus'),

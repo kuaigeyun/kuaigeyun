@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { App, theme } from 'antd';
-import { ShopOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import {
   resolveQuickEntryDisplayItems,
-  findMenuInTree,
 } from '../quick-entry/quickEntryItems';
 import { convertMenuTreeToTreeData } from '../quick-entry/convertMenuTreeToTreeData';
-import { renderQuickEntryMenuIcon } from '../quick-entry/renderQuickEntryMenuIcon';
+import { resolveQuickEntryIconFromTree } from '../quick-entry/renderQuickEntryMenuIcon';
 import type { QuickEntryItem } from '../quick-entry/QuickEntryGrid';
 import { useNavigationMenuTreeQuery } from '../../hooks/useNavigationMenuTreeQuery';
 import type { UserPreference } from '../../services/userPreference';
@@ -115,11 +113,8 @@ export function useUniDashboardSidebar() {
   );
 
   const renderQuickEntryIcon = useCallback(
-    (menuUuid: string) => {
-      if (!quickEntryMenuTree.length) return <ShopOutlined />;
-      const menu = findMenuInTree(quickEntryMenuTree, menuUuid);
-      return menu ? renderQuickEntryMenuIcon(menu) : <ShopOutlined />;
-    },
+    (menuUuid: string) =>
+      resolveQuickEntryIconFromTree(quickEntryMenuTree, { menu_uuid: menuUuid }),
     [quickEntryMenuTree],
   );
 

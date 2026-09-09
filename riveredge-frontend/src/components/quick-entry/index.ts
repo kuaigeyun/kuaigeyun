@@ -15,5 +15,7 @@ export { generateQuickEntryGradient } from './quickEntryGradients';
 export {
   getQuickEntryIconByPath,
   renderQuickEntryMenuIcon,
+  resolveQuickEntryIconFromTree,
+  resolveMenuIconKey,
 } from './renderQuickEntryMenuIcon';
 export type { QuickEntryItem } from './QuickEntryGrid';

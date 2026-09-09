@@ -444,6 +444,7 @@
           {
             "title": "app.kuaizhizao.menu.production-execution.work-orders",
             "path": "/apps/kuaizhizao/production-execution/work-orders",
+            "icon": "fileText",
             "sort_order": 1,
             "meta": {
               "node": "work_order",
@@ -454,6 +455,7 @@
           {
             "title": "app.kuaizhizao.menu.production-execution.reporting",
             "path": "/apps/kuaizhizao/production-execution/reporting",
+            "icon": "clipboardList",
             "sort_order": 3,
             "meta": {
               "module": "production"
@@ -533,6 +535,7 @@
           {
             "title": "app.kuaizhizao.menu.production-execution.reporting.statistics",
             "path": "/apps/kuaizhizao/production-execution/reporting/statistics",
+            "icon": "chartBar",
             "sort_order": 8,
             "meta": {
               "module": "production"
@@ -702,6 +705,7 @@
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.inbound",
                 "path": "/apps/kuaizhizao/warehouse-management/inbound",
+                "icon": "arrow-down-to-line",
                 "permission": "kuaizhizao:inbound:read",
                 "sort_order": 1,
                 "meta": {
@@ -744,6 +748,7 @@
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.outbound",
                 "path": "/apps/kuaizhizao/warehouse-management/outbound",
+                "icon": "arrow-up-from-line",
                 "permission": "kuaizhizao:outbound:read",
                 "sort_order": 1,
                 "meta": {
@@ -796,6 +801,7 @@
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.inventory-transfer",
                 "path": "/apps/kuaizhizao/warehouse-management/inventory-transfer",
+                "icon": "arrow-left-right",
                 "permission": "kuaizhizao:warehouse-management-inventory-transfer:read",
                 "sort_order": 2
               },
@@ -821,6 +827,7 @@
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.inventory",
                 "path": "/apps/kuaizhizao/warehouse-management/inventory",
+                "icon": "boxes",
                 "permission": "kuaizhizao:warehouse-management-inventory:read",
                 "sort_order": 1
               },
@@ -851,6 +858,7 @@
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.inventory-alert",
                 "path": "/apps/kuaizhizao/warehouse-management/inventory-alert",
+                "icon": "alert-triangle",
                 "permission": "kuaizhizao:warehouse-management-inventory-alert:read",
                 "sort_order": 6
               },

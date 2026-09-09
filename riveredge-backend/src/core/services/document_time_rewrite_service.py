@@ -84,6 +84,15 @@ REWRITE_SPECS: tuple[RewriteDocSpec, ...] = (
         person_name_field="salesman_name",
     ),
     RewriteDocSpec(
+        doc_type="demand_computation",
+        label="需求计算",
+        model_path="apps.kuaizhizao.models.demand_computation:DemandComputation",
+        code_field="computation_code",
+        date_fields=(),
+        # 执行后写入的开始/结束时刻；无 review_time
+        optional_datetime_fields=("computation_start_time", "computation_end_time"),
+    ),
+    RewriteDocSpec(
         doc_type="sales_delivery",
         label="销售出库",
         model_path="apps.kuaizhizao.models.sales_delivery:SalesDelivery",

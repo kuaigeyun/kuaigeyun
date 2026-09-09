@@ -211,7 +211,7 @@ export const QuickEntryGrid: React.FC<QuickEntryGridProps> = ({
               {displayedItems.map((item, index) => (
                 <QuickEntryIcon
                   key={item.menu_uuid}
-                  icon={item.menu_icon || <PlusOutlined />}
+                  icon={item.menu_icon}
                   title={item.menu_name}
                   onClick={() => {
                     if (item.menu_path) {

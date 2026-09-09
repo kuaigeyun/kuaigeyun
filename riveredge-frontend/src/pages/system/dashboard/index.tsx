@@ -32,7 +32,6 @@ import {
 import {
   ClockCircleOutlined,
   RightOutlined,
-  ShopOutlined,
   DesktopOutlined,
   MobileOutlined,
   TabletOutlined,
@@ -50,10 +49,9 @@ import { PAGE_SPACING } from '../../../components/layout-templates/constants';
 import { QuickEntryGrid, type QuickEntryItem } from '../../../components/quick-entry/QuickEntryGrid';
 import {
   resolveQuickEntryDisplayItems,
-  findMenuInTree,
 } from '../../../components/quick-entry/quickEntryItems';
 import { convertMenuTreeToTreeData } from '../../../components/quick-entry/convertMenuTreeToTreeData';
-import { renderQuickEntryMenuIcon } from '../../../components/quick-entry/renderQuickEntryMenuIcon';
+import { resolveQuickEntryIconFromTree } from '../../../components/quick-entry/renderQuickEntryMenuIcon';
 import { 
   getTodos, 
   getStatistics, 
@@ -957,11 +955,9 @@ export default function DashboardPage() {
                 await updatePreferences({ dashboard_quick_entries: serializableItems });
               }}
               isDark={isDark}
-              renderMenuIcon={(menuUuid: string) => {
-                if (!quickEntryMenuTree.length) return <ShopOutlined />;
-                const menu = findMenuInTree(quickEntryMenuTree, menuUuid);
-                return menu ? renderQuickEntryMenuIcon(menu) : <ShopOutlined />;
-              }}
+              renderMenuIcon={(menuUuid: string) =>
+                resolveQuickEntryIconFromTree(quickEntryMenuTree, { menu_uuid: menuUuid })
+              }
             />
             <DashboardUsageTipsCarousel
               t={t}
