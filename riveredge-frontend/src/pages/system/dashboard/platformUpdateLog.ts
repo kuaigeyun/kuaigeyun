@@ -44,6 +44,14 @@ export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
       'pages.dashboard.updateLog.entries.purchase-receipt-confirm-withdraw-reconfirm.description',
   },
   {
+    id: 'equipment-ops-audit-columns-spot-check',
+    type: 'fix',
+    date: '2026-09-09',
+    titleKey: 'pages.dashboard.updateLog.entries.equipment-ops-audit-columns-spot-check.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.equipment-ops-audit-columns-spot-check.description',
+  },
+  {
     id: 'supplier-delivery-ontime-site-date',
     type: 'fix',
     date: '2026-09-09',
