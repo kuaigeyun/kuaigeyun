@@ -576,10 +576,12 @@ class DocumentTimeRewriteService:
                 payload[field_name] = biz_day
 
         for field_name in spec.datetime_fields:
-            if hasattr(row, field_name):
+            # 须用 fields_map 判断；继承自 BaseModel 的 created_at/updated_at
+            # 对 Model 类 hasattr 恒为 False，勿用 hasattr(row/model, name) 漏写。
+            if _model_has_field(model, field_name):
                 payload[field_name] = issue_utc
         for field_name in spec.optional_datetime_fields:
-            if not hasattr(row, field_name):
+            if not _model_has_field(model, field_name):
                 continue
             current = getattr(row, field_name, None)
             if current is None:
@@ -589,25 +591,25 @@ class DocumentTimeRewriteService:
             else:
                 payload[field_name] = issue_utc
 
-        if sync_operator and spec.person_id_field and hasattr(row, spec.person_id_field):
+        if sync_operator and spec.person_id_field and _model_has_field(model, spec.person_id_field):
             person_id = getattr(row, spec.person_id_field, None)
             person_name = None
-            if spec.person_name_field and hasattr(row, spec.person_name_field):
+            if spec.person_name_field and _model_has_field(model, spec.person_name_field):
                 person_name = getattr(row, spec.person_name_field, None)
             if person_id is not None:
-                if hasattr(row, "created_by"):
+                if _model_has_field(model, "created_by"):
                     payload["created_by"] = int(person_id)
-                if hasattr(row, "updated_by"):
+                if _model_has_field(model, "updated_by"):
                     payload["updated_by"] = int(person_id)
                 if person_name:
                     name = str(person_name).strip()
                     if name:
-                        if hasattr(row, "created_by_name"):
+                        if _model_has_field(model, "created_by_name"):
                             payload["created_by_name"] = name
-                        if hasattr(row, "updated_by_name"):
+                        if _model_has_field(model, "updated_by_name"):
                             payload["updated_by_name"] = name
 
-        if rewrite_code_date and spec.code_field and hasattr(row, spec.code_field):
+        if rewrite_code_date and spec.code_field and _model_has_field(model, spec.code_field):
             old_code = str(getattr(row, spec.code_field, "") or "")
             desired = _replace_code_date(old_code, biz_day)
             if desired and desired != old_code:
@@ -620,7 +622,7 @@ class DocumentTimeRewriteService:
                 )
                 payload[spec.code_field] = unique
                 for extra in spec.extra_code_fields:
-                    if not hasattr(row, extra):
+                    if not _model_has_field(model, extra):
                         continue
                     old_extra = str(getattr(row, extra, "") or "")
                     if not old_extra:
