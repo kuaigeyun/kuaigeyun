@@ -49,7 +49,8 @@ REWRITE_SPECS: tuple[RewriteDocSpec, ...] = (
         label="采购订单",
         model_path="apps.kuaizhizao.models.purchase_order:PurchaseOrder",
         code_field="order_code",
-        date_fields=("order_date",),
+        # delivery_date 随 order_date 相对偏移改写，避免只改订单日、交期停在墙钟今天
+        date_fields=("order_date", "delivery_date"),
         optional_datetime_fields=("review_time",),
         person_id_field="buyer_id",
         person_name_field="buyer_name",
