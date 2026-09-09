@@ -60,19 +60,6 @@ function flattenMenuTreeByUuid(nodes: MenuTree[]): Map<string, MenuTree> {
   return byUuid;
 }
 
-/** 与菜单管理保存侧一致：有 menu_ref 即视为应启用自组映射 */
-function layoutNodesHaveMenuRefs(nodes: CustomMenuLayoutNode[]): boolean {
-  for (const node of nodes) {
-    if (node.type === 'menu_ref' && String(node.menu_uuid || '').trim()) {
-      return true;
-    }
-    if (node.children?.length && layoutNodesHaveMenuRefs(node.children)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function cloneSourceMenuNode(
   source: MenuTree,
   nodeIdPrefix: string,
@@ -90,18 +77,47 @@ function cloneSourceMenuNode(
   };
 }
 
+/**
+ * 「未分组」是自组编辑器的虚拟桶（叶子尚未归入命名分组），不应作为侧栏一级标题。
+ * 识别：id 含 ungrouped，或历史已落库的各语种标题。
+ */
+const CUSTOM_LAYOUT_UNGROUPED_TITLES = new Set([
+  '未分组',
+  '未群組',
+  'Ungrouped',
+  '未グループ',
+  'Chưa phân nhóm',
+  'pages.system.menus.customLayoutUngrouped',
+]);
+
+function isUngroupedCustomLayoutGroup(node: CustomMenuLayoutNode): boolean {
+  if (node.type !== 'custom_group') return false;
+  const id = String(node.id || '');
+  if (id.includes('ungrouped')) return true;
+  const title = String(node.title || '').trim();
+  return CUSTOM_LAYOUT_UNGROUPED_TITLES.has(title);
+}
+
 function buildMappedMenuTree(
   nodes: CustomMenuLayoutNode[],
   sourceByUuid: Map<string, MenuTree>,
   parentPrefix: string,
 ): MenuTree[] {
-  return nodes.map((node, index) => {
+  const result: MenuTree[] = [];
+  nodes.forEach((node, index) => {
     const nodeId = (node.id || '').trim() || `${parentPrefix}-${index}`;
+    // 侧栏展开「未分组」：子项直接挂到父级（APP 下表现为一级菜单）
+    if (isUngroupedCustomLayoutGroup(node)) {
+      result.push(
+        ...buildMappedMenuTree(node.children || [], sourceByUuid, `${parentPrefix}-${nodeId}`),
+      );
+      return;
+    }
     if (node.type === 'menu_ref') {
       const menuUuid = String(node.menu_uuid || '');
       const source = sourceByUuid.get(menuUuid);
       if (!source) {
-        return {
+        result.push({
           uuid: `${parentPrefix}-${nodeId}-missing`,
           tenant_id: 0,
           name: node.title?.trim() || menuUuid || 'missing',
@@ -119,15 +135,19 @@ function buildMappedMenuTree(
           created_at: '',
           updated_at: '',
           children: [],
-        };
+        });
+        return;
       }
-      return cloneSourceMenuNode(source, `${parentPrefix}-${nodeId}`, {
-        title: node.title,
-        icon: node.icon,
-      });
+      result.push(
+        cloneSourceMenuNode(source, `${parentPrefix}-${nodeId}`, {
+          title: node.title,
+          icon: node.icon,
+        }),
+      );
+      return;
     }
 
-    return {
+    result.push({
       uuid: `${parentPrefix}-${nodeId}`,
       tenant_id: 0,
       name: (node.title || '').trim() || (node.type === 'app_group' ? 'APP' : '分组'),
@@ -148,8 +168,9 @@ function buildMappedMenuTree(
       created_at: '',
       updated_at: '',
       children: buildMappedMenuTree(node.children || [], sourceByUuid, `${parentPrefix}-${nodeId}`),
-    };
+    });
   });
+  return result;
 }
 
 /** 上线向导关闭时从侧栏/面包屑隐藏的菜单路径（与站点设置 enable_launch_wizard 联动） */
@@ -297,9 +318,7 @@ export function useUnifiedMenuData(
 
   const mappedApplicationMenus = useMemo(() => {
     const layoutNodes = menuCustomLayout?.nodes || [];
-    const layoutActive =
-      Boolean(menuCustomLayout?.enabled) || layoutNodesHaveMenuRefs(layoutNodes);
-    if (!layoutActive || !layoutNodes.length) {
+    if (!menuCustomLayout?.enabled || !layoutNodes.length) {
       return applicationMenus;
     }
     const sourceByUuid = flattenMenuTreeByUuid(applicationMenus);
@@ -453,7 +472,12 @@ export function useUnifiedMenuData(
           return null;
         };
         const firstPath = findFirst(appMenu.children || []);
-        const code = firstPath ? extractAppCodeFromPath(firstPath) : null;
+        const codeFromChild = firstPath ? extractAppCodeFromPath(firstPath) : null;
+        // 与侧栏分组一致：行业包容器勿用首个子模块 code（如 kuaielectronics）顶替
+        const isIndustryPackRoot =
+          String(appMenu.path || '') === '/apps/industry-pack' ||
+          extractAppCodeFromPath(String(appMenu.path || '')) === 'industry-pack';
+        const code = isIndustryPackRoot ? 'industry-pack' : codeFromChild;
         const appName = (appMenu.meta as any)?.custom_layout_virtual
           ? appMenu.name
           : (code ? resolveAppMenuGroupDisplayName(code, appMenu.name, t) : appMenu.name);

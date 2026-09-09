@@ -39,7 +39,7 @@ import { DictionarySelect } from '../../../../../components/dictionary-select';
 import { MaterialUnitLabel } from '../../../../../components/material-unit-label';
 import FeeDetailsTable from '../../../../../components/FeeDetailsTable';
 import PriceTypeSwitch, { type PriceTypeValue } from '../../../../../components/price-type-switch/PriceTypeSwitch';
-import { setFormPriceType } from '../../../../../utils/priceTypeSwitch';
+import { deferConvertLineItemsByPriceType } from '../../../../../utils/priceTypeSwitch';
 import {
   importDropdownLabelsFromOptions,
   parseImportOptionCell,
@@ -1322,37 +1322,23 @@ const SalesOrdersPage: React.FC = () => {
   const handlePriceTypeChange = useCallback((nextChecked: boolean) => {
     const nextType: PriceTypeValue = nextChecked ? 'tax_inclusive' : 'tax_exclusive';
     const fromType: PriceTypeValue = nextChecked ? 'tax_exclusive' : 'tax_inclusive';
-    setFormPriceType(formRef.current, nextType);
     lastPriceTypeRef.current = nextType;
     setEditingIncl(null);
     editingInclValueRef.current = null;
-    const form = formRef.current;
-    if (!form || fromType === nextType) return;
-    const items = form.getFieldValue('items');
-    if (!Array.isArray(items) || items.length === 0) return;
-    const snapshot = items;
-    queueMicrotask(() => {
-      const convertedItems = snapshot.map((row: Record<string, unknown>) => {
-        const unit_price = convertUnitPriceByPriceType(
-          row?.unit_price,
-          row?.tax_rate,
-          fromType,
-          nextType,
-        );
-        const item_amount = recalcDocumentStoredLineAmount(
-          {
-            qty: row.required_quantity,
-            unit_price,
-            tax_rate: row.tax_rate,
-            is_gift: row.is_gift,
-          },
-          nextType,
-        );
-        return { ...row, unit_price, item_amount };
-      });
-      form.setFieldsValue({ items: convertedItems });
+    // 勿先 setFormPriceType：须与明细换算同一次写入，见 deferConvertLineItemsByPriceType
+    deferConvertLineItemsByPriceType(formRef.current, fromType, nextType, {
+      quantityField: 'required_quantity',
+      priceDecimals,
+      beginSkipLineAmountResync: () => {
+        skipLineAmountResyncRef.current = true;
+      },
+      endSkipLineAmountResync: () => {
+        queueMicrotask(() => {
+          skipLineAmountResyncRef.current = false;
+        });
+      },
     });
-  }, []);
+  }, [priceDecimals]);
 
   const openFollowUpFromSalesOrder = (record: SalesOrder) => {
     const cid = record.customer_id;
@@ -4572,23 +4558,28 @@ const SalesOrdersPage: React.FC = () => {
                             const row = normalizeFormListItems<any>(getFieldValue('items'))[index] ?? {};
                             const isGift = Boolean(row.is_gift);
                             return (
-                              <AntForm.Item name={[index, 'unit_price']} style={{ margin: 0 }}>
-                                <LineUnitPriceWithTrendTrigger
-                                  side="sales"
-                                  materialId={row.material_id}
-                                  partnerId={getFieldValue('customer_id')}
-                                  placeholder={
-                                    priceType === 'tax_inclusive'
-                                      ? t('app.kuaizhizao.salesOrder.unitPricePlaceholderTaxInclusive')
-                                      : t('app.kuaizhizao.salesOrder.unitPricePlaceholder')
-                                  }
-                                  min={0}
-                                  precision={priceDecimals}
-                                  prefix="¥"
-                                  size={DOCUMENT_DETAIL_CONTROL_SIZE}
-                                  disabled={isGift}
-                                />
-                              </AntForm.Item>
+                              <>
+                                <AntForm.Item name={[index, 'item_amount']} hidden>
+                                  <InputNumber />
+                                </AntForm.Item>
+                                <AntForm.Item name={[index, 'unit_price']} style={{ margin: 0 }}>
+                                  <LineUnitPriceWithTrendTrigger
+                                    side="sales"
+                                    materialId={row.material_id}
+                                    partnerId={getFieldValue('customer_id')}
+                                    placeholder={
+                                      priceType === 'tax_inclusive'
+                                        ? t('app.kuaizhizao.salesOrder.unitPricePlaceholderTaxInclusive')
+                                        : t('app.kuaizhizao.salesOrder.unitPricePlaceholder')
+                                    }
+                                    min={0}
+                                    precision={priceDecimals}
+                                    prefix="¥"
+                                    size={DOCUMENT_DETAIL_CONTROL_SIZE}
+                                    disabled={isGift}
+                                  />
+                                </AntForm.Item>
+                              </>
                             );
                           }}
                         </AntForm.Item>

@@ -39,6 +39,60 @@ def compute_refundable_balance(
     return max(Decimal("0"), total - refunded - reserved)
 
 
+def compute_open_balance_after_refund(
+    total_amount: Decimal,
+    collected_amount: Decimal,
+    refunded_amount: Decimal,
+) -> Decimal:
+    """
+    往来未结清余额：总额 - 净已收/已付。
+    净已收/已付 = 已收(付)合计 - 已确认退款冲回合计。
+    退款须加回剩余应收/应付，禁止只用 total - collected。
+    """
+    total = quantize_money(total_amount)
+    collected = quantize_money(collected_amount)
+    refunded = quantize_money(refunded_amount)
+    net_collected = collected - refunded
+    if net_collected < Decimal("0"):
+        net_collected = Decimal("0")
+    remaining = total - net_collected
+    if remaining < Decimal("0"):
+        return Decimal("0.00")
+    if remaining > total:
+        return total
+    return remaining
+
+
+def resolve_ar_status_after_amounts(
+    *,
+    total_amount: Decimal,
+    received_amount: Decimal,
+    remaining_amount: Decimal,
+) -> str:
+    received = quantize_money(received_amount)
+    remaining = quantize_money(remaining_amount)
+    if received <= Decimal("0"):
+        return "未收款"
+    if remaining <= Decimal("0"):
+        return "已结清"
+    return "部分收款"
+
+
+def resolve_ap_status_after_amounts(
+    *,
+    total_amount: Decimal,
+    paid_amount: Decimal,
+    remaining_amount: Decimal,
+) -> str:
+    paid = quantize_money(paid_amount)
+    remaining = quantize_money(remaining_amount)
+    if paid <= Decimal("0"):
+        return "未付款"
+    if remaining <= Decimal("0"):
+        return "已结清"
+    return "部分付款"
+
+
 def encode_refund_allocation_notes(amount: Decimal) -> str:
     return json.dumps({_ALLOC_KEY: str(quantize_money(amount))}, ensure_ascii=False)
 

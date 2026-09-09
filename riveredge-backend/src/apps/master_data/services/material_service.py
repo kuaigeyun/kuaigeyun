@@ -136,6 +136,8 @@ RELATION_IMPORT_FIELD_ALIASES: Dict[str, List[str]] = {
 }
 
 RELATION_ENTITY_REQUIRED_FIELDS: Dict[str, List[str]] = {
+    # material：与 BOM 行必填重叠；processRoute/operation/performance 仅作「有值时的身份键」，
+    # 行内为空则跳过该实体关联，不按必填拦截（见 _relation_import_bom_v2）。
     "material": ["component_code"],
     "processRoute": ["process_route_code"],
     "operation": ["operation_code"],
@@ -6192,6 +6194,9 @@ class MaterialService:
                     continue
 
                 for entity in effective_entities:
+                    # 工艺路线/工序/绩效为可选关联：行内编码为空则本行跳过该实体，不报必填错
+                    if entity in ("processRoute", "operation", "performance"):
+                        continue
                     for req in RELATION_ENTITY_REQUIRED_FIELDS.get(entity, []):
                         col_idx = canonical_idx.get(req)
                         if col_idx is None:
@@ -6223,102 +6228,105 @@ class MaterialService:
 
                 if "processRoute" in effective_entities:
                     route_code = _cell(row, canonical_idx["process_route_code"])
-                    route_name = _cell(row, canonical_idx["process_route_name"]) or route_code
-                    route = route_map.get(route_code)
-                    if route is None:
-                        if allow_create:
-                            route = await ProcessRoute.create(
-                                tenant_id=tenant_id,
-                                code=route_code,
-                                name=route_name or route_code,
-                                version="1.0",
-                                is_active=True,
-                            )
-                            route_map[route_code] = route
-                            summary.created += 1
-                        else:
-                            errors.append(f"第 {row_no} 行工艺路线不存在：{route_code}")
-                            continue
-                    elif allow_update and route_name and route_name != route.name:
-                        await route.update_from_dict({"name": route_name}).save()
-                        summary.updated += 1
+                    if route_code:
+                        route_name = _cell(row, canonical_idx["process_route_name"]) or route_code
+                        route = route_map.get(route_code)
+                        if route is None:
+                            if allow_create:
+                                route = await ProcessRoute.create(
+                                    tenant_id=tenant_id,
+                                    code=route_code,
+                                    name=route_name or route_code,
+                                    version="1.0",
+                                    is_active=True,
+                                )
+                                route_map[route_code] = route
+                                summary.created += 1
+                            else:
+                                errors.append(f"第 {row_no} 行工艺路线不存在：{route_code}")
+                                continue
+                        elif allow_update and route_name and route_name != route.name:
+                            await route.update_from_dict({"name": route_name}).save()
+                            summary.updated += 1
 
-                    if allow_link and parent_material.process_route_id != route.id:
-                        await parent_material.update_from_dict({"process_route_id": route.id}).save()
-                        summary.linked += 1
+                        if allow_link and parent_material.process_route_id != route.id:
+                            await parent_material.update_from_dict({"process_route_id": route.id}).save()
+                            summary.linked += 1
 
                 if "operation" in effective_entities:
                     operation_code = _cell(row, canonical_idx["operation_code"])
-                    operation_name = _cell(row, canonical_idx["operation_name"]) or operation_code
-                    operation = operation_map.get(operation_code)
-                    if operation is None:
-                        if allow_create:
-                            operation = await Operation.create(
-                                tenant_id=tenant_id,
-                                code=operation_code,
-                                name=operation_name or operation_code,
-                                is_active=True,
-                            )
-                            operation_map[operation_code] = operation
-                            summary.created += 1
-                        else:
-                            errors.append(f"第 {row_no} 行工序不存在：{operation_code}")
-                            continue
-                    elif allow_update and operation_name and operation_name != operation.name:
-                        await operation.update_from_dict({"name": operation_name}).save()
-                        summary.updated += 1
+                    if operation_code:
+                        operation_name = _cell(row, canonical_idx["operation_name"]) or operation_code
+                        operation = operation_map.get(operation_code)
+                        if operation is None:
+                            if allow_create:
+                                operation = await Operation.create(
+                                    tenant_id=tenant_id,
+                                    code=operation_code,
+                                    name=operation_name or operation_code,
+                                    is_active=True,
+                                )
+                                operation_map[operation_code] = operation
+                                summary.created += 1
+                            else:
+                                errors.append(f"第 {row_no} 行工序不存在：{operation_code}")
+                                continue
+                        elif allow_update and operation_name and operation_name != operation.name:
+                            await operation.update_from_dict({"name": operation_name}).save()
+                            summary.updated += 1
 
                 if "performance" in effective_entities:
                     employee_raw = _cell(row, canonical_idx["employee_id"])
-                    if not employee_raw.isdigit():
-                        errors.append(f"第 {row_no} 行员工ID非法：{employee_raw}")
-                        continue
-                    employee_id = int(employee_raw)
-                    calc_mode = _cell(row, canonical_idx["calc_mode"]) or "time"
-                    employee_name = _cell(row, canonical_idx["employee_name"]) or None
-                    hourly_raw = _cell(row, canonical_idx["hourly_rate"])
-                    piece_raw = _cell(row, canonical_idx["default_piece_rate"])
-                    salary_raw = _cell(row, canonical_idx["base_salary"])
-                    hourly_rate = _parse_decimal(hourly_raw, "工时单价", row_no, errors) if hourly_raw else None
-                    piece_rate = _parse_decimal(piece_raw, "计件单价", row_no, errors) if piece_raw else None
-                    base_salary = _parse_decimal(salary_raw, "保障工资", row_no, errors) if salary_raw else None
-                    if (hourly_raw and hourly_rate is None) or (piece_raw and piece_rate is None) or (
-                        salary_raw and base_salary is None
-                    ):
-                        continue
-
-                    cfg = perf_map.get(employee_id)
-                    if cfg is None:
-                        if not allow_create:
-                            errors.append(f"第 {row_no} 行绩效配置不存在：employee_id={employee_id}")
+                    if employee_raw:
+                        if not employee_raw.isdigit():
+                            errors.append(f"第 {row_no} 行员工ID非法：{employee_raw}")
                             continue
-                        cfg = await EmployeePerformanceConfig.create(
-                            tenant_id=tenant_id,
-                            employee_id=employee_id,
-                            employee_name=employee_name,
-                            calc_mode=calc_mode,
-                            hourly_rate=hourly_rate,
-                            default_piece_rate=piece_rate,
-                            base_salary=base_salary,
-                            is_active=True,
-                        )
-                        perf_map[employee_id] = cfg
-                        summary.created += 1
-                    elif allow_update:
-                        updates: Dict[str, Any] = {}
-                        if employee_name and employee_name != (cfg.employee_name or ""):
-                            updates["employee_name"] = employee_name
-                        if calc_mode:
-                            updates["calc_mode"] = calc_mode
-                        if hourly_rate is not None:
-                            updates["hourly_rate"] = hourly_rate
-                        if piece_rate is not None:
-                            updates["default_piece_rate"] = piece_rate
-                        if base_salary is not None:
-                            updates["base_salary"] = base_salary
-                        if updates:
-                            await cfg.update_from_dict(updates).save()
-                            summary.updated += 1
+                        employee_id = int(employee_raw)
+                        calc_mode = _cell(row, canonical_idx["calc_mode"]) or "time"
+                        employee_name = _cell(row, canonical_idx["employee_name"]) or None
+                        hourly_raw = _cell(row, canonical_idx["hourly_rate"])
+                        piece_raw = _cell(row, canonical_idx["default_piece_rate"])
+                        salary_raw = _cell(row, canonical_idx["base_salary"])
+                        hourly_rate = _parse_decimal(hourly_raw, "工时单价", row_no, errors) if hourly_raw else None
+                        piece_rate = _parse_decimal(piece_raw, "计件单价", row_no, errors) if piece_raw else None
+                        base_salary = _parse_decimal(salary_raw, "保障工资", row_no, errors) if salary_raw else None
+                        if (hourly_raw and hourly_rate is None) or (piece_raw and piece_rate is None) or (
+                            salary_raw and base_salary is None
+                        ):
+                            continue
+
+                        cfg = perf_map.get(employee_id)
+                        if cfg is None:
+                            if not allow_create:
+                                errors.append(f"第 {row_no} 行绩效配置不存在：employee_id={employee_id}")
+                                continue
+                            cfg = await EmployeePerformanceConfig.create(
+                                tenant_id=tenant_id,
+                                employee_id=employee_id,
+                                employee_name=employee_name,
+                                calc_mode=calc_mode,
+                                hourly_rate=hourly_rate,
+                                default_piece_rate=piece_rate,
+                                base_salary=base_salary,
+                                is_active=True,
+                            )
+                            perf_map[employee_id] = cfg
+                            summary.created += 1
+                        elif allow_update:
+                            updates: Dict[str, Any] = {}
+                            if employee_name and employee_name != (cfg.employee_name or ""):
+                                updates["employee_name"] = employee_name
+                            if calc_mode:
+                                updates["calc_mode"] = calc_mode
+                            if hourly_rate is not None:
+                                updates["hourly_rate"] = hourly_rate
+                            if piece_rate is not None:
+                                updates["default_piece_rate"] = piece_rate
+                            if base_salary is not None:
+                                updates["base_salary"] = base_salary
+                            if updates:
+                                await cfg.update_from_dict(updates).save()
+                                summary.updated += 1
 
                 required_val = _cell(row, canonical_idx["is_required"]).lower()
                 is_required = required_val not in ("否", "false", "0", "no", "n")

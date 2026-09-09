@@ -4,7 +4,7 @@
  *
  * 应用排序唯一真源：各应用 manifest.json → core_applications.sort_order（API 返回）。
  * 未入库占位使用同一 PRO 段编号（310–350），KU-AI 固定末位 350。
- * 快能源 / 快协同（kuaiems、kuaisrm）短期不做，不进清单。
+ * 快协同（kuaisrm）短期不做，不进清单。kuaiems 已作为基础应用「快设备」落地，不在本 PRO 清单。
  */
 
 export const PRO_APP_CODES = [

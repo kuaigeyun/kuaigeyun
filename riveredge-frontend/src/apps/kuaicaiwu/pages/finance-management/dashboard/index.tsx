@@ -12,7 +12,6 @@ import {
   TransactionOutlined,
   CalculatorOutlined,
   BarChartOutlined,
-  LineChartOutlined,
 } from '@ant-design/icons';
 import { managementReportService } from '../../../services/management-report';
 import { agingService } from '../../../services/statistics/aging';
@@ -194,12 +193,6 @@ const FinanceCenterDashboard: React.FC = () => {
         title: t('app.kuaicaiwu.costDashboard.shortcut.report'),
         icon: <BarChartOutlined style={{ fontSize: 22, color: '#fa8c16' }} />,
         path: '/apps/kuaicaiwu/cost-management/cost-report',
-      },
-      {
-        key: 'margin',
-        title: t('app.kuaicaiwu.menu.management-analysis.margin-report'),
-        icon: <LineChartOutlined style={{ fontSize: 22, color: '#722ed1' }} />,
-        path: '/apps/kuaicaiwu/management-analysis/margin-report',
       },
     ],
     [t],

@@ -851,6 +851,10 @@ _CONDUCT_PAYLOAD_SKIP_KEYS = frozenset({
     "inspector_id",
     "inspector_name",
     "inspector_uuid",
+    # 仅当模型有 measurement_data 字段时由下方 build 写入；禁止请求体直接落入 ORM
+    "measurement_data",
+    "qualified_qty_with_unit",
+    "unqualified_qty_with_unit",
     # 业务时刻仅由服务端 resolve_business_datetime 写入，禁止请求体覆盖
     "inspection_time",
     "review_time",
@@ -894,6 +898,10 @@ def _apply_template_conduct_to_payload(
         payload[template_attr] = merge_template_conduct_results(template, conduct_input)
     elif "item_results" in payload:
         payload.pop("item_results", None)
+    # 来料等无 measurement_data 列的模型：请求体杂项不得进入 filter().update(**payload)
+    fields_map = getattr(getattr(inspection, "_meta", None), "fields_map", None)
+    if isinstance(fields_map, dict) and fields_map:
+        payload = {k: v for k, v in payload.items() if k in fields_map}
     return payload
 
 

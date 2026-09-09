@@ -173,6 +173,38 @@ async def expand_operation_logs(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+class EnsureAuditLogsFloorRequest(BaseModel):
+    since: date
+    work: WorkScheduleBody
+    min_operation_logs: int = Field(default=2000, ge=0, le=5000)
+    min_login_logs: int = Field(default=80, ge=0, le=2000)
+    redistribute: bool = True
+
+
+@router.post("/ensure-audit-logs-floor", summary="操作/登录日志不足时补齐保底数量并摊开时间")
+async def ensure_audit_logs_floor(
+    body: EnsureAuditLogsFloorRequest,
+    auth: AuthContext = Depends(require_permission_codes("system:document-time-rewrite:execute")),
+) -> dict[str, Any]:
+    schedule = WorkScheduleParams(
+        weekdays=list(body.work.weekdays),
+        start_time=body.work.start_time,
+        end_time=body.work.end_time,
+        lookback_days=int(body.work.lookback_days),
+    )
+    try:
+        return await DocumentTimeRewriteService.ensure_audit_logs_floor(
+            tenant_id=int(auth.tenant_id),
+            since=body.since,
+            schedule=schedule,
+            min_operation_logs=int(body.min_operation_logs),
+            min_login_logs=int(body.min_login_logs),
+            redistribute=bool(body.redistribute),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
 @router.post("/rewrite-master-data-updated-at", summary="主数据实体更新日改到指定日（保留时分秒）")
 async def rewrite_master_data_updated_at(
     body: RewriteMasterDataUpdatedAtRequest,

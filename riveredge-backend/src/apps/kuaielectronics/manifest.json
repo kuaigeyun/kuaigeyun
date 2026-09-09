@@ -1,8 +1,8 @@
 {
   "code": "kuaielectronics",
   "name": "电子制造",
-  "version": "0.4.1",
-  "description": "电子制造 / EMS-OEM 行业包：样品加工与 BOM 分区等替代扩展，以及 ESD 点检看板、OEM 标签签样包等能力",
+  "version": "0.4.2",
+  "description": "电子制造 / EMS-OEM 行业包：样品加工与 BOM 分区等替代扩展，以及 ESD 点检看板；OEM 签样包经标签工位 document 替代加载",
   "icon": "cpu",
   "author": "RiverEdge",
   "market_category": "industry",
@@ -29,12 +29,6 @@
         "path": "/apps/kuaielectronics/esd",
         "permission": "kuaielectronics:esd:read",
         "sort_order": 3
-      },
-      {
-        "title": "app.kuaielectronics.menu.labelOem",
-        "path": "/apps/kuaielectronics/label-oem",
-        "permission": "kuaielectronics:label-oem:read",
-        "sort_order": 4
       }
     ]
   },

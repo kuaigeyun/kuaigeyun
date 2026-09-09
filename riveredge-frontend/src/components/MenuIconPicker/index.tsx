@@ -12,6 +12,14 @@ export function renderMenuIconByKey(icon?: string | null, size = 16): React.Reac
   const trimmed = String(icon).trim();
   if (!trimmed) return null;
   const Icon = resolveMenuIconComponent(trimmed);
+  if (!Icon) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error(
+        `[MenuIconPicker] icon "${trimmed}" 未登记 ManufacturingIcons。请改菜单 icon 为预置键，禁止兜底。`,
+      );
+    }
+    return null;
+  }
   return <Icon size={size} />;
 }
 

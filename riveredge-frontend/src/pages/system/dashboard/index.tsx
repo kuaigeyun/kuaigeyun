@@ -363,7 +363,7 @@ export default function DashboardPage() {
           setAvatarUrl(undefined);
         }
       } else {
-        // 如果 currentUser 和 userInfo 都没有 avatar，尝试从个人资料 API 获取
+        // 如果 currentUser 没有 avatar，尝试从个人资料 API 获取
         let foundAvatar = false;
         if (currentUser) {
           try {
@@ -598,7 +598,7 @@ export default function DashboardPage() {
   if (touchScreen.isTouchScreenMode && touchScreen.isPortrait) {
     return (
       <MobileWorkplace
-        userInfo={{ ...userInfo, ...resolvedUserDetail }}
+        userInfo={{ ...(currentUser || {}), ...(resolvedUserDetail || {}) }}
         avatarUrl={avatarUrl}
         greeting={t(getGreetingKey())}
         currentTime={currentTime}

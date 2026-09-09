@@ -14,6 +14,7 @@ import {
 import { DOCUMENT_DETAIL_CONTROL_SIZE } from '../../../components/document-detail-table/documentDetailTable';
 import { normalizeFormListItems } from '../../../../../utils/formListItems';
 import { DEFAULT_SALES_PRICE_TYPE, salesFormPriceType } from '../shared/salesPriceType';
+import { resolveDocumentLineDisplayAmounts } from '../../../utils/documentLineAmounts';
 
 export { convertUnitPriceByPriceType };
 
@@ -30,44 +31,24 @@ export const defaultContractItem = {
   notes: '',
 };
 
-const toSafeNumber = (value: unknown): number => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const toCents = (value: unknown): number => Math.round(toSafeNumber(value) * 100);
-const fromCents = (cents: number): number => cents / 100;
-
 export const calcContractLineAmounts = (
   qtyInput: unknown,
   priceInput: unknown,
   taxRateInput: unknown,
   priceTypeInput?: string,
-) => {
-  const qty = toSafeNumber(qtyInput);
-  const unitPriceCents = toCents(priceInput);
-  const taxRate = toSafeNumber(taxRateInput);
-  const priceType = salesFormPriceType(priceTypeInput);
-
-  if (priceType === 'tax_inclusive') {
-    const inclCents = Math.round(qty * unitPriceCents);
-    const exclCents = Math.round(inclCents / (1 + taxRate / 100));
-    const taxCents = inclCents - exclCents;
-    return {
-      excl: fromCents(exclCents),
-      tax: fromCents(taxCents),
-      incl: fromCents(inclCents),
-    };
-  }
-
-  const exclCents = Math.round(qty * unitPriceCents);
-  const taxCents = Math.round((exclCents * taxRate) / 100);
-  return {
-    excl: fromCents(exclCents),
-    tax: fromCents(taxCents),
-    incl: fromCents(exclCents + taxCents),
-  };
-};
+  itemAmountInput?: unknown,
+  isGift?: unknown,
+) =>
+  resolveDocumentLineDisplayAmounts(
+    {
+      qty: qtyInput,
+      unit_price: priceInput,
+      tax_rate: taxRateInput,
+      item_amount: itemAmountInput,
+      is_gift: isGift,
+    },
+    salesFormPriceType(priceTypeInput),
+  );
 
 export function resolveContractLineMaterialFields(
   it: Record<string, unknown>,
@@ -184,7 +165,14 @@ export const ContractMaterialSelectCell: React.FC<{
 export const ContractAmountCell: React.FC<{ index: number }> = ({ index }) => {
   const row = Form.useWatch(['items', index]);
   const priceType = salesFormPriceType(Form.useWatch('price_type'));
-  const line = calcContractLineAmounts(row?.contract_quantity, row?.unit_price, row?.tax_rate, priceType);
+  const line = calcContractLineAmounts(
+    row?.contract_quantity,
+    row?.unit_price,
+    row?.tax_rate,
+    priceType,
+    row?.item_amount,
+    row?.is_gift,
+  );
   return <AmountDisplay resource={SC} fieldName="amount_without_tax" value={line.excl} />;
 };
 

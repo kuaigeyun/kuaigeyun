@@ -9,7 +9,7 @@
   "is_pro": false,
   "entry_point": "../apps/kuaiplm/index.tsx",
   "route_path": "/apps/kuaiplm",
-  "sort_order": 130,
+  "sort_order": 138,
   "menu_config": {
     "title": "app.kuaiplm.name",
     "icon": "layers",
@@ -99,6 +99,24 @@
             "path": "/apps/kuaiplm/trial-flows",
             "permission": "kuaiplm:trial-flow:read",
             "sort_order": 8
+          },
+          {
+            "title": "app.kuaiplm.menu.phase2.requirements",
+            "path": "/apps/kuaiplm/phase2/requirements",
+            "permission": "kuaiplm:requirement:read",
+            "sort_order": 9
+          },
+          {
+            "title": "app.kuaiplm.menu.phase2.design-reviews",
+            "path": "/apps/kuaiplm/phase2/design-reviews",
+            "permission": "kuaiplm:design-review:read",
+            "sort_order": 10
+          },
+          {
+            "title": "app.kuaiplm.menu.phase2.fmea",
+            "path": "/apps/kuaiplm/phase2/fmea",
+            "permission": "kuaiplm:fmea:read",
+            "sort_order": 11
           }
         ]
       },
@@ -220,34 +238,9 @@
         ]
       },
       {
-        "title": "app.kuaiplm.menu.phase2",
-        "icon": "users",
-        "sort_order": 6,
-        "children": [
-          {
-            "title": "app.kuaiplm.menu.phase2.requirements",
-            "path": "/apps/kuaiplm/phase2/requirements",
-            "permission": "kuaiplm:requirement:read",
-            "sort_order": 1
-          },
-          {
-            "title": "app.kuaiplm.menu.phase2.design-reviews",
-            "path": "/apps/kuaiplm/phase2/design-reviews",
-            "permission": "kuaiplm:design-review:read",
-            "sort_order": 2
-          },
-          {
-            "title": "app.kuaiplm.menu.phase2.fmea",
-            "path": "/apps/kuaiplm/phase2/fmea",
-            "permission": "kuaiplm:fmea:read",
-            "sort_order": 3
-          }
-        ]
-      },
-      {
         "title": "app.kuaiplm.menu.knowledge-center",
         "icon": "bookOpen",
-        "sort_order": 7,
+        "sort_order": 6,
         "children": [
           {
             "title": "app.kuaiplm.menu.knowledge-base",

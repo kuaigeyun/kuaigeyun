@@ -12,6 +12,7 @@
     "title": "app.kuaicaiwu.name",
     "icon": "wallet",
     "path": "/apps/kuaicaiwu",
+    "permission": "kuaicaiwu:entry:read",
     "children": [
       {
         "title": "app.kuaicaiwu.menu.gl-management",
@@ -68,7 +69,7 @@
           },
           {
             "title": "app.kuaicaiwu.menu.gl-management.financial-statements",
-            "icon": "file-text",
+            "icon": "fileText",
             "sort_order": 8,
             "children": [
               {
@@ -197,9 +198,34 @@
         ]
       },
       {
+        "title": "app.kuaicaiwu.menu.tax-management",
+        "icon": "audit",
+        "sort_order": 3,
+        "children": [
+          {
+            "title": "app.kuaicaiwu.menu.tax-management.settings",
+            "path": "/apps/kuaicaiwu/tax-management/settings",
+            "permission": "kuaicaiwu:tax:read",
+            "sort_order": 0
+          },
+          {
+            "title": "app.kuaicaiwu.menu.tax-management.vat-ledger",
+            "path": "/apps/kuaicaiwu/tax-management/vat-ledger",
+            "permission": "kuaicaiwu:tax:read",
+            "sort_order": 1
+          },
+          {
+            "title": "app.kuaicaiwu.menu.tax-management.input-certification",
+            "path": "/apps/kuaicaiwu/tax-management/input-certification",
+            "permission": "kuaicaiwu:tax:read",
+            "sort_order": 2
+          }
+        ]
+      },
+      {
         "title": "app.kuaicaiwu.menu.cost-management",
         "icon": "calculator",
-        "sort_order": 3,
+        "sort_order": 4,
         "children": [
           {
             "title": "app.kuaicaiwu.menu.cost-management.cost-calculations",
@@ -230,19 +256,6 @@
             "path": "/apps/kuaicaiwu/cost-management/standard-costs",
             "permission": "kuaicaiwu:standard-cost:read",
             "sort_order": 5
-          }
-        ]
-      },
-      {
-        "title": "app.kuaicaiwu.menu.management-analysis",
-        "icon": "line-chart",
-        "sort_order": 4,
-        "children": [
-          {
-            "title": "app.kuaicaiwu.menu.management-analysis.margin-report",
-            "path": "/apps/kuaicaiwu/management-analysis/margin-report",
-            "permission": "kuaicaiwu:margin-report:read",
-            "sort_order": 0
           }
         ]
       }

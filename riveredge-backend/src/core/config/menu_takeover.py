@@ -24,6 +24,25 @@ MENU_TAKEOVER_RULES: Dict[str, MenuTakeoverRule] = {
         source_app_code="master-data",
         path_prefixes=("/apps/master-data/process",),
     ),
+    "kuaiqms": MenuTakeoverRule(
+        consumer_app_code="kuaiqms",
+        source_app_code="kuaizhizao",
+        path_prefixes=("/apps/kuaizhizao/quality-management",),
+    ),
+    "kuaiems": MenuTakeoverRule(
+        consumer_app_code="kuaiems",
+        source_app_code="kuaizhizao",
+        path_prefixes=("/apps/kuaizhizao/equipment-management",),
+    ),
+    "kuaipd": MenuTakeoverRule(
+        consumer_app_code="kuaipd",
+        source_app_code="kuaizhizao",
+        path_prefixes=(
+            "/apps/kuaizhizao/delivery-project",
+            "/apps/kuaizhizao/logistics-management",
+            "/apps/kuaizhizao/after-sales-service",
+        ),
+    ),
 }
 
 META_SUPPRESSED_BY_TAKEOVER = "suppressed_by_takeover"

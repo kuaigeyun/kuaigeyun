@@ -988,10 +988,10 @@ async def submit_sales_order(
         return result
     except NotFoundError as e:
         raise _http_exception_with_trace(http_status.HTTP_404_NOT_FOUND, str(e), "/sales-orders/{sales_order_id}/submit", tenant_id)
-    except BusinessLogicError as e:
+    except (BusinessLogicError, ValidationError) as e:
         raise _http_exception_with_trace(http_status.HTTP_400_BAD_REQUEST, str(e), "/sales-orders/{sales_order_id}/submit", tenant_id)
     except Exception as e:
-        logger.error(f"提交销售订单失败: {e}")
+        logger.exception("提交销售订单失败: {}", e)
         raise _http_exception_with_trace(http_status.HTTP_500_INTERNAL_SERVER_ERROR, "提交销售订单失败", "/sales-orders/{sales_order_id}/submit", tenant_id)
 
 

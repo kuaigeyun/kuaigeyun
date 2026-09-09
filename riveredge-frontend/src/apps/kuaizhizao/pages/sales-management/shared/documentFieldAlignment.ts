@@ -1489,6 +1489,8 @@ export const MASTER_DATA_DETAIL_BASIC_FIELD_RANK = {
   operation_id: 20,
   materialId: 20,
   material_id: 20,
+  baseQuantity: 20.08,
+  base_quantity: 20.08,
   approvalStatus: 41,
   approval_status: 41,
   plate_number: 10,

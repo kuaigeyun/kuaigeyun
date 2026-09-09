@@ -143,22 +143,6 @@ export function pruneStaleMenuRefsFromEditorState(
   };
 }
 
-/** 布局中是否包含至少一条 menu_ref（有则侧栏才应启用自组映射） */
-export function customLayoutNodesHaveMenuRefs(nodes: CustomMenuLayoutNode[]): boolean {
-  const walk = (items: CustomMenuLayoutNode[]): boolean => {
-    for (const node of items) {
-      if (node.type === 'menu_ref' && String(node.menu_uuid || '').trim()) {
-        return true;
-      }
-      if (node.children?.length && walk(node.children)) {
-        return true;
-      }
-    }
-    return false;
-  };
-  return walk(nodes);
-}
-
 export function sanitizeCustomLayoutNodes(
   nodes: CustomMenuLayoutNode[],
   validMenuUuids: Set<string>,
@@ -478,8 +462,9 @@ export function buildSystemDefaultCustomLayout(
     appGroup.children = folders.map((folder) => buildCustomGroupFromFolder(folder, 1));
 
     if (directLeaves.length > 0) {
+      // id 含 ungrouped：侧栏映射时提升子项，不展示「未分组」标题
       appGroup.children.push({
-        id: nextId('custom_group'),
+        id: nextId('custom_group-ungrouped'),
         type: 'custom_group',
         title: t('pages.system.menus.customLayoutUngrouped'),
         menuUuids: directLeaves,

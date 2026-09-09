@@ -70,10 +70,10 @@ import {
 import { salesInvoiceCapabilityReasonMessage } from '../../../utils/salesInvoiceCapabilityMessages';
 import {
   convertInvoiceAmountBetweenModes,
-  invoiceExclFromIncl,
   moneyExceedsMax,
   recalcEnteredAmountOnTaxRateChange,
   resolveInvoiceAmountsForSubmit,
+  resolveInvoiceExclFromSourceTotal,
   type InvoiceAmountInputMode,
 } from '../../../utils/invoiceAmountInput';
 import DocumentAttachmentsField from '../../../../kuaizhizao/components/DocumentAttachmentsField';
@@ -103,16 +103,6 @@ const TAX_RATE_OPTIONS = [
   { label: '1%', value: 1 },
   { label: '0%', value: 0 },
 ];
-
-function resolveInvoiceExclFromSourceTotal(
-  sourceTotal: number,
-  taxRate: number,
-  priceType?: string,
-): number | undefined {
-  if (!(sourceTotal > 0)) return undefined;
-  if (priceType === 'tax_exclusive') return Number(sourceTotal.toFixed(2));
-  return invoiceExclFromIncl(sourceTotal, taxRate);
-}
 
 const P = 'app.kuaicaiwu.salesInvoice';
 const SALES_INVOICE_RESOURCE = 'kuaicaiwu:sales-invoice';

@@ -9,6 +9,9 @@ addCollection(solarIcons);
 /** 应用 code → Solar 图标（应用根 / 行业包一级菜单） */
 export const APP_SOLAR_ICONS: Record<string, string> = {
   kuaizhizao: 'solar:buildings-2-bold-duotone',
+  kuaiqms: 'solar:clipboard-check-bold-duotone',
+  kuaiems: 'solar:settings-bold-duotone',
+  kuaipd: 'solar:delivery-bold-duotone',
   kuaicaiwu: 'solar:wallet-money-bold-duotone',
   kuaireport: 'solar:chart-2-bold-duotone',
   'master-data': 'solar:database-bold-duotone',
@@ -55,6 +58,12 @@ export const MANIFEST_ICON_TO_SOLAR: Record<string, string> = {
   wheel: 'solar:wheel-bold-duotone',
   aim: 'solar:target-bold-duotone',
   tool: 'solar:settings-bold-duotone',
+  wrench: 'solar:settings-bold-duotone',
+  quality: 'solar:clipboard-check-bold-duotone',
+  shield: 'solar:shield-check-bold-duotone',
+  truck: 'solar:delivery-bold-duotone',
+  delivery: 'solar:delivery-bold-duotone',
+  wallet: 'solar:wallet-money-bold-duotone',
 };
 
 export function resolveAppSolarIcon(

@@ -71,13 +71,18 @@ export function readSidebarMenuLayoutPref(preferences: Record<string, unknown> |
 
 type SidebarShortLabelTranslate = (key: string, options?: { defaultValue?: string }) => string;
 
-/** 双列左列短标签：优先 i18n 显式映射，避免「仪表板」被截成「表板」 */
+/** 双列左列短标签：优先 i18n 显式映射，避免「仪表板」被截成「表板」、「行业包」被截成「业包」 */
 const SIDEBAR_SHORT_LABEL_I18N_BY_PATH: Record<string, string> = {
   '/system/dashboard': 'menu.dashboard.short',
+  '/apps/industry-pack': 'app.industry-pack.short',
 };
+
+const INDUSTRY_PACK_ROOT_PATH = '/apps/industry-pack';
 
 function resolveAppCodeForShortLabel(item: MenuDataItem): string | null {
   const path = typeof item.path === 'string' ? item.path : '';
+  const normalizedPath = path.replace(/\/$/, '');
+  if (normalizedPath === INDUSTRY_PACK_ROOT_PATH) return 'industry-pack';
   const fromPath = extractAppCodeFromPath(path);
   if (fromPath) return fromPath;
   if (path.startsWith('#app-group-')) {
@@ -98,13 +103,17 @@ export function toSidebarShortLabel(
   t?: SidebarShortLabelTranslate,
 ): string {
   const path = typeof item.path === 'string' ? item.path : '';
+  const normalizedPath = path.replace(/\/$/, '');
   const fallback = typeof item.name === 'string' ? item.name : '';
 
   if (t) {
-    if (path) {
-      const i18nKey = SIDEBAR_SHORT_LABEL_I18N_BY_PATH[path];
+    if (normalizedPath) {
+      const i18nKey = SIDEBAR_SHORT_LABEL_I18N_BY_PATH[normalizedPath];
       if (i18nKey) {
-        return t(i18nKey, { defaultValue: fallback });
+        const mapped = t(i18nKey, { defaultValue: '' });
+        if (mapped && mapped !== i18nKey && mapped.trim() !== '') {
+          return mapped;
+        }
       }
     }
 
@@ -115,6 +124,13 @@ export function toSidebarShortLabel(
       if (translated && translated !== shortKey && translated.trim() !== '') {
         return translated;
       }
+    }
+
+    // 行业包根：面包屑可能被误判成子模块 code，名称仍为「行业包」
+    const packName = t('app.industry-pack.name', { defaultValue: '行业包' });
+    if (fallback.trim() === packName || fallback.trim() === '行业包') {
+      const packShort = t('app.industry-pack.short', { defaultValue: '行业' });
+      if (packShort && packShort.trim() !== '') return packShort;
     }
   }
 
@@ -166,8 +182,6 @@ function treeHasInfraPath(item: MenuDataItem): boolean {
   if (typeof item.path === 'string' && item.path.startsWith('/infra/')) return true;
   return item.children?.some(treeHasInfraPath) ?? false;
 }
-
-const INDUSTRY_PACK_ROOT_PATH = '/apps/industry-pack';
 
 function countVisibleMenuChildren(item: MenuDataItem): number {
   return (item.children ?? []).filter((child) => child.hideInMenu !== true).length;

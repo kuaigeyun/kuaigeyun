@@ -1402,7 +1402,84 @@ class ApprovalInstanceService:
             await instance.save()
             return await ApprovalInstanceService._create_node_tasks(tenant_id, instance, next_node)
 
-        approvers = await ApprovalInstanceService._resolve_node_approvers(node, instance)
+        node_data = node.get("data") if isinstance(node.get("data"), dict) else {}
+        empty_policy = str(
+            (node_data or {}).get("emptyApproverPolicy")
+            or (node_data or {}).get("empty_approver_policy")
+            or "auto_pass"
+        ).strip().lower()
+
+        try:
+            approvers = await ApprovalInstanceService._resolve_node_approvers(node, instance)
+        except ValidationError as resolve_err:
+            err_text = str(resolve_err)
+            # 仅「无人可审」走空审批人策略；配置错误（不支持的类型等）仍直接抛出
+            is_empty_approver = any(
+                token in err_text
+                for token in (
+                    "无可用",
+                    "未配置",
+                    "缺少",
+                    "直属部门",
+                    "部门未配置",
+                )
+            )
+            if not is_empty_approver:
+                raise
+            if empty_policy == "auto_pass":
+                logger.info(
+                    "审批节点 {} 无可用审批人，emptyApproverPolicy=auto_pass，自动跳过: {}",
+                    node_id,
+                    resolve_err,
+                )
+                return await ApprovalInstanceService._auto_pass_empty_approval_node(
+                    tenant_id, instance, node
+                )
+            if empty_policy == "escalate_admin":
+                approvers = await ApprovalInstanceService._resolve_tenant_admin_approver_ids(
+                    tenant_id
+                )
+                if not approvers:
+                    raise ValidationError(
+                        f"{resolve_err}；升级管理员失败：组织内无可用管理员"
+                    ) from resolve_err
+            elif empty_policy == "fallback_user":
+                fallback_raw = (
+                    (node_data or {}).get("fallbackApproverIds")
+                    or (node_data or {}).get("fallback_approver_ids")
+                    or []
+                )
+                approvers = await ApprovalInstanceService._resolve_approver_ids_from_identifiers(
+                    tenant_id, fallback_raw or [], by_uuid=None
+                )
+                approvers = await ApprovalInstanceService._filter_active_user_ids(
+                    tenant_id, approvers
+                )
+                if not approvers:
+                    raise ValidationError(
+                        f"{resolve_err}；且未配置可用的兜底审批人（fallbackApproverIds）"
+                    ) from resolve_err
+            else:
+                raise
+
+        if not approvers:
+            if empty_policy == "auto_pass":
+                logger.info(
+                    "审批节点 {} 审批人为空，emptyApproverPolicy=auto_pass，自动跳过",
+                    node_id,
+                )
+                return await ApprovalInstanceService._auto_pass_empty_approval_node(
+                    tenant_id, instance, node
+                )
+            if empty_policy == "escalate_admin":
+                approvers = await ApprovalInstanceService._resolve_tenant_admin_approver_ids(
+                    tenant_id
+                )
+            if not approvers:
+                raise ValidationError(
+                    f"审批节点 {node_id or ''} 无可用审批人，无法提交审核"
+                )
+
         tasks = await ApprovalInstanceService._sync_node_approver_tasks(
             tenant_id, instance, node, approvers
         )
@@ -1412,6 +1489,59 @@ class ApprovalInstanceService:
             await instance.save()
 
         return tasks
+
+    @staticmethod
+    async def _resolve_tenant_admin_approver_ids(tenant_id: int) -> List[int]:
+        rows = await User.filter(
+            tenant_id=tenant_id,
+            deleted_at__isnull=True,
+            is_active=True,
+            is_tenant_admin=True,
+        ).values_list("id", flat=True)
+        return list(dict.fromkeys(int(uid) for uid in rows if uid is not None))
+
+    @staticmethod
+    async def _auto_pass_empty_approval_node(
+        tenant_id: int,
+        instance: ApprovalInstance,
+        node: dict,
+    ) -> List[ApprovalTask]:
+        """空审批人且策略为 auto_pass：记历史并推进到下一节点（或直接通过）。"""
+        node_id = node.get("id")
+        await ApprovalInstanceService._create_approval_history(
+            tenant_id=tenant_id,
+            approval_instance_id=instance.id,
+            action="approve",
+            action_by=instance.submitter_id,
+            from_node=str(node_id) if node_id else None,
+            to_node=None,
+            comment="空审批人自动通过（emptyApproverPolicy=auto_pass）",
+        )
+        next_node = ApprovalInstanceService._get_next_node(
+            instance.process.nodes if instance.process else {},
+            node_id,
+            instance=instance,
+        )
+        if not next_node:
+            instance.status = "approved"
+            instance.completed_at = resolve_business_datetime()
+            instance.current_node = None
+            instance.current_approver_id = None
+            await instance.save()
+            await ApprovalInstanceService._handle_approval_completion(tenant_id, instance)
+            return []
+        next_type = next_node.get("type") or (next_node.get("data") or {}).get("type")
+        if next_type == "end":
+            instance.status = "approved"
+            instance.completed_at = resolve_business_datetime()
+            instance.current_node = None
+            instance.current_approver_id = None
+            await instance.save()
+            await ApprovalInstanceService._handle_approval_completion(tenant_id, instance)
+            return []
+        instance.current_node = next_node.get("id")
+        await instance.save()
+        return await ApprovalInstanceService._create_node_tasks(tenant_id, instance, next_node)
 
     @staticmethod
     async def _sync_node_approver_tasks(

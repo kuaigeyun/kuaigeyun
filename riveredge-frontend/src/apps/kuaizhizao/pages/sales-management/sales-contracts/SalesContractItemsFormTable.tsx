@@ -230,6 +230,8 @@ export const SalesContractItemsFormTable: React.FC<ContractItemsFormTableProps> 
                                     row?.unit_price,
                                     row?.tax_rate,
                                     priceType,
+                                    row?.item_amount,
+                                    row?.is_gift,
                                   );
                                   return (
                                     <AmountDisplay
@@ -284,6 +286,8 @@ export const SalesContractItemsFormTable: React.FC<ContractItemsFormTableProps> 
                                     row?.unit_price,
                                     row?.tax_rate,
                                     priceType,
+                                    row?.item_amount,
+                                    row?.is_gift,
                                   );
                                   return (
                                     <AmountDisplay
@@ -318,6 +322,8 @@ export const SalesContractItemsFormTable: React.FC<ContractItemsFormTableProps> 
                                 row?.unit_price,
                                 row?.tax_rate,
                                 priceType,
+                                row?.item_amount,
+                                row?.is_gift,
                               );
                               const totalIncl = line.incl;
                               const isEditing = editingIncl?.index === index;

@@ -137,6 +137,53 @@ export function applyDocumentLineInclAmountEdit(opts: {
   };
 }
 
+/**
+ * 单据价类切换（含税 ↔ 不含税）：以当前行金额为真源，再反算新单价。
+ *
+ * 禁止「先把单价按税率换算再 × 数量」——分币单价无法整除时会产生价差
+ * （例：含税单价 305.56 × 72 → 未税 19469.31；若先换成 270.41 再乘得 19469.52）。
+ */
+export function convertDocumentLineForPriceTypeChange(opts: {
+  qty: unknown;
+  unit_price: unknown;
+  tax_rate: unknown;
+  item_amount?: unknown;
+  is_gift?: unknown;
+  fromPriceType: string;
+  toPriceType: string;
+  priceDecimals?: number;
+}): { unit_price: number; item_amount: number; excl: number; tax: number; incl: number } {
+  const fromType = opts.fromPriceType || 'tax_exclusive';
+  const toType = opts.toPriceType || 'tax_exclusive';
+  const amounts = resolveDocumentLineDisplayAmounts(
+    {
+      qty: opts.qty,
+      unit_price: opts.unit_price,
+      tax_rate: opts.tax_rate,
+      item_amount: opts.item_amount,
+      is_gift: opts.is_gift,
+    },
+    fromType,
+  );
+  if (fromType === toType) {
+    return {
+      unit_price: toSafeNumber(opts.unit_price),
+      item_amount: resolveSalesDocumentStoredLineAmount(amounts, toType),
+      ...amounts,
+    };
+  }
+  const qty = toSafeNumber(opts.qty);
+  const targetTotal = toType === 'tax_inclusive' ? amounts.incl : amounts.excl;
+  const rawUnit = qty > 0 ? targetTotal / qty : 0;
+  const decimals = opts.priceDecimals != null ? opts.priceDecimals : 2;
+  const unit_price = roundToPlaces(rawUnit, decimals);
+  return {
+    unit_price,
+    item_amount: targetTotal,
+    ...amounts,
+  };
+}
+
 /** 按 qty×单价重算落库行金额（数量/单价/税率变更时） */
 export function recalcDocumentStoredLineAmount(
   row: {

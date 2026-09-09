@@ -4,10 +4,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple, Type
+from typing import Any, Dict, List, Tuple
 
 from loguru import logger
-from tortoise import Model
 
 from apps.kuaizhizao.constants import DemandStatus, normalize_status
 from apps.kuaizhizao.models.document_relation import DocumentRelation
@@ -39,15 +38,17 @@ async def sales_order_has_downstream_documents(tenant_id: int, sales_order_id: i
     if collected:
         return True
 
-    fk_specs: List[Tuple[Type[Model], str]] = [
-        _lazy_work_order_model,
-        _lazy_sales_delivery_model,
-        _lazy_shipment_notice_model,
-        _lazy_sales_return_model,
+    fk_specs: List[Tuple[Any, str]] = [
+        (_lazy_work_order_model, "sales_order_id"),
+        (_lazy_sales_delivery_model, "sales_order_id"),
+        (_lazy_shipment_notice_model, "sales_order_id"),
+        (_lazy_sales_return_model, "sales_order_id"),
     ]
     for loader, field in fk_specs:
         model = loader()
         fields_map = getattr(getattr(model, "_meta", None), "fields_map", {}) or {}
+        if field not in fields_map:
+            continue
         filters: Dict[str, Any] = {
             "tenant_id": tenant_id,
             field: sales_order_id,

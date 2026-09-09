@@ -724,13 +724,13 @@ async def convert_to_sales_order(
         }
     except NotFoundError as e:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(e))
-    except BusinessLogicError as e:
+    except (BusinessLogicError, ValidationError) as e:
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error("报价单转销售订单失败: %s", e)
+        logger.exception("报价单转销售订单失败 quotation_id=%s", quotation_id)
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="报价单转销售订单失败",
+            detail=f"报价单转销售订单失败: {e}",
         )
 
 

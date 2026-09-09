@@ -61,7 +61,6 @@ import {
 import CustomMenuLayoutEditor, {
   buildCustomLayoutPayload,
   collectMenuUuidsFromSourceTree,
-  customLayoutNodesHaveMenuRefs,
   parseCustomLayoutEditorState,
   pruneStaleMenuRefsFromEditorState,
   sanitizeCustomLayoutNodes,
@@ -249,10 +248,14 @@ const MenuListPage: React.FC = () => {
     appGroups: [],
     menuOverrides: {},
   });
+  const customLayoutEditorStateRef = useRef(customLayoutEditorState);
+  customLayoutEditorStateRef.current = customLayoutEditorState;
   const [customLayoutSourceTree, setCustomLayoutSourceTree] = useState<MenuTree[]>([]);
   const [customLayoutMenuSearch, setCustomLayoutMenuSearch] = useState('');
   const [customLayoutActiveGroupId, setCustomLayoutActiveGroupId] = useState<string | undefined>(undefined);
   const [showAppMenuNames, setShowAppMenuNames] = useState(true);
+  const showAppMenuNamesRef = useRef(showAppMenuNames);
+  showAppMenuNamesRef.current = showAppMenuNames;
   const [showAppMenuNamesSaving, setShowAppMenuNamesSaving] = useState(false);
   const configShowAppMenuNames = useConfigStore((s) => s.configs.show_app_menu_names !== false);
   const patchShowAppMenuNamesConfig = useCallback((show: boolean) => {
@@ -302,7 +305,6 @@ const MenuListPage: React.FC = () => {
   const handleOpenCustomLayoutModal = useCallback(async () => {
     try {
       setCustomLayoutLoading(true);
-      setCustomLayoutModalOpen(true);
       const [layout, sourceTree] = await Promise.all([
         getMenuCustomLayout(),
         getNavigationMenuTree({ fresh: true }),
@@ -317,6 +319,7 @@ const MenuListPage: React.FC = () => {
       setCustomLayoutEditorState(prunedState);
       setCustomLayoutActiveGroupId(prunedState.appGroups[0]?.id);
       setShowAppMenuNames(layout.show_app_names !== false);
+      setCustomLayoutModalOpen(true);
       if (removedCount > 0) {
         messageApi.warning(
           t('pages.system.menus.customLayoutStaleRefsRemoved', { count: removedCount }),
@@ -332,10 +335,12 @@ const MenuListPage: React.FC = () => {
   const handleSaveCustomLayout = useCallback(async () => {
     try {
       setCustomLayoutSaving(true);
+      const editorState = customLayoutEditorStateRef.current;
+      const showNames = showAppMenuNamesRef.current;
       const sourceTree = await getNavigationMenuTree({ fresh: true });
       const validMenuUuids = collectMenuUuidsFromSourceTree(sourceTree);
       const { state: prunedState, removedCount } = pruneStaleMenuRefsFromEditorState(
-        customLayoutEditorState,
+        editorState,
         validMenuUuids,
       );
       const menuLookup = new Map<string, MenuTree>();
@@ -347,17 +352,17 @@ const MenuListPage: React.FC = () => {
       };
       walk(sourceTree);
       const payload = buildCustomLayoutPayload(prunedState, menuLookup);
-      const layoutEnabled =
-        prunedState.enabled || customLayoutNodesHaveMenuRefs(payload.nodes);
-      if (layoutEnabled !== prunedState.enabled) {
-        setCustomLayoutEditorState({ ...prunedState, enabled: true });
-      }
-      await updateMenuCustomLayout({
+      const requestedEnabled = !!prunedState.enabled;
+      const saved = await updateMenuCustomLayout({
         ...payload,
-        enabled: layoutEnabled,
-        show_app_names: showAppMenuNames,
+        enabled: requestedEnabled,
+        show_app_names: showNames,
       });
-      patchShowAppMenuNamesConfig(showAppMenuNames);
+      if (!!saved.enabled !== requestedEnabled) {
+        throw new Error(t('pages.system.menus.customLayoutEnabledFlippedByServer'));
+      }
+      setCustomLayoutEditorState({ ...prunedState, enabled: !!saved.enabled });
+      patchShowAppMenuNamesConfig(showNames);
       if (removedCount > 0) {
         messageApi.warning(
           t('pages.system.menus.customLayoutStaleRefsRemoved', { count: removedCount }),
@@ -373,11 +378,9 @@ const MenuListPage: React.FC = () => {
       setCustomLayoutSaving(false);
     }
   }, [
-    customLayoutEditorState,
     messageApi,
     patchShowAppMenuNamesConfig,
     refreshLayoutMenus,
-    showAppMenuNames,
     t,
   ]);
 

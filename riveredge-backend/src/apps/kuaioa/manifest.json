@@ -26,34 +26,27 @@
             "path": "/apps/kuaioa/workbench",
             "permission": "kuaioa:workbench:read",
             "sort_order": 0
-          }
-        ]
-      },
-      {
-        "title": "app.kuaioa.menu.group.forms",
-        "icon": "fileText",
-        "sort_order": 1,
-        "children": [
+          },
           {
             "title": "app.kuaioa.menu.form-designer",
             "path": "/apps/kuaioa/approval/form-templates",
             "icon": "pencil",
             "permission": "kuaioa:form-template:read",
-            "sort_order": 0
+            "sort_order": 1
           },
           {
             "title": "app.kuaioa.menu.form-requests",
             "path": "/apps/kuaioa/approval/form-requests",
             "icon": "clipboardList",
             "permission": "kuaioa:form-request:read",
-            "sort_order": 1
+            "sort_order": 2
           }
         ]
       },
       {
         "title": "app.kuaioa.menu.group.collaboration",
         "icon": "factory",
-        "sort_order": 2,
+        "sort_order": 1,
         "children": [
           {
             "title": "app.kuaioa.menu.special-price",
@@ -76,84 +69,9 @@
         ]
       },
       {
-        "title": "app.kuaioa.menu.group.training",
-        "icon": "book",
-        "sort_order": 3,
-        "children": [
-          {
-            "title": "app.kuaioa.menu.dept-training-applications",
-            "path": "/apps/kuaioa/hr/dept-training-applications",
-            "permission": "kuaioa:dept-training-application:read",
-            "sort_order": 0
-          },
-          {
-            "title": "app.kuaioa.menu.training-plans",
-            "path": "/apps/kuaioa/hr/training-plans",
-            "permission": "kuaioa:training-plan:read",
-            "sort_order": 1
-          },
-          {
-            "title": "app.kuaioa.menu.training-records",
-            "path": "/apps/kuaioa/hr/training-records",
-            "permission": "kuaioa:training-record:read",
-            "sort_order": 2
-          },
-          {
-            "title": "app.kuaioa.menu.special-work-qualifications",
-            "path": "/apps/kuaioa/hr/special-work-qualifications",
-            "permission": "kuaioa:special-work-qualification:read",
-            "sort_order": 3
-          },
-          {
-            "title": "app.kuaioa.menu.work-licenses",
-            "path": "/apps/kuaioa/hr/work-licenses",
-            "permission": "kuaioa:work-license:read",
-            "sort_order": 4
-          },
-          {
-            "title": "app.kuaioa.menu.training-templates",
-            "path": "/apps/kuaioa/hr/training-templates",
-            "permission": "kuaioa:training-template:read",
-            "sort_order": 5
-          }
-        ]
-      },
-      {
-        "title": "app.kuaioa.menu.group.compliance",
-        "icon": "shield",
-        "sort_order": 4,
-        "children": [
-          {
-            "title": "app.kuaioa.menu.licenses",
-            "path": "/apps/kuaioa/compliance/licenses",
-            "permission": "kuaioa:license:read",
-            "sort_order": 1
-          }
-        ]
-      },
-      {
-        "title": "app.kuaioa.menu.group.assets",
-        "icon": "package",
-        "sort_order": 5,
-        "children": [
-          {
-            "title": "app.kuaioa.menu.asset-purchases",
-            "path": "/apps/kuaioa/assets/purchases",
-            "permission": "kuaioa:asset-purchase:read",
-            "sort_order": 1
-          },
-          {
-            "title": "app.kuaioa.menu.assets",
-            "path": "/apps/kuaioa/assets/registry",
-            "permission": "kuaioa:asset:read",
-            "sort_order": 2
-          }
-        ]
-      },
-      {
-        "title": "app.kuaioa.menu.group.admin",
-        "icon": "building",
-        "sort_order": 6,
+        "title": "app.kuaioa.menu.group.hr",
+        "icon": "users",
+        "sort_order": 2,
         "children": [
           {
             "title": "app.kuaioa.menu.leave",
@@ -162,16 +80,84 @@
             "sort_order": 0
           },
           {
+            "title": "app.kuaioa.menu.group.training",
+            "icon": "bookOpen",
+            "sort_order": 1,
+            "children": [
+              {
+                "title": "app.kuaioa.menu.dept-training-applications",
+                "path": "/apps/kuaioa/hr/dept-training-applications",
+                "permission": "kuaioa:dept-training-application:read",
+                "sort_order": 0
+              },
+              {
+                "title": "app.kuaioa.menu.training-plans",
+                "path": "/apps/kuaioa/hr/training-plans",
+                "permission": "kuaioa:training-plan:read",
+                "sort_order": 1
+              },
+              {
+                "title": "app.kuaioa.menu.training-records",
+                "path": "/apps/kuaioa/hr/training-records",
+                "permission": "kuaioa:training-record:read",
+                "sort_order": 2
+              },
+              {
+                "title": "app.kuaioa.menu.training-templates",
+                "path": "/apps/kuaioa/hr/training-templates",
+                "permission": "kuaioa:training-template:read",
+                "sort_order": 3
+              }
+            ]
+          },
+          {
+            "title": "app.kuaioa.menu.special-work-qualifications",
+            "path": "/apps/kuaioa/hr/special-work-qualifications",
+            "permission": "kuaioa:special-work-qualification:read",
+            "sort_order": 2
+          },
+          {
+            "title": "app.kuaioa.menu.work-licenses",
+            "path": "/apps/kuaioa/hr/work-licenses",
+            "permission": "kuaioa:work-license:read",
+            "sort_order": 3
+          },
+          {
+            "title": "app.kuaioa.menu.licenses",
+            "path": "/apps/kuaioa/compliance/licenses",
+            "permission": "kuaioa:license:read",
+            "sort_order": 4
+          }
+        ]
+      },
+      {
+        "title": "app.kuaioa.menu.group.admin",
+        "icon": "building",
+        "sort_order": 3,
+        "children": [
+          {
             "title": "app.kuaioa.menu.announcements",
             "path": "/apps/kuaioa/admin/announcements",
             "permission": "kuaioa:announcement:read",
-            "sort_order": 1
+            "sort_order": 0
           },
           {
             "title": "app.kuaioa.menu.seal",
             "path": "/apps/kuaioa/admin/seal",
             "permission": "kuaioa:seal:read",
+            "sort_order": 1
+          },
+          {
+            "title": "app.kuaioa.menu.asset-purchases",
+            "path": "/apps/kuaioa/assets/purchases",
+            "permission": "kuaioa:asset-purchase:read",
             "sort_order": 2
+          },
+          {
+            "title": "app.kuaioa.menu.assets",
+            "path": "/apps/kuaioa/assets/registry",
+            "permission": "kuaioa:asset:read",
+            "sort_order": 3
           }
         ]
       }

@@ -2,7 +2,7 @@
  * 制造业相关图标工具
  *
  * 左侧菜单使用 Lucide 图标；仅按需导入预置表，避免 `import *` 打进主 vendor。
- * 未知名称回退到 LucideIconByName（DynamicIcon 按需加载单图标）。
+ * 未知名称禁止回退 DynamicIcon / Factory — 须改 manifest 为 ManufacturingIcons 键。
  */
 
 import React from 'react';
@@ -21,6 +21,7 @@ import {
   ArrowUpFromLine,
   Award,
   Banknote,
+  Barcode,
   BarChart3,
   Bell,
   Book,
@@ -160,7 +161,6 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
-import { LucideIconByName } from './lucideDynamicIcon';
 
 const LUCIDE_BY_NAME: Record<string, React.ComponentType<any>> = {
   Activity,
@@ -177,6 +177,7 @@ const LUCIDE_BY_NAME: Record<string, React.ComponentType<any>> = {
   ArrowUpFromLine,
   Award,
   Banknote,
+  Barcode,
   BarChart3,
   Bell,
   Book,
@@ -318,16 +319,15 @@ const LUCIDE_BY_NAME: Record<string, React.ComponentType<any>> = {
 };
 
 /**
- * 从预置表取 Lucide 组件；未知名称走 DynamicIcon。
+ * 仅从 ManufacturingIcons 预置表取组件；未登记键返回 null（禁止 DynamicIcon / Factory 兜底）。
  */
-export function resolveMenuIconComponent(iconKey: string): React.ComponentType<any> {
+export function resolveMenuIconComponent(iconKey: string): React.ComponentType<any> | null {
   const trimmed = iconKey.trim();
-  if (!trimmed) return getLucideIcon('Factory');
-  const fromCatalog = ManufacturingIcons[trimmed as keyof typeof ManufacturingIcons];
-  if (fromCatalog) return fromCatalog;
-  return getLucideIcon(trimmed);
+  if (!trimmed) return null;
+  return ManufacturingIcons[trimmed as keyof typeof ManufacturingIcons] ?? null;
 }
 
+/** 仅供 ManufacturingIcons 表内绑定 Lucide 组件；未知名在模块加载时抛错。 */
 function getLucideIcon(iconName: string): React.ComponentType<any> {
   const direct = LUCIDE_BY_NAME[iconName];
   if (direct) return direct;
@@ -339,13 +339,9 @@ function getLucideIcon(iconName: string): React.ComponentType<any> {
   const fromPascal = LUCIDE_BY_NAME[pascalCaseName];
   if (fromPascal) return fromPascal;
 
-  if (process.env.NODE_ENV === 'development') {
-    console.warn(`图标 "${iconName}" 未在预置表中，回退 DynamicIcon`);
-  }
-  const Fallback = (props: any) =>
-    React.createElement(LucideIconByName, { name: iconName || 'factory', ...props });
-  Fallback.displayName = `LucideDynamic(${iconName})`;
-  return Fallback;
+  throw new Error(
+    `[ManufacturingIcons] Lucide 组件 "${iconName}" 未导入 LUCIDE_BY_NAME。禁止 DynamicIcon 兜底。`,
+  );
 }
 
 export const ManufacturingIcons = {
@@ -635,76 +631,19 @@ export const ManufacturingIcons = {
 } as const;
 
 /**
- * 获取制造业图标组件
- * 
- * @param iconName - 图标名称
- * @param props - 图标属性（如 size, color 等）
- * @returns React 图标组件
- * 
- * @example
- * ```tsx
- * import { getManufacturingIcon } from '../utils/manufacturingIcons';
- * 
- * // 使用工厂图标
- * <Icon component={getManufacturingIcon('factory', { size: 24 })} />
- * 
- * // 或者直接使用
- * const FactoryIcon = getManufacturingIcon('factory');
- * <FactoryIcon size={24} color="#1890ff" />
- * ```
- */
-/**
- * 获取制造业图标组件
- * 
- * @param iconName - 图标名称（支持 ManufacturingIcons 中的键名，或直接使用 Lucide 图标名）
- * @param props - 图标属性（如 size, color 等）
- * @returns React 图标组件
- * 
- * @example
- * ```tsx
- * import { getManufacturingIcon } from '../utils/manufacturingIcons';
- * 
- * // 使用预定义的图标
- * <Icon component={getManufacturingIcon('factory', { size: 24 })} />
- * 
- * // 或者直接使用
- * const FactoryIcon = getManufacturingIcon('factory');
- * <FactoryIcon size={24} color="#1890ff" />
- * 
- * // 直接使用 Lucide 图标名（动态访问）
- * const CustomIcon = getManufacturingIcon('Camera');
- * <CustomIcon size={24} />
- * ```
+ * 获取制造业图标组件（仅 ManufacturingIcons 预置键；未登记即抛错，禁止 Factory/DynamicIcon 兜底）
  */
 export function getManufacturingIcon(
   iconName: string,
   props?: React.ComponentProps<any>
 ): React.ComponentType<any> {
-  // 首先尝试从预定义的 ManufacturingIcons 中获取
-  if (iconName in ManufacturingIcons) {
-    const IconComponent = ManufacturingIcons[iconName as keyof typeof ManufacturingIcons];
-    if (IconComponent) {
-      // 返回一个包装组件，应用传入的 props
-      return (iconProps: any) => {
-        return React.createElement(IconComponent, { ...props, ...iconProps });
-      };
-    }
+  const IconComponent = ManufacturingIcons[iconName as keyof typeof ManufacturingIcons];
+  if (!IconComponent) {
+    throw new Error(
+      `[getManufacturingIcon] "${iconName}" 未登记 ManufacturingIcons。请改 manifest / 调用方为预置键。`,
+    );
   }
-  
-  // 如果预定义映射中没有，尝试直接从 Lucide Icons 中获取
-  const LucideIcon = getLucideIcon(iconName);
-  if (LucideIcon && LucideIcon !== React.Fragment) {
-    return (iconProps: any) => {
-      return React.createElement(LucideIcon, { ...props, ...iconProps });
-    };
-  }
-  
-  // 如果都找不到，返回默认图标
-  console.warn(`图标 "${iconName}" 不存在，使用默认图标 Factory`);
-  const DefaultIcon = getLucideIcon('Factory');
-  return (iconProps: any) => {
-    return React.createElement(DefaultIcon, { ...props, ...iconProps });
-  };
+  return (iconProps: any) => React.createElement(IconComponent, { ...props, ...iconProps });
 }
 
 /**

@@ -114,16 +114,25 @@ async def unwind_voucher_settlements(
             new_received = quantize_money(receivable.received_amount) - amount
             if new_received < 0:
                 new_received = Decimal("0.00")
-            new_remaining = quantize_money(receivable.total_amount) - new_received
-            if new_remaining < 0:
-                new_remaining = Decimal("0.00")
-            if new_received <= 0:
-                ar_status = "未收款"
-            elif new_remaining <= 0:
-                ar_status = "已结清"
-                new_remaining = Decimal("0.00")
-            else:
-                ar_status = "部分收款"
+            from apps.kuaicaiwu.services.finance_refund_utils import (
+                compute_open_balance_after_refund,
+                resolve_ar_status_after_amounts,
+            )
+
+            refunded = quantize_money(getattr(receivable, "refunded_amount", 0) or 0)
+            new_remaining = compute_open_balance_after_refund(
+                receivable.total_amount,
+                new_received,
+                refunded,
+            )
+            net_received = quantize_money(new_received - refunded)
+            if net_received < Decimal("0.00"):
+                net_received = Decimal("0.00")
+            ar_status = resolve_ar_status_after_amounts(
+                total_amount=receivable.total_amount,
+                received_amount=net_received,
+                remaining_amount=new_remaining,
+            )
             await Receivable.filter(tenant_id=tenant_id, id=receivable.id).update(
                 received_amount=new_received,
                 remaining_amount=new_remaining,
@@ -169,26 +178,35 @@ async def unwind_voucher_settlements(
         )
         if not payable:
             raise BusinessLogicError(f"核销关联应付单不存在: {settlement.debit_doc_id}")
-        new_paid = quantize_money(payable.paid_amount) - amount
-        if new_paid < 0:
-            new_paid = Decimal("0.00")
-        new_remaining = quantize_money(payable.total_amount) - new_paid
-        if new_remaining < 0:
-            new_remaining = Decimal("0.00")
-        if new_paid <= 0:
-            ap_status = "未付款"
-        elif new_remaining <= 0:
-            ap_status = "已结清"
-            new_remaining = Decimal("0.00")
-        else:
-            ap_status = "部分付款"
-        await Payable.filter(tenant_id=tenant_id, id=payable.id).update(
-            paid_amount=new_paid,
-            remaining_amount=new_remaining,
-            status=ap_status,
-            updated_by=operator_id,
-            updated_by_name=user_name or None,
-        )
+            new_paid = quantize_money(payable.paid_amount) - amount
+            if new_paid < 0:
+                new_paid = Decimal("0.00")
+            from apps.kuaicaiwu.services.finance_refund_utils import (
+                compute_open_balance_after_refund,
+                resolve_ap_status_after_amounts,
+            )
+
+            refunded = quantize_money(getattr(payable, "refunded_amount", 0) or 0)
+            new_remaining = compute_open_balance_after_refund(
+                payable.total_amount,
+                new_paid,
+                refunded,
+            )
+            net_paid = quantize_money(new_paid - refunded)
+            if net_paid < Decimal("0.00"):
+                net_paid = Decimal("0.00")
+            ap_status = resolve_ap_status_after_amounts(
+                total_amount=payable.total_amount,
+                paid_amount=net_paid,
+                remaining_amount=new_remaining,
+            )
+            await Payable.filter(tenant_id=tenant_id, id=payable.id).update(
+                paid_amount=new_paid,
+                remaining_amount=new_remaining,
+                status=ap_status,
+                updated_by=operator_id,
+                updated_by_name=user_name or None,
+            )
         settlement.is_active = False
         settlement.deleted_at = now_utc()
         await settlement.save()

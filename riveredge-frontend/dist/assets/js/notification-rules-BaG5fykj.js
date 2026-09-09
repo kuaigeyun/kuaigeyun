@@ -1,0 +1,1 @@
+import{D as i}from"./clientRelease-Dr-u9KJm.js";import"./vendor-BOyyiuK3.js";function e(){return i("/apps/kuaiiot/config/notification-rules/load-presets",{method:"POST"})}export{e as loadKuaiiotNotificationRulePresets};

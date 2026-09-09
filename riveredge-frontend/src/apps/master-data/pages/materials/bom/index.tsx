@@ -704,7 +704,8 @@ const BOMPage: React.FC = () => {
   }, [currentUser]);
 
   /**
-   * 加载物料列表（仅创建/编辑弹窗需要；列表名称按当前页 ID 精确补齐）
+   * 加载物料列表（仅创建/编辑弹窗下拉初始范围）。
+   * 必须与列表页 ensureMaterialsByIds 合并，禁止整表覆盖，否则会冲掉已按 ID 补齐的主数据。
    */
   useEffect(() => {
     if (!modalVisible) return;
@@ -712,7 +713,19 @@ const BOMPage: React.FC = () => {
       try {
         setMaterialsLoading(true);
         const result = await materialApi.list({ limit: 1000, isActive: true });
-        setMaterials(result.items ?? []);
+        const incoming = result.items ?? [];
+        setMaterials((prev) => {
+          const merged = [...incoming];
+          const seen = new Set(merged.map((m) => m.id));
+          prev.forEach((m) => {
+            if (!seen.has(m.id)) {
+              merged.push(m);
+              seen.add(m.id);
+            }
+          });
+          materialsRef.current = merged;
+          return merged;
+        });
       } catch (error: any) {
         console.error('加载物料列表失败:', error);
       } finally {
@@ -754,6 +767,11 @@ const BOMPage: React.FC = () => {
     });
     materialsRef.current = merged;
     setMaterials(merged);
+
+    const stillMissing = uniqueIds.filter((id) => !seen.has(id));
+    if (stillMissing.length) {
+      console.error('[BOM] material master not found by ids (deleted or other tenant?)', stillMissing);
+    }
     return merged;
   };
 
@@ -1527,14 +1545,16 @@ const BOMPage: React.FC = () => {
     resetBomFormFieldValues();
   };
 
-  /** 堆叠列用：名称主行、编号次行 */
+  /** 堆叠列用：名称主行、编号次行（优先 state map，并回落 ref，避免补齐后首帧未 flush 仍显示未加载） */
   const getMaterialParts = (
     materialId: number | undefined | null,
   ): { code: string; name: string; spec: string; missing: boolean } => {
     if (materialId == null) {
       return { code: '', name: '-', spec: '', missing: true };
     }
-    const material = materialsById.get(materialId);
+    const material =
+      materialsById.get(materialId) ??
+      materialsRef.current.find((m) => m.id === materialId);
     if (!material) {
       console.error('[BOM] material master missing for display', materialId);
       return {
@@ -3024,6 +3044,17 @@ const BOMPage: React.FC = () => {
       title: t('app.master-data.bom.mainMaterialTitle'),
       dataIndex: 'materialId',
       render: (_, record) => getMaterialName(record.materialId),
+    },
+    {
+      title: t('app.master-data.bom.baseQuantity'),
+      dataIndex: 'baseQuantity',
+      render: (_, record) => {
+        const qty = record.baseQuantity ?? (record as { base_quantity?: number }).base_quantity;
+        if (qty == null || Number.isNaN(Number(qty))) return '-';
+        const parent = materials.find((m) => m.id === record.materialId);
+        const unit = String(parent?.baseUnit || '').trim();
+        return unit ? `${Number(qty)} ${unit}` : String(Number(qty));
+      },
     },
     {
       title: t('app.master-data.bom.childMaterialTitle'),

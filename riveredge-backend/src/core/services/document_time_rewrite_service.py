@@ -89,7 +89,8 @@ REWRITE_SPECS: tuple[RewriteDocSpec, ...] = (
         model_path="apps.kuaizhizao.models.sales_delivery:SalesDelivery",
         code_field="delivery_code",
         date_fields=(),
-        optional_datetime_fields=("review_time",),
+        # delivery_time：出库明细表「出库日期」真源；造数对齐须改写（与领料 picking_time / 成品入库 receipt_time 同级）
+        optional_datetime_fields=("review_time", "delivery_time"),
     ),
     RewriteDocSpec(
         doc_type="purchase_receipt",
@@ -97,7 +98,7 @@ REWRITE_SPECS: tuple[RewriteDocSpec, ...] = (
         model_path="apps.kuaizhizao.models.purchase_receipt:PurchaseReceipt",
         code_field="receipt_code",
         date_fields=(),
-        optional_datetime_fields=("review_time",),
+        optional_datetime_fields=("review_time", "receipt_time"),
     ),
     RewriteDocSpec(
         doc_type="incoming_inspection",
@@ -914,6 +915,216 @@ class DocumentTimeRewriteService:
             "since": since.isoformat(),
             "timezone": timezone_name,
             "truncated": len(rows) >= limit,
+        }
+
+    @staticmethod
+    async def expand_login_logs_since(
+        *,
+        tenant_id: int,
+        since: date,
+        schedule: WorkScheduleParams,
+        max_rows: int = 5000,
+    ) -> dict[str, Any]:
+        """将本租户已有登录日志的 created_at 按工作时段摊开到 since～当前。"""
+        from core.models.login_log import LoginLog
+
+        schedule.validate()
+        timezone_name = site_timezone_name()
+        tz = ZoneInfo(timezone_name)
+        now_site = now_utc().astimezone(tz)
+        if since > now_site.date():
+            raise ValueError("起始日期不能晚于今天")
+
+        limit = max(1, min(int(max_rows), 20000))
+        rows = (
+            await LoginLog.filter(tenant_id=tenant_id)
+            .order_by("id")
+            .limit(limit)
+            .all()
+        )
+        if not rows:
+            raise ValueError("该租户暂无登录日志，无法扩充")
+
+        times = schedule.issue_times_utc_since(
+            len(rows), timezone_name=timezone_name, since=since
+        )
+        updated = 0
+        for row, issued in zip(rows, times):
+            await LoginLog.filter(id=row.id, tenant_id=tenant_id).update(
+                created_at=issued
+            )
+            updated += 1
+
+        return {
+            "updated": updated,
+            "scanned": len(rows),
+            "since": since.isoformat(),
+            "timezone": timezone_name,
+            "truncated": len(rows) >= limit,
+        }
+
+    @staticmethod
+    async def ensure_audit_logs_floor(
+        *,
+        tenant_id: int,
+        since: date,
+        schedule: WorkScheduleParams,
+        min_operation_logs: int = 2000,
+        min_login_logs: int = 80,
+        redistribute: bool = True,
+    ) -> dict[str, Any]:
+        """
+        造数保底：操作日志 / 登录日志不足时补齐到下限，
+        再按工作时段把时间摊开到 since～当前（含原有记录）。
+        """
+        import random
+        import uuid as uuid_mod
+
+        from core.models.login_log import LoginLog
+        from core.models.operation_log import OperationLog
+        from infra.models.user import User
+
+        schedule.validate()
+        timezone_name = site_timezone_name()
+        tz = ZoneInfo(timezone_name)
+        now_site = now_utc().astimezone(tz)
+        if since > now_site.date():
+            raise ValueError("起始日期不能晚于今天")
+
+        min_ops = max(0, min(int(min_operation_logs), 5000))
+        min_logins = max(0, min(int(min_login_logs), 2000))
+
+        users = (
+            await User.filter(
+                tenant_id=tenant_id,
+                deleted_at__isnull=True,
+                is_active=True,
+            )
+            .order_by("id")
+            .limit(200)
+            .all()
+        )
+        if not users:
+            raise ValueError("该租户无可用用户，无法补造操作/登录日志")
+
+        op_templates: tuple[tuple[str, str, str, str, str, str], ...] = (
+            ("view", "销售管理", "SalesOrder", "GET", "/api/v1/apps/kuaizhizao/sales-orders", "查看销售订单"),
+            ("create", "销售管理", "SalesOrder", "POST", "/api/v1/apps/kuaizhizao/sales-orders", "新建销售订单"),
+            ("update", "销售管理", "SalesOrder", "PUT", "/api/v1/apps/kuaizhizao/sales-orders", "编辑销售订单"),
+            ("view", "仓储管理", "SalesDelivery", "GET", "/api/v1/apps/kuaizhizao/sales-deliveries", "查看出库单"),
+            ("create", "仓储管理", "SalesDelivery", "POST", "/api/v1/apps/kuaizhizao/sales-deliveries", "新建出库单"),
+            ("update", "采购管理", "PurchaseOrder", "PUT", "/api/v1/apps/kuaizhizao/purchase-orders", "编辑采购订单"),
+            ("view", "生产管理", "WorkOrder", "GET", "/api/v1/apps/kuaizhizao/work-orders", "查看生产工单"),
+            ("create", "生产管理", "WorkOrder", "POST", "/api/v1/apps/kuaizhizao/work-orders", "新建生产工单"),
+            ("view", "主数据", "Material", "GET", "/api/v1/apps/master-data/materials", "查看物料"),
+            ("update", "主数据", "Customer", "PUT", "/api/v1/apps/master-data/customers", "编辑客户"),
+            ("view", "系统管理", "User", "GET", "/api/v1/core/users", "查看用户列表"),
+            ("create", "轻财务", "Receivable", "POST", "/api/v1/apps/kuaicaiwu/receivables", "新建应收单"),
+        )
+        ip_pool = (
+            "10.0.1.18",
+            "10.0.2.36",
+            "10.0.3.44",
+            "192.168.1.20",
+            "192.168.1.88",
+            "172.16.0.12",
+            "172.16.8.55",
+        )
+        location_pool = ("上海市", "杭州市", "苏州市", "宁波市", "南京市", "深圳市")
+        browser_pool = (
+            "Chrome 131 / Windows",
+            "Edge 131 / Windows",
+            "Chrome 130 / macOS",
+            "Firefox 133 / Windows",
+        )
+        device_pool = ("PC", "PC", "PC", "Mobile")
+
+        op_before = await OperationLog.filter(tenant_id=tenant_id).count()
+        login_before = await LoginLog.filter(tenant_id=tenant_id).count()
+        op_need = max(0, min_ops - op_before)
+        login_need = max(0, min_logins - login_before)
+
+        created_ops = 0
+        if op_need > 0:
+            for _ in range(op_need):
+                user = random.choice(users)
+                tpl = random.choice(op_templates)
+                await OperationLog.create(
+                    uuid=str(uuid_mod.uuid4()),
+                    tenant_id=tenant_id,
+                    user_id=int(user.id),
+                    operation_type=tpl[0],
+                    operation_module=tpl[1],
+                    operation_object_type=tpl[2],
+                    operation_object_id=None,
+                    operation_object_uuid=None,
+                    operation_content=tpl[5],
+                    ip_address=random.choice(ip_pool),
+                    user_agent=random.choice(browser_pool),
+                    request_method=tpl[3],
+                    request_path=tpl[4],
+                )
+                created_ops += 1
+
+        created_logins = 0
+        if login_need > 0:
+            for i in range(login_need):
+                user = random.choice(users)
+                # 约 1/10 记失败，其余成功
+                failed = (i % 10) == 7
+                await LoginLog.create(
+                    uuid=str(uuid_mod.uuid4()),
+                    tenant_id=tenant_id,
+                    user_id=None if failed else int(user.id),
+                    username=str(user.username or ""),
+                    login_ip=random.choice(ip_pool),
+                    login_location=random.choice(location_pool),
+                    login_device=random.choice(device_pool),
+                    login_browser=random.choice(browser_pool),
+                    login_status="failed" if failed else "success",
+                    failure_reason="用户名或密码错误" if failed else None,
+                )
+                created_logins += 1
+
+        op_expanded = 0
+        login_expanded = 0
+        if redistribute:
+            op_total = await OperationLog.filter(tenant_id=tenant_id).count()
+            if op_total > 0:
+                op_result = await DocumentTimeRewriteService.expand_operation_logs_since(
+                    tenant_id=tenant_id,
+                    since=since,
+                    schedule=schedule,
+                    max_rows=max(op_total, min_ops, 1),
+                )
+                op_expanded = int(op_result.get("updated") or 0)
+            login_total = await LoginLog.filter(tenant_id=tenant_id).count()
+            if login_total > 0:
+                login_result = await DocumentTimeRewriteService.expand_login_logs_since(
+                    tenant_id=tenant_id,
+                    since=since,
+                    schedule=schedule,
+                    max_rows=max(login_total, min_logins, 1),
+                )
+                login_expanded = int(login_result.get("updated") or 0)
+
+        return {
+            "operation": {
+                "before": op_before,
+                "created": created_ops,
+                "after": op_before + created_ops,
+                "min": min_ops,
+                "redistributed": op_expanded,
+            },
+            "login": {
+                "before": login_before,
+                "created": created_logins,
+                "after": login_before + created_logins,
+                "min": min_logins,
+                "redistributed": login_expanded,
+            },
+            "since": since.isoformat(),
+            "timezone": timezone_name,
         }
 
     @staticmethod

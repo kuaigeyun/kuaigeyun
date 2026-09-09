@@ -2473,6 +2473,36 @@ export default {
 
   // 应用名称翻译（统一规范）
   'app.kuaizhizao.name': '快制造',
+  'app.kuaizhizao.short': '制造',
+  'app.kuaiqms.name': '快质量',
+  'app.kuaiqms.short': '质量',
+  'app.kuaiqms.homeHint': '请从左侧菜单进入质检、改善与体系业务（页面仍由快制造承载）',
+  'app.kuaiqms.menu.group.workbench': '质检中心',
+  'app.kuaiqms.menu.group.basic-data': '基础资料',
+  'app.kuaiqms.menu.group.inspection-docs': '检验业务',
+  'app.kuaiqms.menu.group.improvement': '质量改善',
+  'app.kuaiqms.menu.group.qms-system': '质量体系',
+  'app.kuaiqms.menu.group.reports': '质量报表',
+  'app.kuaiems.name': '快设备',
+  'app.kuaiems.short': '设备',
+  'app.kuaiems.homeHint': '请从左侧菜单进入设备、模具与工装业务（页面仍由快制造承载）',
+  'app.kuaiems.menu.workbench': '运维看板',
+  'app.kuaiems.menu.group.workbench': '设备运维',
+  'app.kuaiems.menu.group.equipment': '设备管理',
+  'app.kuaiems.menu.group.mold': '模具管理',
+  'app.kuaiems.menu.group.tool': '工装管理',
+  'app.kuaiems.menu.group.equipment-basic-data': '设备资料',
+  'app.kuaiems.menu.group.equipment-docs': '设备单据',
+  'app.kuaiems.menu.group.equipment-reports': '设备报表',
+  'app.kuaiems.menu.group.mold-basic-data': '模具资料',
+  'app.kuaiems.menu.group.mold-docs': '模具单据',
+  'app.kuaiems.menu.group.mold-reports': '模具报表',
+  'app.kuaiems.menu.group.tool-basic-data': '工装资料',
+  'app.kuaiems.menu.group.tool-docs': '工装单据',
+  'app.kuaiems.menu.group.tool-reports': '工装报表',
+  'app.kuaipd.name': '快交付',
+  'app.kuaipd.short': '交付',
+  'app.kuaipd.homeHint': '请从左侧菜单进入交付项目、物流与售后（页面仍由快制造承载）',
   'app.kuaiiot.name': '快数采',
   'app.kuaiiot.menu.group.monitorOps': '监控运维',
   'app.kuaiiot.menu.group.modelAccess': '模型接入',
@@ -2715,7 +2745,7 @@ export default {
     '本模块为电子制造行业包。启用后注入样品加工、BOM 分区等替代扩展，并提供 ESD 等独立功能入口。',
   'app.kuaielectronics.home.replaceTitle': '替代扩展',
   'app.kuaielectronics.home.replaceHint':
-    '样品加工（钢网/SMT/Gerber/PCB 文案）、BOM 协同分区名（电子/结构）、OEM 标签签样（宿主标签工位 path 保持，组件切换）。日常建单仍在快研发 / 快制造原菜单。',
+    '样品加工（钢网/SMT/Gerber/PCB 文案）、BOM 协同分区名（电子/结构）、OEM 签样包（启用后自动替换「生产执行 → 标签工位」，不再单独挂行业包菜单）。日常建单仍在快研发 / 快制造原菜单。',
   'app.kuaielectronics.home.standaloneTitle': '独立功能',
   'app.kuaielectronics.home.standaloneHint':
     'ESD 点检与看板仅出现在行业包侧栏；停用本模块后入口消失，通用产品菜单不变。',
@@ -2812,7 +2842,7 @@ export default {
   'app.kuaielectronics.labelOem.placeholder':
     'OEM 签样包与周期唯一性已接入；须绑定书面签样打印模板 UUID，元数据不得含客户公司名常量。',
   'app.kuaielectronics.labelOem.hostPathHint':
-    '宿主入口：/apps/kuaizhizao/production-execution/label-station（启用本包后由 documentReplacementRegistry 解析到本页）。',
+    '唯一入口：快制造「生产执行 → 标签工位」（/apps/kuaizhizao/production-execution/label-station）；启用本包后由 documentReplacementRegistry 解析到本页并显示签样包 Tab。',
   'app.kuaielectronics.labelOem.tabPacks': '签样包',
   'app.kuaielectronics.labelOem.packHintTitle': '抽象签样包',
   'app.kuaielectronics.labelOem.packHintBody':
@@ -21190,6 +21220,12 @@ export default {
   'sys.app.kuaizhizao.desc': '制造业全流程一体化管控与协同平台',
   'sys.app.kuaiplm.name': '快研发',
   'sys.app.kuaiplm.desc': '研发项目 / NPI 阶段门、设计变更与知识中心协同平台',
+  'sys.app.kuaiqms.name': '快质量',
+  'sys.app.kuaiqms.desc': '质检、改善、体系与质量报表（业务能力由快制造提供）',
+  'sys.app.kuaiems.name': '快设备',
+  'sys.app.kuaiems.desc': '设备、模具、工装台账与运维单据（业务能力由快制造提供）',
+  'sys.app.kuaipd.name': '快交付',
+  'sys.app.kuaipd.desc': '交付项目、物流与售后履约（业务能力由快制造提供）',
   'sys.app.kuaicaiwu.name': '轻财务',
   'sys.app.kuaioa.name': '轻办公',
   'sys.app.kuaicaiwu.desc': '聚焦管理会计与经营分析协同平台（不含总账）',
@@ -22233,6 +22269,7 @@ export default {
   'app.kuaizhizao.quality.common.validation.requiredUnqualifiedQty': '请输入不合格数量',
   'app.kuaizhizao.quality.common.validation.minZero': '不能小于0',
   'app.kuaizhizao.quality.common.validation.qtySumExceeds': '合格数量 + 不合格数量不能超过检验数量',
+  'app.kuaizhizao.quality.common.validation.qtySumMustEqual': '合格数量和不合格数量之和必须等于检验数量',
   'app.kuaizhizao.quality.common.validation.qtyRequiredWhenStepFail': '存在不合格检验项时，不合格数量必须大于 0',
   'app.kuaizhizao.quality.common.validation.requiredDefectQty': '请输入不合格品数量',
   'app.kuaizhizao.quality.common.validation.defectQtyExceeds': '不合格品数量不能超过检验单的不合格数量',
@@ -22257,6 +22294,7 @@ export default {
   'app.kuaizhizao.quality.common.stats.totalInspected': '总检验数量',
   'app.kuaizhizao.quality.common.messages.inspectSuccess': '来料检验完成',
   'app.kuaizhizao.quality.common.messages.inspectFailed': '检验提交失败',
+  'app.kuaizhizao.quality.common.messages.inspectCustomFieldsSaveFailed': '检验已提交，但自定义字段保存失败',
   'app.kuaizhizao.quality.common.messages.loadDetailFailed': '获取检验单详情失败',
   'app.kuaizhizao.quality.common.messages.importFailed': '导入失败',
   'app.kuaizhizao.quality.common.messages.exportSuccess': '导出成功',
@@ -25957,7 +25995,9 @@ export default {
   'pages.system.menus.customLayoutLoadFailed': '加载自组菜单配置失败',
   'pages.system.menus.customLayoutSaveSuccess': '自组菜单配置已保存',
   'pages.system.menus.customLayoutAutoEnabledHint':
-    '已加入菜单项时将自动启用自组映射；关闭启用并保存空布局可恢复系统默认侧栏。',
+    '关闭启用后侧栏恢复系统默认菜单；已编辑的自组布局仍保留。一键同步菜单不会打开或关闭自组菜单。',
+  'pages.system.menus.customLayoutEnabledFlippedByServer':
+    '自组菜单启用状态未被服务器按原样保存（疑似仍在强制开启）。请确认后端已加载最新代码后重试。',
   'pages.system.menus.customLayoutSaveFailed': '保存自组菜单配置失败',
   'pages.system.menus.customLayoutStaleRefsRemoved':
     '已自动移除 {{count}} 个失效菜单引用（菜单已禁用、删除或应用已变更）',
@@ -27032,6 +27072,18 @@ export default {
     '需求计划首次提交不再报服务器内部错误',
   'pages.dashboard.updateLog.entries.demand-submit-asyncpg-race-fix.description':
     '提交审核时先建审批实例再写单据状态，待办通知延后发送，并修正审核写回路径，避免数据库连接并发冲突导致第一次提交失败。',
+  'pages.dashboard.updateLog.entries.mobile-workplace-userinfo-undefined.title':
+    '手机端工作台白屏：未定义的 userInfo',
+  'pages.dashboard.updateLog.entries.mobile-workplace-userinfo-undefined.description':
+    '触屏竖屏工作台误引用未声明变量 userInfo，Safari 报 Can’t find variable；已改为使用当前登录用户 currentUser。',
+  'pages.dashboard.updateLog.entries.label-oem-single-entry-via-label-station.title':
+    'OEM 签样仅保留「标签工位」一个入口',
+  'pages.dashboard.updateLog.entries.label-oem-single-entry-via-label-station.description':
+    '行业包「电子制造」下不再挂「OEM 标签签样」菜单；启用电子包后仍通过生产执行「标签工位」的 document 替代加载签样包能力，避免双入口。',
+  'pages.dashboard.updateLog.entries.industry-pack-split-sidebar-short.title':
+    '双列侧栏「行业包」简称改为「行业」',
+  'pages.dashboard.updateLog.entries.industry-pack-split-sidebar-short.description':
+    '双列左栏不再把「行业包」截成「业包」；面包屑/双列根节点与侧栏一致固定为 industry-pack，简称走 app.industry-pack.short。',
   'pages.dashboard.updateLog.entries.purchase-receipt-confirm-withdraw-reconfirm.title':
     '采购入库确认后撤回再确认不再卡在待入库',
   'pages.dashboard.updateLog.entries.purchase-receipt-confirm-withdraw-reconfirm.description':
@@ -28057,10 +28109,114 @@ export default {
     '修复物料编辑保存后仍跳回全部物料',
   'pages.dashboard.updateLog.entries.material-management-keep-group-after-edit-v2.description':
     '物料管理进编辑时列表标签会卸载，返回时整页重建；现将分组筛选写入浏览会话并禁止用「全部」冲掉原分组，保存或取消后仍停留在编辑前所在分组。',
+  'pages.dashboard.updateLog.entries.bom-list-material-master-cache-merge.title':
+    '修复 BOM 列表再次出现物料主数据未加载',
+  'pages.dashboard.updateLog.entries.bom-list-material-master-cache-merge.description':
+    '打开新建/编辑弹窗时不再用前 1000 条物料整表覆盖列表已按 ID 补齐的缓存；展示名称同时回落 materialsRef，避免补齐后首帧仍显示「物料主数据未加载」。',
+  'pages.dashboard.updateLog.entries.bom-detail-show-base-quantity.title':
+    'BOM详情基本信息展示基准数量',
+  'pages.dashboard.updateLog.entries.bom-detail-show-base-quantity.description':
+    '物料清单详情抽屉在主物料旁展示 BOM 头表基准数量（及主物料库存单位）；该字段原本仅在新建/编辑与导入中维护，详情未露出。',
+  'pages.dashboard.updateLog.entries.bom-import-process-route-optional.title':
+    'BOM 导入工艺路线改为非必填',
+  'pages.dashboard.updateLog.entries.bom-import-process-route-optional.description':
+    '映射导入时工艺路线编码/名称留空不再拦截；有编码才创建或关联工艺路线。BOM 仍只必填父件、子件与数量。',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-disable-no-force-reopen.title':
+    '修复自组菜单关闭后又被强制打开',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-disable-no-force-reopen.description':
+    '去掉「有菜单项就当已启用」的读侧伪装与保存强制回写；关闭启用只认开关。弹窗改为加载完成后再打开，保存校验服务器不得私自改回启用。',
   'pages.dashboard.updateLog.entries.mrp-menu-relocate-persist-after-refresh-v2.title':
     '修复 MRP 挪到采购后刷新又回计划管理',
   'pages.dashboard.updateLog.entries.mrp-menu-relocate-persist-after-refresh-v2.description':
-    '自组菜单若已含菜单项则即使未标记启用也会生效并回写；菜单管理中改父级会打租户挂载标记，同步 manifest 不再冲回默认分组；自组「加入」会从原分组移出，避免假转移。',
+    '菜单管理中改父级会打租户挂载标记，同步 manifest 不再冲回默认分组；自组「加入」会从原分组移出，避免假转移。自组启用仅认显式开关，不因有菜单项强制开启。',
+  'pages.dashboard.updateLog.entries.receivable-remaining-include-refund.title':
+    '修复应收应付剩余金额未计入退款',
+  'pages.dashboard.updateLog.entries.receivable-remaining-include-refund.description':
+    '收款/付款退款确认后按核销真源重算：剩余应收/应付 = 总额 − (已收付 − 已退)。已收部分收款后退款后，剩余应收会加回退款额；历史错账可用 repair_ar_ap_remaining_after_refund 脚本按租户回填。',
+  'pages.dashboard.updateLog.entries.sidebar-menu-icon-manifest-catalog-keys.title':
+    '修复侧栏菜单图标闪一下并去掉图标兜底',
+  'pages.dashboard.updateLog.entries.sidebar-menu-icon-manifest-catalog-keys.description':
+    '菜单 icon 只认 manifest/库表预置键（ManufacturingIcons）；去掉 DynamicIcon、Factory、路径/名称猜测与默认仪表盘兜底。错键开发态直接报错并空显，须改真源键名（如质量报表 chartBar）后同步菜单。',
+  'pages.dashboard.updateLog.entries.sales-order-submit-empty-approver-auto-pass.title':
+    '修复销售订单提交因空审批人失败',
+  'pages.dashboard.updateLog.entries.sales-order-submit-empty-approver-auto-pass.description':
+    '销售订单审核节点在「直属上级」等无可用审批人时，按流程配置的空审批人策略自动跳过（默认 auto_pass）；提交接口同步返回真实校验原因，不再只提示提交失败。',
+  'pages.dashboard.updateLog.entries.sales-invoice-tax-amount-cents-math.title':
+    '修复销项发票切换含税金额分币价差',
+  'pages.dashboard.updateLog.entries.sales-invoice-tax-amount-cents-math.description':
+    '开票金额互算改为分位整数（与后端价税拆分一致），避免 JS 浮点把 1769911.50×1.13 算成 1999999.99；切换含税后与可开票合计对齐，含税录入仍以价税合计为真源。',
+  'pages.dashboard.updateLog.entries.quotation-convert-order-downstream-unpack.title':
+    '修复报价单转销售订单失败',
+  'pages.dashboard.updateLog.entries.quotation-convert-order-downstream-unpack.description':
+    '下推默认「确认」时检测销售订单下游单据的字段表写错导致 TypeError；已按模型+外键字段正确检测，并暴露真实错误信息。',
+  'pages.dashboard.updateLog.entries.sales-doc-price-type-switch-preserve-amounts.title':
+    '修复销售单据含税不含税切换价差',
+  'pages.dashboard.updateLog.entries.sales-doc-price-type-switch-preserve-amounts.description':
+    '销售订单、报价、合同切换含税/不含税时以行金额为真源反算单价并原子写入价类与明细，避免先换单价再乘数量或先改价类再换算造成的分币价差。',
+  'pages.dashboard.updateLog.entries.incoming-inspect-conduct-payload-error-detail.title':
+    '修复来料检验提交失败不显示原因',
+  'pages.dashboard.updateLog.entries.incoming-inspect-conduct-payload-error-detail.description':
+    '执行检验写库时剔除来料单不存在的字段（如 measurement_data），避免 FieldError；Toast 展示后端真实错误；合格与不合格数量之和须等于检验数量，与后端一致。',
+  'pages.dashboard.updateLog.entries.kuaiems-domain-prefixed-submenus.title':
+    '快设备侧栏二级菜单加领域前缀',
+  'pages.dashboard.updateLog.entries.kuaiems-domain-prefixed-submenus.description':
+    '设备/模具/工装下「基础资料」「业务单据」分别改为设备资料与设备单据、模具资料与模具单据、工装资料与工装单据，避免三组同名。',
+  'pages.dashboard.updateLog.entries.kuaiems-workbench-icon-hardhat.title':
+    '快设备设备运维图标改为安全帽',
+  'pages.dashboard.updateLog.entries.kuaiems-workbench-icon-hardhat.description':
+    '设备运维侧栏图标由工业仪表盘改为安全帽，避免与系统工作台仪表盘图标重复，并与设备管理齿轮区分。',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-disable-without-ref-validation.title':
+    '自组菜单关闭不再被菜单引用校验拦住',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-disable-without-ref-validation.description':
+    '关闭启用时跳过 menu_ref 校验，且一键同步菜单不会改自组开关；此前同步后引用失效会导致关闭保存失败，看起来像被私自打开。',
+  'pages.dashboard.updateLog.entries.kuaiems-workbench-rename-ops-dashboard.title':
+    '快设备工作台改名为设备运维',
+  'pages.dashboard.updateLog.entries.kuaiems-workbench-rename-ops-dashboard.description':
+    '一级菜单改为「设备运维」，子页改为「运维看板」；图标改用工业仪表盘，避免与设备管理齿轮图标重复。',
+  'pages.dashboard.updateLog.entries.kuaiems-workbench-icon-equipment.title':
+    '快设备设备中心图标调整',
+  'pages.dashboard.updateLog.entries.kuaiems-workbench-icon-equipment.description':
+    '设备中心侧栏图标由显示器改为齿轮（equipment），更贴合设备运维语义。',
+  'pages.dashboard.updateLog.entries.kuaioa-hr-training-submenu-group.title':
+    '轻办公人事管理下培训菜单归组',
+  'pages.dashboard.updateLog.entries.kuaioa-hr-training-submenu-group.description':
+    '部门培训申请、培训计划、培训记录、培训模板归入「培训管理」二级分组；请假出差与证照类仍挂在人事管理下。',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-save-respects-disable.title':
+    '自组菜单关闭启用可真正保存',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-save-respects-disable.description':
+    '保存时不再因布局里仍有菜单引用而强制改回开启；关闭后侧栏走系统默认菜单，已编辑布局仍保留。',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-hoist-ungrouped.title':
+    '自组菜单侧栏不再显示未分组标题',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-hoist-ungrouped.description':
+    '「未分组」仅作编辑器虚拟桶；侧栏将其子项直接提升到 APP 下，避免快报表等应用多出一层未分组。',
+  'pages.dashboard.updateLog.entries.kuaireport-two-top-level-menu-groups.title':
+    '快报表侧栏改为两个一级菜单',
+  'pages.dashboard.updateLog.entries.kuaireport-two-top-level-menu-groups.description':
+    '自制报表、看板设计各建一级分组并挂载对应子页，避免叶子直挂应用根被收入「未分组」。',
+  'pages.dashboard.updateLog.entries.kuaiqms-menu-fold-basic-data.title':
+    '快质量侧栏归并基础资料菜单',
+  'pages.dashboard.updateLog.entries.kuaiqms-menu-fold-basic-data.description':
+    '质检方案并入检验业务，ISO条款与体系文件并入质量体系，去掉一级「基础资料」。',
+  'pages.dashboard.updateLog.entries.kuaireport-offline-analysis-center.title':
+    '快报表下线效能中心菜单',
+  'pages.dashboard.updateLog.entries.kuaireport-offline-analysis-center.description':
+    '侧栏仅保留自制报表与看板设计两个入口；效能中心及节点时效、处理效率、跨业务报表等子页不再挂菜单。',
+  'pages.dashboard.updateLog.entries.kuaioa-menu-consolidate-groups.title':
+    '轻办公侧栏一级菜单归并精简',
+  'pages.dashboard.updateLog.entries.kuaioa-menu-consolidate-groups.description':
+    '同类入口合并为四组：审批协同（办公中心+表单）、制造协同、人事管理（请假/培训/证照）、行政办公（公告/用章/固定资产）；路径与权限不变。',
+  'pages.dashboard.updateLog.entries.kuaicaiwu-offline-management-analysis-menu.title':
+    '轻财务下线经营分析菜单',
+  'pages.dashboard.updateLog.entries.kuaicaiwu-offline-management-analysis-menu.description':
+    '侧栏与财务工作台快捷入口移除经营分析及毛利分析报表；页面与权限码暂保留，不再从导航进入。',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-respect-enabled-toggle.title':
+    '修复自组菜单关闭启用后保存仍被打开',
+  'pages.dashboard.updateLog.entries.custom-menu-layout-respect-enabled-toggle.description':
+    '自组菜单仅以「启用」开关为准：关闭并保存后不再因已有菜单项自动强制开启，侧栏恢复系统默认；布局数据仍保留便于再次启用。',
+  'pages.dashboard.updateLog.entries.split-qms-ems-delivery-apps.title':
+    '新增快质量、快设备、快交付独立应用入口',
+  'pages.dashboard.updateLog.entries.split-qms-ems-delivery-apps.description':
+    '质量、设备运维、交付/物流/售后从快制造侧栏拆出为独立应用（快质量 kuaiqms、快设备 kuaiems、快交付 kuaipd）；业务页面与权限码仍归属快制造；侧栏顺序为快制造→快质量→快设备→快交付→快研发→轻财务。',
   'pages.dashboard.updateLog.entries.reminder-events-audit-columns.title':
     '修复提醒事件表缺少更新人字段',
   'pages.dashboard.updateLog.entries.reminder-events-audit-columns.description':
@@ -29327,6 +29483,7 @@ export default {
   // 报表与看板应用
   'app.kuaireport.name': '快报表',
   'app.kuaireport.menu.selfMadeReports': '自制报表',
+  'app.kuaireport.menu.board-design': '看板设计',
   'app.kuaireport.menu.reports': '报表中心',
   'app.kuaireport.menu.reports.list': '报表列表',
   'app.kuaireport.menu.reports.new': '新建报表',

@@ -79,6 +79,9 @@ function getPluginSourcePath(pluginCode: string): string {
  */
 const OPEN_SOURCE_APP_LOADERS: Record<string, () => Promise<unknown>> = {
   kuaizhizao: () => import('../apps/kuaizhizao/index'),
+  kuaiqms: () => import('../apps/kuaiqms/index'),
+  kuaiems: () => import('../apps/kuaiems/index'),
+  kuaipd: () => import('../apps/kuaipd/index'),
   kuaicaiwu: () => import('../apps/kuaicaiwu/index'),
   kuaiplm: () => import('../apps/kuaiplm/index'),
   'master-data': () => import('../apps/master-data/index'),

@@ -21,6 +21,9 @@ APPLICATION_CENTER_PERMISSION_CONFIG_KEY = "application_center.category_self_ser
 BASE_APP_CODES = frozenset(
     {
         "kuaizhizao",
+        "kuaiqms",
+        "kuaiems",
+        "kuaipd",
         "kuaiplm",
         "kuaicaiwu",
         "kuaioa",

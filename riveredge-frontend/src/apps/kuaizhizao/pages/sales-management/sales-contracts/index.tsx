@@ -23,7 +23,7 @@ import { normalizeFormListItems } from '../../../../../utils/formListItems';
 import { buildFutureDateShortcutFieldProps } from '../../../../../utils/futureDatePickerShortcuts';
 import { toApiDateString, formDateRangeFormItemProps } from '../../../../../utils/formDate';
 import { getApiErrorMessage } from '../../../../../utils/errorHandler';
-import { deferConvertLineItemsByPriceType, setFormPriceType } from '../../../../../utils/priceTypeSwitch';
+import { deferConvertLineItemsByPriceType } from '../../../../../utils/priceTypeSwitch';
 import {
   DEFAULT_SALES_PRICE_TYPE,
   normalizeSalesPriceType,
@@ -317,6 +317,7 @@ const SalesContractsPage: React.FC = () => {
 
   const { t, i18n } = useTranslation();
   const amountDecimals = useNumericPrecisionPlaces('amount');
+  const priceDecimals = useNumericPrecisionPlaces('price');
   const pushToSalesOrderAction = resolveKuaizhizaoDocumentAction(t, 'sales_order.pull_from_sales_contract');
   const salesCommonLabels = useMemo(() => getSalesCommonFormLabels(t), [t]);
   const contractLifecycleValueEnum = useMemo(
@@ -552,9 +553,11 @@ const SalesContractsPage: React.FC = () => {
   const handleContractPriceTypeChange = useCallback((nextChecked: boolean) => {
     const nextType: PriceTypeValue = nextChecked ? 'tax_inclusive' : 'tax_exclusive';
     const fromType: PriceTypeValue = nextChecked ? 'tax_exclusive' : 'tax_inclusive';
-    setFormPriceType(formRef.current, nextType);
-    deferConvertLineItemsByPriceType(formRef.current, fromType, nextType, convertUnitPriceByPriceType);
-  }, []);
+    deferConvertLineItemsByPriceType(formRef.current, fromType, nextType, {
+      quantityField: 'contract_quantity',
+      priceDecimals,
+    });
+  }, [priceDecimals]);
 
 
   const refreshContractLinePriceByVariant = useCallback(
@@ -966,6 +969,8 @@ const SalesContractsPage: React.FC = () => {
             it.unit_price,
             it.tax_rate,
             values.price_type,
+            it.item_amount,
+            it.is_gift,
           ).incl,
           delivery_date: toApiDateString(it.delivery_date),
           variant_attributes: it.variant_attributes,

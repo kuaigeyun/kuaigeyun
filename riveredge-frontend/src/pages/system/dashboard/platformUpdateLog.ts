@@ -36,6 +36,244 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'bom-list-material-master-cache-merge',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.bom-list-material-master-cache-merge.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.bom-list-material-master-cache-merge.description',
+  },
+  {
+    id: 'bom-import-process-route-optional',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.bom-import-process-route-optional.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.bom-import-process-route-optional.description',
+  },
+  {
+    id: 'bom-detail-show-base-quantity',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.bom-detail-show-base-quantity.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.bom-detail-show-base-quantity.description',
+  },
+  {
+    id: 'custom-menu-layout-disable-no-force-reopen',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.custom-menu-layout-disable-no-force-reopen.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.custom-menu-layout-disable-no-force-reopen.description',
+  },
+  {
+    id: 'receivable-remaining-include-refund',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.receivable-remaining-include-refund.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.receivable-remaining-include-refund.description',
+  },
+  {
+    id: 'sidebar-menu-icon-manifest-catalog-keys',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.sidebar-menu-icon-manifest-catalog-keys.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sidebar-menu-icon-manifest-catalog-keys.description',
+  },
+  {
+    id: 'sales-order-submit-empty-approver-auto-pass',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.sales-order-submit-empty-approver-auto-pass.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-order-submit-empty-approver-auto-pass.description',
+  },
+  {
+    id: 'sales-invoice-tax-amount-cents-math',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.sales-invoice-tax-amount-cents-math.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-invoice-tax-amount-cents-math.description',
+  },
+  {
+    id: 'sales-doc-price-type-switch-preserve-amounts',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.sales-doc-price-type-switch-preserve-amounts.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-doc-price-type-switch-preserve-amounts.description',
+  },
+  {
+    id: 'quotation-convert-order-downstream-unpack',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.quotation-convert-order-downstream-unpack.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.quotation-convert-order-downstream-unpack.description',
+  },
+  {
+    id: 'incoming-inspect-conduct-payload-error-detail',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.incoming-inspect-conduct-payload-error-detail.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.incoming-inspect-conduct-payload-error-detail.description',
+  },
+  {
+    id: 'kuaiems-domain-prefixed-submenus',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaiems-domain-prefixed-submenus.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaiems-domain-prefixed-submenus.description',
+  },
+  {
+    id: 'kuaiems-workbench-icon-hardhat',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaiems-workbench-icon-hardhat.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaiems-workbench-icon-hardhat.description',
+  },
+  {
+    id: 'custom-menu-layout-disable-without-ref-validation',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.custom-menu-layout-disable-without-ref-validation.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.custom-menu-layout-disable-without-ref-validation.description',
+  },
+  {
+    id: 'kuaiems-workbench-rename-ops-dashboard',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaiems-workbench-rename-ops-dashboard.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaiems-workbench-rename-ops-dashboard.description',
+  },
+  {
+    id: 'kuaiems-workbench-icon-equipment',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaiems-workbench-icon-equipment.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaiems-workbench-icon-equipment.description',
+  },
+  {
+    id: 'kuaioa-hr-training-submenu-group',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaioa-hr-training-submenu-group.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaioa-hr-training-submenu-group.description',
+  },
+  {
+    id: 'custom-menu-layout-save-respects-disable',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.custom-menu-layout-save-respects-disable.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.custom-menu-layout-save-respects-disable.description',
+  },
+  {
+    id: 'mobile-workplace-userinfo-undefined',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.mobile-workplace-userinfo-undefined.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.mobile-workplace-userinfo-undefined.description',
+  },
+  {
+    id: 'custom-menu-layout-hoist-ungrouped',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.custom-menu-layout-hoist-ungrouped.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.custom-menu-layout-hoist-ungrouped.description',
+  },
+  {
+    id: 'kuaireport-two-top-level-menu-groups',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaireport-two-top-level-menu-groups.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaireport-two-top-level-menu-groups.description',
+  },
+  {
+    id: 'kuaiqms-menu-fold-basic-data',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaiqms-menu-fold-basic-data.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.kuaiqms-menu-fold-basic-data.description',
+  },
+  {
+    id: 'label-oem-single-entry-via-label-station',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.label-oem-single-entry-via-label-station.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.label-oem-single-entry-via-label-station.description',
+  },
+  {
+    id: 'kuaireport-offline-analysis-center',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaireport-offline-analysis-center.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.kuaireport-offline-analysis-center.description',
+  },
+  {
+    id: 'kuaioa-menu-consolidate-groups',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaioa-menu-consolidate-groups.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.kuaioa-menu-consolidate-groups.description',
+  },
+  {
+    id: 'industry-pack-split-sidebar-short',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.industry-pack-split-sidebar-short.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.industry-pack-split-sidebar-short.description',
+  },
+  {
+    id: 'kuaicaiwu-offline-management-analysis-menu',
+    date: '2026-09-09',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaicaiwu-offline-management-analysis-menu.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaicaiwu-offline-management-analysis-menu.description',
+  },
+  {
+    id: 'custom-menu-layout-respect-enabled-toggle',
+    date: '2026-09-09',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.custom-menu-layout-respect-enabled-toggle.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.custom-menu-layout-respect-enabled-toggle.description',
+  },
+  {
+    id: 'split-qms-ems-delivery-apps',
+    date: '2026-09-09',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.split-qms-ems-delivery-apps.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.split-qms-ems-delivery-apps.description',
+  },
+  {
     id: 'purchase-receipt-confirm-withdraw-reconfirm',
     date: '2026-09-09',
     type: 'fix',

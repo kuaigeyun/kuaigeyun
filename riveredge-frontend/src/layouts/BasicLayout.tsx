@@ -135,7 +135,6 @@ import {
 } from '../services/menu';
 import { useUnifiedMenuData } from '../hooks/useUnifiedMenuData';
 import { ManufacturingIcons } from '../utils/manufacturingIcons';
-import { LucideIconByName } from '../utils/lucideDynamicIcon';
 import { getAvatarUrl, getAvatarText, getAvatarFontSize, getCachedAvatarUrl, toRelativeIfLocalhost, isTextAvatarDisplay, getTextAvatarCircleStyle, getImageAvatarCircleStyle } from '../utils/avatar';
 import { triggerNew, hasNewHandler } from '../utils/globalNewShortcut';
 import { triggerSubmit, hasSubmitHandler } from '../utils/globalSubmitShortcut';
@@ -494,188 +493,82 @@ const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 /**
- * 根据菜单名称或路径获取 Lucide 图标
- * 左侧菜单全部使用 Lucide 图标，确保风格统一
- * 
- * @param menuName - 菜单名称
- * @param menuPath - 菜单路径（可选）
- * @returns React 图标组件，总是返回 Lucide 图标
+ * 系统/平台硬编菜单图标：仅 path → ManufacturingIcons 精确登记。
+ * 应用菜单 icon 只认 manifest/库表键，禁止走本函数的 path/名称猜测。
  */
 const getMenuIcon = (menuName: string, menuPath?: string): React.ReactNode => {
-  // 根据菜单路径和名称映射到制造业图标
-  // 优先使用路径匹配（路径是固定的，不受翻译影响）
-  // 先按路径映射；未命中时再按名称映射
+  if (!menuPath) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[getMenuIcon] 缺少 path（name=${menuName}）。禁止名称兜底。`);
+    }
+    return null;
+  }
 
-  // 路径映射（优先使用，因为路径是固定的，不受翻译影响）
-  if (menuPath) {
-    const pathMap: Record<string, React.ComponentType<any>> = {
+  const pathMap: Record<string, React.ComponentType<any>> = {
       '/system': ManufacturingIcons.systemConfig,
       '/system/dashboard': ManufacturingIcons.industrialDashboard,
       '/system/dashboard/workplace': ManufacturingIcons.production,
       '/system/dashboard/analysis': ManufacturingIcons.chartLine,
-      '/system/roles': ManufacturingIcons.shield, // 角色权限管理 - 使用盾牌图标
-      '/system/departments': ManufacturingIcons.building, // 部门管理 - 使用建筑图标
-      '/system/positions': ManufacturingIcons.userCog, // 职位管理 - 使用用户配置图标
-      '/system/users': ManufacturingIcons.user, // 账户管理 - 使用单用户图标，和在线用户区分
-      '/system/applications': ManufacturingIcons.layout, // 应用中心 - 使用应用入口/布局图标
-      '/system/menus': ManufacturingIcons.menu, // 菜单管理 - 使用菜单图标
-      '/system/site-settings': ManufacturingIcons.mdSettings, // 站点设置 - 使用设置图标
-      '/system/config-center': ManufacturingIcons.mdConfiguration, // 业务配置 - 使用设置2图标，区别于站点设置
-      '/system/business-config': ManufacturingIcons.mdConfiguration, // 重定向到 config-center
-      '/system/system-parameters': ManufacturingIcons.mdConfiguration, // 重定向到 config-center
-      '/system/data-dictionaries': ManufacturingIcons.bookOpen, // 数据字典 - 使用打开的书本图标
-      '/system/code-rules': ManufacturingIcons.code, // 编号规则 - 使用代码图标
-      '/system/integration-configs': ManufacturingIcons.network, // 数据连接 - 使用网络图标
-      '/system/languages': ManufacturingIcons.languages, // 语言管理 - 使用语言图标
-      '/system/custom-fields': ManufacturingIcons.toolbox, // 自定义字段 - 使用工具箱图标
-      '/system/files': ManufacturingIcons.folder, // 文件管理 - 使用文件夹图标
-      '/system/apis': ManufacturingIcons.api, // API管理 - 使用API图标
-      '/system/data-sources': ManufacturingIcons.database, // 数据源 - 使用数据库图标
-      '/system/application-connections': ManufacturingIcons.gitBranch, // 应用连接器 - 使用分支连接图标
-      '/system/datasets': ManufacturingIcons.inventory, // 数据集 - 使用库存图标
-      '/system/initial-data': ManufacturingIcons['arrow-down-to-line'], // 期初数据导入（导入入库）
-      '/system/onboarding-wizard': ManufacturingIcons.compass, // 上线向导 - 指引/向导
-      '/system/messages/config': ManufacturingIcons.bell, // 消息配置 - 使用铃铛图标
-      '/system/messages/template': ManufacturingIcons.fileText, // 消息模板 - 使用文件文本图标
-      '/system/approval-processes': ManufacturingIcons.workflow, // 审批流程 - 使用工作流图标
-      '/system/approval-instances': ManufacturingIcons.checkCircle, // 审批实例 - 使用检查圆圈图标
-      '/system/print-templates': ManufacturingIcons.fileSpreadsheet, // 打印模板 - 使用模板文档图标
-      '/system/report-templates': ManufacturingIcons.chartBar, // 报表模板 - 使用柱状图图标
-      '/system/print-devices': ManufacturingIcons.printer, // 打印设备 - 使用打印机图标
-      '/personal': ManufacturingIcons.userCircle, // 个人中心 - 使用用户圆圈图标
-      '/personal/profile': ManufacturingIcons.user, // 个人资料 - 使用用户图标
-      '/personal/preferences': ManufacturingIcons.pencil, // 偏好设置 - 使用编辑图标，区别系统设置
-      '/personal/messages': ManufacturingIcons.bell, // 我的消息 - 使用铃铛图标
-      '/personal/tasks': ManufacturingIcons.checklist, // 我的任务 - 使用清单图标
-      '/system/operation-logs': ManufacturingIcons.history, // 操作日志 - 使用历史图标
-      '/system/login-logs': ManufacturingIcons.logIn, // 登录日志 - 使用登录图标
-      '/system/online-users': ManufacturingIcons.users, // 在线用户 - 使用用户组图标
-      '/system/data-backups': ManufacturingIcons.hardDrive, // 数据备份 - 使用硬盘图标
-      '/infra/operation': ManufacturingIcons.analytics, // 运营中心 - 使用分析图标
-      '/infra/tenants': ManufacturingIcons.building, // 租户管理 - 使用建筑图标（保持）
-      '/infra/packages': ManufacturingIcons.package, // 应用包管理 - 使用包裹图标
+      '/system/roles': ManufacturingIcons.shield,
+      '/system/departments': ManufacturingIcons.building,
+      '/system/positions': ManufacturingIcons.userCog,
+      '/system/users': ManufacturingIcons.user,
+      '/system/applications': ManufacturingIcons.layout,
+      '/system/menus': ManufacturingIcons.menu,
+      '/system/site-settings': ManufacturingIcons.mdSettings,
+      '/system/config-center': ManufacturingIcons.mdConfiguration,
+      '/system/business-config': ManufacturingIcons.mdConfiguration,
+      '/system/system-parameters': ManufacturingIcons.mdConfiguration,
+      '/system/data-dictionaries': ManufacturingIcons.bookOpen,
+      '/system/code-rules': ManufacturingIcons.code,
+      '/system/integration-configs': ManufacturingIcons.network,
+      '/system/languages': ManufacturingIcons.languages,
+      '/system/custom-fields': ManufacturingIcons.toolbox,
+      '/system/files': ManufacturingIcons.folder,
+      '/system/apis': ManufacturingIcons.api,
+      '/system/data-sources': ManufacturingIcons.database,
+      '/system/application-connections': ManufacturingIcons.gitBranch,
+      '/system/datasets': ManufacturingIcons.inventory,
+      '/system/initial-data': ManufacturingIcons['arrow-down-to-line'],
+      '/system/onboarding-wizard': ManufacturingIcons.compass,
+      '/system/messages/config': ManufacturingIcons.bell,
+      '/system/messages/template': ManufacturingIcons.fileText,
+      '/system/approval-processes': ManufacturingIcons.workflow,
+      '/system/approval-instances': ManufacturingIcons.checkCircle,
+      '/system/print-templates': ManufacturingIcons.fileSpreadsheet,
+      '/system/report-templates': ManufacturingIcons.chartBar,
+      '/system/print-devices': ManufacturingIcons.printer,
+      '/personal': ManufacturingIcons.userCircle,
+      '/personal/profile': ManufacturingIcons.user,
+      '/personal/preferences': ManufacturingIcons.pencil,
+      '/personal/messages': ManufacturingIcons.bell,
+      '/personal/tasks': ManufacturingIcons.checklist,
+      '/system/operation-logs': ManufacturingIcons.history,
+      '/system/login-logs': ManufacturingIcons.logIn,
+      '/system/online-users': ManufacturingIcons.users,
+      '/system/data-backups': ManufacturingIcons.hardDrive,
+      '/infra/operation': ManufacturingIcons.analytics,
+      '/infra/tenants': ManufacturingIcons.building,
+      '/infra/packages': ManufacturingIcons.package,
       '/infra/sensitive-word-blacklist': ManufacturingIcons.shield,
-      '/infra/scripts': ManufacturingIcons.fileCode, // 脚本管理
-      '/infra/scheduled-tasks': ManufacturingIcons.clock, // 定时任务
-      '/infra/admin': ManufacturingIcons.shield, // 平台管理 - 使用盾牌图标
-      '/infra/official-api-library': ManufacturingIcons.database, // 官方接口库
-      '/infra/license-management': ManufacturingIcons.certificate, // 许可证管理
-
-      // 应用菜单路径图标映射（使用前缀匹配，支持 /apps/{app-code}/... 格式）
-      '/apps/kuaizhizao/plan-management': ManufacturingIcons.calendar, // 计划管理 - 使用日历图标
-      '/apps/kuaizhizao/production-execution': ManufacturingIcons.activity, // 生产执行 - 使用活动/执行图标
-      '/apps/kuaizhizao/purchase-management': ManufacturingIcons.shoppingBag, // 采购管理 - 使用购物袋图标
-      '/apps/kuaizhizao/sales-management': ManufacturingIcons.chartLine, // 销售管理 - 使用趋势上升图标（销售增长）
-      '/apps/kuaizhizao/warehouse-management': ManufacturingIcons.warehouse, // 仓储管理 - 使用仓库图标
-      '/apps/kuaizhizao/quality-management': ManufacturingIcons.quality, // 质量管理 - 使用质量图标
-      '/apps/kuaizhizao/equipment-management': ManufacturingIcons.wrench, // 设备管理 - 扳手图标（与系统设置齿轮区分）
-      '/apps/kuaizhizao/finance-management': ManufacturingIcons.wallet, // 财务管理 - 使用钱包图标
-      '/apps/kuaireport/analysis-center': ManufacturingIcons.chartBar, // 分析中心（已迁至快报表）- 柱状图
-      '/apps/kuaicrm': ManufacturingIcons.users, // 快客户
-      '/apps/kuaipdm': ManufacturingIcons.layers, // 快研发
-      '/apps/kuaicaiwu': ManufacturingIcons.wallet, // 快财务
-      '/apps/kuaichain': ManufacturingIcons.gitBranch, // 快协同
-      '/apps/kuaicaiwu/finance-management': ManufacturingIcons.wallet, // 财务管理
-      '/apps/kuaicaiwu/tax-management': ManufacturingIcons.audit, // 税务管理
-      '/apps/kuaicaiwu/cost-management': ManufacturingIcons.calculator, // 成本管理
-      '/apps/kuaizhizao/performance': ManufacturingIcons.trophy, // 绩效管理 - 奖杯图标（与分析中心区分）
-      '/apps/master-data': ManufacturingIcons.database, // 主数据 - 使用数据库图标
-      '/apps/kuaioa': ManufacturingIcons.briefcase, // 轻办公
-      '/apps/kuaiplm': ManufacturingIcons.layers, // 快研发
-      '/apps/master-data/warehouse': ManufacturingIcons.archive, // 主数据-仓库数据 - 使用归档图标（区别于仓储管理）
-      '/apps/master-data/supply-chain': ManufacturingIcons.handshake, // 主数据-客户供应商（客户+供应商）- 握手/合作图标
-      '/apps/kuaireport': ManufacturingIcons.fileBarChart, // 快报表 - 报表/图表图标（与仪表盘、大屏中心区分）
-      '/apps/kuaireport/reports': ManufacturingIcons.fileBarChart, // 报表中心
-      '/apps/kuaireport/dashboards': ManufacturingIcons.layoutDashboard, // 大屏中心
-      '/apps/kuaiai': ManufacturingIcons.sparkles, // KU-AI - 顶栏 AI 助手（无侧栏菜单）
-      '/apps/industry-pack': ManufacturingIcons.layers, // 行业包
-      '/apps/spoke-wheel': ManufacturingIcons.wheel, // 辐条轮毂
-      '/apps/haoligo/workspace': ManufacturingIcons.layoutDashboard, // 好力 GO 工作台（仪表板分组下）
-      '/apps/haoligo/equipment': ManufacturingIcons.wrench, // 好力 GO 设备管理
-      '/apps/haoligo/molds': ManufacturingIcons.package, // 好力 GO 模具管理
-      '/apps/haoligo/patrol': ManufacturingIcons.clipboardCheck, // 好力 GO 现场巡查（点检/记录）
-      '/apps/haoligo/quality': ManufacturingIcons['shield-check'], // 好力 GO 品质管理
-      '/apps/haoligo/finance': ManufacturingIcons.wallet, // 好力 GO 财务管理
+      '/infra/scripts': ManufacturingIcons.fileCode,
+      '/infra/scheduled-tasks': ManufacturingIcons.clock,
+      '/infra/admin': ManufacturingIcons.shield,
+      '/infra/official-api-library': ManufacturingIcons.database,
+      '/infra/client-releases': ManufacturingIcons.smartphone,
+      '/infra/license-management': ManufacturingIcons.certificate,
     };
 
-    // 精确路径匹配
-    if (pathMap[menuPath]) {
-      const IconComponent = pathMap[menuPath];
-      return React.createElement(IconComponent, { size: 16 });
-    }
-
-    // 前缀路径匹配（用于父级菜单）
-    const matchedPath = Object.keys(pathMap).find(path => menuPath.startsWith(path));
-    if (matchedPath) {
-      const IconComponent = pathMap[matchedPath];
-      return React.createElement(IconComponent, { size: 16 });
-    }
+  if (pathMap[menuPath]) {
+    return React.createElement(pathMap[menuPath], { size: 16 });
   }
 
-  // 名称映射（路径未命中时使用，支持中英文）
-  // 注意：菜单名称可能已翻译，路径匹配始终优先
-  const nameMap: Record<string, React.ComponentType<any>> = {
-    // 常见的中文和英文名称映射
-    'Dashboard': ManufacturingIcons.industrialDashboard,
-    'Workplace': ManufacturingIcons.production,
-    'Analysis': ManufacturingIcons.chartLine,
-    'Operations Dashboard': ManufacturingIcons.analytics,
-    'Operations Center': ManufacturingIcons.operationsCenter,
-    'User Management': ManufacturingIcons.users, // 用户管理 - 使用用户组图标
-    'Users': ManufacturingIcons.users,
-    'System Configuration': ManufacturingIcons.systemConfig,
-    'Settings': ManufacturingIcons.systemConfig,
-    'Personal Center': ManufacturingIcons.userCircle, // 个人中心 - 使用用户圆圈图标
-    'Personal': ManufacturingIcons.userCircle,
-    // 应用菜单名称映射
-    'Plan Management': ManufacturingIcons.calendar,
-    'Planning': ManufacturingIcons.calendar,
-    'Production Execution': ManufacturingIcons.activity, // 生产执行 - 使用活动/执行图标
-    'Production': ManufacturingIcons.activity,
-    'Purchase Management': ManufacturingIcons.shoppingBag,
-    'Purchasing': ManufacturingIcons.shoppingBag,
-    'Sales Management': ManufacturingIcons.chartLine, // 销售管理 - 使用趋势上升图标（销售增长）
-    'Sales': ManufacturingIcons.chartLine,
-    'Warehouse Management': ManufacturingIcons.warehouse,
-    'Warehouse': ManufacturingIcons.warehouse,
-    'Quality Management': ManufacturingIcons.quality,
-    'Quality': ManufacturingIcons.quality,
-    '品质管理': ManufacturingIcons['shield-check'],
-    'Cost Management': ManufacturingIcons.calculator,
-    'Cost': ManufacturingIcons.calculator,
-    '税务管理': ManufacturingIcons.audit,
-    'Tax Management': ManufacturingIcons.audit,
-    'app.kuaicaiwu.menu.tax-management': ManufacturingIcons.audit,
-    'Equipment Management': ManufacturingIcons.wrench,
-    'Equipment': ManufacturingIcons.wrench,
-    'Finance Management': ManufacturingIcons.wallet, // 财务管理 - 使用钱包图标
-    'Finance': ManufacturingIcons.wallet,
-    'Tooling Management': ManufacturingIcons.wrench,
-    'Tooling': ManufacturingIcons.wrench,
-    'Analysis Center': ManufacturingIcons.analytics,
-    'Analytics': ManufacturingIcons.analytics,
-    // 基础数据管理相关
-    '仓库数据': ManufacturingIcons.archive, // 基础数据管理-仓库数据 - 使用归档图标
-    'Warehouse Data': ManufacturingIcons.archive, // 基础数据管理-仓库数据（英文）
-    'Report Center': ManufacturingIcons.fileBarChart, // 报表中心
-    'Dashboard Center': ManufacturingIcons.layoutDashboard, // 大屏中心
-    '报表中心': ManufacturingIcons.fileBarChart,
-    '大屏中心': ManufacturingIcons.layoutDashboard,
-    // 自制报表（与仪表盘 Gauge 区分，避免重复）
-    '自制报表': ManufacturingIcons.fileBarChart,
-    'Reports & Dashboards': ManufacturingIcons.fileBarChart,
-    'app.kuaireport.name': ManufacturingIcons.fileBarChart,
-    'app.kuaireport.menu.selfMadeReports': ManufacturingIcons.fileBarChart,
-    // ... 其他常见的英文名称可以在这里添加
-  };
-
-  if (nameMap[menuName]) {
-    const IconComponent = nameMap[menuName];
-    return React.createElement(IconComponent, { size: 16 });
+  if (process.env.NODE_ENV === 'development') {
+    console.error(
+      `[getMenuIcon] path 未登记（name=${menuName}, path=${menuPath}）。禁止名称/前缀/dashboard 兜底。`,
+    );
   }
-
-  // 如果找不到匹配的图标，返回默认的 Lucide 图标
-  return React.createElement(ManufacturingIcons.dashboard, { size: 16 });
+  return null;
 };
 
 /**
@@ -1226,103 +1119,17 @@ export default function BasicLayout({ children }: { children: React.ReactNode })
    * 支持应用菜单的国际化翻译
    */
   const convertMenuTreeToMenuDataItem = React.useCallback((menu: MenuTree, isAppMenu: boolean = false, depth: number = 0): MenuDataItem => {
-    // 处理图标：一级菜单必显图标，有 icon 的二级菜单（如主数据-客户供应商）也显示
-    // 统一图标大小：16px
+    // 图标唯一真源：manifest / 库表 icon 键 → ManufacturingIcons 预置表。禁止 path/名称猜测、禁止 DynamicIcon。
     let iconElement: React.ReactNode = undefined;
-
-    // 同等级菜单：优先使用固定的 path 映射（避免 menu.icon 数据不一致）
-    if (depth === 0 && menu.path) {
-      const normalizedMenuPath = typeof menu.path === 'string' ? menu.path.replace(/\/$/, '') : menu.path;
-      const iconFromPath = getMenuIcon(menu.name ?? '', normalizedMenuPath as string);
-      // getMenuIcon 找不到匹配时会返回 dashboard 默认图标，这里用它来判断是否命中映射
-      if (React.isValidElement(iconFromPath) && (iconFromPath as any).type !== ManufacturingIcons.dashboard) {
-        iconElement = iconFromPath;
-      }
-    }
-
-    if (!iconElement && menu.icon) {
-      // manifest / 数据库 icon 字段 → Lucide（见 manufacturingIcons 预置表）
-      // 首先尝试从预定义的 ManufacturingIcons 中获取
-      const iconKey = menu.icon as keyof typeof ManufacturingIcons;
-      const IconComponent = ManufacturingIcons[iconKey];
+    const rawIcon = typeof menu.icon === 'string' ? menu.icon.trim() : '';
+    if (rawIcon) {
+      const IconComponent = ManufacturingIcons[rawIcon as keyof typeof ManufacturingIcons];
       if (IconComponent) {
         iconElement = React.createElement(IconComponent, { size: 16 });
-      } else {
-        // 如果预定义映射中没有，尝试直接从 Lucide Icons 中获取（全量导入支持）
-        // 需要动态导入 Lucide Icons（因为全量导入会增加打包体积，所以按需导入）
-        // 注意：这里使用同步方式，因为 convertMenuTreeToMenuDataItem 是同步函数
-        // 实际上，由于 manufacturingIcons.tsx 已经全量导入了，我们可以直接使用
-        // 但为了更好的性能，这里先尝试从预定义映射获取，失败后再尝试直接访问
-
-        // 尝试映射 Ant Design 图标名称
-        const lucideIconMap: Record<string, React.ComponentType<any>> = {
-          'DashboardOutlined': ManufacturingIcons.industrialDashboard,
-          'UserOutlined': ManufacturingIcons.user,
-          'TeamOutlined': ManufacturingIcons.users,
-          'ApartmentOutlined': ManufacturingIcons.building,
-          'CrownOutlined': ManufacturingIcons.crown,
-          'AppstoreOutlined': ManufacturingIcons.factory,
-          'ControlOutlined': ManufacturingIcons.systemConfig,
-          'ShopOutlined': ManufacturingIcons.shop,
-          'FileTextOutlined': ManufacturingIcons.fileText,
-          'DatabaseOutlined': ManufacturingIcons.database,
-          'MonitorOutlined': ManufacturingIcons.monitor,
-          'GlobalOutlined': ManufacturingIcons.languages, // 语言管理使用语言图标
-          'ApiOutlined': ManufacturingIcons.api,
-          'CodeOutlined': ManufacturingIcons.code,
-          'PrinterOutlined': ManufacturingIcons.printer,
-          'HistoryOutlined': ManufacturingIcons.history,
-          'UnorderedListOutlined': ManufacturingIcons.list,
-          'CalendarOutlined': ManufacturingIcons.calendar,
-          'PlayCircleOutlined': ManufacturingIcons.playCircle,
-          'InboxOutlined': ManufacturingIcons.inbox,
-          'SafetyOutlined': ManufacturingIcons.shield, // 安全相关使用盾牌图标
-          'ShoppingOutlined': ManufacturingIcons.shoppingCart,
-          'UserSwitchOutlined': ManufacturingIcons.userCog,
-          'SettingOutlined': ManufacturingIcons.mdSettings,
-          'BellOutlined': ManufacturingIcons.bell,
-          'LoginOutlined': ManufacturingIcons.logIn,
-          'BookOutlined': ManufacturingIcons.bookOpen, // 数据字典
-          'ClockCircleOutlined': ManufacturingIcons.clock, // 定时任务
-          'CheckCircleOutlined': ManufacturingIcons.checkCircle, // 审批实例
-          // 快格轻制造应用图标映射
-          'planning': ManufacturingIcons.calendar, // 计划管理使用日历图标
-          'shopping-cart': ManufacturingIcons.shoppingCart, // 销售管理使用购物车图标
-          'bar-chart': ManufacturingIcons.chartBar, // 分析中心 - 柱状图
-          'chartBar': ManufacturingIcons.chartBar,
-          'analytics': ManufacturingIcons.chartBar, // 分析入口图标
-          'trophy': ManufacturingIcons.trophy, // 绩效管理 - 奖杯图标
-          'fileSpreadsheet': ManufacturingIcons.fileSpreadsheet, // 报表中心 - 表格图标
-          'fileBarChart': ManufacturingIcons.fileBarChart, // 自制报表 - 报表/图表图标
-          'layoutDashboard': ManufacturingIcons.layoutDashboard, // 大屏中心
-          'Wallet': ManufacturingIcons.wallet,
-          'ScanLine': ManufacturingIcons.scanLine,
-          'Banknote': ManufacturingIcons.banknote,
-          'Building2': ManufacturingIcons.building,
-          'BarChartBig': ManufacturingIcons.chartBar,
-          'PieChart': ManufacturingIcons.pieChart,
-          'CalendarDays': ManufacturingIcons.calendar,
-          'audit': ManufacturingIcons.audit,
-        };
-        const IconComponent = lucideIconMap[menu.icon];
-        if (IconComponent) {
-          iconElement = React.createElement(IconComponent, { size: 16 });
-        } else {
-          // 预定义映射未命中：按名称 DynamicIcon（按需加载单图标，避免 import *）
-          const iconName = menu.icon as string;
-          iconElement = React.createElement(LucideIconByName, { name: iconName, size: 16 });
-        }
-      }
-    }
-
-    // 若 icon 未配置/未匹配：按名称与路径回退（含应用菜单 i18n key，如自制报表）
-    if (!iconElement && (menu.name || menu.path)) {
-      const fromMap = getMenuIcon(menu.name || '', menu.path);
-      if (React.isValidElement(fromMap) && (fromMap as any).type !== ManufacturingIcons.dashboard) {
-        iconElement = fromMap;
-      } else if (depth === 0 && !isAppMenu) {
-        // 系统一级菜单：未命中映射时仍给默认图标
-        iconElement = fromMap;
+      } else if (process.env.NODE_ENV === 'development') {
+        console.error(
+          `[sidebar-menu] icon "${rawIcon}" 未登记 ManufacturingIcons（path=${menu.path ?? ''}）。请改 manifest 为预置键，禁止兜底。`,
+        );
       }
     }
 

@@ -80,7 +80,7 @@ import { WarehouseTraceBriefPrimaryActions } from '../../warehouse-management/Wa
 import { getIncomingInspectionLifecycle } from '../../../utils/incomingInspectionLifecycle';
 import { createListAuditPhaseColumn } from '../../sales-management/shared/listAuditPhaseColumn';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '../../../../../services/api';
+import { apiRequest, formatApiErrorDetail } from '../../../../../services/api';
 import { qualityApi, inspectionPlanApi, unwrapInspectionPlanList } from '../../../services/production';
 import InspectionPlanFormModal from '../../../components/InspectionPlanFormModal';
 import InspectionTemplateConductFields from '../components/InspectionTemplateConductFields';
@@ -524,7 +524,16 @@ const IncomingInspectionPage: React.FC = () => {
           ...pickInspectionConductExtras(standardValues),
         });
         if (Object.keys(customData).length > 0) {
-          await saveInspectionCustomFieldValues(currentInspection.id, customData);
+          try {
+            await saveInspectionCustomFieldValues(currentInspection.id, customData);
+          } catch (customError: any) {
+            // 检验主单已落库：暴露自定义字段失败原因，不回滚成功态、不伪装成「检验提交失败」
+            messageApi.warning(
+              formatApiErrorDetail(customError?.response?.data?.detail) ||
+                customError?.message ||
+                t('app.kuaizhizao.quality.common.messages.inspectCustomFieldsSaveFailed'),
+            );
+          }
         }
       }
 
@@ -538,7 +547,11 @@ const IncomingInspectionPage: React.FC = () => {
         await loadInspectionFieldValuesForDetail(currentInspection.id);
       }
     } catch (error: any) {
-      messageApi.error(t('app.kuaizhizao.quality.common.messages.inspectFailed'));
+      messageApi.error(
+        formatApiErrorDetail(error?.response?.data?.detail) ||
+          error?.message ||
+          t('app.kuaizhizao.quality.common.messages.inspectFailed'),
+      );
       throw error;
     }
   };

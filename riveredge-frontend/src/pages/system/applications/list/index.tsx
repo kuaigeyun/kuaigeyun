@@ -203,6 +203,9 @@ const getApplicationIcon = (
  */
 const CARD_HEADER_TINT: Record<string, string> = {
   kuaizhizao: '#38bdf8',
+  kuaiqms: '#34d399',
+  kuaiems: '#94a3b8',
+  kuaipd: '#60a5fa',
   kuaicaiwu: '#fbbf24',
   kuaioa: '#6366f1',
   kuaireport: '#4ade80',
@@ -235,6 +238,9 @@ const getCardGradient = (code: string, isActive: boolean, token: GlobalToken, is
   const gradients: Record<string, string> = {
     // 采用更明快、高明度的渐变色，提升活力感
     kuaizhizao: 'linear-gradient(135deg, #f0f9ff 0%, #bae6fd 100%)',  // 天蓝色
+    kuaiqms: 'linear-gradient(135deg, #ecfdf5 0%, #a7f3d0 100%)',     // 质检绿
+    kuaiems: 'linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%)',     // 设备灰
+    kuaipd: 'linear-gradient(135deg, #eff6ff 0%, #bfdbfe 100%)',      // 交付蓝
     kuaicaiwu: 'linear-gradient(135deg, #fffbeb 0%, #fde68a 100%)',   // 琥珀金
     kuaioa: 'linear-gradient(135deg, #eef2ff 0%, #c7d2fe 100%)',       // 靛蓝
     kuaireport: 'linear-gradient(135deg, #f0fdf4 0%, #bbf7d0 100%)',  // 翡翠绿

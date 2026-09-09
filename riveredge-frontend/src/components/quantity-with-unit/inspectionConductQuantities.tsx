@@ -59,8 +59,8 @@ function bundleToDocumentQty(
   return convertFromBaseQuantity(material, baseQty, documentUnit);
 }
 
-/** 检验数量合计比较：统一成 number，并按表单 2 位小数口径，避免串接/`dependencies` 未刷新导致误报 */
-function qtySumExceedsInspection(
+/** 检验数量合计比较：统一成 number，并按表单 2 位小数口径，与后端 assert_inspection_quantities_balanced 一致 */
+function qtySumNotBalancedWithInspection(
   qualified: unknown,
   unqualified: unknown,
   inspectionQuantity: unknown,
@@ -71,7 +71,7 @@ function qtySumExceedsInspection(
   if (!Number.isFinite(q) || !Number.isFinite(u) || !Number.isFinite(max)) return true;
   const sum = Math.round((q + u) * 100) / 100;
   const lim = Math.round(max * 100) / 100;
-  return sum > lim;
+  return sum !== lim;
 }
 
 export type InspectionConductQuantityFieldsProps = {
@@ -251,8 +251,8 @@ export function InspectionConductQuantityFields({
                     getFieldValue('unqualified_qty_with_unit') as QuantityWithUnitValue | undefined,
                     documentUnit,
                   );
-                  if (qtySumExceedsInspection(qualifiedDoc, unqualifiedDoc, inspectionQuantity)) {
-                    return Promise.reject(t('app.kuaizhizao.quality.common.validation.qtySumExceeds'));
+                  if (qtySumNotBalancedWithInspection(qualifiedDoc, unqualifiedDoc, inspectionQuantity)) {
+                    return Promise.reject(t('app.kuaizhizao.quality.common.validation.qtySumMustEqual'));
                   }
                   return stepFailQtyRule(unqualifiedDoc);
                 },
@@ -282,8 +282,8 @@ export function InspectionConductQuantityFields({
                     getFieldValue('qualified_qty_with_unit') as QuantityWithUnitValue | undefined,
                     documentUnit,
                   );
-                  if (qtySumExceedsInspection(qualifiedDoc, unqualifiedDoc, inspectionQuantity)) {
-                    return Promise.reject(t('app.kuaizhizao.quality.common.validation.qtySumExceeds'));
+                  if (qtySumNotBalancedWithInspection(qualifiedDoc, unqualifiedDoc, inspectionQuantity)) {
+                    return Promise.reject(t('app.kuaizhizao.quality.common.validation.qtySumMustEqual'));
                   }
                   return stepFailQtyRule(unqualifiedDoc);
                 },
@@ -321,8 +321,14 @@ export function InspectionConductQuantityFields({
           { type: 'number', min: 0, message: t('app.kuaizhizao.quality.common.validation.minZero') },
           ({ getFieldValue }: { getFieldValue: (name: string) => unknown }) => ({
             validator(_: unknown, value: unknown) {
-              if (qtySumExceedsInspection(value, getFieldValue('unqualified_quantity'), inspectionQuantity)) {
-                return Promise.reject(t('app.kuaizhizao.quality.common.validation.qtySumExceeds'));
+              if (
+                qtySumNotBalancedWithInspection(
+                  value,
+                  getFieldValue('unqualified_quantity'),
+                  inspectionQuantity,
+                )
+              ) {
+                return Promise.reject(t('app.kuaizhizao.quality.common.validation.qtySumMustEqual'));
               }
               return stepFailQtyRule(Number(getFieldValue('unqualified_quantity') || 0));
             },
@@ -341,8 +347,14 @@ export function InspectionConductQuantityFields({
           { type: 'number', min: 0, message: t('app.kuaizhizao.quality.common.validation.minZero') },
           ({ getFieldValue }: { getFieldValue: (name: string) => unknown }) => ({
             validator(_: unknown, value: unknown) {
-              if (qtySumExceedsInspection(getFieldValue('qualified_quantity'), value, inspectionQuantity)) {
-                return Promise.reject(t('app.kuaizhizao.quality.common.validation.qtySumExceeds'));
+              if (
+                qtySumNotBalancedWithInspection(
+                  getFieldValue('qualified_quantity'),
+                  value,
+                  inspectionQuantity,
+                )
+              ) {
+                return Promise.reject(t('app.kuaizhizao.quality.common.validation.qtySumMustEqual'));
               }
               return stepFailQtyRule(Number(value || 0));
             },

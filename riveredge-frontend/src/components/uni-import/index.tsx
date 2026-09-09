@@ -702,6 +702,10 @@ export const UniImport: React.FC<UniImportProps> = ({
         const row = rows[rowIdx] ?? [];
         if (!row.some((cell) => String(cell ?? '').trim() !== '')) continue;
         effectiveEntities.forEach((entity) => {
+          // 工艺路线/工序/绩效为可选关联：单元格为空则本行跳过，不报必填
+          if (entity === 'processRoute' || entity === 'operation' || entity === 'performance') {
+            return;
+          }
           (relationEntityRequiredFieldKeys[entity] ?? [])
             .filter((fieldKey) => selectedImportFieldKeys.includes(fieldKey))
             .forEach((fieldKey) => {

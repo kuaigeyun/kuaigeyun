@@ -50,7 +50,7 @@ import {
 import { DictionarySelect } from '../../../../../components/dictionary-select';
 import { UniTableDetail } from '../../../../../components/uni-table-detail';
 import PriceTypeSwitch, { type PriceTypeValue } from '../../../../../components/price-type-switch/PriceTypeSwitch';
-import { deferConvertLineItemsByPriceType, setFormPriceType } from '../../../../../utils/priceTypeSwitch';
+import { deferConvertLineItemsByPriceType } from '../../../../../utils/priceTypeSwitch';
 import {
   buildImportPriceTypeOptions,
   DEFAULT_SALES_PRICE_TYPE,
@@ -117,7 +117,7 @@ import {
   DocumentTrackingTimelineBody,
   useDocumentTracking,
 } from '../../../../../components/document-tracking-panel';
-import { apiRequest } from '../../../../../services/api';
+import { apiRequest, formatApiErrorDetail } from '../../../../../services/api';
 import { getDataDictionaryByCode, getDictionaryItemList } from '../../../../../services/dataDictionary';
 import { useKuaizhizaoPrintModal } from '../../../hooks/useKuaizhizaoPrintModal';
 import dayjs from 'dayjs';
@@ -178,6 +178,7 @@ import {
   mapGiftFieldsForSubmit,
   resolveMaterialGiftable,
 } from '../../../utils/giftLineUi';
+import { resolveDocumentLineDisplayAmounts } from '../../../utils/documentLineAmounts';
 import {
   DOCUMENT_DETAIL_CONTROL_SIZE,
   DOCUMENT_DETAIL_TABLE_PROPS,
@@ -366,37 +367,25 @@ const toSafeNumber = (value: unknown): number => {
 const toCents = (value: unknown): number => Math.round(toSafeNumber(value) * 100);
 const fromCents = (cents: number): number => cents / 100;
 
-/** 与销售订单明细价税列一致；数量字段为 quote_quantity */
+/** 与销售订单明细价税列一致；数量字段为 quote_quantity。有 item_amount 时以其为金额真源。 */
 const calcQuotationLineAmounts = (
   qtyInput: unknown,
   priceInput: unknown,
   taxRateInput: unknown,
   priceTypeInput?: string,
-) => {
-  const qty = toSafeNumber(qtyInput);
-  const unitPriceCents = toCents(priceInput);
-  const taxRate = toSafeNumber(taxRateInput);
-  const priceType = salesFormPriceType(priceTypeInput);
-
-  if (priceType === 'tax_inclusive') {
-    const inclCents = Math.round(qty * unitPriceCents);
-    const exclCents = Math.round(inclCents / (1 + taxRate / 100));
-    const taxCents = inclCents - exclCents;
-    return {
-      excl: fromCents(exclCents),
-      tax: fromCents(taxCents),
-      incl: fromCents(inclCents),
-    };
-  }
-
-  const exclCents = Math.round(qty * unitPriceCents);
-  const taxCents = Math.round((exclCents * taxRate) / 100);
-  return {
-    excl: fromCents(exclCents),
-    tax: fromCents(taxCents),
-    incl: fromCents(exclCents + taxCents),
-  };
-};
+  itemAmountInput?: unknown,
+  isGift?: unknown,
+) =>
+  resolveDocumentLineDisplayAmounts(
+    {
+      qty: qtyInput,
+      unit_price: priceInput,
+      tax_rate: taxRateInput,
+      item_amount: itemAmountInput,
+      is_gift: isGift,
+    },
+    salesFormPriceType(priceTypeInput),
+  );
 
 const convertUnitPriceByPriceType = (
   unitPriceInput: unknown,
@@ -570,7 +559,16 @@ const QuotationMaterialSelectCell: React.FC<{
 const QuotationAmountCell: React.FC<{ index: number }> = ({ index }) => {
   const row = Form.useWatch(['items', index]);
   const priceType = salesFormPriceType(Form.useWatch('price_type'));
-  const line = calcQuotationLineAmounts(row?.quote_quantity, row?.unit_price, row?.tax_rate, priceType);
+  const line = resolveDocumentLineDisplayAmounts(
+    {
+      qty: row?.quote_quantity,
+      unit_price: row?.unit_price,
+      tax_rate: row?.tax_rate,
+      item_amount: row?.item_amount,
+      is_gift: row?.is_gift,
+    },
+    priceType,
+  );
   return (
     <AmountDisplay
       resource={QUOTATION_FIELD_RESOURCE}
@@ -870,12 +868,14 @@ const QuotationsPage: React.FC = () => {
   const handleQuotationPriceTypeChange = useCallback((nextChecked: boolean) => {
     const nextType: PriceTypeValue = nextChecked ? 'tax_inclusive' : 'tax_exclusive';
     const fromType: PriceTypeValue = nextChecked ? 'tax_exclusive' : 'tax_inclusive';
-    setFormPriceType(formRef.current, nextType);
     lastPriceTypeRef.current = nextType;
     setQuotationEditingIncl(null);
     quotationEditingInclValueRef.current = null;
-    deferConvertLineItemsByPriceType(formRef.current, fromType, nextType, convertUnitPriceByPriceType);
-  }, []);
+    deferConvertLineItemsByPriceType(formRef.current, fromType, nextType, {
+      quantityField: 'quote_quantity',
+      priceDecimals,
+    });
+  }, [priceDecimals]);
 
   const [customerList, setCustomerList] = useState<any[]>([]);
   const [userList, setUserList] = useState<User[]>([]);
@@ -2153,7 +2153,8 @@ const QuotationsPage: React.FC = () => {
       resetPushPreviewModal();
     } catch (error: any) {
       messageApi.error(
-        error?.message ||
+        formatApiErrorDetail(error?.response?.data?.detail) ||
+          error?.message ||
           error?.detail ||
           (pushPreviewTarget === 'sales_order'
             ? t('app.kuaizhizao.quotation.convertFailed')
@@ -3471,6 +3472,8 @@ const QuotationsPage: React.FC = () => {
                                       row?.unit_price,
                                       row?.tax_rate,
                                       priceType,
+                                      row?.item_amount,
+                                      row?.is_gift,
                                     );
                                     return (
                                       <AmountDisplay
@@ -3523,6 +3526,8 @@ const QuotationsPage: React.FC = () => {
                                       row?.unit_price,
                                       row?.tax_rate,
                                       priceType,
+                                      row?.item_amount,
+                                      row?.is_gift,
                                     );
                                     return (
                                       <AmountDisplay
@@ -3557,6 +3562,8 @@ const QuotationsPage: React.FC = () => {
                                   row?.unit_price,
                                   row?.tax_rate,
                                   priceType,
+                                  row?.item_amount,
+                                  row?.is_gift,
                                 );
                                 const totalIncl = line.incl;
                                 const isEditing = quotationEditingIncl?.index === index;
@@ -4371,6 +4378,8 @@ const QuotationsPage: React.FC = () => {
                                     it.unit_price,
                                     it.tax_rate,
                                     pt,
+                                    it.item_amount,
+                                    it.is_gift,
                                   );
                                   return (
                                     <AmountDisplay
@@ -4399,6 +4408,8 @@ const QuotationsPage: React.FC = () => {
                                     it.unit_price,
                                     it.tax_rate,
                                     pt,
+                                    it.item_amount,
+                                    it.is_gift,
                                   );
                                   return (
                                     <AmountDisplay
@@ -4423,6 +4434,8 @@ const QuotationsPage: React.FC = () => {
                               it.unit_price,
                               it.tax_rate,
                               pt,
+                              it.item_amount,
+                              it.is_gift,
                             );
                             return (
                               <AmountDisplay

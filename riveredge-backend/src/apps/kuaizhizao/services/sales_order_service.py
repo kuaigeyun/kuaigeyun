@@ -3030,6 +3030,14 @@ class SalesOrderService:
                     DemandStatus.DRAFT, DemandStatus.PENDING_REVIEW,
                     submitted_by, submitter_name, "提交",
                 )
+            # 空审批人 auto_pass 等可能导致提交瞬间流程已通过；须先落待审再走审核通过
+            if getattr(instance, "status", None) == "approved":
+                return await self.approve_sales_order(
+                    tenant_id=tenant_id,
+                    sales_order_id=sales_order_id,
+                    approved_by=submitted_by,
+                    is_auto_approve=True,
+                )
             return await self.get_sales_order_by_id(tenant_id, sales_order_id)
 
         # 审核已开启却未建实例 = 配置错误（缺审批流程/未激活），显式报错，不做兜底待审核。
@@ -3078,7 +3086,8 @@ class SalesOrderService:
                 approval_status.get("has_instance")
                 and approval_status.get("status") == "pending"
             )
-            if not has_pending_flow:
+            # is_auto_approve：空审批人 auto_pass 等已在提交链路内完成流程实例
+            if not has_pending_flow and not is_auto_approve:
                 raise BusinessLogicError(
                     "销售订单审核已开启但无进行中的审批流程，请先提交审批后再审核"
                 )

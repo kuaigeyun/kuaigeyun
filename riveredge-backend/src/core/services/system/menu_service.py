@@ -533,22 +533,6 @@ class MenuService:
         }
 
     @staticmethod
-    def _custom_layout_nodes_have_menu_refs(nodes: Any) -> bool:
-        if not isinstance(nodes, list):
-            return False
-        for node in nodes:
-            if not isinstance(node, dict):
-                continue
-            if (
-                node.get("type") == "menu_ref"
-                and str(node.get("menu_uuid") or "").strip()
-            ):
-                return True
-            if MenuService._custom_layout_nodes_have_menu_refs(node.get("children")):
-                return True
-        return False
-
-    @staticmethod
     def _normalize_custom_menu_layout(raw: Any) -> Dict[str, Any]:
         base = MenuService._default_custom_menu_layout()
         if not isinstance(raw, dict):
@@ -564,9 +548,6 @@ class MenuService:
         nodes = raw.get("nodes")
         if not isinstance(nodes, list):
             nodes = []
-        # 已有 menu_ref 却 enabled=false（历史脏数据）→ 侧栏仍须应用自组映射
-        if not enabled and MenuService._custom_layout_nodes_have_menu_refs(nodes):
-            enabled = True
         return {
             "enabled": enabled,
             "show_app_names": show_app_names,
@@ -710,17 +691,6 @@ class MenuService:
                 )
             else:
                 payload["show_app_names"] = bool(raw_show)
-        # 回写 enabled，避免下次读仍落到脏数据路径
-        if (
-            isinstance(raw_layout, dict)
-            and payload.get("enabled")
-            and not bool(raw_layout.get("enabled"))
-        ):
-            healed = {**raw_layout, "enabled": True}
-            merged_settings = dict(settings)
-            merged_settings[_CUSTOM_MENU_LAYOUT_KEY] = healed
-            settings_row.settings = merged_settings
-            await settings_row.save(update_fields=["settings", "updated_at"])
         validated = CustomMenuLayoutResponse.model_validate(payload)
         return validated
 
@@ -729,28 +699,26 @@ class MenuService:
         tenant_id: int,
         data: CustomMenuLayoutUpdate,
     ) -> CustomMenuLayoutResponse:
-        source_tree = await MenuService.get_menu_tree(
-            tenant_id=tenant_id,
-            is_active=True,
-            use_cache=False,
-            cache_key_suffix="nav_v1",
-        )
-        source_lookup = MenuService._collect_menu_tree_lookup(source_tree)
-        await MenuService._validate_custom_menu_layout_nodes(
-            tenant_id, data.nodes, source_lookup
-        )
+        layout_enabled = bool(data.enabled)
+        # 关闭启用：只认用户显式开关，不校验 menu_ref。
+        # 一键同步会重建菜单 UUID，若此时仍强校验引用，关闭保存会失败，表现为「关不掉 / 同步后又打开」。
+        if layout_enabled:
+            source_tree = await MenuService.get_menu_tree(
+                tenant_id=tenant_id,
+                is_active=True,
+                use_cache=False,
+                cache_key_suffix="nav_v1",
+            )
+            source_lookup = MenuService._collect_menu_tree_lookup(source_tree)
+            await MenuService._validate_custom_menu_layout_nodes(
+                tenant_id, data.nodes, source_lookup
+            )
 
         settings_row = await SiteSettingService.get_settings(tenant_id)
         current = MenuService._normalize_custom_menu_layout(
             (settings_row.settings or {}).get(_CUSTOM_MENU_LAYOUT_KEY)
         )
         show_app_names = bool(data.show_app_names)
-        layout_enabled = bool(data.enabled)
-        if not layout_enabled and any(
-            node.type == "menu_ref" and (node.menu_uuid or "").strip()
-            for node in MenuService._iter_custom_layout_nodes(data.nodes)
-        ):
-            layout_enabled = True
         next_layout = {
             "enabled": layout_enabled,
             "show_app_names": show_app_names,
@@ -1777,6 +1745,9 @@ class MenuService:
         """
         根据已安装应用的菜单配置，同步所有菜单到数据库。
         用于初始化向导或组织首次进入时，确保菜单已写入数据库。
+
+        契约：本方法只写 core_menus / 权限接管，禁止读写 custom_menu_layout；
+        自组菜单启用与否仅由用户在菜单管理中显式保存，同步不得私自打开或关闭。
 
         Args:
             tenant_id: 组织ID
