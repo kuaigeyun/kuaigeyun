@@ -636,13 +636,34 @@ get_install_command() {
     }
 }
 
+ensure_uv_path() {
+    # 官方安装脚本默认落在 ~/.local/bin；systemd/精简 PATH 常不含此目录
+    local p homes home
+    homes=("$HOME")
+    if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+        home="$(getent passwd "${SUDO_USER}" 2>/dev/null | cut -d: -f6 || true)"
+        [ -n "$home" ] && homes+=("$home")
+    fi
+    for home in "${homes[@]}"; do
+        for p in "${home}/.local/bin" "${home}/.cargo/bin"; do
+            [ -d "$p" ] || continue
+            case ":$PATH:" in
+                *":$p:"*) ;;
+                *) PATH="$p:$PATH" ;;
+            esac
+        done
+    done
+    export PATH
+}
+
 resolve_uv() {
     if [ -n "${RIVEREDGE_UV:-}" ] && [ -x "${RIVEREDGE_UV}" ]; then
         echo "${RIVEREDGE_UV}"
         return
     fi
     is_windows_gitbash && refresh_windows_path
-    local found="" p
+    ensure_uv_path
+    local found="" p home
     if command -v uv >/dev/null 2>&1; then
         found="$(command -v uv)"
     fi
@@ -657,7 +678,58 @@ resolve_uv() {
         [ -n "$p" ] || continue
         [ -x "$p" ] && { echo "$p"; return; }
     done
+    if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+        home="$(getent passwd "${SUDO_USER}" 2>/dev/null | cut -d: -f6 || true)"
+        if [ -n "$home" ]; then
+            for p in "${home}/.local/bin/uv" "${home}/.cargo/bin/uv"; do
+                [ -x "$p" ] && { echo "$p"; return; }
+            done
+        fi
+    fi
     echo "uv"
+}
+
+# 更新/迁移前确保可用 uv：补 PATH → 官方脚本 → pip 镜像
+ensure_uv() {
+    local uv_bin
+    ensure_uv_path
+    uv_bin="$(resolve_uv)"
+    if "$uv_bin" --version >/dev/null 2>&1; then
+        return 0
+    fi
+    log_warn "未检测到 uv，尝试自动安装..."
+    if ! is_windows_gitbash; then
+        if install_uv_shell; then
+            ensure_uv_path
+            uv_bin="$(resolve_uv)"
+            if "$uv_bin" --version >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+        log_info "改用 pip 安装 uv（阿里云 PyPI）..."
+        if python3 -m pip install -i https://mirrors.aliyun.com/pypi/simple/ --user uv \
+            || pip3 install -i https://mirrors.aliyun.com/pypi/simple/ --user uv; then
+            ensure_uv_path
+            # pip --user 常见落点
+            local py_user_bin
+            py_user_bin="$(python3 -c 'import site; print(site.USER_BASE + "/bin")' 2>/dev/null || true)"
+            if [ -n "$py_user_bin" ] && [ -d "$py_user_bin" ]; then
+                case ":$PATH:" in
+                    *":$py_user_bin:"*) ;;
+                    *) PATH="$py_user_bin:$PATH"; export PATH ;;
+                esac
+            fi
+            uv_bin="$(resolve_uv)"
+            if "$uv_bin" --version >/dev/null 2>&1; then
+                log_ok "uv 已通过 pip 安装: $uv_bin"
+                return 0
+            fi
+        fi
+    fi
+    log_error "无法安装 uv。请手动执行: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    log_error "或: python3 -m pip install -i https://mirrors.aliyun.com/pypi/simple/ --user uv"
+    log_error "安装后执行: export PATH=\"\$HOME/.local/bin:\$PATH\" 再重新更新"
+    return 1
 }
 
 resolve_caddy() {
@@ -2141,6 +2213,7 @@ sync_backend_deps() {
         return 0
     fi
     apply_cn_mirrors
+    ensure_uv || { log_error "Python 依赖同步失败"; exit 1; }
     log_info "同步 Python 依赖..."
     log_special "uv sync extras: $(backend_uv_extra_args)（OCR+Playwright 包；Chromium 补装见 PLAYWRIGHT_POSTINSTALL_ENABLE）"
     (
@@ -4764,8 +4837,9 @@ install_uv_shell() {
     for url in "${urls[@]}"; do
         log_info "install uv: $url"
         if curl_fsSL "$url" | sh; then
+            ensure_uv_path
             if [ "$(check_uv)" = "ok" ]; then
-                log_ok "uv 已安装"
+                log_ok "uv 已安装: $(resolve_uv)"
                 return 0
             fi
             log_warn "uv 脚本执行后未检测到 uv"
