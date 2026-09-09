@@ -387,6 +387,30 @@ export const workOrderApi = {
   getKittingAnalysis: async (id: string) =>
     apiRequest(`/apps/kuaizhizao/work-orders/${id}/kitting-analysis`, { method: 'GET' }),
 
+  previewPushPurchaseRequisition: async (id: string | number) =>
+    apiRequest<{
+      work_order_id: number
+      work_order_code: string
+      items: Array<{
+        material_id: number
+        material_code: string
+        material_name: string
+        material_unit?: string
+        shortage_quantity: number
+      }>
+      blocking_reason?: string | null
+    }>(`/apps/kuaizhizao/work-orders/${id}/push-purchase-requisition/preview`, { method: 'GET' }),
+
+  pushPurchaseRequisition: async (id: string | number, data?: { material_ids?: number[] }) =>
+    apiRequest<{
+      success: boolean
+      message: string
+      target_document?: { type: string; id: number; code: string }
+    }>(`/apps/kuaizhizao/work-orders/${id}/push-purchase-requisition`, {
+      method: 'POST',
+      data: data ?? {},
+    }),
+
   /** 提醒仓库线边备料（站内信 + 生成/同步备料草稿） */
   remindBatching: async (
     id: string | number,

@@ -248,10 +248,13 @@ async def _get_material_safety_reorder(
 async def _resolve_mrp_warehouse_ids(tenant_id: int, computation_params: Dict[str, Any]) -> List[int]:
     """
     参与 MRP 库存汇总的仓库 ID。
-    - 若 computation_params 含非空 warehouse_ids：按用户选择
+    - 若 computation_params 含 warehouse_ids（含空列表）：按用户选择；空列表=不计入任何仓
     - 否则：当前租户全部启用且 warehouse_type=normal 的仓库
+    显式所选仓时，主仓批次严格按 MaterialBatch.warehouse_id 过滤，不认领 warehouse_id=0。
     """
     raw = computation_params.get("warehouse_ids")
+    if raw is None:
+        raw = computation_params.get("warehouseIds")
     if isinstance(raw, list):
         out: List[int] = []
         for x in raw:
@@ -261,9 +264,7 @@ async def _resolve_mrp_warehouse_ids(tenant_id: int, computation_params: Dict[st
                 out.append(int(x))
             except (TypeError, ValueError):
                 continue
-        if out:
-            return out
-        return []
+        return out
 
     from apps.master_data.models.warehouse import Warehouse
 
@@ -1210,7 +1211,7 @@ class DemandComputationService(AppBaseService):
 
         lifecycle = get_demand_computation_lifecycle(computation)
         exclusions = await self._get_already_pushed_exclusions(computation.tenant_id, computation.id)
-        downstream_push_progress = self._compute_downstream_push_progress(
+        downstream_push_progress, downstream_push_no_need = self._compute_downstream_push_progress(
             computation, items, exclusions
         )
 
@@ -1295,6 +1296,7 @@ class DemandComputationService(AppBaseService):
             items=item_responses,
             lifecycle=lifecycle,
             downstream_push_progress=downstream_push_progress,
+            downstream_push_no_need=downstream_push_no_need,
         )
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             enrich_demand_computation_capabilities_on_response,
@@ -1802,7 +1804,7 @@ class DemandComputationService(AppBaseService):
         Args:
             tenant_id: 租户ID
             computation_id: 计算ID
-            computation_params_override: 临时覆盖的计算参数，仅本次执行生效，不持久化
+            computation_params_override: 临时覆盖的计算参数；合并后写入 computation_params 并参与本次运算
             operator_id: 执行人 ID（写入 updated_by / updated_by_name）
             
         Returns:
@@ -1826,7 +1828,7 @@ class DemandComputationService(AppBaseService):
 
         await self._sync_demands_for_computation(tenant_id, computation, operator_id)
 
-        # 合并临时覆盖参数到 computation_params（仅本次执行生效，不持久化）
+        # 合并执行参数并落库：参与计算的仓库等须以本次执行为准，重算/详情可复现同一范围
         if computation_params_override:
             base_params = computation.computation_params or {}
             computation.computation_params = {**base_params, **computation_params_override}
@@ -1844,6 +1846,8 @@ class DemandComputationService(AppBaseService):
             "computation_status": DEMAND_COMPUTATION_STATUS_COMPUTING,
             "computation_start_time": resolve_business_datetime(),
         }
+        if computation_params_override:
+            start_audit["computation_params"] = computation.computation_params
         apply_update_audit(start_audit, operator)
         await DemandComputation.filter(tenant_id=tenant_id, id=computation_id).update(**start_audit)
 
@@ -4954,14 +4958,18 @@ class DemandComputationService(AppBaseService):
         computation: DemandComputation,
         items: List[DemandComputationItem],
         exclusions: Dict[str, Any],
-    ) -> float:
+    ) -> tuple[float, bool]:
         """
         按计算结果明细的建议数量加权计算下推进度（0-100）。
         自制/委外/采购分叉各自累计建议数量，已下推数量取 min(建议, 该物料已生成下游数量)。
         不是「某类单据是否已生成一张」的 0/100。
+
+        返回 (progress, no_push_needed)：
+        - no_push_needed=True 表示无建议下推量（净需求已冲抵等），进度记 100% 表示「无需下推」
+          （与质检「合格数量为 0，无需下推入库」同口径），而非「已全部下推」。
         """
         if getattr(computation, "computation_status", None) != "完成":
-            return 0.0
+            return 0.0, False
 
         wo_pushed = exclusions.get("wo_pushed_qty_by_material_id") or {}
         outsource_pushed = exclusions.get("outsource_pushed_qty_by_material_id") or {}
@@ -5004,13 +5012,41 @@ class DemandComputationService(AppBaseService):
 
         if pushable <= 0:
             # 已完成且无建议下推量（净算后无需工单/采购）：进度视为 100，避免显示成「未下推 0%」
-            return 100.0
+            return 100.0, True
         progress = (pushed / pushable) * 100.0
         if progress < 0:
-            return 0.0
+            return 0.0, False
         if progress > 100:
-            return 100.0
-        return round(progress, 1)
+            return 100.0, False
+        return round(progress, 1), False
+
+    def _resolve_no_push_reason(
+        self,
+        items: List[DemandComputationItem],
+        *,
+        has_production_items: bool,
+        has_outsource_items: bool,
+        has_purchase_items: bool,
+    ) -> Optional[str]:
+        """无建议下推量时的禁用原因（与净算 covered_by_supply 说明同口径）。"""
+        if has_production_items or has_outsource_items or has_purchase_items:
+            return None
+        covered = False
+        for item in items:
+            gross = float(item.gross_requirement or item.required_quantity or 0)
+            net = float(item.net_requirement or 0)
+            detail = item.detail_results if isinstance(item.detail_results, dict) else {}
+            supply = detail.get("supply_calculation") if isinstance(detail.get("supply_calculation"), dict) else {}
+            if (
+                detail.get("covered_by_supply")
+                or supply.get("covered_by_supply")
+                or (gross > 0 and net <= 0)
+            ):
+                covered = True
+                break
+        if covered:
+            return "demand_computation.push.covered_by_supply"
+        return "demand_computation.push.no_suggested_qty"
 
     async def get_push_options(
         self,
@@ -5058,6 +5094,13 @@ class DemandComputationService(AppBaseService):
         has_production_items = make_count > 0
         has_outsource_items = outsource_count > 0
         has_purchase_items = purchase_items_with_supplier > 0 or purchase_items_without_supplier > 0
+        no_push_reason = self._resolve_no_push_reason(
+            items,
+            has_production_items=has_production_items,
+            has_outsource_items=has_outsource_items,
+            has_purchase_items=has_purchase_items,
+        )
+        no_push_needed = no_push_reason is not None
 
         biz_config = BusinessConfigService()
         can_direct_wo = await biz_config.can_direct_generate_work_order_from_computation(tenant_id)
@@ -5078,6 +5121,8 @@ class DemandComputationService(AppBaseService):
             "has_production_items": has_production_items,
             "has_outsource_items": has_outsource_items,
             "has_purchase_items": has_purchase_items,
+            "no_push_needed": no_push_needed,
+            "no_push_reason": no_push_reason,
             "make_count": make_count,
             "outsource_count": outsource_count,
             "purchase_items_with_supplier": purchase_items_with_supplier,

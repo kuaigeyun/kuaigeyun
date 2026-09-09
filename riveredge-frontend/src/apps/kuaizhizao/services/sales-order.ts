@@ -36,6 +36,8 @@ export interface SalesOrder {
   uuid?: string;
   tenant_id?: number;
   order_code?: string;
+  order_code_editable?: boolean;
+  order_code_locked_reason?: string | null;
   order_name?: string;
   order_date?: string;
   delivery_date?: string;
@@ -480,6 +482,7 @@ export interface PushPreviewResponse {
     source_type?: string;
     blocking_issues?: string[];
     has_bom?: boolean;
+    item_notes?: string | null;
   }[];
   tip?: string;
   plan_name_preview?: string;
@@ -798,6 +801,7 @@ export interface PushToWorkOrderRequest {
   selected_item_ids?: number[];
   selected_quantities?: Record<number, number>;
   selected_work_centers?: Record<number, number>;
+  selected_item_remarks?: Record<number, string>;
 }
 
 export async function pushSalesOrderToWorkOrder(

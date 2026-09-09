@@ -85,7 +85,7 @@ import {
   buildFinanceVoucherLinkHandlers,
   useFinanceVoucherDetail,
 } from '../../../components/FinanceVoucherDetailProvider';
-import { canCreateRefundFromVoucher } from '../../../utils/financeVoucherDocType';
+import { canCorrectFinanceVoucher, canCreateRefundFromVoucher } from '../../../utils/financeVoucherDocType';
 import { RECEIPT_REFUND_RESOURCE } from '../../../services/finance/receipt-refund';
 type PullReceivableCandidate = ReceiptPullCandidate;
 
@@ -96,6 +96,7 @@ const ReceiptsPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const lastListParamsRef = useRef<Record<string, string | number | boolean | undefined>>({});
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<ReceiptVoucher | null>(null);
   const [pullPreviewOpen, setPullPreviewOpen] = useState(false);
   const [pullPreviewLoading, setPullPreviewLoading] = useState(false);
   const [pullPreviewData, setPullPreviewData] = useState<ReceiptPullPreview | null>(null);
@@ -428,6 +429,17 @@ const ReceiptsPage: React.FC = () => {
         }
   };
 
+  const executeUnconfirm = async (record: ReceiptVoucher) => {
+    try {
+      await receiptService.unconfirmReceipt(record.id);
+      messageApi.success(t(`${R}.unconfirmSuccess`));
+      actionRef.current?.reload();
+      refreshOpenDetail();
+    } catch (e: any) {
+      messageApi.error(e?.message || t('common.operationFailed'));
+    }
+  };
+
   const executeDelete = async (record: ReceiptVoucher) => {
     try {
           await receiptService.deleteReceipt(record.id);
@@ -437,6 +449,47 @@ const ReceiptsPage: React.FC = () => {
         } catch (e: any) {
           messageApi.error(e?.message || t('common.operationFailed'));
         }
+  };
+
+  const openEdit = (record: ReceiptVoucher) => {
+    setEditingRecord(record);
+  };
+
+  const handleUpdate = async (values: any) => {
+    if (!editingRecord) return false;
+    try {
+      assertBankAccountForPaymentMethod(values.payment_method, values.bank_account_id, t);
+    } catch (e: unknown) {
+      messageApi.warning((e as Error).message);
+      return false;
+    }
+    try {
+      await receiptService.updateReceipt(editingRecord.id, {
+        customer_id: values.customer_id,
+        customer_name: customerOptions.find((o) => o.value === values.customer_id)?.label || '',
+        total_amount: values.total_amount,
+        receipt_date: formatDateTime(values.receipt_date || dayjs(), 'YYYY-MM-DD'),
+        payment_method: values.payment_method,
+        bank_account_id: values.bank_account_id,
+        bank_account: resolveFinanceVoucherReferenceNote(
+          bankAccounts,
+          values.payment_method,
+          values.bank_account_id,
+          values.bank_account,
+        ),
+        settlement_type: values.settlement_type || 'normal',
+        notes: values.notes,
+        attachments: normalizeDocumentAttachments(values.attachments),
+      });
+      messageApi.success(t('common.updateSuccess'));
+      setEditingRecord(null);
+      actionRef.current?.reload();
+      refreshOpenDetail();
+      return true;
+    } catch (e: any) {
+      messageApi.error(e?.message || t('common.updateFailed'));
+      return false;
+    }
   };
 
   const handleConfirm = async (record: ReceiptVoucher) => {
@@ -829,14 +882,43 @@ const ReceiptsPage: React.FC = () => {
             />,
           );
         }
-        if (record.status !== 'Cancelled' && record.settled_amount === 0 && receiptPerms.canAction?.('revoke')) {
+        if (record.status === 'Draft' && receiptPerms.canUpdate) {
+          acts.push(
+            <Button key="ed" {...rowActionKind('update')} onClick={() => openEdit(record)} />,
+          );
+        }
+        if (
+          record.status === 'Confirmed' &&
+          canCorrectFinanceVoucher(record) &&
+          receiptPerms.canAction?.('revoke')
+        ) {
+          acts.push(
+            <ActionConfirmPopconfirm
+              title={t(`${R}.unconfirmTitle`)}
+              description={t(`${R}.unconfirmContent`, { code: record.receipt_code })}
+              onConfirm={() => executeUnconfirm(record)}
+            >
+              <Button key="uc" {...rowActionKind('revoke')} onClick={(e) => e.stopPropagation()} />
+            </ActionConfirmPopconfirm>,
+          );
+        }
+        if (
+          record.status !== 'Cancelled' &&
+          canCorrectFinanceVoucher(record) &&
+          receiptPerms.canAction?.('revoke') &&
+          record.status !== 'Confirmed'
+        ) {
           acts.push(
             <ActionConfirmPopconfirm title={t(`${R}.voidTitle`)} description={t(`${R}.voidContent`, { code: record.receipt_code })} onConfirm={() => executeCancel(record)}>
               <Button key="ca" {...rowActionKind('revoke')} onClick={(e) => e.stopPropagation()} />
             </ActionConfirmPopconfirm>,
           );
         }
-        if (record.status !== 'Confirmed' && receiptPerms.canDelete) {
+        if (
+          canCorrectFinanceVoucher(record) &&
+          receiptPerms.canDelete &&
+          (record.status === 'Draft' || record.status === 'Cancelled' || record.status === 'Confirmed')
+        ) {
           acts.push(
             <ActionConfirmPopconfirm title={t(`${R}.deleteTitle`)} description={t(`${R}.deleteContent`, { code: record.receipt_code })} okType="danger" onConfirm={() => executeDelete(record)}>
               <Button key="del" {...rowActionKind('delete')} onClick={(e) => e.stopPropagation()} />
@@ -863,7 +945,7 @@ const ReceiptsPage: React.FC = () => {
           tableRowsRef.current = rows;
         }}
         rowKey="id"
-        columnPersistenceId="apps.kuaicaiwu.pages.finance-management.receipts.list-v4"
+        columnPersistenceId="apps.kuaicaiwu.pages.finance-management.receipts.list-v5"
         showAdvancedSearch
         search={{ labelWidth: 120 }}
         showCreateButton={false}
@@ -1155,6 +1237,81 @@ const ReceiptsPage: React.FC = () => {
         <DocumentAttachmentsField category="receipt_attachments" />
       </ModalForm>
 
+      <ModalForm
+        key={editingRecord ? `edit-receipt-${editingRecord.id}` : 'edit-receipt'}
+        title={t(`${R}.editTitle`)}
+        open={Boolean(editingRecord)}
+        onOpenChange={(open) => {
+          if (!open) setEditingRecord(null);
+        }}
+        initialValues={
+          editingRecord
+            ? {
+                customer_id: editingRecord.customer_id,
+                total_amount: editingRecord.total_amount,
+                receipt_date: editingRecord.receipt_date ? dayjs(editingRecord.receipt_date) : dayjs(),
+                payment_method: editingRecord.payment_method,
+                settlement_type: editingRecord.settlement_type || 'normal',
+                bank_account_id: editingRecord.bank_account_id,
+                bank_account: editingRecord.bank_account,
+                notes: editingRecord.notes,
+              }
+            : undefined
+        }
+        onFinish={handleUpdate}
+        width={MODAL_CONFIG.STANDARD_WIDTH}
+        {...financeFormGridProps}
+      >
+        <ProFormSelect
+          name="customer_id"
+          label={t('app.kuaicaiwu.common.customer')}
+          options={customerOptions}
+          rules={[{ required: true, message: t('app.kuaicaiwu.common.selectCustomer') }]}
+          placeholder={t('app.kuaicaiwu.common.selectCustomer')}
+          showSearch
+          colProps={financeColHalf}
+        />
+        <ProFormDigit
+          name="total_amount"
+          label={t(`${R}.col.amount`)}
+          min={0.01}
+          rules={[{ required: true }]}
+          fieldProps={financeAmountDigitFieldProps}
+          colProps={financeColHalf}
+        />
+        <ProFormDatePicker
+          name="receipt_date"
+          label={t(`${R}.col.receiptDate`)}
+          rules={[{ required: true }]}
+          fieldProps={{ style: { width: '100%' } }}
+          colProps={financeColHalf}
+        />
+        <ProFormSelect
+          name="payment_method"
+          label={t(`${R}.col.paymentMethod`)}
+          options={paymentMethodOptions}
+          rules={[{ required: true, message: t(`${R}.selectPaymentMethod`) }]}
+          placeholder={t(`${R}.selectPaymentMethod`)}
+          colProps={financeColHalf}
+        />
+        <ProFormSelect
+          name="settlement_type"
+          label={t(`${R}.settlementType.label`)}
+          options={receiptSettlementTypeOptions}
+          colProps={financeColHalf}
+        />
+        <LedgerAccountFormFields
+          accounts={bankAccounts}
+          accountLabel={t(`${R}.bankAccount`)}
+          noteLabel={t(`${R}.bankAccountNote`)}
+          noteColProps={financeColFull}
+          acceptanceNoteDirection="receivable"
+          partnerFieldName="customer_id"
+        />
+        <ProFormTextArea name="notes" label={t('common.remark')} colProps={financeColFull} />
+        <DocumentAttachmentsField category="receipt_attachments" />
+      </ModalForm>
+
       <FinanceVoucherDetailDrawer
         kind="receipt"
         open={detailOpen}
@@ -1204,6 +1361,15 @@ const ReceiptsPage: React.FC = () => {
                   ),
                 },
                 {
+                  key: 'edit',
+                  visible: detailRecord.status === 'Draft' && Boolean(receiptPerms.canUpdate),
+                  render: (
+                    <Button {...rowActionKind('update')} onClick={() => openEdit(detailRecord)}>
+                      {t('common.edit')}
+                    </Button>
+                  ),
+                },
+                {
                   key: 'settle',
                   visible: detailRecord.status === 'Confirmed' && Number(detailRecord.unsettled_amount ?? 0) > 0,
                   render: (
@@ -1221,10 +1387,22 @@ const ReceiptsPage: React.FC = () => {
                   ),
                 },
                 {
+                  key: 'unconfirm',
+                  visible:
+                    detailRecord.status === 'Confirmed'
+                    && canCorrectFinanceVoucher(detailRecord)
+                    && Boolean(receiptPerms.canAction?.('revoke')),
+                  render: (
+                    <Button {...rowActionKind('revoke')} onClick={() => void executeUnconfirm(detailRecord)}>
+                      {t(`${R}.unconfirm`)}
+                    </Button>
+                  ),
+                },
+                {
                   key: 'void',
                   visible:
-                    detailRecord.status !== 'Cancelled'
-                    && detailRecord.settled_amount === 0
+                    detailRecord.status === 'Draft'
+                    && canCorrectFinanceVoucher(detailRecord)
                     && Boolean(receiptPerms.canAction?.('revoke')),
                   render: (
                     <Button {...rowActionKind('revoke')} onClick={() => void handleCancel(detailRecord)}>
@@ -1234,7 +1412,12 @@ const ReceiptsPage: React.FC = () => {
                 },
                 {
                   key: 'delete',
-                  visible: detailRecord.status !== 'Confirmed' && Boolean(receiptPerms.canDelete),
+                  visible:
+                    canCorrectFinanceVoucher(detailRecord)
+                    && Boolean(receiptPerms.canDelete)
+                    && (detailRecord.status === 'Draft'
+                      || detailRecord.status === 'Cancelled'
+                      || detailRecord.status === 'Confirmed'),
                   render: (
                     <Button danger {...rowActionKind('delete')} onClick={() => void handleDelete(detailRecord)}>
                       {t('common.delete')}

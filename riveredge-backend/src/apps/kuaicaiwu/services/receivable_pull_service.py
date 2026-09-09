@@ -673,6 +673,7 @@ class ReceivablePullService(AppBaseService[Receivable]):
                 not_allowed_reason="receipt.pull_from_receivable.not_allowed",
                 no_lines_reason="receipt.pull_from_receivable.no_lines",
                 already_pulled_reason="receipt.pull_from_receivable.already_pulled",
+                source_type=str(getattr(rec, "source_type", "") or ""),
             )
             payload = rec.model_dump() if hasattr(rec, "model_dump") else dict(rec)
             payload["capabilities"] = {
@@ -724,6 +725,10 @@ class ReceivablePullService(AppBaseService[Receivable]):
                 not_allowed_reason="sales_invoice.pull_from_receivable.not_allowed",
                 no_lines_reason="sales_invoice.pull_from_receivable.no_lines",
                 already_pulled_reason="sales_invoice.pull_from_receivable.already_pulled",
+                source_type=str(
+                    (rec.get("source_type") if isinstance(rec, dict) else getattr(rec, "source_type", ""))
+                    or ""
+                ),
             )
             payload = dict(rec) if isinstance(rec, dict) else (
                 rec.model_dump() if hasattr(rec, "model_dump") else dict(rec)

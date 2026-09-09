@@ -94,7 +94,7 @@ class ReportService:
         if value is None:
             return None
         if isinstance(value, datetime):
-            return value.date()
+            return to_site_date(value)
         if isinstance(value, date):
             return value
         return None
@@ -3841,14 +3841,19 @@ class ReportService:
             rows = []
             for sid, bucket in buckets.items():
                 timed = int(bucket["timed_count"])
+                ontime = int(bucket["ontime_count"])
                 bucket["supplier_code"] = code_map.get(sid, "")
                 bucket["receipt_count"] = len(bucket["_receipt_ids"])
-                bucket["ontime_rate"] = round(bucket["ontime_count"] / timed * 100, 1) if timed else 0.0
+                bucket["timed_count"] = timed
+                bucket["ontime_count"] = ontime
+                # 无可比对笔数时返回 None，前端展示「—」，与「全逾期 0%」区分
+                bucket["ontime_rate"] = round(ontime / timed * 100, 1) if timed else None
                 bucket.pop("_receipt_ids", None)
-                bucket.pop("timed_count", None)
                 rows.append(bucket)
             rows.sort(key=lambda r: r["supplier_name"] or "")
             total = len(rows)
+            sum_timed = sum(int(r["timed_count"]) for r in rows)
+            sum_ontime = sum(int(r["ontime_count"]) for r in rows)
             return self._wrap_report_payload({
                 "data": rows,
                 "success": True,
@@ -3857,6 +3862,9 @@ class ReportService:
                     "receipt_count": sum(r["receipt_count"] for r in rows),
                     "receipt_quantity": sum(r["receipt_quantity"] for r in rows),
                     "receipt_amount": sum(r["receipt_amount"] for r in rows),
+                    "timed_count": sum_timed,
+                    "ontime_count": sum_ontime,
+                    "ontime_rate": round(sum_ontime / sum_timed * 100, 1) if sum_timed else None,
                 },
             })
         elif report_type in [

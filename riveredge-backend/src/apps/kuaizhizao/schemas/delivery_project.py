@@ -199,6 +199,7 @@ class DeliveryProjectCreate(BaseModel):
 
 class DeliveryProjectUpdate(BaseModel):
     project_name: Optional[str] = None
+    customer_id: Optional[int] = None
     delivery_date: Optional[date] = None
     owner_id: Optional[int] = None
     members: Optional[List[DeliveryMemberInput]] = None

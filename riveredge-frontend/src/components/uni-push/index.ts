@@ -3,12 +3,30 @@ import type { ReactNode } from 'react';
 
 export type UniPushMenuItem = NonNullable<MenuProps['items']>[number];
 
+/** 已下推下游单据（菜单编号展示 / 打开详情） */
+export type UniPushLinkedDocument = {
+  documentType: string;
+  documentId: number;
+  documentCode?: string;
+};
+
+/** 下推源单据（用于拉取 document-relations） */
+export type UniPushSourceDocument = {
+  type: string;
+  id: number;
+};
+
 export type UniPushMenuItemInput = {
   key: string;
   label: ReactNode;
   /** 有值则菜单项置灰，并作为 hover 提示 */
   disabledReason?: ReactNode;
   onClick?: () => void;
+  /**
+   * 该动作对应的下游单据类型；配合 UniPushToolbarButton.sourceDocument + pushTargets
+   * 或直接写入菜单项，打开菜单时可展示已下推编号。
+   */
+  targetDocumentType?: string | string[];
 };
 
 /** 构建单个下推菜单项：不可操作时置灰而非隐藏 */
@@ -22,7 +40,10 @@ export function buildUniPushMenuItem(input: UniPushMenuItemInput): UniPushMenuIt
     disabled,
     title: disabled ? input.disabledReason : undefined,
     onClick: disabled ? undefined : input.onClick,
-  };
+    ...(input.targetDocumentType
+      ? { targetDocumentType: input.targetDocumentType }
+      : {}),
+  } as UniPushMenuItem;
 }
 
 /**

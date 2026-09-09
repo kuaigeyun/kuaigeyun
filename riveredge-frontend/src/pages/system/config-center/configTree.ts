@@ -226,6 +226,7 @@ export const PARAMETER_CATEGORIES: ConfigCategory[] = createCategories({
     },
     { key: 'warehouse.lifo', nameKey: 'pages.system.configCenter.param.warehouse_lifo', descriptionKey: 'pages.system.configCenter.param.warehouse_lifo_desc', source: 'business_config', sourcePath: 'parameters.warehouse.lifo', type: 'boolean' },
     { key: 'warehouse.location_management', nameKey: 'pages.system.configCenter.param.warehouse_location_management', descriptionKey: 'pages.system.configCenter.param.warehouse_location_management_desc', source: 'business_config', sourcePath: 'parameters.warehouse.location_management', type: 'boolean' },
+    { key: 'warehouse.over_issue_allowance_ratio', nameKey: 'pages.system.configCenter.param.warehouse_over_issue_allowance_ratio', descriptionKey: 'pages.system.configCenter.param.warehouse_over_issue_allowance_ratio_desc', source: 'business_config', sourcePath: 'parameters.warehouse.over_issue_allowance_ratio', type: 'number', min: 0, max: 1 },
   ],
   quality: [
     { key: 'quality_stage.iqc_enabled', nameKey: 'pages.system.configCenter.param.quality_stage_iqc_enabled', descriptionKey: 'pages.system.configCenter.param.quality_stage_iqc_enabled_desc', source: 'quality_stage_toggle', sourcePath: 'quality_stage.iqc_enabled', type: 'boolean' },
@@ -252,6 +253,7 @@ export const PARAMETER_CATEGORIES: ConfigCategory[] = createCategories({
       selectOptions: [
         { value: 'on_shipment', labelKey: 'pages.system.configCenter.param.finance_revenue_recognition_opt_on_shipment' },
         { value: 'on_invoice', labelKey: 'pages.system.configCenter.param.finance_revenue_recognition_opt_on_invoice' },
+        { value: 'manual', labelKey: 'pages.system.configCenter.param.finance_revenue_recognition_opt_manual' },
       ],
     },
     {
@@ -264,6 +266,7 @@ export const PARAMETER_CATEGORIES: ConfigCategory[] = createCategories({
       selectOptions: [
         { value: 'on_receipt', labelKey: 'pages.system.configCenter.param.finance_payable_recognition_opt_on_receipt' },
         { value: 'on_purchase_invoice', labelKey: 'pages.system.configCenter.param.finance_payable_recognition_opt_on_purchase_invoice' },
+        { value: 'manual', labelKey: 'pages.system.configCenter.param.finance_payable_recognition_opt_manual' },
       ],
     },
   ],

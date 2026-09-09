@@ -238,6 +238,7 @@ class WorkOrderUpdate(BaseModel):
     confirmed_batch_no: Optional[str] = Field(None, description="确认批号")
     planned_serial_no: Optional[str] = Field(None, description="计划序列号")
     confirmed_serial_no: Optional[str] = Field(None, description="确认序列号")
+    code: Optional[str] = Field(None, description="工单编码（仅草稿或无下游时可改）")
 
 
 class WorkOrderResponse(WorkOrderBase):
@@ -511,6 +512,7 @@ class KittingSupplyProgress(BaseModel):
       - receiving: 采购部分到货、仍有未到货
       - purchasing: 采购中（有未结采购订单）
       - purchase_requisition: 采购申请中（有未转单申请）
+      - received_short: 采购已到货但仍缺料（保留关联采购单号，禁止误标待请购）
       - awaiting_purchase: 待请购（缺料且无下游采购单据）
     """
     status: str = Field(..., description="供给状态码")
@@ -998,6 +1000,11 @@ class WorkOrderCompleteRequest(BaseModel):
     """指定结束工单（可附带追踪确认）"""
     confirmed_batch_no: Optional[str] = Field(None, description="确认批号")
     confirmed_serial_no: Optional[str] = Field(None, description="确认序列号")
+
+
+class WorkOrderPushPurchaseRequisitionRequest(BaseModel):
+    """工单齐套缺料下推采购申请"""
+    material_ids: Optional[List[int]] = Field(None, description="指定物料；空则全部缺料采购件")
 
 
 # 更新前向引用（Pydantic v2 需要）

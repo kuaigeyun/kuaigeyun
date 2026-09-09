@@ -369,6 +369,23 @@ async def approve_payable(
         raise _http_exception_with_trace(400, str(e), "/payables/{id}/approve", tenant_id)
 
 
+@router.put("/{id}", response_model=PayableResponse)
+async def update_payable(
+    id: int,
+    data: PayableUpdate,
+    _auth: object = Depends(require_permission_codes("kuaicaiwu:payable:update")),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """更新应付单（无付款、无退款时可改）"""
+    try:
+        return await payable_service.update_payable(tenant_id, id, data, current_user.id)
+    except NotFoundError as e:
+        raise _http_exception_with_trace(404, str(e), "/payables/{id}", tenant_id) from e
+    except (BusinessLogicError, ValidationError) as e:
+        raise _http_exception_with_trace(400, str(e), "/payables/{id}", tenant_id) from e
+
+
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_payable(
     id: int,

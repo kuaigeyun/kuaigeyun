@@ -1040,6 +1040,15 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
 
             # 更新订单头
             update_dict = order_data.model_dump(exclude_unset=True, exclude={'items', 'change_reason'})
+            from core.services.document_code_service import pop_and_apply_code_change_from_update_dict
+
+            await pop_and_apply_code_change_from_update_dict(
+                tenant_id,
+                "kuaizhizao-purchase-order",
+                order,
+                update_dict,
+                "order_code",
+            )
             user_info = await self.get_user_info(updated_by)
             update_dict['updated_by'] = updated_by
             update_dict['updated_by_name'] = user_info["name"]
@@ -1307,13 +1316,28 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
 
         assert_purchase_order_capability(order, "approve")
 
-        approver_name = await self.get_user_name(approved_by)
+        from infra.services.business_config_service import BusinessConfigService
 
+        audit_required = await BusinessConfigService().check_audit_required(
+            tenant_id, "purchase_order"
+        )
         approval_status = await ApprovalInstanceService.get_approval_status(
             tenant_id=tenant_id,
             entity_type="purchase_order",
             entity_id=order_id,
         )
+        if audit_required:
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                verb = "审核" if approve_data.approved else "驳回"
+                raise BusinessLogicError(
+                    f"采购订单审核已开启但无进行中的审批流程，请先提交审批后再{verb}"
+                )
+
+        approver_name = await self.get_user_name(approved_by)
 
         if approval_status.get("has_flow"):
             result = await ApprovalInstanceService.execute_approval(
@@ -1419,9 +1443,11 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
         order_id: int,
         operator_id: int,
     ) -> PurchaseOrderResponse:
-        """撤销审核：人工审→待审核，自动审→草稿。"""
+        """撤销审核：一律回到草稿，须重新提交再审。"""
         from apps.kuaizhizao.services.document_action_policy.enricher import purchase_order_has_downstream
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
         from infra.services.business_config_service import BusinessConfigService
 
@@ -1441,16 +1467,11 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
         audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "purchase_order"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        target_status = (
-            DocumentStatus.PENDING_REVIEW.value
-            if landing == "pending"
-            else DocumentStatus.DRAFT.value
-        )
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
 
         async def _do_revoke() -> PurchaseOrderResponse:
             await order.update_from_dict({
-                "status": target_status,
+                "status": DocumentStatus.DRAFT.value,
                 "review_status": ReviewStatus.PENDING.value,
                 "reviewer_id": None,
                 "reviewer_name": None,

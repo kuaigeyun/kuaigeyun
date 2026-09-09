@@ -224,6 +224,7 @@ const InboundWorkOrderPullEntryPage: React.FC = () => {
       let createdId: number | undefined;
       const headerPatch = {
         receipt_time: toApiDateTimeString(receiptTime),
+        receiver_id: receiverHook.receiverId,
         receiver_name: receiverHook.receiverName.trim() || undefined,
         notes: receiptNotes.trim() || undefined,
       };

@@ -126,7 +126,14 @@ export function useCustomFields({
       for (const field of customFields) {
         const key = `${CUSTOM_PREFIX}${field.code}`;
         if (form) {
-          customData[field.code] = form.getFieldValue(key);
+          const fromForm = form.getFieldValue(key);
+          if (fromForm !== undefined) {
+            customData[field.code] = fromForm;
+          } else if (Object.prototype.hasOwnProperty.call(formValues, key)) {
+            customData[field.code] = formValues[key];
+          } else {
+            customData[field.code] = undefined;
+          }
         } else if (Object.prototype.hasOwnProperty.call(formValues, key)) {
           customData[field.code] = formValues[key];
         }

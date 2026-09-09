@@ -70,7 +70,8 @@ import {
 import { salesInvoiceCapabilityReasonMessage } from '../../../utils/salesInvoiceCapabilityMessages';
 import {
   convertInvoiceAmountBetweenModes,
-  invoiceInclFromExcl,
+  invoiceExclFromIncl,
+  moneyExceedsMax,
   recalcEnteredAmountOnTaxRateChange,
   resolveInvoiceAmountsForSubmit,
   type InvoiceAmountInputMode,
@@ -110,7 +111,7 @@ function resolveInvoiceExclFromSourceTotal(
 ): number | undefined {
   if (!(sourceTotal > 0)) return undefined;
   if (priceType === 'tax_exclusive') return Number(sourceTotal.toFixed(2));
-  return Number((sourceTotal / (1 + taxRate / 100)).toFixed(2));
+  return invoiceExclFromIncl(sourceTotal, taxRate);
 }
 
 const P = 'app.kuaicaiwu.salesInvoice';
@@ -386,9 +387,10 @@ const SalesInvoicesPage: React.FC = () => {
       enteredAmount,
       taxRate,
       amountMode,
+      { maxTotalIncl: maxPush },
     );
-    if (estimatedTotal > maxPush) {
-      messageApi.warning(t(`${P}.pullExceedMax`, { max: maxPush.toFixed(2) }));
+    if (moneyExceedsMax(estimatedTotal, maxPush)) {
+      messageApi.warning(t(`${P}.pullExceedMax`, { max: Number(maxPush).toFixed(2) }));
       return false;
     }
     const wantReceipt = Boolean(values.concurrent_receipt_enabled) && pullPreviewKind === 'receivable';
@@ -434,7 +436,7 @@ const SalesInvoicesPage: React.FC = () => {
           invoice_type: values.invoice_type || '增值税专用发票',
           tax_rate: taxRate,
           invoice_amount: invoiceAmount,
-          ...(amountMode === 'tax_inclusive' ? { total_amount: estimatedTotal } : {}),
+          total_amount: estimatedTotal,
           notes: String(values.notes ?? '').trim() || t(`${P}.pullNotes`, { source: sourceLabel, code: pullPreviewData.source_code }),
           attachments: normalizeDocumentAttachments(values.attachments),
           ...(wantReceipt
@@ -902,14 +904,17 @@ const SalesInvoicesPage: React.FC = () => {
     const entered = Number(pullInvoiceAmountWatch || 0);
     const taxRate = Number(pullTaxRateWatch) || 13;
     if (!(entered > 0)) return '';
-    if ((pullAmountInputMode || 'tax_exclusive') === 'tax_inclusive') {
-      const excl = resolveInvoiceAmountsForSubmit(entered, taxRate, 'tax_inclusive').invoiceAmountExcl;
-      return t(`${P}.form.amountHintExcl`, { amount: excl.toFixed(2) });
+    const mode = (pullAmountInputMode || 'tax_exclusive') as InvoiceAmountInputMode;
+    const resolved = resolveInvoiceAmountsForSubmit(entered, taxRate, mode, {
+      maxTotalIncl: pullPreviewMaxPush,
+    });
+    if (mode === 'tax_inclusive') {
+      return t(`${P}.form.amountHintExcl`, { amount: resolved.invoiceAmountExcl.toFixed(2) });
     }
     return t(`${P}.form.amountHintIncl`, {
-      amount: invoiceInclFromExcl(entered, taxRate).toFixed(2),
+      amount: resolved.totalIncl.toFixed(2),
     });
-  }, [pullAmountInputMode, pullInvoiceAmountWatch, pullTaxRateWatch, t]);
+  }, [pullAmountInputMode, pullInvoiceAmountWatch, pullTaxRateWatch, pullPreviewMaxPush, t]);
 
   const handlePullPreviewOk = async () => {
     if (pullPreviewLoading || !pullPreviewData) {

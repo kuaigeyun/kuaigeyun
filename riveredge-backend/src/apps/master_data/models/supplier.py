@@ -105,7 +105,7 @@ class Supplier(BaseModel):
 
     # 应付确认策略覆盖：null=跟随组织 finance.payable_recognition
     payable_recognition_override = fields.CharField(
-        max_length=32, null=True, description="应付确认覆盖：on_receipt / on_purchase_invoice"
+        max_length=32, null=True, description="应付确认覆盖：on_receipt / on_purchase_invoice / manual"
     )
     
     # 状态信息

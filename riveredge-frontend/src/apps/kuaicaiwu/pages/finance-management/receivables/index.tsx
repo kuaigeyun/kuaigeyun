@@ -3,6 +3,7 @@
  */
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { rowActionKind, rowActionCollectReceipt, rowActionIssueInvoice } from '../../../../../components/uni-action';
+import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
 import { ActionType, ProColumns } from '@ant-design/pro-components';
 import { App, Button, Typography, Modal, Spin, Alert, Table, Empty, Form } from 'antd';
 import { ModalForm, ProForm, ProFormDatePicker, ProFormMoney, ProFormSelect, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
@@ -40,6 +41,7 @@ import {
 } from '../../../../../components/uni-pull-query';
 import { UniWorkflowActions } from '../../../../../components/uni-workflow-actions';
 import { getReceivableLifecycle } from '../../../utils/financeLifecycle';
+import { isSalesReturnOffsetReceivable } from '../../../utils/receivableOffset';
 import { buildReceivableStatusEnum, buildReviewStatusEnum } from '../../../utils/financeSharedOptions';
 import { buildKuaicaiwuPullCreateMenuItems, getKuaicaiwuDocumentAction } from '../../../constants/documentActionRegistry';
 import { receivableCapabilityReasonMessage } from '../../../utils/receivableCapabilityMessages';
@@ -56,6 +58,7 @@ import { receivableReceiptPushPercent, receivableInvoicePushPercent } from '../.
 import { renderReceivableInvoiceStatusTag } from '../../../utils/financeInvoiceStatusUi';
 import { UniTableStackedPrimaryCell } from '../../../../../components/uni-table/stackedPrimaryColumn';
 import { UNI_TABLE_MARKER_BADGE_COLUMN_DEFAULTS } from '../../../../../utils/uniTableLayoutColumns';
+import { MarkerTag } from '../../../../../constants/statusBadges';
 import {
   FINANCE_DOC_PINNED_STATUS_FIELD,
   financeDocCodePartnerSearchColumns,
@@ -76,6 +79,15 @@ import MergeFinanceDocsModal, {
 const P = 'app.kuaicaiwu.receivable';
 const RECEIVABLE_RESOURCE = 'kuaicaiwu:receivable';
 const RECEIPT_RESOURCE = 'kuaicaiwu:receipt';
+
+function canCorrectReceivableRow(record: Receivable): boolean {
+  if (isSalesReturnOffsetReceivable(record)) return false;
+  if (Number(record.received_amount ?? 0) > 0) return false;
+  if (Number(record.refunded_amount ?? 0) > 0) return false;
+  const refundExec = String(record.refund_execution_status || '').trim();
+  if (refundExec === '部分退款' || refundExec === '全部退款') return false;
+  return true;
+}
 const SALES_INVOICE_RESOURCE = 'kuaicaiwu:sales-invoice';
 
 type PullPreviewKind = 'sales_order' | 'sales_delivery';
@@ -89,6 +101,7 @@ const ReceivableList: React.FC = () => {
     const createFormRef = useRef<ProFormInstance>(null);
     const [pullForm] = Form.useForm();
     const [createModalVisible, setCreateModalVisible] = useState(false);
+    const [editingRecord, setEditingRecord] = useState<Receivable | null>(null);
     const [pullPreviewOpen, setPullPreviewOpen] = useState(false);
     const [pullPreviewLoading, setPullPreviewLoading] = useState(false);
     const [pullSubmitting, setPullSubmitting] = useState(false);
@@ -187,10 +200,12 @@ const ReceivableList: React.FC = () => {
     const mergeReceiptDisabled =
         !receiptPerms.canCreate ||
         selectedRecordsForBatch.length === 0 ||
+        selectedRecordsForBatch.some((r) => isSalesReturnOffsetReceivable(r)) ||
         new Set(selectedRecordsForBatch.map((r) => Number(r.customer_id))).size !== 1;
     const mergeInvoiceDisabled =
         !salesInvoicePerms.canCreate ||
         selectedRecordsForBatch.length === 0 ||
+        selectedRecordsForBatch.some((r) => isSalesReturnOffsetReceivable(r)) ||
         new Set(selectedRecordsForBatch.map((r) => Number(r.customer_id))).size !== 1;
 
     const receivableImportTemplate = useMemo(
@@ -267,6 +282,43 @@ const ReceivableList: React.FC = () => {
             navigate(`/apps/kuaicaiwu/finance-management/receivables/${created.id}`);
         }
         return true;
+    };
+
+    const openEdit = (record: Receivable) => {
+        setEditingRecord(record);
+    };
+
+    const executeDeleteOne = async (record: Receivable) => {
+        try {
+            await receivableService.deleteReceivable(record.id);
+            messageApi.success(t('common.deleteSuccess'));
+            actionRef.current?.reload();
+        } catch (error: any) {
+            messageApi.error(error?.message || t('common.deleteFailed'));
+        }
+    };
+
+    const handleUpdate = async (values: any) => {
+        if (!editingRecord) return false;
+        const today = formatDateTime(dayjs(), 'YYYY-MM-DD');
+        try {
+            await receivableService.updateReceivable(editingRecord.id, {
+                customer_id: values.customer_id,
+                customer_name: customerOptions.find((o) => o.value === values.customer_id)?.label || editingRecord.customer_name,
+                total_amount: values.total_amount,
+                due_date: values.due_date || today,
+                business_date: values.business_date || today,
+                notes: values.notes,
+                attachments: normalizeDocumentAttachments(values.attachments),
+            });
+            messageApi.success(t('common.updateSuccess'));
+            setEditingRecord(null);
+            actionRef.current?.reload();
+            return true;
+        } catch (error: any) {
+            messageApi.error(error?.message || t('common.updateFailed'));
+            return false;
+        }
     };
 
     const resetPullPreview = () => {
@@ -560,6 +612,11 @@ const ReceivableList: React.FC = () => {
                     onSecondaryClick={() =>
                         navigate(`/apps/kuaicaiwu/finance-management/receivables/${entity.id}`)
                     }
+                    primaryExtra={
+                        isSalesReturnOffsetReceivable(entity) ? (
+                            <MarkerTag color="geekblue">{t(`${P}.offsetMarker`)}</MarkerTag>
+                        ) : null
+                    }
                 />
             ),
         },
@@ -829,6 +886,7 @@ const ReceivableList: React.FC = () => {
                     />,
                 ];
                 if (
+                    !isSalesReturnOffsetReceivable(record) &&
                     record.remaining_amount > 0 &&
                     record.capabilities?.push_receipt?.allowed !== false &&
                     receiptPerms.canCreate
@@ -846,6 +904,7 @@ const ReceivableList: React.FC = () => {
                     );
                 }
                 if (
+                    !isSalesReturnOffsetReceivable(record) &&
                     record.capabilities?.push_sales_invoice?.allowed !== false &&
                     Number(record.remaining_invoice_amount ?? record.total_amount ?? 0) > 0 &&
                     salesInvoicePerms.canCreate
@@ -862,10 +921,36 @@ const ReceivableList: React.FC = () => {
                         />,
                     );
                 }
+                if (canCorrectReceivableRow(record) && receivablePerms.canUpdate) {
+                    acts.push(
+                        <Button
+                            key="ed"
+                            {...rowActionKind('update')}
+                            onClick={() => openEdit(record)}
+                        />,
+                    );
+                }
+                if (canCorrectReceivableRow(record) && receivablePerms.canDelete) {
+                    acts.push(
+                        <ActionConfirmPopconfirm
+                            key="del-pc"
+                            title={t(`${P}.deleteTitle`)}
+                            description={t(`${P}.deleteContent`, { code: record.receivable_code })}
+                            okType="danger"
+                            onConfirm={() => executeDeleteOne(record)}
+                        >
+                            <Button
+                                key="del"
+                                {...rowActionKind('delete')}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </ActionConfirmPopconfirm>,
+                    );
+                }
                 return acts;
             },
         },
-    ], [t, navigate, customerOptions, receiptPerms, salesInvoicePerms]);
+    ], [t, navigate, customerOptions, receiptPerms, salesInvoicePerms, receivablePerms]);
 
 
     return (
@@ -887,7 +972,7 @@ const ReceivableList: React.FC = () => {
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.receivable)}
                 actionRef={actionRef}
                 columns={alignProColumns(columns, SALES_DOC_LIST_FIELD_RANK)}
-                columnPersistenceId="apps.kuaicaiwu.pages.finance-management.receivables.list-v5"
+                columnPersistenceId="apps.kuaicaiwu.pages.finance-management.receivables.list-v7"
                 request={async (params, sort, _filter, searchFormValues) => {
                     const { current, pageSize } = params;
                     const listParams = resolveReceivableListParams(searchFormValues, sort, urlAgingFilters);
@@ -1325,6 +1410,61 @@ const ReceivableList: React.FC = () => {
                         baseFieldName: 'business_date',
                         t,
                     })}
+                />
+                <ProFormTextArea name="notes" label={t('common.remark')} colProps={financeColFull} />
+                <DocumentAttachmentsField category="receivable_attachments" />
+            </ModalForm>
+
+            <ModalForm
+                key={editingRecord ? `edit-receivable-${editingRecord.id}` : 'edit-receivable'}
+                title={t(`${P}.editTitle`)}
+                open={Boolean(editingRecord)}
+                onOpenChange={(open) => {
+                    if (!open) setEditingRecord(null);
+                }}
+                initialValues={
+                    editingRecord
+                        ? {
+                              customer_id: editingRecord.customer_id,
+                              total_amount: editingRecord.total_amount,
+                              business_date: editingRecord.business_date
+                                  ? dayjs(editingRecord.business_date)
+                                  : dayjs(),
+                              due_date: editingRecord.due_date ? dayjs(editingRecord.due_date) : undefined,
+                              notes: editingRecord.notes,
+                          }
+                        : undefined
+                }
+                onFinish={handleUpdate}
+                width={MODAL_CONFIG.STANDARD_WIDTH}
+                {...financeFormGridProps}
+            >
+                <ProFormSelect
+                    name="customer_id"
+                    label={t('app.kuaicaiwu.common.customer')}
+                    options={customerOptions}
+                    rules={[{ required: true, message: t('app.kuaicaiwu.common.selectCustomer') }]}
+                    placeholder={t('app.kuaicaiwu.common.selectCustomer')}
+                    colProps={financeColHalf}
+                />
+                <ProFormMoney
+                    name="total_amount"
+                    label={t(`${P}.col.amount`)}
+                    min={0.01}
+                    rules={[{ required: true }]}
+                    colProps={financeColHalf}
+                />
+                <ProFormDatePicker
+                    name="business_date"
+                    label={t('app.kuaicaiwu.common.businessDate')}
+                    fieldProps={{ style: { width: '100%' } }}
+                    colProps={financeColHalf}
+                />
+                <ProFormDatePicker
+                    name="due_date"
+                    label={t('app.kuaicaiwu.common.dueDate')}
+                    rules={[{ required: true }]}
+                    colProps={financeColHalf}
                 />
                 <ProFormTextArea name="notes" label={t('common.remark')} colProps={financeColFull} />
                 <DocumentAttachmentsField category="receivable_attachments" />

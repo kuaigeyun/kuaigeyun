@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ProDescriptions } from '@ant-design/pro-components';
-import { Button, Statistic, Row, Col, Spin, Empty, Typography, Space } from 'antd';
+import { Button, Statistic, Row, Col, Spin, Empty, Typography, Space, Alert } from 'antd';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useNumericPrecisionPlaces } from '../../../../../hooks/useNumericPrecision';
@@ -22,11 +22,13 @@ import {
   useDocumentTracking,
 } from '../../../../../components/document-tracking-panel';
 import { getReceivableLifecycle } from '../../../utils/receivableLifecycle';
+import { isSalesReturnOffsetReceivable } from '../../../utils/receivableOffset';
 import { FinanceArApInvoiceStatusDetail } from '../../../utils/financeInvoiceStatusUi';
 import { renderRefundExecutionMarker } from '../../../utils/financeUiLabels';
 import { MarkerTag } from '../../../../../constants/statusBadges';
 
 import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions';
+import { Alert } from 'antd';
 
 const P = 'app.kuaicaiwu.receivable';
 const RECEIPT_RESOURCE = 'kuaicaiwu:receipt';
@@ -44,8 +46,12 @@ const ReceivableDetail: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const pageTitle = data?.receivable_code
-    ? `${t(`${P}.detailTitle`)} - ${data.receivable_code}`
+    ? `${
+        isSalesReturnOffsetReceivable(data) ? t(`${P}.detailTitleOffset`) : t(`${P}.detailTitle`)
+      } - ${data.receivable_code}`
     : t(`${P}.detailTitle`);
+
+  const isOffsetReceivable = isSalesReturnOffsetReceivable(data);
 
   useEffect(() => {
     if (!data?.receivable_code) return;
@@ -118,10 +124,10 @@ const ReceivableDetail: React.FC = () => {
         theme="default"
         onSuccess={loadData}
       />
-      {salesInvoicePerms.canCreate ? (
+      {!isOffsetReceivable && salesInvoicePerms.canCreate ? (
         <Button onClick={openInvoiceFromReceivable}>{t(`${P}.createInvoice`)}</Button>
       ) : null}
-      {data.status !== '已结清' && receiptPerms.canCreate ? (
+      {!isOffsetReceivable && data.status !== '已结清' && data.status !== '已冲减' && receiptPerms.canCreate ? (
         <Button type="primary" onClick={openReceiptFromReceivable}>
           {t(`${P}.recordReceipt`)}
         </Button>
@@ -158,10 +164,26 @@ const ReceivableDetail: React.FC = () => {
   return renderShell(
         <Row gutter={PAGE_SPACING.BLOCK_GAP} wrap={false} align="stretch">
           <Col flex="70%" style={{ minWidth: 0 }}>
+            {isOffsetReceivable ? (
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+                title={t(`${P}.offsetBannerTitle`)}
+                description={t(`${P}.offsetBannerDesc`)}
+              />
+            ) : null}
             <DetailDrawerSection title={t('app.uniDetail.sectionBasic')}>
               <ProDescriptions column={3} dataSource={data as unknown as Record<string, unknown>} loading={loading}>
                 <ProDescriptions.Item label={t(`${P}.col.customerName`)}>{data.customer_name}</ProDescriptions.Item>
                 <ProDescriptions.Item label={t('app.kuaicaiwu.common.systemCode')}>{data.receivable_code}</ProDescriptions.Item>
+                <ProDescriptions.Item label={t(`${P}.col.nature`)}>
+                  {isOffsetReceivable ? (
+                    <MarkerTag color="geekblue">{t(`${P}.nature.offset`)}</MarkerTag>
+                  ) : (
+                    t(`${P}.nature.normal`)
+                  )}
+                </ProDescriptions.Item>
                 <ProDescriptions.Item label={t('app.kuaicaiwu.common.businessDate')}>{data.business_date}</ProDescriptions.Item>
                 <ProDescriptions.Item label={t('app.kuaicaiwu.common.dueDate')}>{data.due_date}</ProDescriptions.Item>
                 <ProDescriptions.Item label={t('app.kuaicaiwu.common.sourceDoc')}>
@@ -192,7 +214,12 @@ const ReceivableDetail: React.FC = () => {
               </ProDescriptions>
               <Row gutter={24} style={{ marginTop: 16 }}>
                 <Col xs={24} sm={8}>
-                  <Statistic title={t(`${P}.col.totalAmount`)} value={data.total_amount} precision={amountDecimals} prefix="¥" />
+                  <Statistic
+                    title={isOffsetReceivable ? t(`${P}.col.offsetAmount`) : t(`${P}.col.totalAmount`)}
+                    value={data.total_amount}
+                    precision={amountDecimals}
+                    prefix="¥"
+                  />
                 </Col>
                 <Col xs={24} sm={8}>
                   <Statistic title={t(`${P}.col.receivedAmount`)} value={data.received_amount} precision={amountDecimals} prefix="¥" styles={{ content: {color: '#3f8600' } }} />

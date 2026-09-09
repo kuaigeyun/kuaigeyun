@@ -8,6 +8,7 @@ import { ActionConfirmPopconfirm } from '../../../../../components/action-confir
 import { useInvalidateMenuBadgeCounts } from '../../../../../hooks/useInvalidateMenuBadgeCounts';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useLeaveFormTab } from '../../../../../components/uni-tabs/navigateClosingTab';
+import { useDocumentCodeEditability } from '../../../../../hooks/useDocumentCodeEditability';
 import { ActionType, ProColumns, ProForm, ProFormText, ProFormDatePicker, ProFormTextArea } from '@ant-design/pro-components';
 import { App, Button, Tag, Space, Table, Form as AntForm, Input, InputNumber, Select, Row, Col, Checkbox, Empty, Spin, Typography, DatePicker, Modal, theme, Alert, Switch } from 'antd';
 import { useCurrentUser } from '../../../../../hooks/useCurrentUser';
@@ -215,6 +216,10 @@ const PurchaseRequisitionsPage: React.FC = () => {
   const isEditPage = editRouteId != null && Number.isFinite(editRouteId) && editRouteId > 0;
   const isFormPage = isCreatePage || isEditPage;
   const editingId = isEditPage ? editRouteId : null;
+  const prCodeEditability = useDocumentCodeEditability(
+    'kuaizhizao-purchase-requisition',
+    editingId,
+  );
   const prFormDraftKey = useMemo(
     () =>
       isFormPage
@@ -1800,10 +1805,15 @@ const PurchaseRequisitionsPage: React.FC = () => {
             <ProFormText
               name="requisition_code"
               label={t('app.kuaizhizao.purchaseRequisition.form.code')}
-              disabled={editingId != null}
+              disabled={editingId != null && !prCodeEditability.editable}
+              extra={
+                editingId != null && prCodeEditability.lockedReason
+                  ? t(prCodeEditability.lockedReason)
+                  : undefined
+              }
               placeholder={
                 editingId != null
-                  ? t('app.kuaizhizao.purchaseRequisition.form.codeDraftLocked')
+                  ? t('app.kuaizhizao.purchaseRequisition.form.codeAuto')
                   : isAutoGenerateEnabled('kuaizhizao-purchase-requisition')
                     ? t('app.kuaizhizao.purchaseRequisition.form.codeAuto')
                     : t('app.kuaizhizao.purchaseRequisition.form.codeManual')

@@ -13,7 +13,7 @@ import {
 } from '@ant-design/pro-components';
 import { App } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
-import type { UploadFile } from 'antd/es/upload/interface';
+import type { UploadChangeParam, UploadFile } from 'antd/es/upload/interface';
 import { FormModalTemplate } from '../../../components/layout-templates';
 import { MODAL_CONFIG } from '../../../components/layout-templates/constants';
 import { drawingApi, type EngineeringDrawing, type EngineeringDrawingCreate } from '../services/drawing';
@@ -26,22 +26,16 @@ import { generateCode, getCodeRulePageConfig, testGenerateCode } from '../../../
 import { isAutoGenerateEnabled, getPageRuleCode } from '../../../utils/codeRulePage';
 import { useCustomFields } from '../../../hooks/useCustomFields';
 import { CustomFieldsFormSection } from '../../../components/custom-fields';
+import {
+  extractUploadFileUuids,
+  normalizeUploadFileList,
+} from '../../../components/custom-fields/customFieldFileUtils';
 
 const PAGE_CODE = 'master-data-process-drawing';
 const CUSTOM_FIELD_TABLE = 'apps_master_data_engineering_drawings';
-const DRAWING_ACCEPT = '.pdf,.dwg,.dxf,.step,.stp,.png,.jpg,.jpeg,.pcbdoc,.schdoc';
+const DRAWING_ACCEPT =
+  '.pdf,.dwg,.dxf,.step,.stp,.STEP,.STP,.png,.jpg,.jpeg,.pcbdoc,.schdoc';
 const DRAWING_CATEGORY = 'engineering_drawing';
-
-function extractUploadUuids(fileList: UploadFile[] | undefined): string[] {
-  if (!fileList?.length) return [];
-  const out: string[] = [];
-  for (const f of fileList) {
-    const res = f.response as { uuid?: string } | undefined;
-    const uid = res?.uuid ?? (typeof f.uid === 'string' && /^[0-9a-f-]{36}$/i.test(f.uid) ? f.uid : null);
-    if (uid) out.push(uid);
-  }
-  return out;
-}
 
 async function uuidsToUploadFiles(uuids: string[]): Promise<UploadFile[]> {
   const files: UploadFile[] = [];
@@ -205,12 +199,22 @@ export const DrawingFormModal: React.FC<DrawingFormModalProps> = ({
       .catch((err: Error) => {
         messageApi.error(err?.message || t('app.master-data.drawings.getDetailFailed'));
       });
-  }, [open, editUuid, t, messageApi]);
+  }, [open, editUuid, defaultFolderUuid, resetFieldValues]);
 
-  const makeUploadFieldProps = (multiple: boolean) => ({
+  const syncUploadField =
+    (fieldName: 'mainFile' | 'supplementaryFiles') => (info: UploadChangeParam) => {
+      formRef.current?.setFieldValue(fieldName, info.fileList);
+    };
+
+  const makeUploadFieldProps = (
+    multiple: boolean,
+    fieldName: 'mainFile' | 'supplementaryFiles',
+  ) => ({
     accept: DRAWING_ACCEPT,
     multiple,
+    maxCount: multiple ? undefined : 1,
     style: { width: '100%' },
+    onChange: syncUploadField(fieldName),
     customRequest: async (options: any) => {
       try {
         const res = await uploadMultipleFiles([options.file as File], { category: DRAWING_CATEGORY });
@@ -221,14 +225,30 @@ export const DrawingFormModal: React.FC<DrawingFormModalProps> = ({
     },
   });
 
+  const resolveUploadFieldList = (
+    fieldName: 'mainFile' | 'supplementaryFiles',
+    values: Record<string, unknown>,
+  ) =>
+    normalizeUploadFileList(
+      (formRef.current?.getFieldValue(fieldName) as UploadFile[] | undefined) ??
+        (values[fieldName] as UploadFile[] | undefined),
+    );
+
   const handleSubmit = async (values: Record<string, unknown>) => {
     const { customData, standardValues } = extractFormValues(values);
-    const mainUuids = extractUploadUuids(standardValues.mainFile as UploadFile[]);
+    const mainFileList = resolveUploadFieldList('mainFile', standardValues);
+    const mainUuids = extractUploadFileUuids(mainFileList);
     if (!mainUuids.length) {
-      messageApi.error(t('app.master-data.drawings.fileRequired'));
+      if (mainFileList.some((file) => file.status === 'uploading')) {
+        messageApi.error(t('app.master-data.drawings.fileUploading'));
+      } else {
+        messageApi.error(t('app.master-data.drawings.fileRequired'));
+      }
       return;
     }
-    const suppUuids = extractUploadUuids(standardValues.supplementaryFiles as UploadFile[]);
+    const suppUuids = extractUploadFileUuids(
+      resolveUploadFieldList('supplementaryFiles', standardValues),
+    );
 
     try {
       setFormLoading(true);
@@ -365,8 +385,23 @@ export const DrawingFormModal: React.FC<DrawingFormModalProps> = ({
         icon={<InboxOutlined />}
         title={t('app.master-data.drawings.uploadDragHint')}
         description={t('app.master-data.drawings.uploadDragSubHint')}
-        fieldProps={makeUploadFieldProps(false)}
-        rules={[{ required: true, message: t('app.master-data.drawings.fileRequired') }]}
+        fieldProps={makeUploadFieldProps(false, 'mainFile')}
+        rules={[
+          {
+            validator: async (_, value) => {
+              const list = normalizeUploadFileList(value);
+              if (!list.length) {
+                throw new Error(t('app.master-data.drawings.fileRequired'));
+              }
+              if (list.some((file) => file.status === 'uploading')) {
+                throw new Error(t('app.master-data.drawings.fileUploading'));
+              }
+              if (!extractUploadFileUuids(list).length) {
+                throw new Error(t('app.master-data.drawings.fileRequired'));
+              }
+            },
+          },
+        ]}
         colProps={{ span: 12 }}
       />
       <ProFormUploadDragger
@@ -375,7 +410,7 @@ export const DrawingFormModal: React.FC<DrawingFormModalProps> = ({
         icon={<InboxOutlined />}
         title={t('app.master-data.drawings.uploadDragHint')}
         description={t('app.master-data.drawings.uploadSupplementaryDragSubHint')}
-        fieldProps={makeUploadFieldProps(true)}
+        fieldProps={makeUploadFieldProps(true, 'supplementaryFiles')}
         colProps={{ span: 12 }}
       />
       <ProFormSelect

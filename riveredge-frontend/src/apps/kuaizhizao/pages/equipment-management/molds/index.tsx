@@ -871,6 +871,7 @@ const MoldsPage: React.FC = () => {
               required={false}
               autoGenerateOnCreate={!isEdit}
               showGenerateButton={false}
+              documentId={isEdit ? currentMold?.id : undefined}
             />
           </Col>
           <Col span={12}>

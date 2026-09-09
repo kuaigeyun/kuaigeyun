@@ -22,6 +22,7 @@ class DisassemblyOrderBase(BaseModel):
     product_material_id: int = Field(..., description="成品物料ID")
     product_material_code: str = Field(..., description="成品物料编码")
     product_material_name: str = Field(..., description="成品物料名称")
+    product_batch_number: Optional[str] = Field(None, max_length=100, description="成品出库批号")
     total_quantity: Decimal = Field(0, description="拆卸数量（成品数量）")
     remarks: Optional[str] = Field(None, description="备注")
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
@@ -40,6 +41,7 @@ class DisassemblyOrderUpdate(BaseModel):
     product_material_id: Optional[int] = None
     product_material_code: Optional[str] = None
     product_material_name: Optional[str] = None
+    product_batch_number: Optional[str] = None
     total_quantity: Optional[Decimal] = None
     remarks: Optional[str] = None
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
@@ -80,6 +82,7 @@ class DisassemblyOrderItemBase(BaseModel):
     material_name: str = Field(..., description="组件物料名称")
     quantity: Decimal = Field(..., description="产出数量")
     unit_price: Decimal = Field(default=0, description="单价")
+    batch_number: Optional[str] = Field(None, max_length=100, description="组件入库批号")
     remarks: Optional[str] = Field(None, description="备注")
 
 
@@ -96,6 +99,7 @@ class DisassemblyOrderItemCreateInput(BaseModel):
     material_name: str = Field(..., description="组件物料名称")
     quantity: Decimal = Field(..., description="产出数量")
     unit_price: Decimal = Field(default=0, description="单价")
+    batch_number: Optional[str] = Field(None, max_length=100, description="组件入库批号")
     remarks: Optional[str] = Field(None, description="备注")
 
 
@@ -104,6 +108,7 @@ class DisassemblyOrderItemUpdate(BaseModel):
 
     quantity: Optional[Decimal] = None
     unit_price: Optional[Decimal] = None
+    batch_number: Optional[str] = None
     remarks: Optional[str] = None
 
 

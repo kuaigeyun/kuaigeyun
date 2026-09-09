@@ -1038,25 +1038,40 @@ async def create_production_return(
     )
 
 
-@router.get("/production-returns", response_model=List[ProductionReturnListResponse], summary="List production returns")
+@router.get("/production-returns", summary="List production returns")
 async def list_production_returns(
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=1000),
     status: Optional[str] = Query(None, description="状态筛选"),
     work_order_id: Optional[int] = Query(None, description="工单ID"),
     picking_id: Optional[int] = Query(None, description="领料单ID"),
+    keyword: Optional[str] = Query(None, description="模糊搜索（退料单号/工单号/领料单号/仓库）"),
+    search: Optional[str] = Query(None, description="搜索关键词（与 keyword 等价）"),
+    order_by: Optional[str] = Query(None, description="排序字段"),
+    created_start_date: Optional[str] = Query(None, description="创建日期起"),
+    created_end_date: Optional[str] = Query(None, description="创建日期止"),
+    updated_start_date: Optional[str] = Query(None, description="更新日期起"),
+    updated_end_date: Optional[str] = Query(None, description="更新日期止"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[ProductionReturnListResponse]:
+):
     """获取生产退料单列表"""
-    return await ProductionReturnService().list_production_returns(
+    items, total = await ProductionReturnService().list_production_returns(
         tenant_id=tenant_id,
         skip=skip,
         limit=limit,
         status=status,
         work_order_id=work_order_id,
-        picking_id=picking_id
+        picking_id=picking_id,
+        keyword=keyword,
+        search=search,
+        order_by=order_by,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        updated_start_date=updated_start_date,
+        updated_end_date=updated_end_date,
     )
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get("/production-returns/{return_id}", response_model=ProductionReturnWithItemsResponse, summary="Get production return")
@@ -1199,7 +1214,7 @@ async def print_production_return(
 @router.get("/other-inbounds", summary="List misc inbounds")
 async def list_other_inbounds(
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=1000),
     status: Optional[str] = Query(None, description="状态筛选"),
     reason_type: Optional[str] = Query(None, description="原因类型筛选"),
     warehouse_id: Optional[int] = Query(None, description="仓库ID筛选"),
@@ -1816,7 +1831,7 @@ async def create_material_return(
 @router.get("/material-returns", summary="List material return slips")
 async def list_material_returns(
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=1000),
     status: Optional[str] = Query(None),
     borrow_id: Optional[int] = Query(None),
     warehouse_id: Optional[int] = Query(None),
@@ -2131,27 +2146,44 @@ async def create_finished_goods_receipt(
     )
 
 
-@router.get("/finished-goods-receipts", response_model=List[FinishedGoodsReceiptResponse], summary="List finished goods receipts")
+@router.get("/finished-goods-receipts", summary="List finished goods receipts")
 async def list_finished_goods_receipts(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
     status: Optional[str] = Query(None, description="入库状态"),
     work_order_id: Optional[int] = Query(None, description="工单ID"),
+    warehouse_id: Optional[int] = Query(None, description="仓库ID"),
+    keyword: Optional[str] = Query(None, description="模糊搜索（入库单号/工单号/订单号/仓库）"),
+    search: Optional[str] = Query(None, description="搜索关键词（与 keyword 等价）"),
+    order_by: Optional[str] = Query(None, description="排序字段"),
+    created_start_date: Optional[str] = Query(None, description="创建日期起"),
+    created_end_date: Optional[str] = Query(None, description="创建日期止"),
+    updated_start_date: Optional[str] = Query(None, description="更新日期起"),
+    updated_end_date: Optional[str] = Query(None, description="更新日期止"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[FinishedGoodsReceiptResponse]:
+):
     """
     获取成品入库单列表
 
-    支持状态和工单筛选。
+    支持状态、工单与关键词筛选。
     """
-    return await FinishedGoodsReceiptService().list_finished_goods_receipts(
+    items, total = await FinishedGoodsReceiptService().list_finished_goods_receipts(
         tenant_id=tenant_id,
         skip=skip,
         limit=limit,
         status=status,
         work_order_id=work_order_id,
+        warehouse_id=warehouse_id,
+        keyword=keyword,
+        search=search,
+        order_by=order_by,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        updated_start_date=updated_start_date,
+        updated_end_date=updated_end_date,
     )
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get("/finished-goods-receipts/{receipt_id}", response_model=FinishedGoodsReceiptWithItemsResponse, summary="Get finished goods receipt")
@@ -2259,22 +2291,39 @@ async def create_semi_finished_goods_receipt(
     )
 
 
-@router.get("/semi-finished-goods-receipts", response_model=List[SemiFinishedGoodsReceiptResponse], summary="List semi-finished goods receipts")
+@router.get("/semi-finished-goods-receipts", summary="List semi-finished goods receipts")
 async def list_semi_finished_goods_receipts(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
     status: Optional[str] = Query(None, description="入库状态"),
     work_order_id: Optional[int] = Query(None, description="工单ID"),
+    warehouse_id: Optional[int] = Query(None, description="仓库ID"),
+    keyword: Optional[str] = Query(None, description="模糊搜索（入库单号/工单号/订单号/仓库）"),
+    search: Optional[str] = Query(None, description="搜索关键词（与 keyword 等价）"),
+    order_by: Optional[str] = Query(None, description="排序字段"),
+    created_start_date: Optional[str] = Query(None, description="创建日期起"),
+    created_end_date: Optional[str] = Query(None, description="创建日期止"),
+    updated_start_date: Optional[str] = Query(None, description="更新日期起"),
+    updated_end_date: Optional[str] = Query(None, description="更新日期止"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[SemiFinishedGoodsReceiptResponse]:
-    return await SemiFinishedGoodsReceiptService().list_semi_finished_goods_receipts(
+):
+    items, total = await SemiFinishedGoodsReceiptService().list_semi_finished_goods_receipts(
         tenant_id=tenant_id,
         skip=skip,
         limit=limit,
         status=status,
         work_order_id=work_order_id,
+        warehouse_id=warehouse_id,
+        keyword=keyword,
+        search=search,
+        order_by=order_by,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        updated_start_date=updated_start_date,
+        updated_end_date=updated_end_date,
     )
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get(
@@ -3170,8 +3219,8 @@ async def create_and_start_production_from_customer_material(
 
 @router.get("/inventory/customer-material-registration", summary="List customer material registrations")
 async def list_customer_material_registrations(
-    skip: int = Query(0, description="跳过数量"),
-    limit: int = Query(100, description="限制数量"),
+    skip: int = Query(0, ge=0, description="跳过数量"),
+    limit: int = Query(100, ge=1, le=1000, description="限制数量"),
     customer_id: Optional[int] = Query(None, description="客户ID"),
     status: Optional[str] = Query(None, description="状态"),
     registration_date_start: Optional[str] = Query(None, description="登记开始日期"),
@@ -4711,27 +4760,46 @@ async def pull_purchase_receipt_from_receipt_notice(
     )
 
 
-@router.get("/purchase-receipts", response_model=List[PurchaseReceiptResponse], summary="List purchase receipts")
+@router.get("/purchase-receipts", summary="List purchase receipts")
 async def list_purchase_receipts(
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
     status: Optional[str] = Query(None, description="入库状态"),
     purchase_order_id: Optional[int] = Query(None, description="采购订单ID"),
+    warehouse_id: Optional[int] = Query(None, description="仓库ID"),
+    supplier_name: Optional[str] = Query(None, description="供应商名称（模糊）"),
+    keyword: Optional[str] = Query(None, description="模糊搜索（入库单号/采购订单号/供应商/仓库）"),
+    search: Optional[str] = Query(None, description="搜索关键词（与 keyword 等价）"),
+    order_by: Optional[str] = Query(None, description="排序字段"),
+    created_start_date: Optional[str] = Query(None, description="创建日期起"),
+    created_end_date: Optional[str] = Query(None, description="创建日期止"),
+    updated_start_date: Optional[str] = Query(None, description="更新日期起"),
+    updated_end_date: Optional[str] = Query(None, description="更新日期止"),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
-) -> List[PurchaseReceiptResponse]:
+):
     """
     获取采购入库单列表
 
-    支持状态和采购订单筛选。
+    支持状态、采购订单与关键词筛选。
     """
-    return await PurchaseReceiptService().list_purchase_receipts(
+    items, total = await PurchaseReceiptService().list_purchase_receipts(
         tenant_id=tenant_id,
         skip=skip,
         limit=limit,
         status=status,
         purchase_order_id=purchase_order_id,
+        warehouse_id=warehouse_id,
+        supplier_name=supplier_name,
+        keyword=keyword,
+        search=search,
+        order_by=order_by,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        updated_start_date=updated_start_date,
+        updated_end_date=updated_end_date,
     )
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get(
@@ -5293,6 +5361,17 @@ async def pull_purchase_returns_from_purchase_order_items(
         selected_ids = [int(v) for v in raw_ids]
     except (TypeError, ValueError):
         raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail="明细ID格式无效")
+    line_batches: Dict[int, str] = {}
+    raw_line_batches = request.get("line_batches")
+    if isinstance(raw_line_batches, dict):
+        for k, v in raw_line_batches.items():
+            try:
+                item_key = int(k)
+            except (TypeError, ValueError):
+                continue
+            batch_val = str(v or "").strip()
+            if item_key > 0 and batch_val:
+                line_batches[item_key] = batch_val
     from apps.kuaizhizao.models.purchase_order import PurchaseOrderItem
 
     source_items = await PurchaseOrderItem.filter(tenant_id=tenant_id, id__in=selected_ids).only("order_id")
@@ -5307,6 +5386,7 @@ async def pull_purchase_returns_from_purchase_order_items(
             tenant_id=tenant_id,
             item_ids=selected_ids,
             created_by=current_user.id,
+            line_batches=line_batches or None,
         )
     except NotFoundError as e:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(e))

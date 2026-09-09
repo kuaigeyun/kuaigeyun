@@ -70,6 +70,16 @@ export const receiptRefundService = {
       method: 'GET',
       params: { receipt_ids: receiptIds.join(',') },
     }),
+
+  resolveFromSalesReturn: (salesReturnId: number) =>
+    apiRequest<{
+      sales_return_id: number;
+      sales_return_code?: string;
+      customer_id?: number;
+      customer_name?: string;
+      source_ids: number[];
+      source_codes?: string[];
+    }>(`${API}/resolve-from-sales-return/${salesReturnId}`, { method: 'GET' }),
 };
 
 export const RECEIPT_REFUND_RESOURCE = 'kuaicaiwu:receipt-refund';

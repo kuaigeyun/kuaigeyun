@@ -6,6 +6,8 @@ import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-co
 
 import {
 
+  ProForm,
+
   ProFormDatePicker,
 
   ProFormSelect,
@@ -28,17 +30,21 @@ import {
   UniTableStackedPrimaryCell,
 } from '../../../../../components/uni-table/stackedPrimaryColumn';
 
-import { FormModalTemplate, ListPageTemplate, MODAL_CONFIG } from '../../../../../components/layout-templates';
+import { FormModalGridBlock, FormModalTemplate, ListPageTemplate, MODAL_CONFIG } from '../../../../../components/layout-templates';
 
 import { rowActionKind, rowActionOpenWorkbench } from '../../../../../components/uni-action';
 
 import { UniUserSelect } from '../../../../../components/uni-user-select';
+
+import { CustomerSelectDropdown } from '../../../../master-data/components/CustomerSelectDropdown';
 
 import { useNewShortcut } from '../../../../../hooks/useNewShortcut';
 
 import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions';
 
 import { NEW_SHORTCUT_HINT } from '../../../../../utils/globalNewShortcut';
+
+import { getApiErrorMessage } from '../../../../../utils/errorHandler';
 
 import { resolveUserDisplay, type User } from '../../../../../services/user';
 
@@ -59,6 +65,14 @@ import {
 } from '../../../services/delivery-project';
 
 import { formatBusinessDateOnly } from '../../../../../utils/format';
+
+/** ProForm 提交时日期可能是 dayjs、字符串或 Date，避免直接调用 .format 报错导致保存无反应 */
+function toApiDateString(v: unknown): string | undefined {
+  if (v == null || v === '') return undefined;
+  if (dayjs.isDayjs(v)) return v.isValid() ? v.format('YYYY-MM-DD') : undefined;
+  const d = dayjs(v as string | Date | number);
+  return d.isValid() ? d.format('YYYY-MM-DD') : undefined;
+}
 
 import { DOCUMENT_PROGRESS_COLUMN_DEFAULTS } from '../../sales-management/shared/DocumentPushProgressBar';
 import { renderDeliveryProgressCell, resolveDeliveryProgressStatus } from '../shared/deliveryProgressColumn';
@@ -190,6 +204,10 @@ const DeliveryProjectsPage: React.FC = () => {
         project_name: detail.project_name,
 
         process_template_id: detail.process_template_id,
+
+        customer_id: detail.customer_id ?? undefined,
+
+        customer_name: detail.customer_name ?? undefined,
 
         delivery_date: detail.delivery_date ? dayjs(detail.delivery_date) : undefined,
 
@@ -510,29 +528,37 @@ const DeliveryProjectsPage: React.FC = () => {
 
   const handleCreate = async (values: Record<string, unknown>) => {
 
-    const deliveryDate = values.delivery_date as dayjs.Dayjs | undefined;
+    try {
 
-    await deliveryProjectApi.create({
+      await deliveryProjectApi.create({
 
-      project_name: values.project_name as string,
+        project_name: values.project_name as string,
 
-      process_template_id: values.process_template_id as number,
+        process_template_id: values.process_template_id as number,
 
-      delivery_date: deliveryDate?.format('YYYY-MM-DD'),
+        customer_id: values.customer_id as number,
 
-      owner_id: selectedOwnerRef.current,
+        delivery_date: toApiDateString(values.delivery_date),
 
-      members: selectedMembersRef.current,
+        owner_id: selectedOwnerRef.current,
 
-      notes: values.notes as string | undefined,
+        members: selectedMembersRef.current,
 
-    });
+        notes: values.notes as string | undefined,
 
-    message.success(t('common.created'));
+      });
 
-    setCreateOpen(false);
+      message.success(t('common.created'));
 
-    actionRef.current?.reload();
+      setCreateOpen(false);
+
+      actionRef.current?.reload();
+
+    } catch (error: unknown) {
+
+      message.error(getApiErrorMessage(error, t('common.createFailed')));
+
+    }
 
   };
 
@@ -542,29 +568,39 @@ const DeliveryProjectsPage: React.FC = () => {
 
     if (!editingProject) return;
 
-    const deliveryDate = values.delivery_date as dayjs.Dayjs | undefined;
+    try {
 
-    await deliveryProjectApi.update(editingProject.id, {
+      await deliveryProjectApi.update(editingProject.id, {
 
-      project_name: values.project_name as string,
+        project_name: values.project_name as string,
 
-      delivery_date: deliveryDate?.format('YYYY-MM-DD'),
+        ...(editingProject.sales_order_id
+          ? {}
+          : { customer_id: values.customer_id as number | undefined }),
 
-      owner_id: selectedOwnerRef.current,
+        delivery_date: toApiDateString(values.delivery_date),
 
-      members: selectedMembersRef.current,
+        owner_id: selectedOwnerRef.current,
 
-      notes: values.notes as string | undefined,
+        members: selectedMembersRef.current,
 
-    });
+        notes: values.notes as string | undefined,
 
-    message.success(t('common.updated'));
+      });
 
-    setEditOpen(false);
+      message.success(t('common.updated'));
 
-    setEditingProject(null);
+      setEditOpen(false);
 
-    actionRef.current?.reload();
+      setEditingProject(null);
+
+      actionRef.current?.reload();
+
+    } catch (error: unknown) {
+
+      message.error(getApiErrorMessage(error, t('common.updateFailed')));
+
+    }
 
   };
 
@@ -602,6 +638,27 @@ const DeliveryProjectsPage: React.FC = () => {
 
       />
 
+      {/* CustomerSelect 不是 ProForm 字段，colProps 不会进 Col；须 FormModalGridBlock */}
+      <FormModalGridBlock span={12}>
+        <ProForm.Item
+          name="customer_id"
+          label={t('app.kuaizhizao.deliveryProject.fields.customerName')}
+          rules={[
+            {
+              required: true,
+              message: t('app.kuaizhizao.deliveryProject.selectCustomerRequired'),
+            },
+          ]}
+        >
+          <CustomerSelectDropdown
+            hostResource={RESOURCE}
+            placeholder={t('app.kuaizhizao.deliveryProject.selectCustomer')}
+            style={{ width: '100%' }}
+            disabled={editOpen && Boolean(editingProject?.sales_order_id)}
+          />
+        </ProForm.Item>
+      </FormModalGridBlock>
+
       <ProFormDatePicker
 
         name="delivery_date"
@@ -609,8 +666,6 @@ const DeliveryProjectsPage: React.FC = () => {
         label={t('app.kuaizhizao.deliveryProject.fields.deliveryDate')}
 
         colProps={{ span: 12 }}
-
-        width="100%"
 
         fieldProps={{ style: { width: '100%' } }}
 

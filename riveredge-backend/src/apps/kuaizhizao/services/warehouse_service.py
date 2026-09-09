@@ -117,6 +117,7 @@ from apps.kuaizhizao.schemas.warehouse import (
     MaterialPrepReminderResponse, MaterialPrepReminderItem,
     InboundConfirmationRequest,
     OutboundConfirmationRequest,
+    OutboundConfirmationItem,
 )
 
 from apps.common.base_service import AppBaseService
@@ -492,6 +493,8 @@ def _build_production_picking_item_response(item: Any) -> ProductionPickingItemR
         "expiry_date": _normalize_optional_datetime(getattr(item, "expiry_date", None)),
         "serial_numbers": _parse_serial_numbers(getattr(item, "serial_numbers", None)) or None,
         "notes": getattr(item, "notes", None),
+        "work_order_id": int(getattr(item, "work_order_id", 0) or 0) or None,
+        "work_order_code": (str(getattr(item, "work_order_code", "") or "").strip() or None),
         "created_at": getattr(item, "created_at"),
         "updated_at": getattr(item, "updated_at"),
     }
@@ -839,6 +842,78 @@ _PURCHASE_RECEIPT_VOID_STATUSES = frozenset(
 _PURCHASE_RECEIPT_CONFIRMED_STATUSES = frozenset(
     {"已入库", "已完成", "completed", "COMPLETED"}
 )
+
+
+def _resolve_inbound_link_for_batch(
+    inbound_batches: List[Dict[str, Any]],
+    batch_number: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    """按退货批号匹配原采购入库明细；未指定批号时取最近一条入库明细。"""
+    bn = str(batch_number or "").strip()
+    if bn:
+        for row in inbound_batches:
+            if str(row.get("batch_number") or "").strip() == bn:
+                return row
+        return None
+    return inbound_batches[0] if inbound_batches else None
+
+
+async def _list_inbound_batches_by_po_item_ids(
+    tenant_id: int,
+    purchase_order_item_ids: List[int],
+) -> Dict[int, List[Dict[str, Any]]]:
+    """按采购订单行列出已确认入库明细批次（批号去重，入库倒序）。"""
+    result: Dict[int, List[Dict[str, Any]]] = {
+        int(i): [] for i in purchase_order_item_ids if int(i) > 0
+    }
+    if not result:
+        return result
+
+    historical_items = await PurchaseReceiptItem.filter(
+        tenant_id=tenant_id,
+        purchase_order_item_id__in=list(result.keys()),
+    ).order_by("-id").all()
+    if not historical_items:
+        return result
+
+    receipt_ids = {int(h.receipt_id) for h in historical_items}
+    receipts = await PurchaseReceipt.filter(
+        tenant_id=tenant_id,
+        id__in=list(receipt_ids),
+        deleted_at__isnull=True,
+    ).all()
+    confirmed_receipt_ids = {
+        int(r.id)
+        for r in receipts
+        if str(getattr(r, "status", None) or "").strip() in _PURCHASE_RECEIPT_CONFIRMED_STATUSES
+    }
+
+    seen_by_item: Dict[int, set[str]] = {pid: set() for pid in result}
+    for item in historical_items:
+        po_item_id = int(item.purchase_order_item_id or 0)
+        if po_item_id not in result:
+            continue
+        if int(item.receipt_id) not in confirmed_receipt_ids:
+            continue
+        batch = str(getattr(item, "batch_number", None) or "").strip()
+        entry = {
+            "batch_number": batch or None,
+            "purchase_receipt_id": int(item.receipt_id),
+            "purchase_receipt_item_id": int(item.id),
+            "receipt_quantity": float(getattr(item, "receipt_quantity", 0) or 0),
+        }
+        if batch:
+            if batch in seen_by_item[po_item_id]:
+                continue
+            seen_by_item[po_item_id].add(batch)
+        result[po_item_id].append(entry)
+    return result
+
+
+async def _warehouse_batch_management_enabled(tenant_id: int) -> bool:
+    cfg = await BusinessConfigService().get_business_config(tenant_id)
+    wh = (cfg.get("parameters") or {}).get("warehouse") or {}
+    return bool(wh.get("batch_management", False))
 
 
 async def _sum_confirmed_purchase_receipt_qty_for_po_item(
@@ -1402,6 +1477,72 @@ _PRODUCTION_PICKING_OPEN_STATUSES = frozenset({
 })
 
 
+def _item_source_work_order_id(item: Any, picking: Any) -> int:
+    wid = int(getattr(item, "work_order_id", 0) or 0)
+    if wid > 0:
+        return wid
+    return int(getattr(picking, "work_order_id", 0) or 0)
+
+
+def _item_source_work_order_code(item: Any, picking: Any) -> Optional[str]:
+    code = str(getattr(item, "work_order_code", None) or "").strip()
+    if code:
+        return code
+    header = str(getattr(picking, "work_order_code", None) or "").strip()
+    return header or None
+
+
+def _picking_related_work_order_ids(picking: Any, items: List[Any]) -> List[int]:
+    ids = {
+        _item_source_work_order_id(item, picking)
+        for item in items
+        if _item_source_work_order_id(item, picking) > 0
+    }
+    header_id = int(getattr(picking, "work_order_id", 0) or 0)
+    if header_id > 0:
+        ids.add(header_id)
+    return sorted(ids)
+
+
+def _format_merged_work_order_codes(codes: List[str]) -> str:
+    cleaned = [str(c).strip() for c in codes if str(c).strip()]
+    if not cleaned:
+        return ""
+    joined = " / ".join(cleaned)
+    if len(joined) <= 500:
+        return joined
+    return f"{cleaned[0]} 等{len(cleaned)}单"
+
+
+async def _find_open_picking_for_work_order(
+    tenant_id: int,
+    work_order_id: int,
+) -> Optional[ProductionPicking]:
+    """未完结领料：头表工单或明细挂工单（批量合并单）。"""
+    by_header = await ProductionPicking.filter(
+        tenant_id=tenant_id,
+        work_order_id=work_order_id,
+        deleted_at__isnull=True,
+        status__in=list(_PRODUCTION_PICKING_OPEN_STATUSES),
+    ).first()
+    if by_header:
+        return by_header
+    item_picking_ids = await ProductionPickingItem.filter(
+        tenant_id=tenant_id,
+        work_order_id=work_order_id,
+        deleted_at__isnull=True,
+    ).values_list("picking_id", flat=True)
+    pids = list({int(x) for x in item_picking_ids if x})
+    if not pids:
+        return None
+    return await ProductionPicking.filter(
+        tenant_id=tenant_id,
+        id__in=pids,
+        deleted_at__isnull=True,
+        status__in=list(_PRODUCTION_PICKING_OPEN_STATUSES),
+    ).first()
+
+
 class ProductionPickingService(AppBaseService[ProductionPicking]):
     """生产领料单服务"""
 
@@ -1610,7 +1751,18 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         if filters.get('status'):
             query = query.filter(status=filters['status'])
         if filters.get('work_order_id'):
-            query = query.filter(work_order_id=filters['work_order_id'])
+            from tortoise.expressions import Q
+
+            wo_filter_id = int(filters["work_order_id"])
+            item_picking_ids = await ProductionPickingItem.filter(
+                tenant_id=tenant_id,
+                work_order_id=wo_filter_id,
+                deleted_at__isnull=True,
+            ).values_list("picking_id", flat=True)
+            related_pids = list({int(x) for x in item_picking_ids if x})
+            query = query.filter(
+                Q(work_order_id=wo_filter_id) | Q(id__in=related_pids)
+            )
         if filters.get("warehouse_id"):
             wh_picking_ids = await ProductionPickingItem.filter(
                 tenant_id=tenant_id,
@@ -2008,6 +2160,26 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         if status != "待审核":
             raise BusinessLogicError(f"只能审核待审核状态的生产领料单，当前: {status or '-'}")
 
+        audit_required = await BusinessConfigService().check_audit_required(
+            tenant_id, "production_picking"
+        )
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="production_picking",
+                entity_id=picking_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "生产领料单审核已开启但无进行中的审批流程，请先提交审批后再审核"
+                )
+
         async def _do_approve() -> ProductionPickingResponse:
             approver_name = await self.get_user_name(approver_id)
             await ProductionPicking.filter(tenant_id=tenant_id, id=picking_id).update(
@@ -2047,6 +2219,26 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         status = str(picking.status or "").strip()
         if status != "待审核":
             raise BusinessLogicError(f"只能驳回待审核状态的生产领料单，当前: {status or '-'}")
+
+        audit_required = await BusinessConfigService().check_audit_required(
+            tenant_id, "production_picking"
+        )
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="production_picking",
+                entity_id=picking_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "生产领料单审核已开启但无进行中的审批流程，请先提交审批后再驳回"
+                )
 
         async def _do_reject(_reason: Optional[str] = None) -> ProductionPickingResponse:
             await ProductionPicking.filter(tenant_id=tenant_id, id=picking_id).update(
@@ -2102,7 +2294,9 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         picking_id: int,
         operator_id: int,
     ) -> ProductionPickingResponse:
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
 
         picking = await ProductionPicking.get_or_none(
@@ -2116,13 +2310,12 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "production_picking"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        target_status = "待审核" if landing == "pending" else "草稿"
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
 
         async def _do_revoke() -> ProductionPickingResponse:
             await ProductionPicking.filter(tenant_id=tenant_id, id=picking_id).update(
-                status=target_status,
-                review_status="待审核",
+                status="草稿",
+                review_status="",
                 reviewer_id=None,
                 reviewer_name=None,
                 review_time=None,
@@ -2137,6 +2330,109 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
             operator_id=operator_id,
             flow_revoke=_do_revoke,
         )
+
+    async def _apply_production_picking_confirm_item_updates(
+        self,
+        tenant_id: int,
+        picking_id: int,
+        items: List[OutboundConfirmationItem],
+    ) -> None:
+        """确认领料前写入库位/批号；多批分摊时按批拆明细（一批一扣）。"""
+        qty_eps = Decimal("0.0001")
+        for item_data in items:
+            item = await ProductionPickingItem.get_or_none(
+                tenant_id=tenant_id, id=item_data.item_id, picking_id=picking_id
+            )
+            if not item:
+                raise NotFoundError(f"领料明细不存在: {item_data.item_id}")
+
+            item_update: Dict[str, Any] = {}
+            if item_data.warehouse_id:
+                item_update["warehouse_id"] = item_data.warehouse_id
+                item_update["warehouse_name"] = await _resolve_warehouse_name_by_id(
+                    tenant_id,
+                    item_data.warehouse_id,
+                    item_data.warehouse_name,
+                )
+            if item_data.location_id:
+                item_update["location_id"] = item_data.location_id
+                item_update["location_code"] = item_data.location_code or f"库位{item_data.location_id}"
+            if item_data.serial_numbers is not None:
+                item_update["serial_numbers"] = json.dumps(item_data.serial_numbers)
+
+            raw_allocs = list(item_data.batch_allocations or [])
+            cleaned_allocs: List[Tuple[str, Decimal]] = []
+            for alloc in raw_allocs:
+                batch_no = str(getattr(alloc, "batch_number", "") or "").strip()
+                qty = Decimal(str(getattr(alloc, "quantity", 0) or 0))
+                if not batch_no or qty <= 0:
+                    continue
+                cleaned_allocs.append((batch_no, qty))
+
+            if len(cleaned_allocs) > 1 and item_data.serial_numbers:
+                serials = [str(s).strip() for s in item_data.serial_numbers if str(s).strip()]
+                if serials:
+                    raise BusinessLogicError(
+                        f"物料 {item.material_code} 启用序列号管理时，确认领料暂不支持同一次拆多批"
+                    )
+
+            if len(cleaned_allocs) > 1:
+                target_qty = (
+                    item.picked_quantity
+                    if item.picked_quantity and item.picked_quantity > 0
+                    else (item.required_quantity or Decimal(0))
+                )
+                alloc_sum = sum((q for _, q in cleaned_allocs), Decimal(0))
+                if abs(alloc_sum - target_qty) > qty_eps:
+                    raise ValidationError(
+                        f"物料 {item.material_code} 多批分摊合计({alloc_sum})须等于本行发料量({target_qty})"
+                    )
+                first_batch, first_qty = cleaned_allocs[0]
+                item_update["batch_number"] = first_batch
+                item_update["required_quantity"] = first_qty
+                item_update["picked_quantity"] = first_qty
+                item_update["remaining_quantity"] = Decimal(0)
+                if item_update:
+                    await ProductionPickingItem.filter(
+                        tenant_id=tenant_id, id=item.id, picking_id=picking_id
+                    ).update(**item_update)
+                # 刷新克隆字段（含本次写入的仓库/库位）
+                item = await ProductionPickingItem.get(tenant_id=tenant_id, id=item.id)
+                for batch_no, qty in cleaned_allocs[1:]:
+                    await ProductionPickingItem.create(
+                        tenant_id=tenant_id,
+                        picking_id=picking_id,
+                        work_order_id=getattr(item, "work_order_id", None),
+                        work_order_code=getattr(item, "work_order_code", None),
+                        material_id=item.material_id,
+                        material_code=item.material_code,
+                        material_name=item.material_name,
+                        material_spec=item.material_spec,
+                        material_unit=item.material_unit,
+                        required_quantity=qty,
+                        picked_quantity=qty,
+                        remaining_quantity=Decimal(0),
+                        warehouse_id=item.warehouse_id,
+                        warehouse_name=item.warehouse_name,
+                        location_id=item.location_id,
+                        location_code=item.location_code,
+                        status=item.status or "待领料",
+                        batch_number=batch_no,
+                        expiry_date=item.expiry_date,
+                        serial_numbers=None,
+                        notes=item.notes,
+                    )
+                continue
+
+            if cleaned_allocs:
+                item_update["batch_number"] = cleaned_allocs[0][0]
+            elif item_data.batch_number:
+                item_update["batch_number"] = str(item_data.batch_number).strip() or None
+
+            if item_update:
+                await ProductionPickingItem.filter(
+                    tenant_id=tenant_id, id=item_data.item_id, picking_id=picking_id
+                ).update(**item_update)
 
     @serialize_stock_document("production_picking", "picking_id")
     async def confirm_picking(
@@ -2168,26 +2464,11 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                     await ProductionPicking.filter(tenant_id=tenant_id, id=picking_id).update(**update_dict)
 
                 if confirmation_data.items:
-                    for item_data in confirmation_data.items:
-                        item_update = {}
-                        if item_data.warehouse_id:
-                            item_update["warehouse_id"] = item_data.warehouse_id
-                            item_update["warehouse_name"] = await _resolve_warehouse_name_by_id(
-                                tenant_id,
-                                item_data.warehouse_id,
-                                item_data.warehouse_name,
-                            )
-                        if item_data.location_id:
-                            item_update["location_id"] = item_data.location_id
-                            item_update["location_code"] = item_data.location_code or f"库位{item_data.location_id}"
-                        if item_data.batch_number:
-                            item_update["batch_number"] = item_data.batch_number
-                        if item_data.serial_numbers is not None:
-                            item_update["serial_numbers"] = json.dumps(item_data.serial_numbers)
-                        if item_update:
-                            await ProductionPickingItem.filter(
-                                tenant_id=tenant_id, id=item_data.item_id, picking_id=picking_id
-                            ).update(**item_update)
+                    await self._apply_production_picking_confirm_item_updates(
+                        tenant_id=tenant_id,
+                        picking_id=picking_id,
+                        items=confirmation_data.items,
+                    )
 
             confirmer_name = await self.get_user_name(confirmed_by)
             picking_time = resolve_business_datetime(
@@ -2202,6 +2483,12 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                     filter_gi_picking_ids,
                     format_pick_limit_qty,
                     is_staging_transfer_picking_notes,
+                    resolve_work_order_pick_limit,
+                )
+                from infra.services.business_config_service import BusinessConfigService
+
+                over_issue_ratio = await BusinessConfigService().get_over_issue_allowance_ratio(
+                    tenant_id
                 )
                 from apps.kuaizhizao.utils.mrp_quantity import mrp_qty
                 from apps.master_data.models.material import Material
@@ -2224,51 +2511,81 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                     )
                     issue_qty_by_item_id[item.id] = qty
 
-                # 防超发：仅累计正式发料领料单（排除备料转移型）
-                if picking.work_order_id:
+                # 防超发：按明细来源工单分别校验（批量合并单多工单）
+                wo_ids_for_limit = _picking_related_work_order_ids(picking, picking_items)
+                if wo_ids_for_limit:
                     from apps.kuaizhizao.models.work_order import WorkOrder
                     from apps.kuaizhizao.utils.bom_helper import calculate_material_requirements_from_bom
-                    from tortoise.functions import Sum
-                    wo = await WorkOrder.get_or_none(tenant_id=tenant_id, id=picking.work_order_id)
-                    if wo:
+
+                    for wo_id in wo_ids_for_limit:
+                        wo = await WorkOrder.get_or_none(tenant_id=tenant_id, id=wo_id)
+                        if not wo:
+                            continue
+                        items_for_wo = [
+                            it
+                            for it in picking_items
+                            if _item_source_work_order_id(it, picking) == wo_id
+                        ]
+                        if not items_for_wo:
+                            continue
                         try:
                             reqs = await calculate_material_requirements_from_bom(
                                 tenant_id=tenant_id,
                                 material_id=wo.product_id,
                                 required_quantity=float(wo.quantity),
-                                only_approved=True
+                                only_approved=True,
                             )
                             limit_map = {
                                 r.component_id: mrp_qty(r.gross_requirement) for r in reqs
                             }
 
-                            past_pickings = await ProductionPicking.filter(
+                            past_header = await ProductionPicking.filter(
                                 tenant_id=tenant_id,
-                                work_order_id=picking.work_order_id,
+                                work_order_id=wo_id,
                                 deleted_at__isnull=True,
                                 status="已领料",
                             ).all()
+                            item_pid_rows = await ProductionPickingItem.filter(
+                                tenant_id=tenant_id,
+                                work_order_id=wo_id,
+                                deleted_at__isnull=True,
+                            ).values_list("picking_id", flat=True)
+                            extra_pids = list({int(x) for x in item_pid_rows if x})
+                            past_by_item = (
+                                await ProductionPicking.filter(
+                                    tenant_id=tenant_id,
+                                    id__in=extra_pids,
+                                    deleted_at__isnull=True,
+                                    status="已领料",
+                                ).all()
+                                if extra_pids
+                                else []
+                            )
+                            past_by_id = {int(p.id): p for p in past_header}
+                            for p in past_by_item:
+                                past_by_id[int(p.id)] = p
+                            past_pickings = list(past_by_id.values())
                             wo_pid_list = [
-                                pid for pid in filter_gi_picking_ids(past_pickings)
-                                if pid != picking_id
+                                pid for pid in filter_gi_picking_ids(past_pickings) if pid != picking_id
                             ]
-                            if not wo_pid_list:
-                                past_items = []
-                            else:
-                                past_items = await ProductionPickingItem.filter(
+                            past_map: Dict[int, Decimal] = {}
+                            if wo_pid_list:
+                                past_rows = await ProductionPickingItem.filter(
                                     tenant_id=tenant_id,
                                     picking_id__in=wo_pid_list,
                                     status__in=["已领料", "已确认", "picked", "confirmed"],
-                                ).group_by("material_id").annotate(
-                                    total_picked=Sum("picked_quantity")
-                                ).values("material_id", "total_picked")
-                            past_map = {
-                                item["material_id"]: mrp_qty(item["total_picked"] or 0)
-                                for item in past_items
-                            }
+                                ).all()
+                                for pit in past_rows:
+                                    hdr = past_by_id.get(int(pit.picking_id))
+                                    if _item_source_work_order_id(pit, hdr) != wo_id:
+                                        continue
+                                    mid = int(pit.material_id)
+                                    past_map[mid] = past_map.get(mid, Decimal(0)) + mrp_qty(
+                                        pit.picked_quantity or 0
+                                    )
 
                             current_map: dict[int, Decimal] = {}
-                            for item in picking_items:
+                            for item in items_for_wo:
                                 qty = issue_qty_by_item_id.get(item.id) or Decimal(0)
                                 current_map[item.material_id] = (
                                     current_map.get(item.material_id, Decimal(0)) + mrp_qty(qty)
@@ -2277,17 +2594,31 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                             for mat_id, current_qty in current_map.items():
                                 past_qty = past_map.get(mat_id, Decimal(0))
                                 total_attempt = past_qty + current_qty
-                                allowed = limit_map.get(mat_id)
-                                if allowed is not None:
+                                allowed_bom = limit_map.get(mat_id)
+                                if allowed_bom is not None:
+                                    allowed = resolve_work_order_pick_limit(
+                                        allowed_bom, over_issue_ratio
+                                    )
                                     if exceeds_work_order_pick_limit(total_attempt, allowed):
+                                        cap_text = format_pick_limit_qty(allowed)
+                                        bom_text = format_pick_limit_qty(allowed_bom)
+                                        if over_issue_ratio > 0:
+                                            pct = int(over_issue_ratio * 100)
+                                            detail = (
+                                                f"含超发比例后的上限({cap_text}，BOM配方 {bom_text} + {pct}%)"
+                                            )
+                                        else:
+                                            detail = f"当前工单配方上限额度({cap_text})"
                                         raise BusinessLogicError(
-                                            f"防超发拦截生效：物料[ID:{mat_id}]试图总领用量({format_pick_limit_qty(total_attempt)}) "
-                                            f"超出了当前工单配方上限额度({format_pick_limit_qty(allowed)})，禁止强行出库！"
+                                            f"防超发拦截生效：工单 {wo.code} 物料[ID:{mat_id}]试图总领用量({format_pick_limit_qty(total_attempt)}) "
+                                            f"超出了{detail}，禁止强行出库！"
                                         )
                         except BusinessLogicError:
                             raise
                         except Exception as calc_e:
-                            logger.warning(f"防超发校验过程发生错误，可能是缺少BOM，跳过强制拦截: {calc_e}")
+                            logger.warning(
+                                f"防超发校验过程发生错误（工单 {wo_id}），可能是缺少BOM，跳过强制拦截: {calc_e}"
+                            )
 
                 picking = await ProductionPicking.get(tenant_id=tenant_id, id=picking_id)
                 biz_config = await BusinessConfigService().get_business_config(tenant_id)
@@ -2339,8 +2670,8 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                         source_doc_id=picking_id,
                         source_doc_code=picking.picking_code,
                         enforce_fifo=enforce_fifo,
-                        work_order_id=picking.work_order_id,
-                        work_order_code=picking.work_order_code,
+                        work_order_id=_item_source_work_order_id(item, picking) or None,
+                        work_order_code=_item_source_work_order_code(item, picking),
                         movement_type="production_issue",
                         from_warehouse_id=wh_id,
                         idempotency_key=f"production_picking:{picking_id}:dec:{item.id}",
@@ -2375,19 +2706,20 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                 raise
 
             updated_picking = await self.get_production_picking_by_id(tenant_id, picking_id)
-            if picking.work_order_id:
+            related_wo_ids = _picking_related_work_order_ids(picking, picking_items)
+            for related_wo_id in related_wo_ids:
                 try:
                     from apps.kuaizhizao.workflows.functions.work_order_score_workflow import (
                         dispatch_work_order_score_recalc,
                     )
                     await dispatch_work_order_score_recalc(
-                        int(picking.work_order_id),
+                        int(related_wo_id),
                         include_kitting=True,
                     )
                 except Exception as e:
                     logger.warning(
                         "领料确认后工单 %s 打分重算投递失败: %s",
-                        picking.work_order_id,
+                        related_wo_id,
                         e,
                     )
             return updated_picking
@@ -2459,8 +2791,8 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                         source_type="production_picking_withdraw",
                         source_doc_id=picking_id,
                         source_doc_code=picking_obj.picking_code,
-                        work_order_id=picking_obj.work_order_id,
-                        work_order_code=picking_obj.work_order_code,
+                        work_order_id=_item_source_work_order_id(item, picking_obj) or None,
+                        work_order_code=_item_source_work_order_code(item, picking_obj),
                         movement_type="production_issue",
                         to_warehouse_id=wh_id,
                         ledger_production_date=ledger_production_date,
@@ -2491,19 +2823,20 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                 raise BusinessLogicError(f"撤回失败: {str(e)}")
 
             updated_picking = await self.get_production_picking_by_id(tenant_id, picking_id)
-            if picking.work_order_id:
+            related_wo_ids = _picking_related_work_order_ids(picking_obj, items)
+            for related_wo_id in related_wo_ids:
                 try:
                     from apps.kuaizhizao.workflows.functions.work_order_score_workflow import (
                         dispatch_work_order_score_recalc,
                     )
                     await dispatch_work_order_score_recalc(
-                        int(picking.work_order_id),
+                        int(related_wo_id),
                         include_kitting=True,
                     )
                 except Exception as e:
                     logger.warning(
                         "撤回领料后工单 %s 打分重算投递失败: %s",
-                        picking.work_order_id,
+                        related_wo_id,
                         e,
                     )
             return updated_picking
@@ -2551,12 +2884,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
 
             assert_work_order_capability(work_order, "push_production_picking")
 
-            pending_picking = await ProductionPicking.filter(
-                tenant_id=tenant_id,
-                work_order_id=work_order_id,
-                deleted_at__isnull=True,
-                status__in=list(_PRODUCTION_PICKING_OPEN_STATUSES),
-            ).first()
+            pending_picking = await _find_open_picking_for_work_order(tenant_id, work_order_id)
             if pending_picking:
                 raise BusinessLogicError(
                     CAPABILITY_REASON_MESSAGES.get(
@@ -2637,6 +2965,8 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                 await ProductionPickingItem.create(
                     tenant_id=tenant_id,
                     picking_id=picking.id,
+                    work_order_id=work_order_id,
+                    work_order_code=work_order.code,
                     material_id=req.component_id,
                     material_code=req.component_code,
                     material_name=req.component_name,
@@ -2701,12 +3031,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
             raise NotFoundError(f"工单不存在: {work_order_id}")
         assert_work_order_capability(work_order, "push_production_picking")
 
-        pending_picking = await ProductionPicking.filter(
-            tenant_id=tenant_id,
-            work_order_id=work_order_id,
-            deleted_at__isnull=True,
-            status__in=list(_PRODUCTION_PICKING_OPEN_STATUSES),
-        ).first()
+        pending_picking = await _find_open_picking_for_work_order(tenant_id, work_order_id)
 
         from apps.kuaizhizao.utils.issue_method_resolver import is_pick_list_material
 
@@ -2821,12 +3146,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
             raise NotFoundError(f"工单不存在: {work_order_id}")
         assert_work_order_capability(work_order, "push_production_picking")
 
-        pending_picking = await ProductionPicking.filter(
-            tenant_id=tenant_id,
-            work_order_id=work_order_id,
-            deleted_at__isnull=True,
-            status__in=list(_PRODUCTION_PICKING_OPEN_STATUSES),
-        ).first()
+        pending_picking = await _find_open_picking_for_work_order(tenant_id, work_order_id)
         if pending_picking:
             raise BusinessLogicError(
                 CAPABILITY_REASON_MESSAGES.get(
@@ -2952,6 +3272,8 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                 await ProductionPickingItem.create(
                     tenant_id=tenant_id,
                     picking_id=picking.id,
+                    work_order_id=work_order_id,
+                    work_order_code=work_order.code,
                     material_id=material_id,
                     material_code=str(getattr(line, "material_code", "") or line.get("material_code", "") or meta.get("material_code", "")),
                     material_name=str(getattr(line, "material_name", "") or line.get("material_name", "") or meta.get("material_name", "")),
@@ -3095,12 +3417,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                 "blocking_reason": str(exc),
             }
 
-        pending_picking = await ProductionPicking.filter(
-            tenant_id=tenant_id,
-            work_order_id=call.work_order_id,
-            deleted_at__isnull=True,
-            status__in=list(_PRODUCTION_PICKING_OPEN_STATUSES),
-        ).first()
+        pending_picking = await _find_open_picking_for_work_order(tenant_id, int(call.work_order_id))
 
         preview_items: list[dict[str, Any]] = []
         for line in items:
@@ -3170,12 +3487,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
             await self._resolve_material_call_picking_push_context(tenant_id, material_call_id)
         )
 
-        pending_picking = await ProductionPicking.filter(
-            tenant_id=tenant_id,
-            work_order_id=call.work_order_id,
-            deleted_at__isnull=True,
-            status__in=list(_PRODUCTION_PICKING_OPEN_STATUSES),
-        ).first()
+        pending_picking = await _find_open_picking_for_work_order(tenant_id, int(call.work_order_id))
         if pending_picking:
             raise BusinessLogicError(
                 CAPABILITY_REASON_MESSAGES.get(
@@ -3264,6 +3576,8 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                 await ProductionPickingItem.create(
                     tenant_id=tenant_id,
                     picking_id=picking.id,
+                    work_order_id=work_order_id,
+                    work_order_code=work_order.code,
                     material_id=material_id,
                     material_code=str(
                         getattr(line, "material_code", "")
@@ -3349,35 +3663,163 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         warehouse_name: Optional[str] = None
     ) -> List[ProductionPickingResponse]:
         """
-        批量领料：从多个工单下推，批量创建领料单
-        
-        Args:
-            tenant_id: 租户ID
-            work_order_ids: 工单ID列表
-            created_by: 创建人ID
-            warehouse_id: 仓库ID（可选）
-            warehouse_name: 仓库名称（可选）
-            
-        Returns:
-            List[ProductionPickingResponse]: 创建的生产领料单列表
+        批量领料：多工单合并创建一张生产领料单，明细按工单分段。
         """
-        results = []
-        for work_order_id in work_order_ids:
-            try:
-                picking = await self.quick_pick_from_work_order(
-                    tenant_id=tenant_id,
-                    work_order_id=work_order_id,
-                    created_by=created_by,
-                    warehouse_id=warehouse_id,
-                    warehouse_name=warehouse_name
-                )
-                results.append(picking)
-            except Exception as e:
-                logger.error(f"批量领料失败，工单ID: {work_order_id}, 错误: {str(e)}")
-                # 继续处理其他工单，不中断整个流程
+        from apps.kuaizhizao.models.work_order import WorkOrder
+        from apps.kuaizhizao.utils.bom_helper import calculate_material_requirements_from_bom
+        from apps.kuaizhizao.utils.issue_method_resolver import is_pick_list_material
+        from apps.kuaizhizao.services.document_action_policy.work_order import (
+            assert_work_order_capability,
+        )
+        from apps.kuaizhizao.services.document_action_policy.types import CAPABILITY_REASON_MESSAGES
+
+        ordered_ids: List[int] = []
+        seen: set[int] = set()
+        for raw in work_order_ids or []:
+            wid = int(raw or 0)
+            if wid <= 0 or wid in seen:
                 continue
-        
-        return results
+            seen.add(wid)
+            ordered_ids.append(wid)
+        if not ordered_ids:
+            raise ValidationError("请选择至少一张工单")
+        if not warehouse_id and not str(warehouse_name or "").strip():
+            raise ValidationError("请指定出库仓库后再生成领料单")
+
+        resolved_wh_id, resolved_wh_name = await _resolve_warehouse_identity(
+            tenant_id,
+            warehouse_id=warehouse_id,
+            warehouse_name=warehouse_name,
+        )
+
+        prepared: List[Tuple[Any, List[Any]]] = []
+        for work_order_id in ordered_ids:
+            work_order = await WorkOrder.get_or_none(
+                tenant_id=tenant_id, id=work_order_id, deleted_at__isnull=True
+            )
+            if not work_order:
+                raise NotFoundError(f"工单不存在: {work_order_id}")
+            assert_work_order_capability(work_order, "push_production_picking")
+            if work_order.status not in ["已下达", "进行中", "released", "in_progress"]:
+                raise BusinessLogicError(f"工单 {work_order.code} 状态为 {work_order.status}，无法创建领料单")
+            pending = await _find_open_picking_for_work_order(tenant_id, work_order_id)
+            if pending:
+                raise BusinessLogicError(
+                    CAPABILITY_REASON_MESSAGES.get(
+                        "work_order.push_production_picking.pending_picking",
+                        f"工单 {work_order.code} 已有待处理领料单，请先完成或取消后再下推",
+                    )
+                )
+            try:
+                material_requirements = await calculate_material_requirements_from_bom(
+                    tenant_id=tenant_id,
+                    material_id=work_order.product_id,
+                    required_quantity=float(work_order.quantity),
+                    only_approved=True,
+                    for_kitting_analysis=True,
+                )
+            except NotFoundError as e:
+                raise NotFoundError(f"工单 {work_order.code} 产品 BOM 不存在或未审核: {e}") from e
+            material_requirements = [
+                req
+                for req in (material_requirements or [])
+                if is_pick_list_material(
+                    getattr(req, "issue_method", None),
+                    getattr(req, "component_type", None),
+                )
+            ]
+            if not material_requirements:
+                raise ValidationError(
+                    f"工单 {work_order.code} 的 BOM 中没有需事前领料的物料，无法并入领料单"
+                )
+            prepared.append((work_order, material_requirements))
+
+        async with in_transaction():
+            first_wo = prepared[0][0]
+            codes = [str(wo.code or "").strip() for wo, _ in prepared]
+            header_code = _format_merged_work_order_codes(codes)
+            workshop_ids = {
+                int(wo.workshop_id)
+                for wo, _ in prepared
+                if getattr(wo, "workshop_id", None) is not None
+            }
+            workshop_id = first_wo.workshop_id if len(workshop_ids) == 1 else None
+            workshop_name = first_wo.workshop_name if len(workshop_ids) == 1 else None
+
+            today = today_site_str()
+            picking_code = await self.generate_code(
+                tenant_id, "PRODUCTION_PICKING_CODE", prefix=f"PP{today}"
+            )
+            user_info = await self.get_user_info(created_by)
+            initial_status, initial_review = await self._resolve_picking_create_status(tenant_id)
+            picking = await ProductionPicking.create(
+                tenant_id=tenant_id,
+                picking_code=picking_code,
+                work_order_id=int(first_wo.id),
+                work_order_code=header_code,
+                workshop_id=workshop_id,
+                workshop_name=workshop_name,
+                status=initial_status,
+                review_status=initial_review,
+                notes=f"批量合并领料：{len(prepared)} 张工单",
+                created_by=created_by,
+                created_by_name=user_info["name"],
+                updated_by=created_by,
+                updated_by_name=user_info["name"],
+            )
+
+            created_item_count = 0
+            for work_order, material_requirements in prepared:
+                for req in material_requirements:
+                    await ProductionPickingItem.create(
+                        tenant_id=tenant_id,
+                        picking_id=picking.id,
+                        work_order_id=int(work_order.id),
+                        work_order_code=work_order.code,
+                        material_id=req.component_id,
+                        material_code=req.component_code,
+                        material_name=req.component_name,
+                        material_unit=req.unit,
+                        required_quantity=Decimal(str(req.gross_requirement)),
+                        picked_quantity=Decimal("0"),
+                        remaining_quantity=Decimal(str(req.gross_requirement)),
+                        warehouse_id=resolved_wh_id,
+                        warehouse_name=resolved_wh_name or "",
+                        status="待领料",
+                    )
+                    created_item_count += 1
+
+            if created_item_count <= 0:
+                raise ValidationError("未能生成领料明细，请检查 BOM 事前领料物料后重试")
+
+            try:
+                from apps.kuaizhizao.services.document_relation_new_service import DocumentRelationNewService
+                from apps.kuaizhizao.schemas.document_relation import DocumentRelationCreate
+
+                rel_svc = DocumentRelationNewService()
+                for work_order, _ in prepared:
+                    await rel_svc.create_relation(
+                        tenant_id=tenant_id,
+                        relation_data=DocumentRelationCreate(
+                            source_type="work_order",
+                            source_id=int(work_order.id),
+                            source_code=work_order.code,
+                            source_name=work_order.name,
+                            target_type="production_picking",
+                            target_id=picking.id,
+                            target_code=picking.picking_code,
+                            target_name=None,
+                            relation_type="source",
+                            relation_mode="push",
+                            relation_desc="批量下推合并生产领料单",
+                        ),
+                        created_by=created_by,
+                    )
+            except Exception as e:
+                logger.warning("建立工单→生产领料 单据关联失败: %s", e)
+
+            detail = await self.get_production_picking_by_id(tenant_id, int(picking.id))
+            return [ProductionPickingResponse.model_validate(detail.model_dump())]
 
 
 # 生产退料加载：可选取的领料单状态（唯一真源，与 capability / 预览一致）
@@ -3399,6 +3841,7 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
     ) -> dict[int, bool]:
         if not work_order_ids:
             return {}
+        result = {int(wo_id): False for wo_id in work_order_ids}
         pickings = await ProductionPicking.filter(
             tenant_id=tenant_id,
             work_order_id__in=work_order_ids,
@@ -3410,16 +3853,42 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
         for picking_id, work_order_id in pickings:
             picking_ids_by_wo.setdefault(int(work_order_id), []).append(int(picking_id))
             all_picking_ids.append(int(picking_id))
+
+        item_rows = await ProductionPickingItem.filter(
+            tenant_id=tenant_id,
+            work_order_id__in=work_order_ids,
+            picked_quantity__gt=0,
+            deleted_at__isnull=True,
+        ).values_list("picking_id", "work_order_id")
+        item_pids = list({int(pid) for pid, _ in item_rows if pid})
+        eligible_by_item: set[int] = set()
+        if item_pids:
+            eligible_pickings = await ProductionPicking.filter(
+                tenant_id=tenant_id,
+                id__in=item_pids,
+                status__in=list(PRODUCTION_RETURN_PICKING_ELIGIBLE_STATUSES),
+                deleted_at__isnull=True,
+            ).values_list("id", flat=True)
+            eligible_by_item = {int(pid) for pid in eligible_pickings}
+            for picking_id, work_order_id in item_rows:
+                pid = int(picking_id)
+                wid = int(work_order_id)
+                if pid in eligible_by_item and wid in result:
+                    picking_ids_by_wo.setdefault(wid, []).append(pid)
+                    all_picking_ids.append(pid)
+
         if not all_picking_ids:
-            return {int(wo_id): False for wo_id in work_order_ids}
+            return result
         item_picking_ids = await ProductionPickingItem.filter(
             tenant_id=tenant_id,
-            picking_id__in=all_picking_ids,
+            picking_id__in=list(set(all_picking_ids)),
             picked_quantity__gt=0,
         ).values_list("picking_id", flat=True)
         picking_ids_with_lines = {int(pid) for pid in item_picking_ids}
         return {
-            int(wo_id): any(pid in picking_ids_with_lines for pid in picking_ids_by_wo.get(int(wo_id), []))
+            int(wo_id): any(
+                pid in picking_ids_with_lines for pid in picking_ids_by_wo.get(int(wo_id), [])
+            )
             for wo_id in work_order_ids
         }
 
@@ -3483,12 +3952,37 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
             has_returnable_picking=has_returnable,
         )
 
-        pickings = await ProductionPicking.filter(
+        header_pickings = await ProductionPicking.filter(
             tenant_id=tenant_id,
             work_order_id=work_order_id,
             status__in=list(PRODUCTION_RETURN_PICKING_ELIGIBLE_STATUSES),
             deleted_at__isnull=True,
         ).order_by("-created_at")
+        item_pids = await ProductionPickingItem.filter(
+            tenant_id=tenant_id,
+            work_order_id=work_order_id,
+            picked_quantity__gt=0,
+            deleted_at__isnull=True,
+        ).values_list("picking_id", flat=True)
+        extra_pids = list({int(x) for x in item_pids if x})
+        item_pickings = (
+            await ProductionPicking.filter(
+                tenant_id=tenant_id,
+                id__in=extra_pids,
+                status__in=list(PRODUCTION_RETURN_PICKING_ELIGIBLE_STATUSES),
+                deleted_at__isnull=True,
+            ).order_by("-created_at")
+            if extra_pids
+            else []
+        )
+        pickings_by_id = {int(p.id): p for p in header_pickings}
+        for p in item_pickings:
+            pickings_by_id[int(p.id)] = p
+        pickings = sorted(
+            pickings_by_id.values(),
+            key=lambda p: p.created_at or p.id,
+            reverse=True,
+        )
         preview_pickings: list[ProductionReturnPreviewPicking] = []
         for picking in pickings:
             items = await ProductionPickingItem.filter(
@@ -3496,6 +3990,11 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
                 picking_id=picking.id,
                 picked_quantity__gt=0,
             ).all()
+            items = [
+                it
+                for it in items
+                if _item_source_work_order_id(it, picking) == int(work_order_id)
+            ]
             if not items:
                 continue
             item_ids = [int(item.id) for item in items if item.id is not None]
@@ -3685,8 +4184,14 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
         skip: int = 0,
         limit: int = 20,
         **filters
-    ) -> List[ProductionReturnListResponse]:
+    ) -> tuple[List[ProductionReturnListResponse], int]:
         """获取生产退料单列表"""
+        from apps.kuaizhizao.services.warehouse_list_core import (
+            PRODUCTION_RETURN_KEYWORD_FIELDS,
+            PRODUCTION_RETURN_SORTABLE_FIELDS,
+            apply_warehouse_doc_list_filters,
+        )
+
         query = ProductionReturn.filter(tenant_id=tenant_id)
         if filters.get("status"):
             query = query.filter(status=filters["status"])
@@ -3695,7 +4200,24 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
         if filters.get("picking_id"):
             query = query.filter(picking_id=filters["picking_id"])
 
-        rets = await query.offset(skip).limit(limit).order_by("-created_at")
+        query, order_clause = apply_warehouse_doc_list_filters(
+            query,
+            keyword=filters.get("keyword"),
+            search=filters.get("search"),
+            order_by=filters.get("order_by"),
+            allowed_fields=PRODUCTION_RETURN_SORTABLE_FIELDS,
+            default_order="-created_at",
+            keyword_fields=PRODUCTION_RETURN_KEYWORD_FIELDS,
+            doc_date_field="return_time",
+            doc_start_date=filters.get("return_start_date"),
+            doc_end_date=filters.get("return_end_date"),
+            created_start_date=filters.get("created_start_date"),
+            created_end_date=filters.get("created_end_date"),
+            updated_start_date=filters.get("updated_start_date"),
+            updated_end_date=filters.get("updated_end_date"),
+        )
+        total = await query.count()
+        rets = await query.offset(skip).limit(limit).order_by(order_clause)
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
@@ -3713,7 +4235,7 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, ProductionReturnItem, "return_id", return_ids
         )
-        return enrich_inbound_hub_list_capabilities(
+        enriched = enrich_inbound_hub_list_capabilities(
             rets,
             responses,
             "production_return",
@@ -3721,6 +4243,7 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
             quantity_sums=quantity_sums,
             item_previews=item_previews,
         )
+        return enriched, total
 
     async def update_production_return(
         self,
@@ -4249,8 +4772,16 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
         resp.items = [FinishedGoodsReceiptItemResponse.model_validate(i) for i in items]
         return resp
 
-    async def list_finished_goods_receipts(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[FinishedGoodsReceiptResponse]:
+    async def list_finished_goods_receipts(
+        self, tenant_id: int, skip: int = 0, limit: int = 20, **filters
+    ) -> tuple[List[FinishedGoodsReceiptResponse], int]:
         """获取成品入库单列表"""
+        from apps.kuaizhizao.services.warehouse_list_core import (
+            FINISHED_GOODS_RECEIPT_KEYWORD_FIELDS,
+            FINISHED_GOODS_RECEIPT_SORTABLE_FIELDS,
+            apply_warehouse_doc_list_filters,
+        )
+
         query = FinishedGoodsReceipt.filter(tenant_id=tenant_id, deleted_at__isnull=True)
 
         # 应用过滤条件
@@ -4258,8 +4789,27 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
             query = query.filter(status=filters['status'])
         if filters.get('work_order_id'):
             query = query.filter(work_order_id=filters['work_order_id'])
+        if filters.get("warehouse_id"):
+            query = query.filter(warehouse_id=filters["warehouse_id"])
 
-        receipts = await query.offset(skip).limit(limit).order_by('-created_at')
+        query, order_clause = apply_warehouse_doc_list_filters(
+            query,
+            keyword=filters.get("keyword"),
+            search=filters.get("search"),
+            order_by=filters.get("order_by"),
+            allowed_fields=FINISHED_GOODS_RECEIPT_SORTABLE_FIELDS,
+            default_order="-created_at",
+            keyword_fields=FINISHED_GOODS_RECEIPT_KEYWORD_FIELDS,
+            doc_date_field="receipt_time",
+            doc_start_date=filters.get("receipt_start_date"),
+            doc_end_date=filters.get("receipt_end_date"),
+            created_start_date=filters.get("created_start_date"),
+            created_end_date=filters.get("created_end_date"),
+            updated_start_date=filters.get("updated_start_date"),
+            updated_end_date=filters.get("updated_end_date"),
+        )
+        total = await query.count()
+        receipts = await query.offset(skip).limit(limit).order_by(order_clause)
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
@@ -4282,7 +4832,8 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
             item_counts=item_counts,
             item_previews=item_previews,
         )
-        return await enrich_production_receipts_with_customer(tenant_id, receipts, responses)
+        enriched = await enrich_production_receipts_with_customer(tenant_id, receipts, responses)
+        return enriched, total
 
     @serialize_stock_document("finished_goods_receipt", "receipt_id")
     async def confirm_receipt(
@@ -5947,6 +6498,26 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
         if status != "待审核":
             raise BusinessLogicError(f"只能审核待审核状态的销售出库单，当前: {status or '-'}")
 
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "sales_delivery"
+        )
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="sales_delivery",
+                entity_id=delivery_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "销售出库单审核已开启但无进行中的审批流程，请先提交审批后再审核"
+                )
+
         async def _do_approve() -> SalesDeliveryResponse:
             approver_name = await self.get_user_name(approver_id)
             await SalesDelivery.filter(tenant_id=tenant_id, id=delivery_id).update(
@@ -5988,6 +6559,26 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
         status = str(delivery.status or "").strip()
         if status != "待审核":
             raise BusinessLogicError(f"只能驳回待审核状态的销售出库单，当前: {status or '-'}")
+
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "sales_delivery"
+        )
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="sales_delivery",
+                entity_id=delivery_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "销售出库单审核已开启但无进行中的审批流程，请先提交审批后再驳回"
+                )
 
         async def _do_reject(_reason: Optional[str] = None) -> SalesDeliveryResponse:
             await SalesDelivery.filter(tenant_id=tenant_id, id=delivery_id).update(
@@ -6045,7 +6636,9 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
         delivery_id: int,
         operator_id: int,
     ) -> SalesDeliveryResponse:
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
 
         delivery = await SalesDelivery.get_or_none(
@@ -6061,13 +6654,12 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
         audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "sales_delivery"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        target_status = "待审核" if landing == "pending" else "草稿"
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
 
         async def _do_revoke() -> SalesDeliveryResponse:
             await SalesDelivery.filter(tenant_id=tenant_id, id=delivery_id).update(
-                status=target_status,
-                review_status="待审核",
+                status="草稿",
+                review_status="",
                 reviewer_id=None,
                 reviewer_name=None,
                 review_time=None,
@@ -8862,9 +9454,16 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
                 await PurchaseReceipt.get(tenant_id=tenant_id, id=receipt_id)
             )
 
-    async def list_purchase_receipts(self, tenant_id: int, skip: int = 0, limit: int = 20, **filters) -> List[PurchaseReceiptResponse]:
+    async def list_purchase_receipts(
+        self, tenant_id: int, skip: int = 0, limit: int = 20, **filters
+    ) -> tuple[List[PurchaseReceiptResponse], int]:
         """获取采购入库单列表"""
         from apps.kuaizhizao.services.document_lifecycle_service import get_purchase_receipt_lifecycle
+        from apps.kuaizhizao.services.warehouse_list_core import (
+            PURCHASE_RECEIPT_KEYWORD_FIELDS,
+            PURCHASE_RECEIPT_SORTABLE_FIELDS,
+            apply_warehouse_doc_list_filters,
+        )
 
         query = PurchaseReceipt.filter(tenant_id=tenant_id, deleted_at__isnull=True)
 
@@ -8873,10 +9472,32 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
             query = query.filter(status=filters['status'])
         if filters.get('purchase_order_id'):
             query = query.filter(purchase_order_id=filters['purchase_order_id'])
+        if filters.get("warehouse_id"):
+            query = query.filter(warehouse_id=filters["warehouse_id"])
+        supplier_name = (filters.get("supplier_name") or "").strip()
+        if supplier_name:
+            query = query.filter(supplier_name__icontains=supplier_name)
         if filters.get("scoped_purchase_order_ids") is not None:
             query = query.filter(purchase_order_id__in=filters["scoped_purchase_order_ids"])
 
-        receipts = await query.offset(skip).limit(limit).order_by('-created_at')
+        query, order_clause = apply_warehouse_doc_list_filters(
+            query,
+            keyword=filters.get("keyword"),
+            search=filters.get("search"),
+            order_by=filters.get("order_by"),
+            allowed_fields=PURCHASE_RECEIPT_SORTABLE_FIELDS,
+            default_order="-created_at",
+            keyword_fields=PURCHASE_RECEIPT_KEYWORD_FIELDS,
+            doc_date_field="receipt_time",
+            doc_start_date=filters.get("receipt_start_date"),
+            doc_end_date=filters.get("receipt_end_date"),
+            created_start_date=filters.get("created_start_date"),
+            created_end_date=filters.get("created_end_date"),
+            updated_start_date=filters.get("updated_start_date"),
+            updated_end_date=filters.get("updated_end_date"),
+        )
+        total = await query.count()
+        receipts = await query.offset(skip).limit(limit).order_by(order_clause)
         out: List[PurchaseReceiptResponse] = []
         for receipt in receipts:
             resp = PurchaseReceiptResponse.model_validate(receipt)
@@ -8895,11 +9516,11 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, PurchaseReceiptItem, "receipt_id", receipt_ids
         )
-        return enrich_inbound_hub_list_capabilities(
+        enriched = enrich_inbound_hub_list_capabilities(
             receipts, out, "purchase", item_counts=item_counts, item_previews=item_previews
         )
+        return enriched, total
 
-    @serialize_stock_document("purchase_receipt", "receipt_id")
     async def confirm_receipt(
         self,
         tenant_id: int,
@@ -8907,7 +9528,132 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         confirmed_by: int,
         confirmation_data: Optional[InboundConfirmationRequest] = None,
     ) -> PurchaseReceiptResponse:
-        """确认入库"""
+        """确认入库。过账事务提交后再生成应付/回写订单，避免嵌套事务回滚库存却仍返回成功。"""
+        await self._confirm_receipt_posting(
+            tenant_id=tenant_id,
+            receipt_id=receipt_id,
+            confirmed_by=confirmed_by,
+            confirmation_data=confirmation_data,
+        )
+
+        # 过账已在 _confirm_receipt_posting 的 serialize 事务中提交。
+        # 自动生成应付须在过账事务外执行：create_payable 内部另有 in_transaction()，
+        # 与 serialize 外层嵌套时可能导致库存/状态回滚但接口仍返回成功（确认→撤回→再确认可无限点）。
+        # 应付确认策略为「以采购发票为准」时不在此处生成应付，避免与进项发票路径重复记账。
+        receipt_for_payable = await PurchaseReceipt.get(tenant_id=tenant_id, id=receipt_id)
+        _sup_id = getattr(receipt_for_payable, "supplier_id", None)
+        if await self.business_config_service.should_auto_generate_payable_on_purchase_receipt(
+            tenant_id, int(_sup_id) if _sup_id is not None else None
+        ):
+            try:
+                from apps.kuaicaiwu.services.finance_service import PayableService
+                from apps.kuaicaiwu.schemas.finance import PayableCreate
+
+                payable_service = PayableService()
+
+                # 创建应付单
+                total_amount = Decimal(str(receipt_for_payable.total_amount or 0))
+                if total_amount > 0:
+                    from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
+
+                    biz_date = to_site_date(resolve_business_datetime())
+                    due_date = await resolve_partner_due_date(
+                        tenant_id, "supplier", int(receipt_for_payable.supplier_id), biz_date
+                    )
+                    payable_data = PayableCreate(
+                        source_type="采购入库",
+                        source_id=receipt_id,
+                        source_code=receipt_for_payable.receipt_code,
+                        supplier_id=receipt_for_payable.supplier_id,
+                        supplier_name=receipt_for_payable.supplier_name,
+                        total_amount=float(total_amount),
+                        paid_amount=0.0,
+                        remaining_amount=float(total_amount),
+                        due_date=due_date,
+                        business_date=biz_date,
+                        status="未付款",
+                        notes=f"由采购入库单 {receipt_for_payable.receipt_code} 自动生成"
+                    )
+
+                    payable = await payable_service.create_payable(
+                        tenant_id=tenant_id,
+                        payable_data=payable_data,
+                        created_by=confirmed_by
+                    )
+                    try:
+                        from apps.kuaicaiwu.services.finance_integration_hooks import (
+                            link_finance_document_relation,
+                            record_finance_accounting_event,
+                        )
+
+                        await link_finance_document_relation(
+                            tenant_id=tenant_id,
+                            source_type="purchase_receipt",
+                            source_id=receipt_id,
+                            source_code=receipt_for_payable.receipt_code,
+                            target_type="payable",
+                            target_id=payable.id,
+                            target_code=getattr(payable, "payable_code", None),
+                            relation_desc="采购入库确认自动生成应付单",
+                            created_by=confirmed_by,
+                        )
+                        await record_finance_accounting_event(
+                            tenant_id=tenant_id,
+                            event_type="PURCHASE_RECEIPT_TO_PAYABLE",
+                            business_type="payable",
+                            source_doc_type="purchase_receipt",
+                            source_doc_id=receipt_id,
+                            source_doc_code=receipt_for_payable.receipt_code,
+                            target_doc_type="Payable",
+                            target_doc_id=payable.id,
+                            target_doc_code=payable.payable_code,
+                            amount=total_amount,
+                            operator_id=confirmed_by,
+                            notes=f"采购入库单 {receipt_for_payable.receipt_code} 自动生成应付单",
+                        )
+                    except Exception as rel_e:
+                        logger.exception(
+                            "创建采购入库→应付单 单据关联/会计事件失败 receipt_code=%s",
+                            receipt_for_payable.receipt_code,
+                        )
+            except Exception as e:
+                logger.exception(
+                    "自动生成应付单失败 receipt_code=%s（不影响入库确认结果）",
+                    receipt_for_payable.receipt_code,
+                )
+        # #region agent log
+        _agent_debug_ndjson(
+            "warehouse_service.confirm_receipt:after_tx",
+            "tx_committed_before_detail_fetch",
+            {"receipt_id": receipt_id},
+            "H7",
+            run_id="post-fix",
+        )
+        # #endregion
+        receipt_po_id = int(getattr(receipt_for_payable, "purchase_order_id", 0) or 0)
+        if receipt_po_id > 0:
+            await sync_purchase_order_receipt_quantities(tenant_id, receipt_po_id)
+        updated_receipt = await self.get_purchase_receipt_by_id(tenant_id, receipt_id)
+        # #region agent log
+        _agent_debug_ndjson(
+            "warehouse_service.confirm_receipt:exit",
+            "confirm_return_ok",
+            {"receipt_id": receipt_id, "status": getattr(updated_receipt, "status", None)},
+            "H7",
+            run_id="post-fix",
+        )
+        # #endregion
+        return updated_receipt
+
+    @serialize_stock_document("purchase_receipt", "receipt_id")
+    async def _confirm_receipt_posting(
+        self,
+        tenant_id: int,
+        receipt_id: int,
+        confirmed_by: int,
+        confirmation_data: Optional[InboundConfirmationRequest] = None,
+    ) -> None:
+        """采购入库过账：库存增加并置已入库（由 serialize_stock_document 串行）。"""
         async with in_transaction():
             receipt = await PurchaseReceipt.get_or_none(tenant_id=tenant_id, id=receipt_id)
             if not receipt:
@@ -9207,115 +9953,6 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
             )
             # #endregion
 
-        # 详单/生命周期组装在事务提交之后：避免 model_validate 或里程碑查询失败导致整笔入库与库存回滚
-
-        # 自动生成应付单（在事务提交后执行，避免嵌套 in_transaction() 干扰外层事务）
-        # 应付确认策略为「以采购发票为准」时不在此处生成应付，避免与进项发票路径重复记账。
-        receipt_for_payable = await PurchaseReceipt.get(tenant_id=tenant_id, id=receipt_id)
-        _sup_id = getattr(receipt_for_payable, "supplier_id", None)
-        if await self.business_config_service.should_auto_generate_payable_on_purchase_receipt(
-            tenant_id, int(_sup_id) if _sup_id is not None else None
-        ):
-            try:
-                from apps.kuaicaiwu.services.finance_service import PayableService
-                from apps.kuaicaiwu.schemas.finance import PayableCreate
-
-                payable_service = PayableService()
-
-                # 创建应付单
-                total_amount = Decimal(str(receipt_for_payable.total_amount or 0))
-                if total_amount > 0:
-                    from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
-
-                    biz_date = to_site_date(resolve_business_datetime())
-                    due_date = await resolve_partner_due_date(
-                        tenant_id, "supplier", int(receipt_for_payable.supplier_id), biz_date
-                    )
-                    payable_data = PayableCreate(
-                        source_type="采购入库",
-                        source_id=receipt_id,
-                        source_code=receipt_for_payable.receipt_code,
-                        supplier_id=receipt_for_payable.supplier_id,
-                        supplier_name=receipt_for_payable.supplier_name,
-                        total_amount=float(total_amount),
-                        paid_amount=0.0,
-                        remaining_amount=float(total_amount),
-                        due_date=due_date,
-                        business_date=biz_date,
-                        status="未付款",
-                        notes=f"由采购入库单 {receipt_for_payable.receipt_code} 自动生成"
-                    )
-
-                    payable = await payable_service.create_payable(
-                        tenant_id=tenant_id,
-                        payable_data=payable_data,
-                        created_by=confirmed_by
-                    )
-                    try:
-                        from apps.kuaicaiwu.services.finance_integration_hooks import (
-                            link_finance_document_relation,
-                            record_finance_accounting_event,
-                        )
-
-                        await link_finance_document_relation(
-                            tenant_id=tenant_id,
-                            source_type="purchase_receipt",
-                            source_id=receipt_id,
-                            source_code=receipt_for_payable.receipt_code,
-                            target_type="payable",
-                            target_id=payable.id,
-                            target_code=getattr(payable, "payable_code", None),
-                            relation_desc="采购入库确认自动生成应付单",
-                            created_by=confirmed_by,
-                        )
-                        await record_finance_accounting_event(
-                            tenant_id=tenant_id,
-                            event_type="PURCHASE_RECEIPT_TO_PAYABLE",
-                            business_type="payable",
-                            source_doc_type="purchase_receipt",
-                            source_doc_id=receipt_id,
-                            source_doc_code=receipt_for_payable.receipt_code,
-                            target_doc_type="Payable",
-                            target_doc_id=payable.id,
-                            target_doc_code=payable.payable_code,
-                            amount=total_amount,
-                            operator_id=confirmed_by,
-                            notes=f"采购入库单 {receipt_for_payable.receipt_code} 自动生成应付单",
-                        )
-                    except Exception as rel_e:
-                        logger.exception(
-                            "创建采购入库→应付单 单据关联/会计事件失败 receipt_code=%s",
-                            receipt_for_payable.receipt_code,
-                        )
-            except Exception as e:
-                logger.exception(
-                    "自动生成应付单失败 receipt_code=%s（不影响入库确认结果）",
-                    receipt_for_payable.receipt_code,
-                )
-        # #region agent log
-        _agent_debug_ndjson(
-            "warehouse_service.confirm_receipt:after_tx",
-            "tx_committed_before_detail_fetch",
-            {"receipt_id": receipt_id},
-            "H7",
-            run_id="post-fix",
-        )
-        # #endregion
-        receipt_po_id = int(getattr(receipt_for_payable, "purchase_order_id", 0) or 0)
-        if receipt_po_id > 0:
-            await sync_purchase_order_receipt_quantities(tenant_id, receipt_po_id)
-        updated_receipt = await self.get_purchase_receipt_by_id(tenant_id, receipt_id)
-        # #region agent log
-        _agent_debug_ndjson(
-            "warehouse_service.confirm_receipt:exit",
-            "confirm_return_ok",
-            {"receipt_id": receipt_id, "status": getattr(updated_receipt, "status", None)},
-            "H7",
-            run_id="post-fix",
-        )
-        # #endregion
-        return updated_receipt
-
     @serialize_stock_document("purchase_receipt", "receipt_id")
     async def withdraw_receipt_confirmation(
         self,
@@ -9358,19 +9995,22 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
                         raise BusinessLogicError(
                             "撤回失败：无法解析明细行仓库，请检查原入库单仓库/库位配置"
                         )
+                    serial_nos = _parse_serial_numbers(getattr(item, "serial_numbers", None))
                     await InventoryService._decrease_stock_no_atomic(
                         tenant_id=tenant_id,
                         material_id=item.material_id,
                         quantity=base_qty,
                         warehouse_id=line_wh,
                         batch_no=item.batch_number or None,
+                        serial_nos=serial_nos or None,
                         source_type="purchase_receipt_revoke",
                         source_doc_id=receipt_id,
                         source_doc_code=receipt_obj.receipt_code,
-                    movement_type="other_outbound",
-                    operator_id=updated_by,
-                    operator_name=None,
-                )
+                        movement_type="other_outbound",
+                        operator_id=updated_by,
+                        operator_name=None,
+                        idempotency_key=f"purchase_receipt:{receipt_id}:revoke:{item.id}",
+                    )
 
                 user_info = await self.get_user_info(updated_by)
                 await PurchaseReceipt.filter(tenant_id=tenant_id, id=receipt_id).update(
@@ -9680,7 +10320,7 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         from datetime import datetime
         
         # 查询所有符合条件的采购入库单（不分页）
-        receipts = await self.list_purchase_receipts(tenant_id, skip=0, limit=10000, **filters)
+        receipts, _total = await self.list_purchase_receipts(tenant_id, skip=0, limit=10000, **filters)
         
         # 创建导出目录
         export_dir = os.path.join(tempfile.gettempdir(), 'riveredge_exports')
@@ -11125,6 +11765,23 @@ class SalesReturnService(AppBaseService[SalesReturn]):
         audit_required = await BusinessConfigService().check_audit_required(tenant_id, "sales_return")
         assert_sales_return_capability(return_obj, "approve", audit_required=audit_required)
 
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="sales_return",
+                entity_id=return_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "销售退货单审核已开启但无进行中的审批流程，请先提交审批后再审核"
+                )
+
         approver_name = await self.get_user_name(approver_id)
         await SalesReturn.filter(tenant_id=tenant_id, id=return_id).update(
             review_status="审核通过",
@@ -11155,6 +11812,23 @@ class SalesReturnService(AppBaseService[SalesReturn]):
 
         audit_required = await BusinessConfigService().check_audit_required(tenant_id, "sales_return")
         assert_sales_return_capability(return_obj, "reject", audit_required=audit_required)
+
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="sales_return",
+                entity_id=return_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "销售退货单审核已开启但无进行中的审批流程，请先提交审批后再驳回"
+                )
 
         await SalesReturn.filter(tenant_id=tenant_id, id=return_id).update(
             review_status="审核驳回",
@@ -11209,7 +11883,9 @@ class SalesReturnService(AppBaseService[SalesReturn]):
         operator_id: int,
     ) -> SalesReturnResponse:
         from apps.kuaizhizao.services.document_action_policy.sales_return import assert_sales_return_capability
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
 
         return_obj = await SalesReturn.get_or_none(
@@ -11223,12 +11899,11 @@ class SalesReturnService(AppBaseService[SalesReturn]):
         audit_required = await BusinessConfigService().check_audit_required(tenant_id, "sales_return")
         assert_sales_return_capability(return_obj, "revoke_approval", audit_required=audit_required)
 
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        target_review = "待审核" if landing == "pending" else "草稿"
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
 
         async def _do_revoke() -> SalesReturnResponse:
             await SalesReturn.filter(tenant_id=tenant_id, id=return_id).update(
-                review_status=target_review,
+                review_status="草稿",
                 reviewer_id=None,
                 reviewer_name=None,
                 review_time=None,
@@ -11550,20 +12225,27 @@ class SalesReturnService(AppBaseService[SalesReturn]):
             except Exception as cost_e:
                 logger.warning("销售退货确认-成本处理失败: %s", cost_e)
 
-            # 创建红字应收单（销售退货冲减）
+            # 创建红字应收单（销售退货冲减）；手工立账时不自动生成
             try:
                 from apps.kuaicaiwu.services.finance_service import ReceivableService
                 from apps.kuaicaiwu.schemas.finance import ReceivableCreate
 
                 ret_obj = await SalesReturn.get(tenant_id=tenant_id, id=return_id)
                 total_amount = float(ret_obj.total_amount or 0)
-                if total_amount > 0 and ret_obj.customer_id:
+                cust_id = int(ret_obj.customer_id) if ret_obj.customer_id else None
+                if (
+                    total_amount > 0
+                    and cust_id
+                    and await BusinessConfigService().should_auto_generate_receivable_on_sales_return(
+                        tenant_id, cust_id
+                    )
+                ):
                     from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
 
                     receivable_service = ReceivableService()
                     biz_date = to_site_date(resolve_business_datetime())
                     due_date = await resolve_partner_due_date(
-                        tenant_id, "customer", int(ret_obj.customer_id), biz_date
+                        tenant_id, "customer", cust_id, biz_date
                     )
                     receivable_data = ReceivableCreate(
                         source_type="销售退货",
@@ -11573,7 +12255,8 @@ class SalesReturnService(AppBaseService[SalesReturn]):
                         customer_name=ret_obj.customer_name,
                         total_amount=total_amount,
                         received_amount=0.0,
-                        remaining_amount=total_amount,
+                        # 冲减台账：不进入待收款；对账贷方取 total_amount 绝对值
+                        remaining_amount=0.0,
                         due_date=due_date,
                         business_date=biz_date,
                         status="已冲减",
@@ -12152,6 +12835,22 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
             tenant_id,
             [int(item.id) for item in order_items],
         )
+        inbound_by_item = await _list_inbound_batches_by_po_item_ids(
+            tenant_id,
+            [int(item.id) for item in order_items],
+        )
+        from apps.master_data.models.material import Material
+
+        material_ids = {
+            int(i.material_id) for i in order_items if i.material_id is not None and int(i.material_id) > 0
+        }
+        materials = await Material.filter(
+            tenant_id=tenant_id,
+            id__in=list(material_ids),
+            deleted_at__isnull=True,
+        ).all() if material_ids else []
+        material_by_id = {int(m.id): m for m in materials}
+        batch_mgmt_enabled = await _warehouse_batch_management_enabled(tenant_id)
 
         return_items: List[PurchaseReturnItemCreate] = []
         for item in order_items:
@@ -12174,9 +12873,30 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                 )
             unit_price = Decimal(str(item.unit_price or 0))
             total_amount = selected_qty * unit_price
+            material = material_by_id.get(int(item.material_id or 0))
+            requires_batch = bool(
+                batch_mgmt_enabled and material and getattr(material, "batch_managed", False)
+            )
+            inbound_batches = inbound_by_item.get(int(item.id), [])
+            batch_number: Optional[str] = None
+            for row in inbound_batches:
+                candidate = str(row.get("batch_number") or "").strip()
+                if candidate:
+                    batch_number = candidate
+                    break
+            if requires_batch and not batch_number:
+                label = item.material_name or item.material_code or str(item.id)
+                raise ValidationError(
+                    f"采购退货失败：物料 {label} 启用了批号管理，请选择原入库批号"
+                )
+            inbound_link = _resolve_inbound_link_for_batch(inbound_batches, batch_number)
+            purchase_receipt_item_id = _optional_positive_int(
+                inbound_link.get("purchase_receipt_item_id") if inbound_link else None
+            )
             return_items.append(
                 PurchaseReturnItemCreate(
                     purchase_order_item_id=int(item.id),
+                    purchase_receipt_item_id=purchase_receipt_item_id,
                     material_id=item.material_id,
                     material_code=item.material_code,
                     material_name=item.material_name,
@@ -12185,6 +12905,7 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                     return_quantity=float(selected_qty),
                     unit_price=float(unit_price),
                     total_amount=float(total_amount),
+                    batch_number=batch_number,
                     status="待退货",
                 )
             )
@@ -12244,6 +12965,7 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
         from apps.kuaizhizao.services.document_action_policy.purchase_order import (
             derive_purchase_order_capabilities,
         )
+        from apps.master_data.models.material import Material
 
         po_query = PurchaseOrder.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if order_id is not None:
@@ -12260,7 +12982,7 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
             tenant_id, [int(item.id) for item in items]
         )
         kw = (keyword or "").strip().lower()
-        lines: List[Dict[str, Any]] = []
+        candidate_items: List[PurchaseOrderItem] = []
         for item in items:
             order = order_by_id.get(int(item.order_id))
             if not order:
@@ -12286,6 +13008,46 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                 haystack = " ".join([material_code, material_name, material_spec]).lower()
                 if kw not in haystack:
                     continue
+            candidate_items.append(item)
+
+        material_ids = {
+            int(item.material_id)
+            for item in candidate_items
+            if item.material_id is not None and int(item.material_id) > 0
+        }
+        materials = await Material.filter(
+            tenant_id=tenant_id,
+            id__in=list(material_ids),
+            deleted_at__isnull=True,
+        ).all() if material_ids else []
+        material_by_id = {int(m.id): m for m in materials}
+        batch_mgmt_enabled = await _warehouse_batch_management_enabled(tenant_id)
+        inbound_by_item = await _list_inbound_batches_by_po_item_ids(
+            tenant_id,
+            [int(item.id) for item in candidate_items],
+        )
+
+        lines: List[Dict[str, Any]] = []
+        for item in candidate_items:
+            order = order_by_id[int(item.order_id)]
+            received = float(item.received_quantity or 0)
+            pushed = returned_by_item.get(int(item.id), 0.0)
+            remaining = max(0.0, received - pushed)
+            material = material_by_id.get(int(item.material_id or 0))
+            requires_batch = bool(
+                batch_mgmt_enabled and material and getattr(material, "batch_managed", False)
+            )
+            inbound_batches = inbound_by_item.get(int(item.id), [])
+            batch_options = [
+                {
+                    "batch_number": str(row.get("batch_number") or "").strip(),
+                    "purchase_receipt_item_id": row.get("purchase_receipt_item_id"),
+                    "receipt_quantity": row.get("receipt_quantity"),
+                }
+                for row in inbound_batches
+                if str(row.get("batch_number") or "").strip()
+            ]
+            suggested_batch = batch_options[0]["batch_number"] if batch_options else None
             lines.append(
                 {
                     "id": int(item.id),
@@ -12294,14 +13056,17 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                     "supplier_id": order.supplier_id,
                     "supplier_name": order.supplier_name,
                     "material_id": item.material_id,
-                    "material_code": material_code,
-                    "material_name": material_name,
-                    "material_spec": material_spec or None,
+                    "material_code": str(item.material_code or "").strip(),
+                    "material_name": str(item.material_name or "").strip(),
+                    "material_spec": str(item.material_spec or "").strip() or None,
                     "unit": item.unit or "件",
                     "suggested_quantity": received,
                     "pushed_quantity": pushed,
                     "remaining_quantity": remaining,
                     "required_date": str(item.required_date) if item.required_date else None,
+                    "requires_batch_number": requires_batch,
+                    "suggested_batch_number": suggested_batch,
+                    "available_batches": batch_options,
                 }
             )
         lines.sort(
@@ -12318,6 +13083,8 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
         tenant_id: int,
         item_ids: List[int],
         created_by: int,
+        *,
+        line_batches: Optional[Dict[int, str]] = None,
     ) -> Dict[str, Any]:
         """按采购订单行 id 建采购退货单，可跨多张订单；同供应商合并一张。"""
         from apps.kuaizhizao.models.purchase_order import PurchaseOrder, PurchaseOrderItem
@@ -12326,6 +13093,7 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
             assert_purchase_order_capability,
         )
         from apps.kuaizhizao.services.document_relation_new_service import DocumentRelationNewService
+        from apps.master_data.models.material import Material
         from apps.master_data.services.material_service import (
             resolve_primary_default_warehouse_from_material,
         )
@@ -12344,6 +13112,18 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
         if len(order_by_id) != len(order_ids):
             raise NotFoundError("采购订单不存在")
         returned_by_item = await returned_qty_by_purchase_order_item_ids(tenant_id, selected_ids)
+        line_batch_map = _coerce_id_str_map(line_batches) or {}
+        inbound_by_item = await _list_inbound_batches_by_po_item_ids(tenant_id, selected_ids)
+        material_ids = {
+            int(i.material_id) for i in items if i.material_id is not None and int(i.material_id) > 0
+        }
+        materials = await Material.filter(
+            tenant_id=tenant_id,
+            id__in=list(material_ids),
+            deleted_at__isnull=True,
+        ).all() if material_ids else []
+        material_by_id = {int(m.id): m for m in materials}
+        batch_mgmt_enabled = await _warehouse_batch_management_enabled(tenant_id)
 
         def _max_return_qty(po_item: PurchaseOrderItem) -> float:
             received = float(po_item.received_quantity or 0)
@@ -12373,6 +13153,7 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
             source_codes = " ".join(order_by_id[oid].order_code for oid in source_order_ids)
             header_wh_id: Optional[int] = None
             header_wh_name: Optional[str] = None
+            header_receipt_ids: set[int] = set()
             return_items: List[PurchaseReturnItemCreate] = []
             for item in group_items:
                 qty = _max_return_qty(item)
@@ -12403,9 +13184,44 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                     header_wh_name = line_wh_name or await _resolve_warehouse_name_by_id(
                         tenant_id, int(line_wh_id)
                     )
+
+                material = material_by_id.get(int(item.material_id))
+                requires_batch = bool(
+                    batch_mgmt_enabled and material and getattr(material, "batch_managed", False)
+                )
+                inbound_batches = inbound_by_item.get(int(item.id), [])
+                requested_batch = str(line_batch_map.get(int(item.id), "") or "").strip() or None
+                if not requested_batch:
+                    for row in inbound_batches:
+                        candidate = str(row.get("batch_number") or "").strip()
+                        if candidate:
+                            requested_batch = candidate
+                            break
+                inbound_link = _resolve_inbound_link_for_batch(inbound_batches, requested_batch)
+                if requires_batch:
+                    if not requested_batch:
+                        label = item.material_name or item.material_code or str(item.id)
+                        raise ValidationError(
+                            f"采购退货失败：物料 {label} 启用了批号管理，请选择原入库批号"
+                        )
+                    if requested_batch and inbound_batches and inbound_link is None:
+                        label = item.material_name or item.material_code or str(item.id)
+                        raise ValidationError(
+                            f"采购退货失败：物料 {label} 批号 {requested_batch} 不在原入库批次中"
+                        )
+                purchase_receipt_item_id = _optional_positive_int(
+                    inbound_link.get("purchase_receipt_item_id") if inbound_link else None
+                )
+                item_receipt_id = _optional_positive_int(
+                    inbound_link.get("purchase_receipt_id") if inbound_link else None
+                )
+                if item_receipt_id:
+                    header_receipt_ids.add(item_receipt_id)
+
                 return_items.append(
                     PurchaseReturnItemCreate(
                         purchase_order_item_id=int(item.id),
+                        purchase_receipt_item_id=purchase_receipt_item_id,
                         material_id=item.material_id,
                         material_code=item.material_code,
                         material_name=item.material_name,
@@ -12414,16 +13230,26 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                         return_quantity=qty,
                         unit_price=unit_price,
                         total_amount=qty * unit_price,
+                        batch_number=requested_batch,
                         status="待退货",
                     )
                 )
             if not return_items or header_wh_id is None:
                 continue
+            primary_receipt_id = sorted(header_receipt_ids)[0] if header_receipt_ids else None
+            primary_receipt_code = None
+            if primary_receipt_id:
+                receipt_row = await PurchaseReceipt.get_or_none(
+                    tenant_id=tenant_id, id=primary_receipt_id, deleted_at__isnull=True
+                )
+                primary_receipt_code = getattr(receipt_row, "receipt_code", None) if receipt_row else None
             created = await self.create_purchase_return(
                 tenant_id=tenant_id,
                 return_data=PurchaseReturnCreate(
                     purchase_order_id=primary.id,
                     purchase_order_code=primary.order_code,
+                    purchase_receipt_id=primary_receipt_id,
+                    purchase_receipt_code=primary_receipt_code,
                     supplier_id=primary.supplier_id,
                     supplier_name=primary.supplier_name,
                     warehouse_id=header_wh_id,
@@ -12572,6 +13398,23 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
         audit_required = await BusinessConfigService().check_audit_required(tenant_id, "purchase_return")
         assert_purchase_return_capability(return_obj, "approve", audit_required=audit_required)
 
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="purchase_return",
+                entity_id=return_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "采购退货单审核已开启但无进行中的审批流程，请先提交审批后再审核"
+                )
+
         approver_name = await self.get_user_name(approver_id)
         await PurchaseReturn.filter(tenant_id=tenant_id, id=return_id).update(
             review_status="审核通过",
@@ -12604,6 +13447,23 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
 
         audit_required = await BusinessConfigService().check_audit_required(tenant_id, "purchase_return")
         assert_purchase_return_capability(return_obj, "reject", audit_required=audit_required)
+
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="purchase_return",
+                entity_id=return_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "采购退货单审核已开启但无进行中的审批流程，请先提交审批后再驳回"
+                )
 
         await PurchaseReturn.filter(tenant_id=tenant_id, id=return_id).update(
             review_status="审核驳回",
@@ -12662,7 +13522,9 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
         from apps.kuaizhizao.services.document_action_policy.purchase_return import (
             assert_purchase_return_capability,
         )
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
 
         return_obj = await PurchaseReturn.get_or_none(
@@ -12676,12 +13538,11 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
         audit_required = await BusinessConfigService().check_audit_required(tenant_id, "purchase_return")
         assert_purchase_return_capability(return_obj, "revoke_approval", audit_required=audit_required)
 
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        target_review = "待审核" if landing == "pending" else "草稿"
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
 
         async def _do_revoke() -> PurchaseReturnResponse:
             await PurchaseReturn.filter(tenant_id=tenant_id, id=return_id).update(
-                review_status=target_review,
+                review_status="草稿",
                 reviewer_id=None,
                 reviewer_name=None,
                 review_time=None,
@@ -12978,20 +13839,27 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
             except Exception as cost_e:
                 logger.warning("采购退货确认-成本处理失败: %s", cost_e)
 
-            # 创建红字应付单（采购退货冲减）
+            # 创建红字应付单（采购退货冲减）；手工立账时不自动生成
             try:
                 from apps.kuaicaiwu.services.finance_service import PayableService
                 from apps.kuaicaiwu.schemas.finance import PayableCreate
 
                 ret_obj = await PurchaseReturn.get(tenant_id=tenant_id, id=return_id)
                 total_amount = float(ret_obj.total_amount or 0)
-                if total_amount > 0 and ret_obj.supplier_id:
+                supplier_id = int(ret_obj.supplier_id) if ret_obj.supplier_id else None
+                if (
+                    total_amount > 0
+                    and supplier_id
+                    and await BusinessConfigService().should_auto_generate_payable_on_purchase_return(
+                        tenant_id, supplier_id
+                    )
+                ):
                     from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
 
                     payable_service = PayableService()
                     biz_date = to_site_date(resolve_business_datetime())
                     due_date = await resolve_partner_due_date(
-                        tenant_id, "supplier", int(ret_obj.supplier_id), biz_date
+                        tenant_id, "supplier", supplier_id, biz_date
                     )
                     payable_data = PayableCreate(
                         source_type="采购退货",

@@ -114,6 +114,19 @@ export const receiptService = {
     });
   },
 
+  unconfirmReceipt: (id: number) => {
+    return apiRequest<ReceiptVoucher>(`${RECEIPT_API}/${id}/unconfirm`, {
+      method: 'POST',
+    });
+  },
+
+  updateReceipt: (id: number, data: Partial<ReceiptCreateData>) => {
+    return apiRequest<ReceiptVoucher>(`${RECEIPT_API}/${id}`, {
+      method: 'PUT',
+      data,
+    });
+  },
+
   deleteReceipt: (id: number) => {
     return apiRequest<void>(`${RECEIPT_API}/${id}`, {
       method: 'DELETE',

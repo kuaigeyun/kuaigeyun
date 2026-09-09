@@ -2225,7 +2225,8 @@ const InboundPage: React.FC = () => {
               currentUser,
             );
             const filtered = filterInboundHubRowsByDeepLink(result.data, inboundDeepLinkRef.current);
-            if (!result.success) {
+            // 预取失败不打扰用户；展示请求才提示部分来源失败
+            if (!result.success && meta?.purpose !== 'prefetch') {
               messageApi.warning(t('app.kuaizhizao.warehouseInbound.msg.loadListPartialFailed'));
             }
             return {
@@ -2335,16 +2336,6 @@ const InboundPage: React.FC = () => {
           <p style={{ marginBottom: 12, color: '#666' }}>
             {t('app.kuaizhizao.warehouseInbound.confirmPreview.description')}
           </p>
-          <Form layout="vertical" style={{ marginBottom: 16 }}>
-            <InboundEntryReceiverField
-              hook={purchaseConfirmReceiverHook}
-              label={
-                purchaseConfirmPreviewDetail?.receipt_type === 'production_return'
-                  ? t('app.kuaizhizao.warehouseInbound.field.returner')
-                  : t('app.kuaizhizao.warehouseInbound.field.receiver')
-              }
-            />
-          </Form>
           <Table
             size="small"
             pagination={false}
@@ -2527,6 +2518,16 @@ const InboundPage: React.FC = () => {
               trackingFlags,
             )}
           />
+          <Form layout="vertical" style={{ marginTop: 16, marginBottom: 0 }}>
+            <InboundEntryReceiverField
+              hook={purchaseConfirmReceiverHook}
+              label={
+                purchaseConfirmPreviewDetail?.receipt_type === 'production_return'
+                  ? t('app.kuaizhizao.warehouseInbound.field.returner')
+                  : t('app.kuaizhizao.warehouseInbound.field.receiver')
+              }
+            />
+          </Form>
           {purchaseConfirmPreviewDetail?.receipt_type === 'production_return' ? (
             <ProForm
               formRef={productionReturnConfirmFormRef}
@@ -2576,17 +2577,6 @@ const InboundPage: React.FC = () => {
           <p style={{ marginBottom: 12, color: '#666' }}>
             {t('app.kuaizhizao.warehouseInbound.simpleConfirmPreview.description')}
           </p>
-          <Form layout="vertical" style={{ marginBottom: 16 }}>
-            <InboundEntryReceiverField
-              hook={simpleConfirmReceiverHook}
-              label={
-                simpleConfirmPreviewTarget?.receipt_type === 'sales_return' ||
-                simpleConfirmPreviewTarget?.receipt_type === 'material_return'
-                  ? t('app.kuaizhizao.warehouseInbound.field.returner')
-                  : t('app.kuaizhizao.warehouseInbound.field.receiver')
-              }
-            />
-          </Form>
           {simpleConfirmPreviewTarget?.receipt_type === 'outsource_receipt' ? (
             <Descriptions
               size="small"
@@ -2655,6 +2645,17 @@ const InboundPage: React.FC = () => {
               ]}
             />
           )}
+          <Form layout="vertical" style={{ marginTop: 16, marginBottom: 0 }}>
+            <InboundEntryReceiverField
+              hook={simpleConfirmReceiverHook}
+              label={
+                simpleConfirmPreviewTarget?.receipt_type === 'sales_return' ||
+                simpleConfirmPreviewTarget?.receipt_type === 'material_return'
+                  ? t('app.kuaizhizao.warehouseInbound.field.returner')
+                  : t('app.kuaizhizao.warehouseInbound.field.receiver')
+              }
+            />
+          </Form>
         </Spin>
       </Modal>
 

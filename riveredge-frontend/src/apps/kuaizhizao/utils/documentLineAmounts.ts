@@ -41,6 +41,117 @@ export function calcDocumentLineAmounts(
   };
 }
 
+const roundToPlaces = (value: number, places: number): number => {
+  if (!Number.isFinite(value)) return 0;
+  if (!Number.isFinite(places) || places < 0) return value;
+  const factor = 10 ** places;
+  return Math.round(value * factor) / factor;
+};
+
+/** 价税合计为真源时反算未税/税额（允许与 qty×单价分币结果存在尾差） */
+export function calcDocumentLineAmountsFromInclTotal(inclTotal: unknown, taxRateInput: unknown) {
+  const inclCents = toCents(inclTotal);
+  const taxRate = toSafeNumber(taxRateInput);
+  const factor = 1 + taxRate / 100;
+  const exclCents = factor > 0 ? Math.round(inclCents / factor) : inclCents;
+  const taxCents = inclCents - exclCents;
+  return {
+    excl: fromCents(exclCents),
+    tax: fromCents(taxCents),
+    incl: fromCents(inclCents),
+  };
+}
+
+/** 未税金额为真源时正算税额/价税合计 */
+export function calcDocumentLineAmountsFromExclTotal(exclTotal: unknown, taxRateInput: unknown) {
+  const exclCents = toCents(exclTotal);
+  const taxRate = toSafeNumber(taxRateInput);
+  const taxCents = Math.round((exclCents * taxRate) / 100);
+  return {
+    excl: fromCents(exclCents),
+    tax: fromCents(taxCents),
+    incl: fromCents(exclCents + taxCents),
+  };
+}
+
+function hasFiniteStoredLineAmount(value: unknown): boolean {
+  if (value == null || value === '') return false;
+  return Number.isFinite(Number(value));
+}
+
+/**
+ * 明细行展示金额：已存 item_amount 时以之为真源拆分；否则按 qty×单价计算。
+ * 含税价类 item_amount=价税合计；不含税价类 item_amount=未税金额。
+ */
+export function resolveDocumentLineDisplayAmounts(
+  row: {
+    qty?: unknown;
+    unit_price?: unknown;
+    tax_rate?: unknown;
+    item_amount?: unknown;
+    is_gift?: unknown;
+  },
+  priceType: string | undefined,
+): { excl: number; tax: number; incl: number } {
+  const pt = priceType ?? 'tax_exclusive';
+  if (row.is_gift) {
+    return { excl: 0, tax: 0, incl: 0 };
+  }
+  if (hasFiniteStoredLineAmount(row.item_amount)) {
+    if (pt === 'tax_inclusive') {
+      return calcDocumentLineAmountsFromInclTotal(row.item_amount, row.tax_rate);
+    }
+    return calcDocumentLineAmountsFromExclTotal(row.item_amount, row.tax_rate);
+  }
+  return calcDocumentLineAmounts(row.qty, row.unit_price, row.tax_rate, pt);
+}
+
+/**
+ * 用户录入价税合计：合计为真源，反算单价（按单价小数位量化）并写回落库行金额。
+ * 解决「8500 → 反算单价分币 → 再乘数量变成 8500.32」尾差回写。
+ */
+export function applyDocumentLineInclAmountEdit(opts: {
+  qty: unknown;
+  taxRate: unknown;
+  priceType: string | undefined;
+  inclAmount: unknown;
+  priceDecimals?: number;
+}): {
+  unit_price: number;
+  item_amount: number;
+  excl: number;
+  tax: number;
+  incl: number;
+} {
+  const qty = toSafeNumber(opts.qty);
+  const pt = opts.priceType ?? 'tax_exclusive';
+  const amounts = calcDocumentLineAmountsFromInclTotal(opts.inclAmount, opts.taxRate);
+  const rawUnit =
+    qty > 0 ? (pt === 'tax_inclusive' ? amounts.incl / qty : amounts.excl / qty) : 0;
+  const unit_price =
+    opts.priceDecimals != null ? roundToPlaces(rawUnit, opts.priceDecimals) : rawUnit;
+  return {
+    unit_price,
+    item_amount: pt === 'tax_inclusive' ? amounts.incl : amounts.excl,
+    ...amounts,
+  };
+}
+
+/** 按 qty×单价重算落库行金额（数量/单价/税率变更时） */
+export function recalcDocumentStoredLineAmount(
+  row: {
+    qty?: unknown;
+    unit_price?: unknown;
+    tax_rate?: unknown;
+    is_gift?: unknown;
+  },
+  priceType: string | undefined,
+): number {
+  if (row.is_gift) return 0;
+  const line = calcDocumentLineAmounts(row.qty, row.unit_price, row.tax_rate, priceType);
+  return resolveSalesDocumentStoredLineAmount(line, priceType);
+}
+
 export interface DocumentGoodsTotals {
   totalQuantity: number;
   goodsExcl: number;
@@ -102,7 +213,16 @@ export function computeDocumentGoodsTotals(
   for (const row of rows) {
     const { qty, price, taxRate } = readLine(row);
     totalQuantity += toSafeNumber(qty);
-    const line = calcDocumentLineAmounts(qty, price, taxRate, pt);
+    const line = resolveDocumentLineDisplayAmounts(
+      {
+        qty,
+        unit_price: price,
+        tax_rate: taxRate,
+        item_amount: row.item_amount,
+        is_gift: row.is_gift,
+      },
+      pt,
+    );
     goodsExclCents += toCents(line.excl);
     taxAmountCents += toCents(line.tax);
     goodsInclCents += toCents(line.incl);

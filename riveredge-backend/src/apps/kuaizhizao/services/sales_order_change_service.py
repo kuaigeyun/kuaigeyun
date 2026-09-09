@@ -676,6 +676,19 @@ class SalesOrderChangeService(AppBaseService[SalesOrderChangeOrder]):
         assert_sales_order_change_capability(doc, "submit", has_change_content=has_content)
         audit_required = await self.business_config_service.check_audit_required(tenant_id, "sales_order_change")
         if audit_required:
+            from core.services.approval.audit_flow_guard import start_document_approval_or_raise
+
+            await start_document_approval_or_raise(
+                tenant_id=tenant_id,
+                user_id=operator_id,
+                node_key="sales_order_change",
+                entity_type="sales_order_change",
+                entity_id=int(doc.id),
+                entity_uuid=str(doc.uuid),
+                title=f"销售变更单审批: {doc.change_code}",
+                content=f"原销售订单: {doc.source_order_code or '—'}",
+                doc_label="销售变更单",
+            )
             doc.status = DocumentStatus.PENDING_REVIEW.value
             doc.review_status = ReviewStatus.PENDING.value
         else:
@@ -696,6 +709,19 @@ class SalesOrderChangeService(AppBaseService[SalesOrderChangeOrder]):
         if not doc:
             raise NotFoundError(f"销售变更单不存在: {change_id}")
         assert_sales_order_change_capability(doc, "approve")
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "sales_order_change"
+        )
+        from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+
+        await assert_pending_approval_instance(
+            tenant_id=tenant_id,
+            entity_type="sales_order_change",
+            entity_id=change_id,
+            audit_required=audit_required,
+            doc_label="销售变更单",
+            verb="审核" if body.approved else "驳回",
+        )
         doc.reviewer_id = operator_id
         doc.reviewer_name = await self.get_user_name(operator_id)
         doc.review_time = resolve_business_datetime()
@@ -726,6 +752,14 @@ class SalesOrderChangeService(AppBaseService[SalesOrderChangeOrder]):
             raise NotFoundError(f"销售变更单不存在: {change_id}")
         await self._assert_change_visible_if_user(doc, tenant_id=tenant_id, current_user=current_user)
         assert_sales_order_change_capability(doc, "withdraw_submit")
+        from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+        await ApprovalInstanceService.cancel_approval(
+            tenant_id=tenant_id,
+            entity_type="sales_order_change",
+            entity_id=change_id,
+            operator_id=operator_id,
+        )
         doc.status = DocumentStatus.DRAFT.value
         doc.review_status = ReviewStatus.PENDING.value
         user_info = await self.get_user_info(operator_id)
@@ -733,6 +767,49 @@ class SalesOrderChangeService(AppBaseService[SalesOrderChangeOrder]):
         doc.updated_by_name = user_info["name"]
         await doc.save()
         return await self._to_detail(doc)
+
+    async def revoke_sales_order_change_approval(
+        self,
+        tenant_id: int,
+        change_id: int,
+        operator_id: int,
+    ) -> SalesOrderChangeWithItemsResponse:
+        """撤销审核：一律回到草稿，须重新提交再审。已生效变更单不可撤销。"""
+        from core.services.approval.audit_transition import resolve_revoke_to_draft_landing_phase
+        from core.services.approval.uni_audit_service import UniAuditService
+
+        doc = await SalesOrderChangeOrder.get_or_none(
+            tenant_id=tenant_id, id=change_id, deleted_at__isnull=True
+        )
+        if not doc:
+            raise NotFoundError(f"销售变更单不存在: {change_id}")
+        assert_sales_order_change_capability(doc, "revoke_approval")
+
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "sales_order_change"
+        )
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
+
+        async def _do_revoke() -> SalesOrderChangeWithItemsResponse:
+            user_info = await self.get_user_info(operator_id)
+            doc.status = DocumentStatus.DRAFT.value
+            doc.review_status = ReviewStatus.PENDING.value
+            doc.reviewer_id = None
+            doc.reviewer_name = None
+            doc.review_time = None
+            doc.review_remarks = None
+            doc.updated_by = operator_id
+            doc.updated_by_name = user_info["name"]
+            await doc.save()
+            return await self._to_detail(doc)
+
+        return await UniAuditService.revoke_with_flow_fallback(
+            tenant_id=tenant_id,
+            entity_type="sales_order_change",
+            entity_id=change_id,
+            operator_id=operator_id,
+            flow_revoke=_do_revoke,
+        )
 
     async def preview_impact(self, tenant_id: int, change_id: int) -> ChangeImpactPreviewResponse:
         doc = await self.get_by_id(tenant_id, change_id)

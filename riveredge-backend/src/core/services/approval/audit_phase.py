@@ -11,7 +11,8 @@ phase 仍由 status / review_status 派生，UI 须展示审核状态列。
 
 phase ∈ ``draft`` | ``pending`` | ``approved`` | ``rejected`` | ``none``
 
-撤销审核落点见 ``audit_transition.resolve_revoke_landing_phase``（人工→pending，自动→draft）。
+撤销审核落点见 ``audit_transition``：全单据一律 draft
+（``resolve_revoke_to_draft_landing_phase`` / ``resolve_revoke_landing_phase``）。
 """
 
 from __future__ import annotations

@@ -57,18 +57,13 @@ export function WorkOrderBatchPickingModal({
         messageApi.warning(t('app.kuaizhizao.workOrder.batchPicking.noneCreated'));
         return;
       }
-      if (createdCount < workOrderIds.length) {
-        messageApi.warning(
-          t('app.kuaizhizao.workOrder.batchPicking.partialSuccess', {
-            created: createdCount,
-            total: workOrderIds.length,
-          }),
-        );
-      } else {
-        messageApi.success(
-          t('app.kuaizhizao.warehouseOutbound.msg.batchPickingSuccess', { count: createdCount }),
-        );
-      }
+      const pickingCode = String(created[0]?.picking_code || '').trim();
+      messageApi.success(
+        t('app.kuaizhizao.warehouseOutbound.msg.batchPickingMergedSuccess', {
+          workOrderCount: workOrderIds.length,
+          code: pickingCode ? ` ${pickingCode}` : '',
+        }),
+      );
       formRef.current?.resetFields();
       setWarehouseName(undefined);
       onSuccess(createdCount);

@@ -731,11 +731,12 @@ const CustomersPage: React.FC = () => {
       title: t('field.customer.code'),
       dataIndex: 'code',
       copyable: true,
-      width: 100,
-      minWidth: 100,
+      width: 156,
+      minWidth: 156,
       uniTableKeepWidth: true,
       resizable: false,
       fixed: 'left',
+      ellipsis: true,
       sorter: true,
       hideInSearch: true,
     },
@@ -1028,7 +1029,7 @@ const CustomersPage: React.FC = () => {
       <UniTable<Customer>
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('masterData.customers')}
-        columnPersistenceId="apps.master-data.pages.supply-chain.customers.list-v5"
+        columnPersistenceId="apps.master-data.pages.supply-chain.customers.list-v6"
         actionRef={actionRef}
         columns={alignProColumns(columns, GLOBAL_DOC_LIST_FIELD_RANK)}
         request={async (params, sort, __filter, searchFormValues, meta?: UniTableRequestMeta) => {

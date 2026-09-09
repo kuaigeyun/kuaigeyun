@@ -747,12 +747,24 @@ class InventoryService:
                 # 记录序列号
                 if serial_nos:
                     from apps.master_data.models.material_serial import MaterialSerial
+                    from apps.kuaizhizao.models.material_stock_movement import MaterialStockMovement
 
                     for s_no in serial_nos:
                         existing = await MaterialSerial.filter(tenant_id=tenant_id, serial_no=s_no).first()
                         if existing:
                             if existing.status == "in_stock":
                                 if source_type and str(source_type).endswith("_withdraw"):
+                                    continue
+                                # 同单撤回曾冲数量但未回冲序列号台账时，允许采购入库再确认对齐台账
+                                if (
+                                    source_type == "purchase_receipt"
+                                    and source_doc_id
+                                    and await MaterialStockMovement.filter(
+                                        tenant_id=tenant_id,
+                                        source_type="purchase_receipt_revoke",
+                                        source_doc_id=int(source_doc_id),
+                                    ).exists()
+                                ):
                                     continue
                                 raise BusinessLogicError(f"序列号 {s_no} 已在库，不可重复入库")
                             existing.status = "in_stock"

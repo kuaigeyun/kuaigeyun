@@ -136,6 +136,8 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
                     suggested_unit_price=item_data.suggested_unit_price or Decimal(0),
                     required_date=item_data.required_date or data.required_date,
                     demand_computation_item_id=item_data.demand_computation_item_id,
+                    work_order_id=item_data.work_order_id,
+                    work_order_code=item_data.work_order_code,
                     supplier_id=item_data.supplier_id,
                     notes=item_data.notes,
                 )
@@ -754,12 +756,22 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
 
         update_data = data.model_dump(exclude_unset=True, exclude={"items"})
         if update_data:
+            from core.services.document_code_service import pop_and_apply_code_change_from_update_dict
+
+            await pop_and_apply_code_change_from_update_dict(
+                tenant_id,
+                "kuaizhizao-purchase-requisition",
+                req,
+                update_data,
+                "requisition_code",
+            )
             user_info = await self.get_user_info(updated_by)
-            await req.update_from_dict({
-                **update_data,
-                "updated_by": updated_by,
-                "updated_by_name": user_info["name"],
-            }).save()
+            if update_data:
+                await req.update_from_dict({
+                    **update_data,
+                    "updated_by": updated_by,
+                    "updated_by_name": user_info["name"],
+                }).save()
 
         if data.items is not None:
             await PurchaseRequisitionItem.filter(
@@ -778,6 +790,8 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
                     suggested_unit_price=item_data.suggested_unit_price or Decimal(0),
                     required_date=item_data.required_date,
                     demand_computation_item_id=item_data.demand_computation_item_id,
+                    work_order_id=item_data.work_order_id,
+                    work_order_code=item_data.work_order_code,
                     supplier_id=item_data.supplier_id,
                     notes=item_data.notes,
                 )
@@ -801,9 +815,21 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
         audit_required = await self.business_config_service.check_audit_required(tenant_id, "purchase_request")
         
         if audit_required:
+            from core.services.approval.audit_flow_guard import start_document_approval_or_raise
+
+            await start_document_approval_or_raise(
+                tenant_id=tenant_id,
+                user_id=submitted_by,
+                node_key="purchase_request",
+                entity_type="purchase_request",
+                entity_id=int(req.id),
+                entity_uuid=str(req.uuid),
+                title=f"采购申请审批: {req.requisition_code}",
+                content=f"申请人: {req.applicant_name or '—'}",
+                doc_label="采购申请",
+            )
             req.status = DocumentStatus.PENDING_REVIEW.value
             req.review_status = ReviewStatus.PENDING.value
-            # TODO: 接入真正的工作流引擎
         else:
             req.status = DocumentStatus.CONFIRMED.value
             req.review_status = ReviewStatus.APPROVED.value
@@ -833,6 +859,20 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
             raise NotFoundError(f"采购申请不存在: {requisition_id}")
 
         assert_purchase_requisition_capability(req, "approve")
+
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "purchase_request"
+        )
+        from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+
+        await assert_pending_approval_instance(
+            tenant_id=tenant_id,
+            entity_type="purchase_request",
+            entity_id=requisition_id,
+            audit_required=audit_required,
+            doc_label="采购申请",
+            verb="审核" if approved else "驳回",
+        )
 
         user_info = await self.get_user_info(approved_by) if approved_by else None
         reviewer_name = user_info["name"] if user_info else None
@@ -900,9 +940,11 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
         requisition_id: int,
         operator_id: Optional[int] = None,
     ) -> PurchaseRequisitionResponse:
-        """撤销审核：人工审→待审核，自动审→草稿。"""
-        from apps.kuaizhizao.constants import DocumentStatus, ReviewStatus, normalize_status
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        """撤销审核：一律回到草稿，须重新提交再审。"""
+        from apps.kuaizhizao.constants import ReviewStatus
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
 
         req = await PurchaseRequisition.get_or_none(
             tenant_id=tenant_id, id=requisition_id, deleted_at__isnull=True
@@ -922,12 +964,8 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
         audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "purchase_request"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        req.status = (
-            DocumentStatus.PENDING_REVIEW.value
-            if landing == "pending"
-            else "草稿"
-        )
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
+        req.status = "草稿"
         req.review_status = ReviewStatus.PENDING.value
         req.reviewer_id = None
         req.reviewer_name = None
@@ -1273,6 +1311,8 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
                         suggested_unit_price=item.suggested_unit_price,
                         required_date=item.required_date,
                         demand_computation_item_id=item.demand_computation_item_id,
+                        work_order_id=item.work_order_id,
+                        work_order_code=item.work_order_code,
                         supplier_id=item.supplier_id,
                         notes=item.notes,
                     )
@@ -1295,6 +1335,8 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
                         source_type="purchase_requisition",
                         source_id=item.id,
                         demand_computation_item_id=item.demand_computation_item_id,
+                        work_order_id=item.work_order_id,
+                        work_order_code=item.work_order_code,
                         notes=item.notes,
                     )
                 )
@@ -1677,6 +1719,9 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
                         required_date=line_required,
                         source_type="purchase_requisition",
                         source_id=item.id,
+                        demand_computation_item_id=item.demand_computation_item_id,
+                        work_order_id=item.work_order_id,
+                        work_order_code=item.work_order_code,
                         notes=item.notes,
                     )
                 )

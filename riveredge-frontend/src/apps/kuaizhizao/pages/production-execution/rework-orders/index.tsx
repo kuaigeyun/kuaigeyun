@@ -1862,7 +1862,7 @@ const ReworkOrdersPage: React.FC = () => {
               required={true}
               autoGenerateOnCreate={!isEdit}
               showGenerateButton={false}
-              disabled={isEdit}
+              documentId={isEdit ? currentReworkOrder?.id : undefined}
               context={{}}
             />
           </Col>

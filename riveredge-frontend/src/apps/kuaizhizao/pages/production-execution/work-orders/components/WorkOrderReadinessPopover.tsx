@@ -24,6 +24,7 @@ import { translateWorkOrderLifecycleStatus } from '../../../../utils/workOrderLi
 import { translateOutsourceWorkOrderLifecycleStatus } from '../../../../utils/outsourceWorkOrderLifecycle'
 import { UniTableStackedPrimaryCell } from '../../../../../../components/uni-table/stackedPrimaryColumn'
 import { formatQuantity } from '../../../../../../utils/format'
+import { getCachedNumericPrecisionPlaces } from '../../../../../../hooks/useNumericPrecision'
 import { WorkOrderMaterialMovementsPanel } from './WorkOrderMaterialMovementsPanel'
 import { MODAL_ISOLATE_POINTER_PROPS } from '../../../../../../utils/modalEventIsolation'
 import { getAntdModal } from '../../../../../../utils/antdAppApis';
@@ -140,10 +141,19 @@ function parseRequiredNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/** 与后端 quantize_business_quantity / formatQuantity 小数位对齐后再比齐套 */
+function roundQuantityForCompare(n: number): number {
+  const places = getCachedNumericPrecisionPlaces('quantity')
+  const factor = 10 ** places
+  return Math.round((n + Number.EPSILON) * factor) / factor
+}
+
 /** 当前可用数量是否覆盖需求（用于数量/库位列绿/红） */
 function isAvailableMeetsRequirement(available: number, required: number | null): boolean | null {
   if (required == null) return null
-  return available + QTY_CMP_EPS >= required
+  const req = roundQuantityForCompare(required)
+  const avail = roundQuantityForCompare(available)
+  return avail + QTY_CMP_EPS >= req
 }
 
 /** 叫料列表「已/需」：已送达/需求，单行不换行 */
@@ -173,6 +183,23 @@ function canPushMaterialCallToPicking(r: Record<string, unknown>): boolean {
   const pickingId = Number(r.production_picking_id ?? r.productionPickingId ?? 0)
   if (Number.isFinite(pickingId) && pickingId > 0) return false
   return ['pending', 'processing', 'partial'].includes(st)
+}
+
+/** 待处理且仍有未送达数量，可下推采购申请现采 */
+function canPushMaterialCallToPurchaseRequisition(r: Record<string, unknown>): boolean {
+  const st = String((r.status as string) ?? '').trim()
+  if (st !== 'pending') return false
+  const lineItems = (r.items as Array<Record<string, unknown>> | undefined) ?? []
+  if (lineItems.length > 0) {
+    return lineItems.some((line) => {
+      const requested = Number(line.requested_quantity ?? 0)
+      const delivered = Number(line.delivered_quantity ?? 0)
+      return Number.isFinite(requested) && requested - delivered > 0
+    })
+  }
+  const requested = Number(r.requested_quantity ?? 0)
+  const delivered = Number(r.delivered_quantity ?? 0)
+  return Number.isFinite(requested) && requested - delivered > 0
 }
 
 const CALL_TABLE_CELL_NOWRAP: React.HTMLAttributes<HTMLTableCellElement> = {
@@ -233,6 +260,8 @@ function resolveSupplyProgressTagColor(status: string): string {
       return 'processing'
     case 'purchase_requisition':
       return 'orange'
+    case 'received_short':
+      return 'warning'
     case 'awaiting_purchase':
       return 'warning'
     default:
@@ -616,9 +645,11 @@ const WorkOrderReadinessPopoverContent: React.FC<{
   const queryClient = useQueryClient()
   const invalidateMenuBadgeCounts = useInvalidateMenuBadgeCounts()
   const outboundPerms = useResourcePermissions('kuaizhizao:outbound')
+  const purchaseRequisitionPerms = useResourcePermissions('kuaizhizao:purchase-requisition')
   const [remindModalOpen, setRemindModalOpen] = useState(false)
   const [remindSubmitting, setRemindSubmitting] = useState(false)
   const [confirmPickingSubmitting, setConfirmPickingSubmitting] = useState(false)
+  const [pushPurchaseRequisitionSubmitting, setPushPurchaseRequisitionSubmitting] = useState(false)
   const [readinessTabKey, setReadinessTabKey] = useState('warehouse')
   const [remindForm] = Form.useForm<{ recipient_user_uuids: string[]; remarks?: string }>()
   const { data: executionConfig } = useQuery({
@@ -994,7 +1025,6 @@ const WorkOrderReadinessPopoverContent: React.FC<{
 
   const callList = Array.isArray(calls) ? calls : []
 
-  /** 配料启用：线边就绪不足（正式发料+线边+自制工单供给 < 需求）；主仓有货不计入。委外收货在主仓，线边不足须备料。 */
   const hasBatchingShortage = items.some((raw) => {
     const it = raw as Record<string, unknown>
     if (it.kitting_applicable === false) return false
@@ -1014,6 +1044,15 @@ const WorkOrderReadinessPopoverContent: React.FC<{
       (Number.isFinite(lineSide) ? lineSide : 0) +
       (Number.isFinite(woSupply) ? woSupply : 0)
     return lineReady < required
+  })
+
+  const hasPurchaseShortage = items.some((raw) => {
+    const it = raw as Record<string, unknown>
+    if (it.kitting_applicable === false) return false
+    const st = String(it.source_type ?? it.sourceType ?? '').trim()
+    if (st !== 'Buy') return false
+    const sp = parseSupplyProgress(it)
+    return sp?.status === 'awaiting_purchase'
   })
 
   const canConfirmPickingByPolicy = executionConfig?.current_user_can_confirm_picking !== false
@@ -1073,6 +1112,47 @@ const WorkOrderReadinessPopoverContent: React.FC<{
     })
   }
 
+  const handlePushPurchaseRequisition = () => {
+    if (!purchaseRequisitionPerms.canCreate) {
+      messageApi.warning(t('app.kuaizhizao.workOrder.pushPurchaseRequisitionNoPerm'))
+      return
+    }
+    void (async () => {
+      try {
+        setPushPurchaseRequisitionSubmitting(true)
+        const preview = await workOrderApi.previewPushPurchaseRequisition(workOrderId)
+        if (preview.blocking_reason || !(preview.items?.length ?? 0)) {
+          messageApi.warning(t('app.kuaizhizao.workOrder.pushPurchaseRequisitionBlocked'))
+          return
+        }
+        modalApi.confirm({
+          title: t('app.kuaizhizao.workOrder.pushPurchaseRequisitionTitle'),
+          content: t('app.kuaizhizao.workOrder.pushPurchaseRequisitionContent', {
+            count: preview.items.length,
+            code: preview.work_order_code,
+          }),
+          okText: t('app.kuaizhizao.workOrder.actionPushPurchaseRequisition'),
+          onOk: async () => {
+            const result = await workOrderApi.pushPurchaseRequisition(workOrderId)
+            messageApi.success(result.message || t('app.kuaizhizao.workOrder.pushPurchaseRequisitionSuccess'))
+            await queryClient.invalidateQueries({ queryKey: ['workOrderKittingAnalysis', workOrderId] })
+            invalidateMenuBadgeCounts()
+            onReadinessSynced?.()
+            const target = result.target_document
+            if (target?.id) {
+              navigate(`/apps/kuaizhizao/purchase-management/purchase-requisitions?highlight=${target.id}`)
+              onCloseMain?.()
+            }
+          },
+        })
+      } catch (e: unknown) {
+        messageApi.error((e as Error)?.message ?? t('app.kuaizhizao.workOrder.pushPurchaseRequisitionFailed'))
+      } finally {
+        setPushPurchaseRequisitionSubmitting(false)
+      }
+    })()
+  }
+
   const handlePushMaterialCallToPicking = (callId: number) => {
     if (!outboundPerms.canCreate) {
       messageApi.warning(t('app.kuaizhizao.workOrder.readinessConfirmPickingNoPerm'))
@@ -1110,6 +1190,43 @@ const WorkOrderReadinessPopoverContent: React.FC<{
         onCloseMain?.()
       } catch (e: unknown) {
         messageApi.error((e as Error)?.message ?? t('app.kuaizhizao.workOrder.pushMaterialCallToPickingFailed'))
+      }
+    })()
+  }
+
+  const handlePushMaterialCallToPurchaseRequisition = (callId: number) => {
+    if (!purchaseRequisitionPerms.canCreate) {
+      messageApi.warning(t('app.kuaizhizao.workOrder.pushPurchaseRequisitionNoPerm'))
+      return
+    }
+    void (async () => {
+      try {
+        const preview = (await warehouseApi.materialCall.previewPushPurchaseRequisition(callId)) as {
+          blocking_reason?: string | null
+          items?: unknown[]
+        }
+        if (preview.blocking_reason || !(preview.items?.length ?? 0)) {
+          messageApi.warning(t('app.kuaizhizao.workOrder.pushPurchaseRequisitionBlocked'))
+          return
+        }
+        modalApi.confirm({
+          title: t('app.kuaizhizao.workOrder.pushMaterialCallPurchaseRequisitionTitle'),
+          content: t('app.kuaizhizao.workOrder.pushMaterialCallPurchaseRequisitionContent'),
+          okText: t('app.kuaizhizao.workOrder.actionPushPurchaseRequisition'),
+          onOk: async () => {
+            const result = await warehouseApi.materialCall.pushPurchaseRequisition(callId)
+            messageApi.success(
+              (result as { message?: string }).message
+                || t('app.kuaizhizao.workOrder.pushPurchaseRequisitionSuccess'),
+            )
+            await queryClient.invalidateQueries({ queryKey: ['materialCallsByWorkOrder', workOrderId] })
+            await queryClient.invalidateQueries({ queryKey: ['workOrderKittingAnalysis', workOrderId] })
+            invalidateMenuBadgeCounts()
+            onReadinessSynced?.()
+          },
+        })
+      } catch (e: unknown) {
+        messageApi.error((e as Error)?.message ?? t('app.kuaizhizao.workOrder.pushPurchaseRequisitionFailed'))
       }
     })()
   }
@@ -1152,6 +1269,14 @@ const WorkOrderReadinessPopoverContent: React.FC<{
                 onClick={handleOpenRemindBatching}
               >
                 {t('app.kuaizhizao.workOrder.actionRemindBatching')}
+              </Button>
+              <Button
+                size="small"
+                disabled={!hasPurchaseShortage || !purchaseRequisitionPerms.canCreate}
+                loading={pushPurchaseRequisitionSubmitting}
+                onClick={handlePushPurchaseRequisition}
+              >
+                {t('app.kuaizhizao.workOrder.actionPushPurchaseRequisition')}
               </Button>
               {!hasBatchingShortage ? (
                 <>
@@ -1409,7 +1534,8 @@ const WorkOrderReadinessPopoverContent: React.FC<{
                     const showQty =
                       sp.status === 'purchasing' ||
                       sp.status === 'receiving' ||
-                      sp.status === 'purchase_requisition'
+                      sp.status === 'purchase_requisition' ||
+                      sp.status === 'received_short'
                     const showProgress = sp.status === 'purchasing' || sp.status === 'receiving'
                     const qtyText = showQty
                       ? sp.status === 'purchase_requisition'
@@ -1584,6 +1710,21 @@ const WorkOrderReadinessPopoverContent: React.FC<{
                           }}
                         >
                           {t('app.kuaizhizao.workOrder.actionPushMaterialCallToPicking')}
+                        </Button>,
+                      )
+                    }
+                    if (canPushMaterialCallToPurchaseRequisition(r) && purchaseRequisitionPerms.canCreate) {
+                      actions.push(
+                        <Button
+                          type="link"
+                          size="small"
+                          key="push-pr"
+                          onClick={(e) => {
+                            stopRowToggle(e)
+                            handlePushMaterialCallToPurchaseRequisition(id)
+                          }}
+                        >
+                          {t('app.kuaizhizao.workOrder.actionPushMaterialCallPurchaseRequisition')}
                         </Button>,
                       )
                     }

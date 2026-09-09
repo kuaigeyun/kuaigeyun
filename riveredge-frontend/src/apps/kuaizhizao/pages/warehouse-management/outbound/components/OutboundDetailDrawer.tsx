@@ -179,6 +179,7 @@ export const OutboundDetailDrawer: React.FC<OutboundDetailDrawerProps> = ({
   );
 
   const items = (Array.isArray(effective.items) ? effective.items : []) as Array<Record<string, unknown>>;
+  const showLineWorkOrder = items.some((row) => String(row.work_order_code || '').trim());
 
   const defaultLines = (
     <>
@@ -189,9 +190,19 @@ export const OutboundDetailDrawer: React.FC<OutboundDetailDrawerProps> = ({
           size="small"
           rowKey={(r, idx) => String(r.id ?? r.material_id ?? idx)}
           pagination={false}
-          scroll={{ x: 800 }}
+          scroll={{ x: showLineWorkOrder ? 940 : 800 }}
           dataSource={items}
           columns={[
+            ...(showLineWorkOrder
+              ? [
+                  {
+                    title: t('app.kuaizhizao.warehouseOutbound.col.workOrderCode'),
+                    dataIndex: 'work_order_code',
+                    width: 140,
+                    render: (v: unknown) => String(v || '').trim() || '-',
+                  },
+                ]
+              : []),
             {
               title: t('app.kuaizhizao.warehouseOutbound.col.materialCode'),
               dataIndex: 'material_code',
@@ -206,14 +217,15 @@ export const OutboundDetailDrawer: React.FC<OutboundDetailDrawerProps> = ({
               title: t('app.kuaizhizao.warehouseOutbound.col.deliveryQty'),
               dataIndex: 'delivery_quantity',
               width: 100,
-              align: 'right',
-              render: (v, row) => v ?? row.picked_quantity ?? row.quantity ?? '-',
+              align: 'right' as const,
+              render: (v: unknown, row: Record<string, unknown>) =>
+                v ?? row.picked_quantity ?? row.quantity ?? '-',
             },
             {
               title: t('common.unit'),
               dataIndex: 'material_unit',
               width: 60,
-              render: (v, row) => String(v ?? row.unit ?? '-'),
+              render: (v: unknown, row: Record<string, unknown>) => String(v ?? row.unit ?? '-'),
             },
             {
               title: t('app.kuaizhizao.warehouseOutbound.col.batchNo'),

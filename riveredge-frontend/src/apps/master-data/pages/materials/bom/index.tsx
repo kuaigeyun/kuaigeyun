@@ -3954,6 +3954,7 @@ const BOMPage: React.FC = () => {
                 colProps={{ span: 12 }}
                 autoGenerateOnCreate={!isEdit}
                 showGenerateButton={false}
+                documentId={isEdit ? editFormHeaderId ?? undefined : undefined}
                 context={context}
                 fieldProps={{
                   maxLength: 100,

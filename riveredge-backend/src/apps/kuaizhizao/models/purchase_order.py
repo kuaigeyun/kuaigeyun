@@ -149,6 +149,8 @@ class PurchaseOrderItem(BaseModel):
     source_type = fields.CharField(max_length=50, null=True, description="来源类型")
     source_id = fields.IntField(null=True, description="来源ID")
     demand_computation_item_id = fields.IntField(null=True, description="需求计算明细ID（溯源影响总成）")
+    work_order_id = fields.IntField(null=True, description="关联工单ID（由采购申请行带入）")
+    work_order_code = fields.CharField(max_length=50, null=True, description="关联工单编码快照")
 
     # 备注
     notes = fields.TextField(null=True, description="备注")

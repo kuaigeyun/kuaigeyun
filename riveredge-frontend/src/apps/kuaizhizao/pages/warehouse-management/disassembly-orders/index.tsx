@@ -10,7 +10,7 @@ const DisassemblyOrdersPage: React.FC = () => {
   const disassemblyConfig = useMemo(
     () => ({
       headerTitle: t('app.kuaizhizao.disassemblyOrder.headerTitle'),
-      persistenceId: 'apps.kuaizhizao.pages.warehouse-management.disassembly-orders-width-v3',
+      persistenceId: 'apps.kuaizhizao.pages.warehouse-management.disassembly-orders-width-v4',
       createButtonText: t('app.kuaizhizao.disassemblyOrder.createButton'),
       createModalTitle: t('app.kuaizhizao.disassemblyOrder.createModalTitle'),
       detailTitlePrefix: t('app.kuaizhizao.disassemblyOrder.detailTitlePrefix'),
@@ -28,6 +28,7 @@ const DisassemblyOrdersPage: React.FC = () => {
       itemDoneStatus: 'produced',
       attachmentCategory: 'disassembly_order_attachments',
       getLifecycle: getDisassemblyOrderLifecycle,
+      stockConsumeKind: 'product' as const,
     }),
     [t],
   );

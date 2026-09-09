@@ -330,6 +330,7 @@ def enrich_sales_order_capabilities_on_response(
     computation_pushed_blocks_withdraw: bool = False,
     has_returnable_qty: bool = False,
     has_pushable_qty: bool = False,
+    has_remaining_work_order_qty: bool = True,
     has_existing_delivery_project: bool = False,
     require_audit_before_print: bool = False,
 ) -> T:
@@ -341,6 +342,7 @@ def enrich_sales_order_capabilities_on_response(
         computation_pushed_blocks_withdraw=computation_pushed_blocks_withdraw,
         has_returnable_qty=has_returnable_qty,
         has_pushable_qty=has_pushable_qty,
+        has_remaining_work_order_qty=has_remaining_work_order_qty,
         has_existing_delivery_project=has_existing_delivery_project,
         require_audit_before_print=require_audit_before_print,
     )
@@ -359,6 +361,7 @@ def enrich_sales_order_list_capabilities(
     computation_blocks_withdraw_by_id: Optional[dict[int, bool]] = None,
     has_returnable_qty_by_id: Optional[dict[int, bool]] = None,
     has_pushable_qty_by_id: Optional[dict[int, bool]] = None,
+    has_remaining_work_order_qty_by_id: Optional[dict[int, bool]] = None,
     has_existing_delivery_project_by_id: Optional[dict[int, bool]] = None,
     require_audit_before_print: bool = False,
 ) -> List[T]:
@@ -368,6 +371,7 @@ def enrich_sales_order_list_capabilities(
     blocks_map = computation_blocks_withdraw_by_id or {}
     returnable_map = has_returnable_qty_by_id or {}
     pushable_map = has_pushable_qty_by_id or {}
+    remaining_wo_map = has_remaining_work_order_qty_by_id or {}
     delivery_project_map = has_existing_delivery_project_by_id or {}
     out: List[T] = []
     for order_model, resp in zip(orders, responses):
@@ -380,6 +384,7 @@ def enrich_sales_order_list_capabilities(
             computation_pushed_blocks_withdraw=blocks_map.get(oid, False),
             has_returnable_qty=returnable_map.get(oid, False),
             has_pushable_qty=pushable_map.get(oid, False),
+            has_remaining_work_order_qty=remaining_wo_map.get(oid, True),
             has_existing_delivery_project=delivery_project_map.get(oid, False),
             require_audit_before_print=require_audit_before_print,
         )
@@ -399,6 +404,7 @@ def get_sales_order_capabilities_from_record(
     computation_pushed_blocks_withdraw: bool = False,
     has_returnable_qty: bool = False,
     has_pushable_qty: bool = False,
+    has_remaining_work_order_qty: bool = True,
     has_existing_delivery_project: bool = False,
     require_audit_before_print: bool = False,
 ) -> SalesOrderCapabilities:
@@ -410,6 +416,7 @@ def get_sales_order_capabilities_from_record(
         computation_pushed_blocks_withdraw=computation_pushed_blocks_withdraw,
         has_returnable_qty=has_returnable_qty,
         has_pushable_qty=has_pushable_qty,
+        has_remaining_work_order_qty=has_remaining_work_order_qty,
         has_existing_delivery_project=has_existing_delivery_project,
         require_audit_before_print=require_audit_before_print,
     )

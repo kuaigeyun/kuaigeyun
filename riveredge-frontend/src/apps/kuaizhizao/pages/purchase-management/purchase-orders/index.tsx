@@ -2774,7 +2774,7 @@ const PurchaseOrdersPage: React.FC = () => {
                   required={true}
                   autoGenerateOnCreate={!isEdit}
                   showGenerateButton={false}
-                  disabled={isEdit}
+                  documentId={isEdit ? currentOrder?.id : undefined}
                   context={{}}
                 />
               </Col>
@@ -2803,8 +2803,20 @@ const PurchaseOrdersPage: React.FC = () => {
                           (buyer ? normalizeUserDisplayName(buyer.full_name || buyer.username) : '');
                         formRef.current?.setFieldsValue({
                           supplier_name: s.name ?? (s as any).supplier_name,
-                          supplier_contact: (s as any).contact_person ?? s.contactPerson ?? (s as any).supplier_contact,
-                          supplier_phone: s.phone ?? (s as any).supplier_phone,
+                          supplier_contact:
+                            (s as any).contact_person ??
+                            s.contactPerson ??
+                            (s as any).supplier_contact ??
+                            (Array.isArray((s as any).contacts) && (s as any).contacts[0]
+                              ? (s as any).contacts[0].contactPerson ??
+                                (s as any).contacts[0].contact_person
+                              : undefined),
+                          supplier_phone:
+                            s.phone ??
+                            (s as any).supplier_phone ??
+                            (Array.isArray((s as any).contacts) && (s as any).contacts[0]
+                              ? (s as any).contacts[0].phone
+                              : undefined),
                           buyer_id: bId,
                           buyer_name: normalizeUserDisplayName(bName),
                         });
@@ -3514,6 +3526,17 @@ const PurchaseOrdersPage: React.FC = () => {
               menuItems={toolbarPushMenuItems}
               disabled={selectedRowKeys.length !== 1 || !selectedOrderForToolbar}
               disabledReason={purchaseOrderToolbarPushDisabledReason}
+              sourceDocument={
+                selectedOrderForToolbar?.id
+                  ? { type: 'purchase_order', id: Number(selectedOrderForToolbar.id) }
+                  : null
+              }
+              pushTargets={{
+                'receipt-notice': 'receipt_notice',
+                receipt: 'purchase_receipt',
+                invoice: 'purchase_invoice',
+                'purchase-return': 'purchase_return',
+              }}
             />,
           ]}
           enableRowSelection={viewTypeState !== 'detailTable'}

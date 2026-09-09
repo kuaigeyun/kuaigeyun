@@ -424,6 +424,53 @@ class BankAccountService:
             operator_id=operator_id or getattr(row, "updated_by", None) or getattr(row, "created_by", None),
         )
 
+    async def reverse_from_voucher(
+        self,
+        tenant_id: int,
+        *,
+        voucher_type: str,
+        voucher_id: int,
+        operator_id: Optional[int] = None,
+    ) -> int:
+        """冲回收/付款确认产生的银行流水，并回滚账户余额。返回冲回条数。"""
+        from apps.kuaicaiwu.models.bank_transaction import BankTransaction
+
+        source_type = "receipt" if voucher_type == "receipt" else "payment"
+        txs = await BankTransaction.filter(
+            tenant_id=tenant_id,
+            source_doc_type=source_type,
+            source_doc_id=int(voucher_id),
+            deleted_at__isnull=True,
+        ).all()
+        if not txs:
+            return 0
+
+        user = await User.filter(id=operator_id).first() if operator_id else None
+        reversed_count = 0
+        for tx in txs:
+            account = await self.get_by_id(tenant_id, int(tx.bank_account_id))
+            amt = Decimal(str(tx.amount or 0))
+            current = Decimal(str(account.current_balance or 0))
+            direction = str(tx.direction or "").strip()
+            if direction == "in":
+                new_bal = current - amt
+            elif direction == "out":
+                new_bal = current + amt
+            else:
+                raise ValidationError(f"无法冲回未知方向的银行流水: {direction}")
+            if new_bal < 0:
+                raise ValidationError(
+                    f"账户 {account.account_code} 冲回后余额不足，当前 {current}，冲回收入 {amt}"
+                )
+            account.current_balance = new_bal
+            apply_update_audit(account, user)
+            await account.save()
+            tx.deleted_at = now_utc()
+            apply_update_audit(tx, user)
+            await tx.save()
+            reversed_count += 1
+        return reversed_count
+
     async def _related_source_codes(
         self,
         tenant_id: int,

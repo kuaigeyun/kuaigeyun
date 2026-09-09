@@ -1,6 +1,7 @@
 """工单计划时间锁定辅助函数单元测试。"""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -9,6 +10,7 @@ from apps.kuaizhizao.services.work_order_service import (
     _business_datetimes_equal,
     _is_schedulable_work_order_status,
     _is_work_order_planned_dates_locked_status,
+    _operation_planned_times_outside_work_order_window,
 )
 from infra.exceptions.exceptions import BusinessLogicError
 
@@ -91,3 +93,35 @@ def test_assert_planned_dates_editable_for_released():
         wo,
         {"planned_start_date": datetime(2026, 2, 1, tzinfo=timezone.utc)},
     )
+
+
+def test_operation_planned_times_inside_window():
+    start = datetime(2026, 8, 22, 0, 0, tzinfo=timezone.utc)
+    end = datetime(2026, 8, 28, 9, 0, tzinfo=timezone.utc)
+    ops = [
+        SimpleNamespace(
+            planned_start_date=start + timedelta(hours=1),
+            planned_end_date=start + timedelta(hours=3),
+        )
+    ]
+    assert _operation_planned_times_outside_work_order_window(ops, start, end) is False
+
+
+def test_operation_planned_times_before_window_is_outside():
+    """报工卡片仍显示需求计算旧时刻（早于用户设定的工单计划开始）。"""
+    start = datetime(2026, 8, 22, 0, 0, tzinfo=timezone.utc)
+    end = datetime(2026, 8, 28, 9, 0, tzinfo=timezone.utc)
+    ops = [
+        SimpleNamespace(
+            planned_start_date=datetime(2026, 8, 20, 4, 0, tzinfo=timezone.utc),
+            planned_end_date=datetime(2026, 8, 20, 5, 0, tzinfo=timezone.utc),
+        )
+    ]
+    assert _operation_planned_times_outside_work_order_window(ops, start, end) is True
+
+
+def test_operation_planned_times_missing_is_outside():
+    start = datetime(2026, 8, 22, 0, 0, tzinfo=timezone.utc)
+    end = datetime(2026, 8, 28, 9, 0, tzinfo=timezone.utc)
+    ops = [SimpleNamespace(planned_start_date=None, planned_end_date=None)]
+    assert _operation_planned_times_outside_work_order_window(ops, start, end) is True

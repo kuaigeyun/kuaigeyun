@@ -265,6 +265,54 @@ async def _quality_inspection_conduct_finalize_fields(
     return fields
 
 
+async def _start_quality_inspection_approval_after_conduct(
+    *,
+    tenant_id: int,
+    user_id: int,
+    stage_code: str,
+    inspection: Any,
+    doc_label: str,
+) -> None:
+    """开审时执行检验进入待审后必须创建审批实例。"""
+    if not await _is_quality_audit_required(tenant_id, stage_code):
+        return
+    from core.services.approval.audit_flow_guard import start_document_approval_or_raise
+
+    code = getattr(inspection, "inspection_code", None) or str(inspection.id)
+    await start_document_approval_or_raise(
+        tenant_id=tenant_id,
+        user_id=user_id,
+        node_key=stage_code,
+        entity_type=stage_code,
+        entity_id=int(inspection.id),
+        entity_uuid=str(inspection.uuid),
+        title=f"{doc_label}审批: {code}",
+        content=f"检验单: {code}",
+        doc_label=doc_label,
+    )
+
+
+async def _assert_quality_inspection_pending_approval(
+    *,
+    tenant_id: int,
+    stage_code: str,
+    inspection_id: int,
+    doc_label: str,
+    verb: str,
+) -> None:
+    audit_required = await _is_quality_audit_required(tenant_id, stage_code)
+    from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+
+    await assert_pending_approval_instance(
+        tenant_id=tenant_id,
+        entity_type=stage_code,
+        entity_id=inspection_id,
+        audit_required=audit_required,
+        doc_label=doc_label,
+        verb=verb,
+    )
+
+
 async def _require_iqc_stage_enabled(tenant_id: int) -> None:
     """组织级 IQC 总开关（TenantConfig）；关闭时禁止创建/下推来料检。"""
     t = await get_quality_inspection_stage_toggles(tenant_id)
@@ -866,20 +914,8 @@ async def _maybe_create_quality_exception_from_inspection(
     problem_description: Optional[str] = None,
     severity: str = "major",
 ) -> None:
-    """检验不合格时自动创建质量异常（幂等：同检验单不重复）。"""
-    from apps.kuaizhizao.models.quality_exception import QualityException
+    """检验不合格时自动创建质量异常（幂等真源在 ExceptionService.create_from_inspection）。"""
     from apps.kuaizhizao.services.exception_service import ExceptionService
-
-    existing = await QualityException.filter(
-        tenant_id=tenant_id,
-        inspection_record_id=source_id,
-        inspection_source_type=source_type,
-        exception_type="inspection_failure",
-        status__in=["pending", "investigating", "correcting"],
-        deleted_at__isnull=True,
-    ).first()
-    if existing:
-        return
 
     await ExceptionService().create_from_inspection(
         tenant_id=tenant_id,
@@ -1171,6 +1207,13 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
             await IncomingInspection.filter(tenant_id=tenant_id, id=inspection_id).update(**conduct_update)
 
             updated_inspection = await self.get_incoming_inspection_by_id(tenant_id, inspection_id)
+            await _start_quality_inspection_approval_after_conduct(
+                tenant_id=tenant_id,
+                user_id=inspected_by,
+                stage_code="incoming_inspection",
+                inspection=inspection_model,
+                doc_label="来料检验",
+            )
             
             if updated_inspection.quality_status == "不合格" and updated_inspection.unqualified_quantity > 0:
                 await _maybe_create_quality_exception_from_inspection(
@@ -1508,6 +1551,13 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
                 inspection,
                 "reject" if rejection_reason else "approve",
             )
+            await _assert_quality_inspection_pending_approval(
+                tenant_id=tenant_id,
+                stage_code="incoming_inspection",
+                inspection_id=inspection_id,
+                doc_label="来料检验",
+                verb="驳回" if rejection_reason else "审核",
+            )
 
             approver_name = await self.get_user_name(approved_by)
 
@@ -1531,11 +1581,13 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
     async def revoke_approval(
         self, tenant_id: int, inspection_id: int, user_id: int
     ) -> IncomingInspectionResponse:
-        """撤销来料检验审核（已审核 → 已检验；人工审→待审，关审→清空）。"""
+        """撤销来料检验审核（已审核 → 已检验；须重新提交再审）。"""
         from apps.kuaizhizao.services.document_action_policy.quality_inspection_record import (
             assert_quality_inspection_capability,
         )
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
 
         async with in_transaction():
             inspection = await IncomingInspection.get_or_none(tenant_id=tenant_id, id=inspection_id)
@@ -1544,12 +1596,12 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
             assert_quality_inspection_capability(inspection, "revoke_approval")
 
             audit_required = await _is_quality_audit_required(tenant_id, "incoming_inspection")
-            landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
+            _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
             updater_name = await self.get_user_name(user_id)
 
             await IncomingInspection.filter(tenant_id=tenant_id, id=inspection_id).update(
                 status="已检验",
-                review_status="待审核" if landing == "pending" else "",
+                review_status="",
                 reviewer_id=None,
                 reviewer_name=None,
                 review_time=None,
@@ -3151,6 +3203,13 @@ class ProcessInspectionService(AppBaseService[ProcessInspection]):
             )
 
             updated_inspection = await self.get_process_inspection_by_id(tenant_id, inspection_id)
+            await _start_quality_inspection_approval_after_conduct(
+                tenant_id=tenant_id,
+                user_id=inspected_by,
+                stage_code="process_inspection",
+                inspection=inspection_model,
+                doc_label="过程检验",
+            )
             
             if updated_inspection.quality_status == "不合格" and updated_inspection.unqualified_quantity > 0:
                 await _maybe_create_quality_exception_from_inspection(
@@ -3203,6 +3262,13 @@ class ProcessInspectionService(AppBaseService[ProcessInspection]):
                 inspection,
                 "reject" if rejection_reason else "approve",
             )
+            await _assert_quality_inspection_pending_approval(
+                tenant_id=tenant_id,
+                stage_code="process_inspection",
+                inspection_id=inspection_id,
+                doc_label="过程检验",
+                verb="驳回" if rejection_reason else "审核",
+            )
 
             approver_name = await self.get_user_name(approved_by)
 
@@ -3233,11 +3299,13 @@ class ProcessInspectionService(AppBaseService[ProcessInspection]):
     async def revoke_approval(
         self, tenant_id: int, inspection_id: int, user_id: int
     ) -> ProcessInspectionResponse:
-        """撤销工序检验审核（已审核 → 已检验；人工审→待审，关审→清空）。"""
+        """撤销工序检验审核（已审核 → 已检验；须重新提交再审）。"""
         from apps.kuaizhizao.services.document_action_policy.quality_inspection_record import (
             assert_quality_inspection_capability,
         )
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
 
         async with in_transaction():
             inspection = await ProcessInspection.get_or_none(tenant_id=tenant_id, id=inspection_id)
@@ -3246,12 +3314,12 @@ class ProcessInspectionService(AppBaseService[ProcessInspection]):
             assert_quality_inspection_capability(inspection, "revoke_approval")
 
             audit_required = await _is_quality_audit_required(tenant_id, "process_inspection")
-            landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
+            _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
             updater_name = await self.get_user_name(user_id)
 
             await ProcessInspection.filter(tenant_id=tenant_id, id=inspection_id).update(
                 status="已检验",
-                review_status="待审核" if landing == "pending" else "",
+                review_status="",
                 reviewer_id=None,
                 reviewer_name=None,
                 review_time=None,
@@ -4608,6 +4676,13 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
             )
 
             updated_inspection = await self.get_finished_goods_inspection_by_id(tenant_id, inspection_id)
+            await _start_quality_inspection_approval_after_conduct(
+                tenant_id=tenant_id,
+                user_id=inspected_by,
+                stage_code="finished_goods_inspection",
+                inspection=inspection_model,
+                doc_label="成品检验",
+            )
 
             if updated_inspection.quality_status == "不合格" and updated_inspection.unqualified_quantity > 0:
                 await _maybe_create_quality_exception_from_inspection(
@@ -4646,6 +4721,13 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
                 inspection,
                 "reject" if rejection_reason else "approve",
             )
+            await _assert_quality_inspection_pending_approval(
+                tenant_id=tenant_id,
+                stage_code="finished_goods_inspection",
+                inspection_id=inspection_id,
+                doc_label="成品检验",
+                verb="驳回" if rejection_reason else "审核",
+            )
 
             approver_name = await self.get_user_name(approved_by)
 
@@ -4668,11 +4750,13 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
     async def revoke_approval(
         self, tenant_id: int, inspection_id: int, user_id: int
     ) -> FinishedGoodsInspectionResponse:
-        """撤销成品检验审核（已审核 → 已检验；人工审→待审，关审→清空）。"""
+        """撤销成品检验审核（已审核 → 已检验；须重新提交再审）。"""
         from apps.kuaizhizao.services.document_action_policy.quality_inspection_record import (
             assert_quality_inspection_capability,
         )
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
 
         async with in_transaction():
             inspection = await FinishedGoodsInspection.get_or_none(
@@ -4685,12 +4769,12 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
             audit_required = await _is_quality_audit_required(
                 tenant_id, "finished_goods_inspection"
             )
-            landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
+            _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
             updater_name = await self.get_user_name(user_id)
 
             await FinishedGoodsInspection.filter(tenant_id=tenant_id, id=inspection_id).update(
                 status="已检验",
-                review_status="待审核" if landing == "pending" else "",
+                review_status="",
                 reviewer_id=None,
                 reviewer_name=None,
                 review_time=None,

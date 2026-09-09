@@ -71,6 +71,13 @@ export const payableService = {
     });
   },
 
+  updatePayable: (id: number, data: Partial<PayableCreateData>) => {
+    return apiRequest<Payable>(`${PAYABLE_API}/${id}`, {
+      method: 'PUT',
+      data,
+    });
+  },
+
   recordPayment: (id: number, data: PaymentRecordCreate) => {
     return apiRequest<Payable>(`${PAYABLE_API}/${id}/payment`, {
       method: 'POST',

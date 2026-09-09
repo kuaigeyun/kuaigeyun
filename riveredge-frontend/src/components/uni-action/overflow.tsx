@@ -23,6 +23,7 @@ import {
 } from './actionText'
 import { rowActionSortRank } from './actionCatalog'
 import { normalizeActionTree } from './normalize'
+import { ActionConfirmPopconfirm } from '../action-confirm'
 /**
  * 行内默认仅直出基础动作（详情/编辑/删除等），其余动作折叠到「更多」，
  * 以收窄操作列宽度并提升右侧固定列稳定性；「更多」仅 1 项时仍直出。
@@ -105,13 +106,21 @@ function normalizeAndSortActions(
   return withMeta.map((x) => x.node)
 }
 
+function isActionConfirmPopconfirmType(type: unknown): boolean {
+  if (type === ActionConfirmPopconfirm) return true
+  if (typeof type === 'function' && (type as { displayName?: string }).displayName === 'ActionConfirmPopconfirm') {
+    return true
+  }
+  return false
+}
+
 function findInteractiveElement(node: React.ReactNode): React.ReactElement | null {
   if (!React.isValidElement(node)) return null
   const t = node.type
   if (t === Button || (typeof node.type === 'string' && node.type === 'a')) {
     return node
   }
-  if (t === Popconfirm || t === Tooltip) {
+  if (t === Popconfirm || t === Tooltip || isActionConfirmPopconfirmType(t)) {
     return findInteractiveElement((node.props as { children?: React.ReactNode }).children)
   }
   const ch = (node.props as { children?: React.ReactNode } | undefined)?.children
@@ -127,7 +136,7 @@ function findInteractiveElement(node: React.ReactNode): React.ReactElement | nul
 function findPopconfirmElement(node: React.ReactNode): React.ReactElement | null {
   if (!React.isValidElement(node)) return null
   const t = node.type
-  if (t === Popconfirm) return node
+  if (t === Popconfirm || isActionConfirmPopconfirmType(t)) return node
   const ch = (node.props as { children?: React.ReactNode } | undefined)?.children
   if (ch != null) {
     for (const child of React.Children.toArray(ch)) {
@@ -170,7 +179,7 @@ function replaceDeepButtonIcon(node: React.ReactNode, newIcon: React.ReactElemen
       icon: newIcon,
     })
   }
-  if (t === Popconfirm || t === Tooltip) {
+  if (t === Popconfirm || t === Tooltip || isActionConfirmPopconfirmType(t)) {
     const props = node.props as { children?: React.ReactNode }
     const nextChild = replaceDeepButtonIcon(props.children, newIcon)
     return React.cloneElement(node as React.ReactElement<Record<string, unknown>>, {

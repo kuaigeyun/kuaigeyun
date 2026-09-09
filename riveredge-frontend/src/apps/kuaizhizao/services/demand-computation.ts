@@ -43,6 +43,8 @@ export interface DemandComputation {
   updated_by?: number;
   updated_by_name?: string;
   downstream_push_progress?: number;
+  /** 无建议下推量时 true：进度 100% 表示无需下推 */
+  downstream_push_no_need?: boolean;
   items?: DemandComputationItem[];
   capabilities?: {
     execute?: { allowed: boolean; reason?: string | null };
@@ -536,6 +538,10 @@ export interface PushOptions {
   has_production_items: boolean
   has_outsource_items: boolean
   has_purchase_items: boolean
+  /** 无建议下推量（净需求已冲抵等），与进度 100%「无需下推」同口径 */
+  no_push_needed?: boolean
+  /** 禁用原因码：demand_computation.push.covered_by_supply / no_suggested_qty */
+  no_push_reason?: string | null
   make_count: number
   outsource_count: number
   purchase_items_with_supplier: number

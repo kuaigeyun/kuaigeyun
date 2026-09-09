@@ -22,7 +22,6 @@ from core.services.authorization.permission_policy_service import PermissionPoli
 from infra.api.deps.deps import get_current_user
 from infra.models.user import User
 from infra.exceptions.exceptions import BusinessLogicError
-from core.utils.timezone_utils import today_site_str
 
 router = APIRouter(prefix="/receipts", tags=["App - Kuaicaiwu - Finance"])
 receipt_pull_service = ReceiptPullService()
@@ -105,9 +104,9 @@ async def create_receipt(
                 total_amount=Decimal(data.total_amount),
             )
 
-        today = today_site_str()
-        count = await Receipt.filter(tenant_id=tenant_id).count()
-        code = f"SK{today}{count + 1:04d}"
+        from apps.kuaicaiwu.services.finance_voucher_codes import allocate_receipt_code
+
+        code = await allocate_receipt_code(tenant_id)
         customer_id = data.customer_id
         customer_name = data.customer_name
         if pull_preview:
@@ -271,14 +270,17 @@ async def update_receipt(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
-    """更新收款单"""
-    receipt = await _get_or_404(tenant_id, id)
-    if receipt.status == "Confirmed":
-        raise _http_exception_with_trace(400, "已确认的收款单不能修改", "/receipts/{id}", tenant_id)
-    update_data = data.model_dump(exclude_unset=True)
+    """更新收款单（仅草稿；已确认请先撤回确认）"""
+    from apps.kuaicaiwu.services.finance_voucher_correction import assert_voucher_correction_allowed
     from apps.kuaicaiwu.services.bank_account_service import BankAccountService
     from infra.exceptions.exceptions import ValidationError as FinanceValidationError
 
+    receipt = await _get_or_404(tenant_id, id)
+    try:
+        assert_voucher_correction_allowed(receipt, action="update")
+    except BusinessLogicError as exc:
+        raise _http_exception_with_trace(400, str(exc), "/receipts/{id}", tenant_id) from exc
+    update_data = data.model_dump(exclude_unset=True)
     method = update_data.get("payment_method", receipt.payment_method)
     account_id = update_data.get("bank_account_id", receipt.bank_account_id)
     try:
@@ -287,6 +289,10 @@ async def update_receipt(
         )
     except FinanceValidationError as exc:
         raise _http_exception_with_trace(400, str(exc), "/receipts/{id}", tenant_id) from exc
+    if "total_amount" in update_data:
+        total = update_data["total_amount"]
+        update_data["settled_amount"] = 0
+        update_data["unsettled_amount"] = total
     apply_update_audit(update_data, current_user)
     await Receipt.filter(id=id).update(**update_data)
     return await _serialize(tenant_id, current_user.id, await _get_or_404(tenant_id, id))
@@ -326,11 +332,59 @@ async def cancel_receipt(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
-    """作废收款单"""
+    """作废收款单（已确认须冲回核销与银行流水）"""
+    from apps.kuaicaiwu.services.finance_voucher_correction import (
+        assert_voucher_correction_allowed,
+        apply_confirmed_voucher_unpost,
+    )
+    from infra.exceptions.exceptions import ValidationError
+
     receipt = await _get_or_404(tenant_id, id)
-    if receipt.settled_amount > 0:
-        raise _http_exception_with_trace(400, "已有核销记录的收款单不能作废", "/receipts/{id}/cancel", tenant_id)
-    await Receipt.filter(id=id).update(status="Cancelled")
+    try:
+        assert_voucher_correction_allowed(receipt, action="cancel")
+        if str(receipt.status or "") == "Confirmed":
+            await apply_confirmed_voucher_unpost(
+                tenant_id,
+                voucher_type="receipt",
+                voucher_id=id,
+                operator_id=current_user.id,
+            )
+    except (BusinessLogicError, ValidationError) as exc:
+        raise _http_exception_with_trace(400, str(exc), "/receipts/{id}/cancel", tenant_id) from exc
+    payload = {"status": "Cancelled"}
+    apply_update_audit(payload, current_user)
+    await Receipt.filter(id=id).update(**payload)
+    return await _serialize(tenant_id, current_user.id, await _get_or_404(tenant_id, id))
+
+
+@router.post("/{id}/unconfirm", response_model=ReceiptVoucherResponse)
+async def unconfirm_receipt(
+    id: int,
+    _auth: object = Depends(require_permission_codes("kuaicaiwu:receipt:revoke")),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """撤回确认：已确认 → 草稿（冲回核销与银行流水），便于修改后重新确认。"""
+    from apps.kuaicaiwu.services.finance_voucher_correction import (
+        assert_voucher_correction_allowed,
+        apply_confirmed_voucher_unpost,
+    )
+    from infra.exceptions.exceptions import ValidationError
+
+    receipt = await _get_or_404(tenant_id, id)
+    try:
+        assert_voucher_correction_allowed(receipt, action="unconfirm")
+        await apply_confirmed_voucher_unpost(
+            tenant_id,
+            voucher_type="receipt",
+            voucher_id=id,
+            operator_id=current_user.id,
+        )
+    except (BusinessLogicError, ValidationError) as exc:
+        raise _http_exception_with_trace(400, str(exc), "/receipts/{id}/unconfirm", tenant_id) from exc
+    payload = {"status": "Draft"}
+    apply_update_audit(payload, current_user)
+    await Receipt.filter(id=id).update(**payload)
     return await _serialize(tenant_id, current_user.id, await _get_or_404(tenant_id, id))
 
 
@@ -341,8 +395,23 @@ async def delete_receipt(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):
-    """删除收款单"""
+    """删除收款单（草稿/已作废/已确认无退款；已确认须冲回核销与银行流水）"""
+    from apps.kuaicaiwu.services.finance_voucher_correction import (
+        assert_voucher_correction_allowed,
+        apply_confirmed_voucher_unpost,
+    )
+    from infra.exceptions.exceptions import ValidationError
+
     receipt = await _get_or_404(tenant_id, id)
-    if receipt.status == "Confirmed":
-        raise _http_exception_with_trace(400, "已确认的收款单不能删除", "/receipts/{id}", tenant_id)
+    try:
+        assert_voucher_correction_allowed(receipt, action="delete")
+        if str(receipt.status or "") == "Confirmed":
+            await apply_confirmed_voucher_unpost(
+                tenant_id,
+                voucher_type="receipt",
+                voucher_id=id,
+                operator_id=current_user.id,
+            )
+    except (BusinessLogicError, ValidationError) as exc:
+        raise _http_exception_with_trace(400, str(exc), "/receipts/{id}", tenant_id) from exc
     await Receipt.filter(id=id).delete()

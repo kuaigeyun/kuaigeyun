@@ -258,17 +258,19 @@ class DrawingChangeService:
     async def revoke_change(
         tenant_id: int, change_id: int, operator_id: int
     ) -> DrawingChangeResponse:
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
 
         row = await DrawingChangeService._get_change_or_raise(tenant_id, change_id)
         if row.status != "approved":
             raise ValidationError(f"变更记录状态为 {row.status}，无法撤销审核")
         audit_required = await is_audit_required(tenant_id, "drawing")
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
 
         async def _do_revoke() -> DrawingChangeResponse:
-            row.status = "pending" if landing == "pending" else "draft"
+            row.status = "draft"
             row.approver_id = None
             row.approval_comment = None
             await row.save()

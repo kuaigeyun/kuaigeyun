@@ -48,10 +48,14 @@ class SettlementGateService(AppBaseService[SettlementRecord]):
         }
 
     def _receivable_settle_allowed(self, receivable: Receivable) -> bool:
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
+        if is_sales_return_offset_receivable(getattr(receivable, "source_type", None)):
+            return False
         status = str(getattr(receivable, "status", "") or "").strip()
         review = str(getattr(receivable, "review_status", "") or "").strip()
         remaining = Decimal(str(receivable.remaining_amount or 0))
-        if status == "已结清" or remaining <= 0:
+        if status in ("已结清", "已冲减") or remaining <= 0:
             return False
         return review in self._RECEIVABLE_ELIGIBLE_REVIEW
 
@@ -92,6 +96,8 @@ class SettlementGateService(AppBaseService[SettlementRecord]):
         if not receipt:
             raise NotFoundError(f"收款单不存在: {receipt_id}")
 
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
         rec_remaining = self._money(Decimal(str(receivable.remaining_amount or 0)))
         rcpt_unsettled = self._money(Decimal(str(receipt.unsettled_amount or 0)))
         max_settle = self._money(min(rec_remaining, rcpt_unsettled))
@@ -99,6 +105,8 @@ class SettlementGateService(AppBaseService[SettlementRecord]):
         blocking_reason: Optional[str] = None
         if receivable.customer_id != receipt.customer_id:
             blocking_reason = "settlement.receivable.customer_mismatch"
+        elif is_sales_return_offset_receivable(getattr(receivable, "source_type", None)):
+            blocking_reason = "settlement.receivable.sales_return_offset"
         elif not self._receivable_settle_allowed(receivable):
             blocking_reason = "settlement.receivable.not_allowed"
         elif not self._receipt_settle_allowed(receipt):

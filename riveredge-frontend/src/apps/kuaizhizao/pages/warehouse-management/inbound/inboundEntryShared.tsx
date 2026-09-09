@@ -1,5 +1,8 @@
 /**
  * 入库取单录入页 — 共享表单项与入库人选择
+ *
+ * 入库人/出库人选择以用户数字 ID 为真源（与后端 receiver_id 一致），
+ * 始终提供可搜索下拉，禁止因缺少 uuid 退化成只读文案。
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -7,10 +10,13 @@ import { useTranslation } from 'react-i18next';
 import { App, Button, Form, Input, Select, Upload } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useDebounceFn } from 'ahooks';
-import { useGlobalStore } from '../../../../../stores/globalStore';
 import { uploadMultipleFiles } from '../../../../../services/file';
 import { getUserList, searchUserDisplay, type User, type UserDisplayItem } from '../../../../../services/user';
-import { canReadUserDirectory, formatUserDisplayLabel } from '../../../../../utils/userDisplay';
+import {
+  canPickUsersForDisplay,
+  canReadUserDirectory,
+  formatUserDisplayLabel,
+} from '../../../../../utils/userDisplay';
 import { useCurrentUser } from '../../../../../hooks/useCurrentUser';
 
 export const readOnlyFieldProps = {
@@ -53,15 +59,33 @@ function displayItemToUser(item: UserDisplayItem): User {
   };
 }
 
-type InboundReceiverOption = { label: string; value: string; name: string; id?: number };
+type InboundReceiverOption = {
+  label: string;
+  /** 用户数字 ID（Select value / 提交 receiver_id） */
+  value: number;
+  name: string;
+  uuid?: string;
+};
 
-function userOptionFromUser(user: User): InboundReceiverOption {
+function userOptionFromUser(user: User): InboundReceiverOption | null {
+  const id = Number(user.id);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  const name = String(user.full_name || user.username || '').trim();
   return {
     label: formatUserDisplayLabel(user),
-    value: user.uuid,
-    name: String(user.full_name || user.username || '').trim(),
-    id: user.id,
+    value: id,
+    name: name || String(id),
+    uuid: user.uuid || undefined,
   };
+}
+
+function parseUidToken(token: string | undefined): number | undefined {
+  if (!token) return undefined;
+  if (token.startsWith('__uid:')) {
+    const n = Number(token.slice(6));
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }
+  return undefined;
 }
 
 export function buildInboundConfirmReceiverPayload(hook: {
@@ -92,17 +116,40 @@ export function useInboundReceiverSelect() {
   const { t } = useTranslation();
   const { message: messageApi } = App.useApp();
   const currentUser = useCurrentUser();
+  const canPick = canPickUsersForDisplay(currentUser);
   const useFullUserList = canReadUserDirectory(currentUser);
 
-  const [receiverUuid, setReceiverUuid] = useState<string | undefined>();
   const [receiverId, setReceiverId] = useState<number | undefined>();
   const [receiverName, setReceiverName] = useState('');
+  const [receiverUuid, setReceiverUuid] = useState<string | undefined>();
   const [receiverOptions, setReceiverOptions] = useState<InboundReceiverOption[]>([]);
   const [receiverLoading, setReceiverLoading] = useState(false);
 
+  const applyUser = useCallback((id: number | undefined, name: string, uuid?: string) => {
+    setReceiverId(id);
+    setReceiverName(name);
+    if (uuid) {
+      setReceiverUuid(uuid);
+    } else if (id != null && id > 0) {
+      setReceiverUuid(`__uid:${id}`);
+    } else {
+      setReceiverUuid(undefined);
+    }
+  }, []);
+
+  const applyCurrentUserAsReceiver = useCallback(() => {
+    if (!currentUser) {
+      applyUser(undefined, '');
+      return;
+    }
+    const id = currentUser.id != null && currentUser.id > 0 ? currentUser.id : undefined;
+    const name = String(currentUser.full_name || currentUser.username || '').trim();
+    applyUser(id, name, currentUser.uuid);
+  }, [applyUser, currentUser]);
+
   const loadReceiverOptions = useCallback(
     async (keyword = '') => {
-      if (!currentUser) return;
+      if (!canPick) return;
       setReceiverLoading(true);
       try {
         let users: User[] = [];
@@ -123,14 +170,16 @@ export function useInboundReceiverSelect() {
           });
           users = (response.items || []).map(displayItemToUser);
         }
-        setReceiverOptions(users.map(userOptionFromUser));
+        setReceiverOptions(
+          users.map(userOptionFromUser).filter((opt): opt is InboundReceiverOption => opt != null),
+        );
       } catch {
         messageApi.error(t('app.kuaizhizao.warehouseInbound.msg.loadUsersFailed'));
       } finally {
         setReceiverLoading(false);
       }
     },
-    [currentUser, messageApi, t, useFullUserList],
+    [canPick, messageApi, t, useFullUserList],
   );
 
   const { run: debounceLoadReceiverOptions } = useDebounceFn(
@@ -141,62 +190,107 @@ export function useInboundReceiverSelect() {
   );
 
   const receiverSelectOptions = useMemo(() => {
-    if (receiverUuid && !receiverOptions.some((opt) => opt.value === receiverUuid)) {
-      if (receiverName) {
-        return [{ label: receiverName, value: receiverUuid, name: receiverName, id: receiverId }, ...receiverOptions];
-      }
-    }
     if (
       receiverId != null &&
       receiverId > 0 &&
-      receiverName &&
-      !receiverOptions.some((opt) => opt.id === receiverId)
+      !receiverOptions.some((opt) => opt.value === receiverId)
     ) {
-      const syntheticValue = `__uid:${receiverId}`;
-      return [{ label: receiverName, value: syntheticValue, name: receiverName, id: receiverId }, ...receiverOptions];
+      const label = receiverName || String(receiverId);
+      return [
+        {
+          label,
+          value: receiverId,
+          name: label,
+          uuid: receiverUuid?.startsWith('__uid:') ? undefined : receiverUuid,
+        },
+        ...receiverOptions,
+      ];
     }
     return receiverOptions;
   }, [receiverId, receiverName, receiverOptions, receiverUuid]);
 
   useEffect(() => {
-    if (!currentUser || receiverUuid) return;
-    const uuid = currentUser.uuid;
-    const name = String(currentUser.full_name || currentUser.username || '').trim();
-    if (uuid) {
-      setReceiverUuid(uuid);
-      if (name) setReceiverName(name);
-      if (currentUser.id != null && currentUser.id > 0) setReceiverId(currentUser.id);
-    } else if (name) {
-      setReceiverName(name);
-    }
-  }, [currentUser, receiverUuid]);
+    if (!currentUser || receiverId != null || receiverUuid) return;
+    applyCurrentUserAsReceiver();
+  }, [applyCurrentUserAsReceiver, currentUser, receiverId, receiverUuid]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (receiverId != null || !receiverUuid) return;
+    const fromToken = parseUidToken(receiverUuid);
+    if (fromToken != null) {
+      setReceiverId(fromToken);
+      return;
+    }
+    const match = receiverOptions.find((o) => o.uuid === receiverUuid);
+    if (match) {
+      setReceiverId(match.value);
+      if (!receiverName) setReceiverName(match.name);
+    }
+  }, [receiverId, receiverName, receiverOptions, receiverUuid]);
+
+  useEffect(() => {
+    if (!canPick) return;
     void loadReceiverOptions();
-  }, [currentUser, loadReceiverOptions]);
+  }, [canPick, loadReceiverOptions]);
 
   const handleReceiverChange = useCallback(
-    (uuid: string) => {
-      setReceiverUuid(uuid);
-      const picked = receiverSelectOptions.find((opt) => opt.value === uuid);
-      setReceiverName(picked?.name || '');
-      setReceiverId(picked?.id);
+    (id: number) => {
+      const picked = receiverSelectOptions.find((opt) => opt.value === id);
+      applyUser(id, picked?.name || String(id), picked?.uuid);
     },
-    [receiverSelectOptions],
+    [applyUser, receiverSelectOptions],
   );
 
-  const restoreReceiver = useCallback((opts?: { uuid?: string; id?: number; name?: string }) => {
-    if (opts?.uuid) setReceiverUuid(opts.uuid);
-    if (opts?.id != null && opts.id > 0) {
-      setReceiverId(opts.id);
-      if (!opts.uuid) setReceiverUuid(`__uid:${opts.id}`);
-    }
-    if (opts?.name !== undefined) setReceiverName(opts.name);
-  }, []);
+  /**
+   * 兼容：
+   * - restoreReceiver({ id, name, uuid })
+   * - restoreReceiver(uuid, name) 出库草稿旧调用
+   * - restoreReceiver({}) / restoreReceiver() 重置为当前登录人
+   */
+  const restoreReceiver = useCallback(
+    (
+      optsOrUuid?: { uuid?: string; id?: number; name?: string } | string | null,
+      nameArg?: string,
+    ) => {
+      if (optsOrUuid == null || optsOrUuid === '') {
+        applyCurrentUserAsReceiver();
+        return;
+      }
+      if (typeof optsOrUuid === 'string') {
+        const fromToken = parseUidToken(optsOrUuid);
+        const name = nameArg !== undefined ? nameArg : receiverName;
+        if (fromToken != null) {
+          applyUser(fromToken, name || String(fromToken), optsOrUuid);
+          return;
+        }
+        setReceiverUuid(optsOrUuid);
+        if (nameArg !== undefined) setReceiverName(nameArg);
+        return;
+      }
+      const hasId = optsOrUuid.id != null && optsOrUuid.id > 0;
+      const hasUuid = Boolean(optsOrUuid.uuid);
+      const hasName = optsOrUuid.name !== undefined;
+      if (!hasId && !hasUuid && !hasName) {
+        applyCurrentUserAsReceiver();
+        return;
+      }
+      const id =
+        hasId
+          ? Number(optsOrUuid.id)
+          : parseUidToken(optsOrUuid.uuid) ?? receiverId;
+      const name = hasName ? String(optsOrUuid.name ?? '').trim() : receiverName;
+      applyUser(
+        id != null && id > 0 ? id : undefined,
+        name,
+        optsOrUuid.uuid || (id != null && id > 0 ? `__uid:${id}` : undefined),
+      );
+    },
+    [applyCurrentUserAsReceiver, applyUser, receiverId, receiverName],
+  );
 
   return {
     currentUser,
+    canPickUsers: canPick,
     receiverUuid,
     receiverId,
     receiverName,
@@ -217,8 +311,8 @@ export function InboundEntryReceiverField({ label, hook }: InboundEntryReceiverF
   const { t } = useTranslation();
   const resolvedLabel = label ?? t('app.kuaizhizao.warehouseInbound.field.receiver');
   const {
-    currentUser,
-    receiverUuid,
+    canPickUsers,
+    receiverId,
     receiverName,
     receiverLoading,
     receiverSelectOptions,
@@ -227,16 +321,20 @@ export function InboundEntryReceiverField({ label, hook }: InboundEntryReceiverF
   } = hook;
 
   return (
-    <Form.Item label={resolvedLabel}>
-      {currentUser?.uuid ? (
+    <Form.Item label={resolvedLabel} required>
+      {canPickUsers ? (
         <Select
           style={{ width: '100%' }}
-          placeholder={t('app.kuaizhizao.warehouseInbound.field.selectReceiver', { label: resolvedLabel })}
+          placeholder={t('app.kuaizhizao.warehouseInbound.field.selectReceiver', {
+            label: resolvedLabel,
+          })}
           showSearch
+          allowClear={false}
           filterOption={false}
           loading={receiverLoading}
-          value={receiverUuid}
+          value={receiverId}
           options={receiverSelectOptions}
+          optionFilterProp="label"
           onSearch={debounceLoadReceiverOptions}
           onChange={handleReceiverChange}
         />
@@ -295,7 +393,8 @@ export function InboundEntryRemarksSection({
 }: InboundEntryRemarksSectionProps) {
   const { t } = useTranslation();
   const resolvedLabel = label ?? t('app.kuaizhizao.warehouseInbound.field.inboundRemarks');
-  const resolvedPlaceholder = placeholder ?? t('app.kuaizhizao.warehouseInbound.field.inboundRemarksPlaceholder');
+  const resolvedPlaceholder =
+    placeholder ?? t('app.kuaizhizao.warehouseInbound.field.inboundRemarksPlaceholder');
   return (
     <Form.Item label={resolvedLabel}>
       <Input.TextArea

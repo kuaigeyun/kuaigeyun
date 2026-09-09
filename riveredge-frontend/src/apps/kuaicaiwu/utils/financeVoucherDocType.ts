@@ -50,3 +50,18 @@ export function canCreateRefundFromVoucher(
   const refunded = Number(record.refunded_amount ?? 0);
   return total > refunded;
 }
+
+/** 收/付款纠错（撤回确认/作废/删除）：无退款即可；已确认会由后端冲回核销与银行流水 */
+export function canCorrectFinanceVoucher(record: {
+  status?: string;
+  settlement_type?: string;
+  refund_execution_status?: string;
+  refunded_amount?: number;
+}): boolean {
+  if (String(record.settlement_type || 'normal') === 'refund') return false;
+  const refunded = Number(record.refunded_amount ?? 0);
+  if (refunded > 0) return false;
+  const refundExec = String(record.refund_execution_status || '').trim();
+  if (refundExec === '部分退款' || refundExec === '全部退款') return false;
+  return true;
+}

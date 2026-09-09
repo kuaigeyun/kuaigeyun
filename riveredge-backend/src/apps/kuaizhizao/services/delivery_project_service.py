@@ -701,6 +701,14 @@ class DeliveryProjectService(AppBaseService[DeliveryProject]):
             row.owner_id, row.owner_name = await self._resolve_owner(tenant_id, body.owner_id)
         if body.project_name is not None:
             row.project_name = body.project_name.strip()
+        if body.customer_id is not None:
+            if row.sales_order_id:
+                raise ValidationError("已关联销售订单的交付项目不可更改客户")
+            customer = await Customer.get_or_none(id=body.customer_id, tenant_id=tenant_id)
+            if not customer:
+                raise ValidationError(f"客户不存在: {body.customer_id}")
+            row.customer_id = body.customer_id
+            row.customer_name = customer.name
         if body.delivery_date is not None:
             row.delivery_date = body.delivery_date
         if body.status is not None:
@@ -1434,7 +1442,11 @@ class DeliveryProjectService(AppBaseService[DeliveryProject]):
         row = await DeliveryProject.get(id=project.id)
         row.material_lines_json = json.dumps(preview.material_lines, ensure_ascii=False)
         await row.save(update_fields=["material_lines_json", "updated_at"])
-        return await self.start_project(tenant_id, project.id, current_user)
+        # create_project 在绑定流程模板时已启动首节点；勿再 start 导致「当前状态不可启动」
+        # 却已落库，二次下推才报「已存在交付项目」。
+        if project.status == DeliveryProjectStatus.DRAFT.value:
+            return await self.start_project(tenant_id, project.id, current_user)
+        return await self.get_project(tenant_id, project.id)
 
     async def _build_project_gantt_items(self, tenant_id: int) -> List[DeliveryGanttItem]:
         active_statuses = [

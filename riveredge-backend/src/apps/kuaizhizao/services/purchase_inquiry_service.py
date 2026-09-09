@@ -1668,6 +1668,19 @@ class PurchaseInquiryService(AppBaseService[PurchaseInquiry]):
                 "updated_by_name": user_info["name"],
             }).save()
         else:
+            from core.services.approval.audit_flow_guard import start_document_approval_or_raise
+
+            await start_document_approval_or_raise(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                node_key="purchase_inquiry",
+                entity_type="purchase_inquiry",
+                entity_id=int(inquiry.id),
+                entity_uuid=str(inquiry.uuid),
+                title=f"采购询价审批: {inquiry.inquiry_code}",
+                content=f"询价单: {inquiry.inquiry_code}",
+                doc_label="采购询价",
+            )
             await inquiry.update_from_dict({
                 "review_status": DocumentStatus.PENDING_REVIEW.value,
                 "updated_by": user_id,
@@ -1718,6 +1731,19 @@ class PurchaseInquiryService(AppBaseService[PurchaseInquiry]):
         if not inquiry:
             raise NotFoundError(f"询价单不存在: {inquiry_id}")
         assert_purchase_inquiry_capability(inquiry, "approve")
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "purchase_inquiry"
+        )
+        from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+
+        await assert_pending_approval_instance(
+            tenant_id=tenant_id,
+            entity_type="purchase_inquiry",
+            entity_id=inquiry_id,
+            audit_required=audit_required,
+            doc_label="采购询价",
+            verb="审核" if approved else "驳回",
+        )
         user_info = await self.get_user_info(user_id)
         reviewer_name = user_info["name"]
         await inquiry.update_from_dict({
@@ -1732,8 +1758,10 @@ class PurchaseInquiryService(AppBaseService[PurchaseInquiry]):
         return await self.get_inquiry_by_id(tenant_id, inquiry_id)
 
     async def withdraw_approval(self, tenant_id: int, inquiry_id: int, user_id: int) -> PurchaseInquiryResponse:
-        from apps.kuaizhizao.constants import DocumentStatus, ReviewStatus
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        """撤销审核：一律清空审核态（与草稿撤回一致），须重新提交再审。"""
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
 
         inquiry = await PurchaseInquiry.get_or_none(
             tenant_id=tenant_id, id=inquiry_id, deleted_at__isnull=True
@@ -1744,14 +1772,9 @@ class PurchaseInquiryService(AppBaseService[PurchaseInquiry]):
         audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "purchase_inquiry"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        review_status = (
-            DocumentStatus.PENDING_REVIEW.value
-            if landing == "pending"
-            else ""
-        )
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
         await inquiry.update_from_dict({
-            "review_status": review_status,
+            "review_status": "",
             "reviewer_id": None,
             "reviewer_name": None,
             "review_time": None,

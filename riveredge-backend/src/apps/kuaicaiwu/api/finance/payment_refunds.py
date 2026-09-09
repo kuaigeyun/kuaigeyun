@@ -25,7 +25,6 @@ from core.services.authorization.permission_policy_service import PermissionPoli
 from infra.api.deps.deps import get_current_user
 from infra.models.user import User
 from infra.exceptions.exceptions import BusinessLogicError
-from core.utils.timezone_utils import today_site_str
 
 router = APIRouter(prefix="/payment-refunds", tags=["App - Kuaicaiwu - Finance"])
 refund_service = PaymentRefundService()
@@ -123,9 +122,9 @@ async def create_payment_refund(
     except BusinessLogicError as e:
         raise _http_exception_with_trace(422, str(e), "/payment-refunds", tenant_id) from e
 
-    today = today_site_str()
-    count = await Payment.filter(tenant_id=tenant_id, settlement_type="refund").count()
-    code = f"TP{today}{count + 1:04d}"
+    from apps.kuaicaiwu.services.finance_voucher_codes import allocate_payment_refund_code
+
+    code = await allocate_payment_refund_code(tenant_id)
 
     payment_payload = {
         "tenant_id": tenant_id,
@@ -254,6 +253,35 @@ async def preview_pull_payment_refund(
     tenant_id: int = Depends(get_current_tenant),
 ) -> Dict[str, Any]:
     return await refund_service.preview_pull_from_payment(tenant_id, payment_id)
+
+
+@router.get("/resolve-from-purchase-return/{purchase_return_id}")
+async def resolve_payment_refund_from_purchase_return(
+    purchase_return_id: int = Path(..., description="采购退货单ID"),
+    _auth: object = Depends(require_permission_codes("kuaicaiwu:payment-refund:create")),
+    tenant_id: int = Depends(get_current_tenant),
+) -> Dict[str, Any]:
+    from apps.kuaicaiwu.services.return_refund_bridge_service import ReturnRefundBridgeService
+    from infra.exceptions.exceptions import NotFoundError, ValidationError
+
+    try:
+        return await ReturnRefundBridgeService().resolve_payments_for_purchase_return(
+            tenant_id, purchase_return_id
+        )
+    except NotFoundError as exc:
+        raise _http_exception_with_trace(
+            404,
+            str(exc),
+            "/payment-refunds/resolve-from-purchase-return/{purchase_return_id}",
+            tenant_id,
+        ) from exc
+    except (ValidationError, BusinessLogicError) as exc:
+        raise _http_exception_with_trace(
+            422,
+            str(exc),
+            "/payment-refunds/resolve-from-purchase-return/{purchase_return_id}",
+            tenant_id,
+        ) from exc
 
 
 @router.get("/{id}", response_model=PaymentVoucherResponse)

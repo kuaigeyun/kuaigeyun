@@ -31,7 +31,7 @@ class ProductionPickingBase(BaseSchema):
     """生产领料单基础schema"""
     picking_code: str = Field(..., max_length=50, description="领料单编码")
     work_order_id: int = Field(..., description="工单ID")
-    work_order_code: str = Field(..., max_length=50, description="工单编码")
+    work_order_code: str = Field(..., max_length=500, description="工单编码（多工单合并时可拼接）")
     workshop_id: Optional[int] = Field(None, description="车间ID")
     workshop_name: Optional[str] = Field(None, max_length=100, description="车间名称")
     status: str = Field("待领料", max_length=20, description="领料状态")
@@ -168,6 +168,8 @@ class ProductionPickingItemBase(BaseSchema):
     expiry_date: Optional[datetime] = Field(None, description="到期日期")
     serial_numbers: Optional[List[str]] = Field(None, description="序列号列表")
     notes: Optional[str] = Field(None, description="备注")
+    work_order_id: Optional[int] = Field(None, description="来源工单ID")
+    work_order_code: Optional[str] = Field(None, max_length=50, description="来源工单编号")
 
 
 class ProductionPickingItemCreate(ProductionPickingItemBase):
@@ -1732,6 +1734,12 @@ class InboundConfirmationRequest(BaseSchema):
 
 # === 出库确认通用 Schema ===
 
+class OutboundConfirmationBatchAllocation(BaseSchema):
+    """确认出库时一行物料按批号分摊数量（多批合计应对齐本行发料量）"""
+    batch_number: str = Field(..., min_length=1, max_length=50, description="批次号")
+    quantity: float = Field(..., gt=0, description="本批出库数量")
+
+
 class OutboundConfirmationItem(BaseSchema):
     """出库确认明细字段（支持在确认时补齐或修改批号/库位/仓库/序列号）"""
     item_id: int = Field(..., description="明细ID")
@@ -1739,7 +1747,11 @@ class OutboundConfirmationItem(BaseSchema):
     warehouse_name: Optional[str] = Field(None, description="出库仓库名称")
     location_id: Optional[int] = Field(None, description="库位ID")
     location_code: Optional[str] = Field(None, description="库位编码")
-    batch_number: Optional[str] = Field(None, description="批次号")
+    batch_number: Optional[str] = Field(None, description="批次号（单批时使用；多批请用 batch_allocations）")
+    batch_allocations: Optional[List[OutboundConfirmationBatchAllocation]] = Field(
+        None,
+        description="多批号分摊；确认生产领料时按批拆明细后扣库存",
+    )
     serial_numbers: Optional[List[str]] = Field(None, description="序列号列表")
 
 

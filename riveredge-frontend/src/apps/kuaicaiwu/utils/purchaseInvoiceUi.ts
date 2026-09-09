@@ -24,6 +24,15 @@ export function formatPurchaseInvoiceTypeZh(raw: string | undefined | null): str
   return t;
 }
 
+const PURCHASE_INVOICE_NON_DELETABLE_STATUSES = new Set(['已审核', '已开票', '已作废', '已红冲']);
+
+/** 是否允许删除（与后端 delete 接口一致） */
+export function canDeletePurchaseInvoice(record: { status?: string | null }): boolean {
+  const st = String(record.status || '').trim();
+  if (!st) return false;
+  return !PURCHASE_INVOICE_NON_DELETABLE_STATUSES.has(st);
+}
+
 /** 详情页标题：采购发票 + 发票号码 */
 export function formatPurchaseInvoiceDetailPageTitle(invoiceNumber?: string | null): string {
   const num = String(invoiceNumber ?? '').trim();

@@ -2882,32 +2882,28 @@ async def get_warehouse_summary(
 ):
     """
     仓储四指标：
-    - total_stock      总库存数量（MaterialBatch 在库 + LineSideInventory 可用）
-    - in_stock_batches 在库批次数（MaterialBatch status="in_stock"）
+    - total_stock      总库存数量（与仓储看板 / 即时库存同口径：合格主仓批次 + 线边 available）
+    - in_stock_batches 在库批次数（与上项主仓过滤同口径）
     - pending_inbound  待入库单数（与入库 Hub 可确认态一致，含草稿下推单）
     - pending_outbound 待出库单数（SalesDelivery + OtherOutbound status="待出库"）
     """
-    from apps.master_data.models.material_batch import MaterialBatch
-    from apps.kuaizhizao.models.line_side_inventory import LineSideInventory
     from apps.kuaizhizao.models.purchase_receipt import PurchaseReceipt
     from apps.kuaizhizao.models.finished_goods_receipt import FinishedGoodsReceipt
     from apps.kuaizhizao.models.other_inbound import OtherInbound
+    from apps.kuaizhizao.models.production_return import ProductionReturn
     from apps.kuaizhizao.models.sales_delivery import SalesDelivery
     from apps.kuaizhizao.models.other_outbound import OtherOutbound
     from apps.kuaizhizao.services.document_action_policy.warehouse_inbound_hub import (
         _INBOUND_PENDING_STATUSES,
     )
+    from apps.kuaizhizao.utils.inventory_helper import (
+        count_on_hand_batches,
+        sum_on_hand_quantity,
+    )
     import asyncio
 
     _pending_in = tuple(_INBOUND_PENDING_STATUSES)
-
-    batch_qty_q = MaterialBatch.filter(
-        tenant_id=tenant_id, status="in_stock"
-    ).values_list("quantity", flat=True)
-    line_qty_q = LineSideInventory.filter(
-        tenant_id=tenant_id, status__in=["available", "reserved"]
-    ).values_list("quantity", flat=True)
-    batch_count_q = MaterialBatch.filter(tenant_id=tenant_id, status="in_stock").count()
+    _pending_prod_return = ("待退料",)
 
     pr_q = PurchaseReceipt.filter(
         tenant_id=tenant_id, status__in=_pending_in, deleted_at__isnull=True
@@ -2918,20 +2914,28 @@ async def get_warehouse_summary(
     oi_q = OtherInbound.filter(
         tenant_id=tenant_id, status__in=_pending_in, deleted_at__isnull=True
     ).count()
+    pret_q = ProductionReturn.filter(
+        tenant_id=tenant_id, status__in=_pending_prod_return, deleted_at__isnull=True
+    ).count()
 
     sd_q = SalesDelivery.filter(tenant_id=tenant_id, status="待出库", deleted_at__isnull=True).count()
     oo_q = OtherOutbound.filter(tenant_id=tenant_id, status="待出库", deleted_at__isnull=True).count()
 
-    batch_qty, line_qty, batch_count, pr, fg, oi, sd, oo = await asyncio.gather(
-        batch_qty_q, line_qty_q, batch_count_q, pr_q, fg_q, oi_q, sd_q, oo_q
+    total_stock_dec, batch_count, pr, fg, oi, pret, sd, oo = await asyncio.gather(
+        sum_on_hand_quantity(tenant_id),
+        count_on_hand_batches(tenant_id),
+        pr_q,
+        fg_q,
+        oi_q,
+        pret_q,
+        sd_q,
+        oo_q,
     )
 
-    total_stock = sum(float(x or 0) for x in batch_qty) + sum(float(x or 0) for x in line_qty)
-
     return {
-        "total_stock": round(total_stock, 2),
+        "total_stock": round(float(total_stock_dec), 2),
         "in_stock_batches": int(batch_count or 0),
-        "pending_inbound": int((pr or 0) + (fg or 0) + (oi or 0)),
+        "pending_inbound": int((pr or 0) + (fg or 0) + (oi or 0) + (pret or 0)),
         "pending_outbound": int((sd or 0) + (oo or 0)),
     }
 

@@ -123,6 +123,10 @@ PAGE_CODE_TO_FIXED_TEXT_PRESET: Dict[str, str] = {
     # 轻管理会计 — 财务单据
     "kuaicaiwu-finance-receivable": "YS",           # 应收
     "kuaicaiwu-finance-payable": "PY",              # 应付
+    "kuaicaiwu-finance-receipt": "SK",              # 收款单
+    "kuaicaiwu-finance-payment": "PK",              # 付款单
+    "kuaicaiwu-finance-receipt-refund": "TK",       # 收款退款
+    "kuaicaiwu-finance-payment-refund": "TP",       # 付款退款
     "kuaicaiwu-finance-purchase-invoice": "PI",     # 进项发票
     "kuaicaiwu-finance-settlement": "HX",           # 核销
     "kuaicaiwu-cost-calculations": "CC",            # 成本核算
@@ -1761,6 +1765,54 @@ CODE_RULE_PAGES: List[CodeRulePageConfig] = [
         "module_icon": "account-book",
         "auto_generate": True,
         "rule_code": "PAYABLE_CODE",
+        "allow_manual_edit": True,
+    },
+    {
+        "page_code": "kuaicaiwu-finance-receipt",
+        "page_name": "收款单",
+        "page_path": "/apps/kuaicaiwu/finance-management/receipts",
+        "code_field": "receipt_code",
+        "code_field_label": "收款单编码",
+        "module": "轻管理会计",
+        "module_icon": "account-book",
+        "auto_generate": True,
+        "rule_code": "RECEIPT_CODE",
+        "allow_manual_edit": True,
+    },
+    {
+        "page_code": "kuaicaiwu-finance-payment",
+        "page_name": "付款单",
+        "page_path": "/apps/kuaicaiwu/finance-management/payments",
+        "code_field": "payment_code",
+        "code_field_label": "付款单编码",
+        "module": "轻管理会计",
+        "module_icon": "account-book",
+        "auto_generate": True,
+        "rule_code": "PAYMENT_CODE",
+        "allow_manual_edit": True,
+    },
+    {
+        "page_code": "kuaicaiwu-finance-receipt-refund",
+        "page_name": "收款退款",
+        "page_path": "/apps/kuaicaiwu/finance-management/receipt-refunds",
+        "code_field": "receipt_code",
+        "code_field_label": "收款退款编码",
+        "module": "轻管理会计",
+        "module_icon": "account-book",
+        "auto_generate": True,
+        "rule_code": "RECEIPT_REFUND_CODE",
+        "allow_manual_edit": True,
+    },
+    {
+        "page_code": "kuaicaiwu-finance-payment-refund",
+        "page_name": "付款退款",
+        "page_path": "/apps/kuaicaiwu/finance-management/payment-refunds",
+        "code_field": "payment_code",
+        "code_field_label": "付款退款编码",
+        "module": "轻管理会计",
+        "module_icon": "account-book",
+        "auto_generate": True,
+        "rule_code": "PAYMENT_REFUND_CODE",
         "allow_manual_edit": True,
     },
     {

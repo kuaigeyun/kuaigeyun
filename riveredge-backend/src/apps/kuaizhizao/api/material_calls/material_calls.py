@@ -5,7 +5,9 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, Path
 from core.api.deps import get_current_user, get_current_tenant
+from core.api.deps.access import require_permission_codes
 from infra.models.user import User
+from infra.exceptions.exceptions import NotFoundError, BusinessLogicError, ValidationError
 
 from apps.kuaizhizao.services.material_call_service import MaterialCallService
 from apps.kuaizhizao.services.warehouse_service import ProductionPickingService
@@ -15,6 +17,7 @@ from apps.kuaizhizao.schemas.material_call import (
     MaterialCallRequestResponse,
     MaterialCallBatchFromWorkOrderRequest,
     MaterialCallPushPickingPreviewResponse,
+    MaterialCallPushPurchaseRequisitionRequest,
 )
 from apps.kuaizhizao.schemas.warehouse import (
     ProductionPickingPullFromMaterialCallRequest,
@@ -124,6 +127,57 @@ async def push_material_call_to_production_picking(
         notes=body.notes,
         lines=body.lines,
     )
+
+
+@router.get(
+    "/{call_id}/push-purchase-requisition/preview",
+    summary="Preview push material call to purchase requisition",
+    dependencies=[Depends(require_permission_codes("kuaizhizao:warehouse-management-material-calls:read"))],
+)
+async def preview_push_material_call_purchase_requisition(
+    call_id: int = Path(..., description="补料申请ID"),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """补料申请下推采购申请预览。"""
+    return await MaterialCallService().preview_push_purchase_requisition(
+        tenant_id=tenant_id,
+        call_id=call_id,
+    )
+
+
+@router.post(
+    "/{call_id}/push-purchase-requisition",
+    summary="Push material call to purchase requisition",
+    dependencies=[
+        Depends(require_permission_codes("kuaizhizao:warehouse-management-material-calls:update")),
+        Depends(require_permission_codes("kuaizhizao:purchase-requisition:create")),
+    ],
+)
+async def push_material_call_purchase_requisition(
+    call_id: int = Path(..., description="补料申请ID"),
+    body: MaterialCallPushPurchaseRequisitionRequest = ...,
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """补料申请下推采购申请（行级挂工单）。"""
+    try:
+        return await MaterialCallService().push_purchase_requisition(
+            tenant_id=tenant_id,
+            call_id=call_id,
+            created_by=current_user.id,
+            item_ids=body.item_ids,
+        )
+    except NotFoundError as e:
+        from fastapi import HTTPException
+        from fastapi import status as http_status
+
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(e))
+    except BusinessLogicError as e:
+        from fastapi import HTTPException
+        from fastapi import status as http_status
+
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.patch("/{call_id}", response_model=MaterialCallRequestResponse, summary="Update material call request")

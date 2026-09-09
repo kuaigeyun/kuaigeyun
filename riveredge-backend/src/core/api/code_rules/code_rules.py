@@ -14,6 +14,7 @@ from core.schemas.code_rule import (
     CodeGenerationRequest,
     CodeGenerationResponse,
     CodeRulePageConfigResponse,
+    DocumentCodeEditabilityResponse,
 )
 from core.config.code_rule_pages import (
     CODE_RULE_PAGES,
@@ -358,6 +359,35 @@ async def enable_all_rules(
     """
     count = await CodeRuleService.bulk_enable_all(tenant_id)
     return {"enabled": count, "message": f"已启用 {count} 个编码规则"}
+
+
+@router.get(
+    "/pages/{page_code}/documents/{document_id}/code-editability",
+    response_model=DocumentCodeEditabilityResponse,
+)
+async def get_document_code_editability(
+    page_code: str,
+    document_id: int,
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """
+    查询单据编号是否可编辑（全站统一：草稿或无下游可改）。
+    """
+    from core.services.document_code_service import resolve_document_code_editability_for_page
+
+    try:
+        editable, locked_reason, code_field = await resolve_document_code_editability_for_page(
+            tenant_id,
+            page_code,
+            document_id,
+        )
+        return DocumentCodeEditabilityResponse(
+            editable=editable,
+            locked_reason=locked_reason,
+            code_field=code_field,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.post("/test-generate", response_model=CodeGenerationResponse)

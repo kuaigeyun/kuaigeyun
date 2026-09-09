@@ -9,8 +9,13 @@
 
 import React, { useRef, useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import type { TFunction } from 'i18next';
-import { rowActionKind } from '../../../../../components/uni-action';
+import { rowActionKind, rowActionCreateRefund } from '../../../../../components/uni-action';
 import { useNavigate } from 'react-router-dom';
+import {
+  receiptRefundService,
+  RECEIPT_REFUND_RESOURCE,
+} from '../../../../kuaicaiwu/services/finance/receipt-refund';
+import { getApiErrorMessage } from '../../../../../utils/errorHandler';
 import { useInvalidateMenuBadgeCounts } from '../../../../../hooks/useInvalidateMenuBadgeCounts';
 import { LinkedDocumentCode } from '../../../../../components/linked-document-code';
 import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions';
@@ -105,7 +110,6 @@ import { mapAttachmentsToUploadList, normalizeDocumentAttachments } from '../../
 import { buildKuaizhizaoPullCreateMenuItems, resolveKuaizhizaoDocumentAction } from '../../../constants/documentActionRegistry';
 import { useKuaizhizaoPrintModal } from '../../../hooks/useKuaizhizaoPrintModal';
 import { formatBusinessDateOnly, formatDateTime, formatQuantity, formatCurrencyAmount } from '../../../../../utils/format';
-import { getApiErrorMessage } from '../../../../../utils/errorHandler';
 import type { SalesReturnDeliveryPullLine, SalesReturnOrderPullLine } from '../../../services/warehouse-execution';
 import { QuantityWithUnitDisplay } from '../../../../../components/quantity-with-unit';
 import { extractProTableSort } from '../../../../../utils/tableQueryKey';
@@ -127,8 +131,12 @@ import { getAntdModal } from '../../../../../utils/antdAppApis';
 
 const SALES_RETURN_RESOURCE = 'kuaizhizao:sales-return';
 const SALES_RETURN_LIST_PERSISTENCE_ID =
-  'apps.kuaizhizao.pages.sales-management.sales-returns-width-v1';
+  'apps.kuaizhizao.pages.sales-management.sales-returns-width-v2';
 const SALES_RETURN_CUSTOM_FIELD_TABLE = 'apps_kuaizhizao_sales_returns';
+const SALES_RETURN_REFUNDED_STATUSES = new Set(['已退货', 'completed', '已完成', 'RETURNED']);
+
+const isSalesReturnRefundEligible = (record: { status?: string; id?: number }) =>
+  record.id != null && SALES_RETURN_REFUNDED_STATUSES.has(String(record.status || '').trim());
 
 type SalesReturnItemRow = SalesReturnItem & {
   _rowKey: string;
@@ -326,6 +334,7 @@ const SalesReturnsPage: React.FC = () => {
 
   const invalidateMenuBadgeCounts = useInvalidateMenuBadgeCounts();
   const salesReturnPerms = useResourcePermissions(SALES_RETURN_RESOURCE);
+  const receiptRefundPerms = useResourcePermissions(RECEIPT_REFUND_RESOURCE);
   // Drawer 相关状态
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [returnDetail, setReturnDetail] = useState<SalesReturnDetail | null>(null);
@@ -562,6 +571,39 @@ const SalesReturnsPage: React.FC = () => {
 
   const salesReturnCustomFieldColumns = generateSalesReturnCustomFieldColumns();
 
+  const handleCreateRefund = useCallback(
+    async (record: SalesReturn) => {
+      if (!receiptRefundPerms.canCreate) {
+        messageApi.warning(t('app.kuaizhizao.salesReturn.refundNoPermission'));
+        return;
+      }
+      if (!isSalesReturnRefundEligible(record)) {
+        messageApi.warning(t('app.kuaizhizao.salesReturn.refundNotCompleted'));
+        return;
+      }
+      const returnId = Number(record.id);
+      if (!Number.isFinite(returnId) || returnId <= 0) return;
+      try {
+        const resolved = await receiptRefundService.resolveFromSalesReturn(returnId);
+        const ids = (resolved.source_ids || [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0);
+        if (!ids.length) {
+          messageApi.warning(t('app.kuaizhizao.salesReturn.refundNoReceipt'));
+          return;
+        }
+        navigate('/apps/kuaicaiwu/finance-management/receipt-refunds', {
+          state: { pullSourceIds: ids },
+        });
+      } catch (error) {
+        messageApi.error(
+          getApiErrorMessage(error, t('app.kuaizhizao.salesReturn.refundResolveFailed')),
+        );
+      }
+    },
+    [messageApi, navigate, receiptRefundPerms.canCreate, t],
+  );
+
   const columns: ProColumns<SalesReturn>[] = useMemo(
     () => alignProColumns<SalesReturn>([
     {
@@ -750,6 +792,13 @@ const SalesReturnsPage: React.FC = () => {
         record.capabilities?.update?.allowed && salesReturnPerms.canUpdate ? (
           <Button {...rowActionKind('update')} key="edit" onClick={() => void handleEdit(record)}>{t('common.edit')}</Button>
         ) : null,
+        isSalesReturnRefundEligible(record) && receiptRefundPerms.canCreate ? (
+          <Button
+            {...rowActionCreateRefund('create')}
+            key="refund"
+            onClick={() => void handleCreateRefund(record)}
+          />
+        ) : null,
         <UniWorkflowActions {...rowActionKind('skip')}
           key="workflow-actions"
           record={record}
@@ -782,6 +831,8 @@ const SalesReturnsPage: React.FC = () => {
       salesReturnLifecycleValueEnum,
       salesReturnAuditColumn,
       salesReturnPerms.canUpdate,
+      receiptRefundPerms.canCreate,
+      handleCreateRefund,
     ],
   );
 
@@ -2457,6 +2508,12 @@ const SalesReturnsPage: React.FC = () => {
                 >
                   {t('components.uniAction.print')}
                 </Button>
+              ) : null}
+              {isSalesReturnRefundEligible(returnDetail) && receiptRefundPerms.canCreate ? (
+                <Button
+                  {...rowActionCreateRefund('create')}
+                  onClick={() => void handleCreateRefund(returnDetail)}
+                />
               ) : null}
             </Space>
           ) : null

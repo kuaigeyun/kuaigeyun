@@ -124,6 +124,7 @@ export function buildReceivableStatusEnum(t: TFunction) {
     未收款: { text: t('app.kuaicaiwu.financeStatus.receivable.unpaid') },
     部分收款: { text: t('app.kuaicaiwu.financeStatus.receivable.partial') },
     已结清: { text: t('app.kuaicaiwu.financeStatus.receivable.settled') },
+    已冲减: { text: t('app.kuaicaiwu.financeStatus.receivable.offset') },
   };
 }
 

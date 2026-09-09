@@ -31,6 +31,7 @@ from core.services.system.site_setting_service import SiteSettingService
 from core.config.menu_takeover import (
     MENU_DISPLAY_NAME_MAX_LEN,
     META_DISPLAY_NAME,
+    META_TENANT_PARENT_OVERRIDE,
     merge_menu_meta_for_sync,
 )
 from core.config.menu_sync_is_active_policy import resolve_sync_is_active_for_existing_row
@@ -532,6 +533,22 @@ class MenuService:
         }
 
     @staticmethod
+    def _custom_layout_nodes_have_menu_refs(nodes: Any) -> bool:
+        if not isinstance(nodes, list):
+            return False
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            if (
+                node.get("type") == "menu_ref"
+                and str(node.get("menu_uuid") or "").strip()
+            ):
+                return True
+            if MenuService._custom_layout_nodes_have_menu_refs(node.get("children")):
+                return True
+        return False
+
+    @staticmethod
     def _normalize_custom_menu_layout(raw: Any) -> Dict[str, Any]:
         base = MenuService._default_custom_menu_layout()
         if not isinstance(raw, dict):
@@ -547,6 +564,9 @@ class MenuService:
         nodes = raw.get("nodes")
         if not isinstance(nodes, list):
             nodes = []
+        # 已有 menu_ref 却 enabled=false（历史脏数据）→ 侧栏仍须应用自组映射
+        if not enabled and MenuService._custom_layout_nodes_have_menu_refs(nodes):
+            enabled = True
         return {
             "enabled": enabled,
             "show_app_names": show_app_names,
@@ -676,9 +696,8 @@ class MenuService:
     async def get_custom_menu_layout(tenant_id: int) -> CustomMenuLayoutResponse:
         settings_row = await SiteSettingService.get_settings(tenant_id)
         settings = dict(settings_row.settings or {})
-        payload = MenuService._normalize_custom_menu_layout(
-            settings.get(_CUSTOM_MENU_LAYOUT_KEY)
-        )
+        raw_layout = settings.get(_CUSTOM_MENU_LAYOUT_KEY)
+        payload = MenuService._normalize_custom_menu_layout(raw_layout)
         # 顶层键供全体登录用户经站点设置读取；与布局内字段保持一致
         if "show_app_menu_names" in settings:
             raw_show = settings.get("show_app_menu_names")
@@ -691,6 +710,17 @@ class MenuService:
                 )
             else:
                 payload["show_app_names"] = bool(raw_show)
+        # 回写 enabled，避免下次读仍落到脏数据路径
+        if (
+            isinstance(raw_layout, dict)
+            and payload.get("enabled")
+            and not bool(raw_layout.get("enabled"))
+        ):
+            healed = {**raw_layout, "enabled": True}
+            merged_settings = dict(settings)
+            merged_settings[_CUSTOM_MENU_LAYOUT_KEY] = healed
+            settings_row.settings = merged_settings
+            await settings_row.save(update_fields=["settings", "updated_at"])
         validated = CustomMenuLayoutResponse.model_validate(payload)
         return validated
 
@@ -1230,8 +1260,10 @@ class MenuService:
                 menu.parent_id = parent.id
             else:
                 menu.parent_id = None
-        
-        # 检查权限代码是否变更
+            parent_relocated = True
+        else:
+            parent_relocated = False
+
         old_permission_code = menu.permission_code
         new_permission_code = update_data.get("permission_code", old_permission_code)
 
@@ -1249,6 +1281,12 @@ class MenuService:
 
         if display_name_provided:
             MenuService._apply_menu_display_name(menu, display_name_value)
+
+        if parent_relocated:
+            # 须在其它 meta 写入之后再打标，避免被 update_data.meta 冲掉
+            meta = dict(menu.meta or {})
+            meta[META_TENANT_PARENT_OVERRIDE] = True
+            menu.meta = meta
 
         await MenuService._sync_app_root_menu_to_application(tenant_id, menu, update_data)
 
@@ -1621,7 +1659,12 @@ class MenuService:
                 existing_menu.is_external = menu_is_external
                 existing_menu.external_url = menu_external_url
                 existing_menu.meta = merge_menu_meta_for_sync(existing_menu.meta, menu_meta)
-                existing_menu.parent_id = parent_id
+                # 租户已在菜单管理中改过父级时，保留挂载点，避免同步/发版把 MRP 等冲回 manifest 默认分组
+                tenant_parent_override = bool(
+                    (existing_menu.meta or {}).get(META_TENANT_PARENT_OVERRIDE)
+                )
+                if not tenant_parent_override:
+                    existing_menu.parent_id = parent_id
                 await existing_menu.save()
                 
                 # 从 existing_menu_map 中移除，表示已处理

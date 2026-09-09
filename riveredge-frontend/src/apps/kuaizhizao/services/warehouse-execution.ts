@@ -20,6 +20,13 @@ export type PurchaseReturnPullLine = {
   pushed_quantity?: number;
   remaining_quantity?: number;
   required_date?: string | null;
+  requires_batch_number?: boolean;
+  suggested_batch_number?: string | null;
+  available_batches?: Array<{
+    batch_number: string;
+    purchase_receipt_item_id?: number;
+    receipt_quantity?: number;
+  }>;
 };
 
 export type SalesReturnOrderPullLine = {
@@ -362,6 +369,13 @@ export const warehouseApi = {
         }>;
       },
     ) => apiRequest(`/apps/kuaizhizao/material-calls/${id}/push-production-picking`, { method: 'POST', data }),
+    previewPushPurchaseRequisition: async (id: number) =>
+      apiRequest(`/apps/kuaizhizao/material-calls/${id}/push-purchase-requisition/preview`, { method: 'GET' }),
+    pushPurchaseRequisition: async (id: number, data?: { item_ids?: number[] }) =>
+      apiRequest(`/apps/kuaizhizao/material-calls/${id}/push-purchase-requisition`, {
+        method: 'POST',
+        data: data ?? {},
+      }),
   },
   otherInbound: {
     list: async (params?: any) => apiRequest('/apps/kuaizhizao/other-inbounds', { method: 'GET', params }),
@@ -708,6 +722,7 @@ export const warehouseApi = {
       }),
     pullFromPurchaseOrderItems: async (
       selectedItemIds: number[],
+      options?: { lineBatches?: Record<number, string> },
     ): Promise<{
       success: boolean;
       message: string;
@@ -717,7 +732,12 @@ export const warehouseApi = {
     }> =>
       apiRequest('/apps/kuaizhizao/purchase-returns/pull-from-purchase-order-items', {
         method: 'POST',
-        data: { selected_item_ids: selectedItemIds },
+        data: {
+          selected_item_ids: selectedItemIds,
+          ...(options?.lineBatches && Object.keys(options.lineBatches).length
+            ? { line_batches: options.lineBatches }
+            : {}),
+        },
       }),
   },
   replenishmentSuggestion: {

@@ -33,6 +33,8 @@ class PurchaseRequisitionItemBase(BaseModel):
 class PurchaseRequisitionItemCreate(PurchaseRequisitionItemBase):
     """采购申请行创建"""
     demand_computation_item_id: Optional[int] = Field(None, description="需求计算明细ID")
+    work_order_id: Optional[int] = Field(None, description="关联工单ID")
+    work_order_code: Optional[str] = Field(None, max_length=50, description="关联工单编码")
 
 
 class PurchaseRequisitionItemUpdate(BaseModel):
@@ -50,6 +52,8 @@ class PurchaseRequisitionItemResponse(PurchaseRequisitionItemBase):
     requisition_id: int
     tenant_id: int
     demand_computation_item_id: Optional[int] = None
+    work_order_id: Optional[int] = None
+    work_order_code: Optional[str] = None
     purchase_order_id: Optional[int] = None
     purchase_order_item_id: Optional[int] = None
     supplier_id: Optional[int] = None
@@ -122,6 +126,7 @@ class PurchaseRequisitionUpdate(BaseModel):
     notes: Optional[str] = None
     attachments: Optional[list] = None
     items: Optional[List[PurchaseRequisitionItemCreate]] = None
+    requisition_code: Optional[str] = Field(None, max_length=50, description="申请编码（仅草稿或无下游时可改）")
 
 
 class PurchaseRequisitionResponse(PurchaseRequisitionBase):

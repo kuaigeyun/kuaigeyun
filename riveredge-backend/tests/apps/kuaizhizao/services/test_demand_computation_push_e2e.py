@@ -67,8 +67,24 @@ def test_downstream_progress_uses_partial_work_order_qty():
         "po_pushed_qty_by_material_id": {},
         "pr_committed_qty_by_material_id": {},
     }
-    progress = svc._compute_downstream_push_progress(computation, items, exclusions)
+    progress, no_need = svc._compute_downstream_push_progress(computation, items, exclusions)
     assert progress == 25.0
+    assert no_need is False
+
+
+def test_downstream_progress_no_push_needed_when_no_suggested_qty():
+    svc = DemandComputationService()
+    computation = SimpleNamespace(computation_status="完成")
+    items = [_make_item(1, 0.0)]
+    exclusions = {
+        "wo_pushed_qty_by_material_id": {},
+        "outsource_pushed_qty_by_material_id": {},
+        "po_pushed_qty_by_material_id": {},
+        "pr_committed_qty_by_material_id": {},
+    }
+    progress, no_need = svc._compute_downstream_push_progress(computation, items, exclusions)
+    assert progress == 100.0
+    assert no_need is True
 
 
 def test_preview_work_order_count_matches_pushable_rows():

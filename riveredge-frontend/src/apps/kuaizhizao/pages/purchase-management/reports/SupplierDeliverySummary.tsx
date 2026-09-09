@@ -52,6 +52,14 @@ const SupplierDeliverySummary: React.FC = () => {
         hideInSearch: true,
       },
       {
+        title: t('app.kuaizhizao.reports.timedCount'),
+        dataIndex: 'timed_count',
+        valueType: 'digit',
+        width: 110,
+        hideInSearch: true,
+        align: 'right',
+      },
+      {
         title: t('app.kuaizhizao.reports.ontimeCount'),
         dataIndex: 'ontime_count',
         valueType: 'digit',
@@ -90,8 +98,8 @@ const SupplierDeliverySummary: React.FC = () => {
     <KuaizhizaoReport
       title={t('app.kuaizhizao.menu.reports.supplier-delivery-summary')}
       reportType="supplier_delivery"
-      summaryFields={['receipt_count', 'receipt_quantity', 'receipt_amount']}
-      columnPersistenceId="apps.kuaizhizao.pages.purchase-management.reports.SupplierDeliverySummary-v3"
+      summaryFields={['receipt_count', 'receipt_quantity', 'receipt_amount', 'timed_count', 'ontime_count']}
+      columnPersistenceId="apps.kuaizhizao.pages.purchase-management.reports.SupplierDeliverySummary-v4"
       rowKey="supplier_id"
       columns={columns}
       params={{ period_basis: periodBasis }}

@@ -12,3 +12,13 @@ PAYABLE_SOURCE_PURCHASE_INVOICE = "PurchaseInvoice"
 PAYABLE_SOURCE_OUTSOURCE_RECEIPT = "委外收货"
 PAYABLE_SOURCE_PURCHASE_RETURN = "采购退货"
 PAYABLE_SOURCE_PRICE_SETTLEMENT = "采购调价"
+
+
+def is_sales_return_offset_receivable(source_type: str | None) -> bool:
+    """销售退货确认生成的红字/冲减应收（往来贷方冲减，非正向待收款）。"""
+    return str(source_type or "").strip() == RECEIVABLE_SOURCE_SALES_RETURN
+
+
+def is_purchase_return_offset_payable(source_type: str | None) -> bool:
+    """采购退货关联的红字/冲减应付。"""
+    return str(source_type or "").strip() == PAYABLE_SOURCE_PURCHASE_RETURN

@@ -3,6 +3,7 @@
  */
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { rowActionKind, rowActionMakePayment, rowActionIssueInvoice } from '../../../../../components/uni-action';
+import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
 import { ActionType, ProColumns } from '@ant-design/pro-components';
 import { App, Button, Typography, Modal, Spin, Alert, Table, Empty, Form } from 'antd';
 import { ModalForm, ProForm, ProFormDatePicker, ProFormMoney, ProFormSelect, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
@@ -84,12 +85,21 @@ type PullPreviewKind = 'purchase_order' | 'purchase_receipt';
 const formatPullMoney = (value: number) =>
   formatCurrencyAmount(value || 0);
 
+function canCorrectPayableRow(record: Payable): boolean {
+  if (Number(record.paid_amount ?? 0) > 0) return false;
+  if (Number(record.refunded_amount ?? 0) > 0) return false;
+  const refundExec = String(record.refund_execution_status || '').trim();
+  if (refundExec === '部分退款' || refundExec === '全部退款') return false;
+  return true;
+}
+
 const PayableList: React.FC = () => {
     const actionRef = useRef<ActionType>();
     const lastListParamsRef = useRef<Record<string, string | number | boolean | undefined>>({});
     const createFormRef = useRef<ProFormInstance>(null);
     const [pullForm] = Form.useForm();
     const [createModalVisible, setCreateModalVisible] = useState(false);
+    const [editingRecord, setEditingRecord] = useState<Payable | null>(null);
     const [pullPreviewOpen, setPullPreviewOpen] = useState(false);
     const [pullPreviewLoading, setPullPreviewLoading] = useState(false);
     const [pullSubmitting, setPullSubmitting] = useState(false);
@@ -268,6 +278,45 @@ const PayableList: React.FC = () => {
             navigate(`/apps/kuaicaiwu/finance-management/payables/${created.id}`);
         }
         return true;
+    };
+
+    const openEdit = (record: Payable) => {
+        setEditingRecord(record);
+    };
+
+    const executeDeleteOne = async (record: Payable) => {
+        try {
+            await payableService.deletePayable(record.id);
+            messageApi.success(t('common.deleteSuccess'));
+            actionRef.current?.reload();
+        } catch (error: any) {
+            messageApi.error(error?.message || t('common.deleteFailed'));
+        }
+    };
+
+    const handleUpdate = async (values: any) => {
+        if (!editingRecord) return false;
+        const today = formatDateTime(dayjs(), 'YYYY-MM-DD');
+        try {
+            await payableService.updatePayable(editingRecord.id, {
+                supplier_id: values.supplier_id,
+                supplier_name:
+                    supplierOptions.find((o) => o.value === values.supplier_id)?.label ||
+                    editingRecord.supplier_name,
+                total_amount: values.total_amount,
+                due_date: values.due_date || today,
+                business_date: values.business_date || today,
+                notes: values.notes,
+                attachments: normalizeDocumentAttachments(values.attachments),
+            });
+            messageApi.success(t('common.updateSuccess'));
+            setEditingRecord(null);
+            actionRef.current?.reload();
+            return true;
+        } catch (error: any) {
+            messageApi.error(error?.message || t('common.updateFailed'));
+            return false;
+        }
     };
 
     const resetPullPreview = () => {
@@ -860,10 +909,36 @@ const PayableList: React.FC = () => {
                         />,
                     );
                 }
+                if (canCorrectPayableRow(record) && payablePerms.canUpdate) {
+                    acts.push(
+                        <Button
+                            key="ed"
+                            {...rowActionKind('update')}
+                            onClick={() => openEdit(record)}
+                        />,
+                    );
+                }
+                if (canCorrectPayableRow(record) && payablePerms.canDelete) {
+                    acts.push(
+                        <ActionConfirmPopconfirm
+                            key="del-pc"
+                            title={t(`${P}.deleteTitle`)}
+                            description={t(`${P}.deleteContent`, { code: record.payable_code })}
+                            okType="danger"
+                            onConfirm={() => executeDeleteOne(record)}
+                        >
+                            <Button
+                                key="del"
+                                {...rowActionKind('delete')}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </ActionConfirmPopconfirm>,
+                    );
+                }
                 return acts;
             },
         },
-    ], [t, navigate, supplierOptions, paymentPerms, purchaseInvoicePerms]);
+    ], [t, navigate, supplierOptions, paymentPerms, purchaseInvoicePerms, payablePerms]);
 
 
     return (
@@ -885,7 +960,7 @@ const PayableList: React.FC = () => {
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.payable)}
                 actionRef={actionRef}
                 columns={alignProColumns(columns, SALES_DOC_LIST_FIELD_RANK)}
-                columnPersistenceId="apps.kuaicaiwu.pages.finance-management.payables.list-v3"
+                columnPersistenceId="apps.kuaicaiwu.pages.finance-management.payables.list-v4"
                 request={async (params, sort, _filter, searchFormValues) => {
                     const { current, pageSize } = params;
                     const listParams = resolvePayableListParams(searchFormValues, sort, urlAgingFilters);
@@ -1316,6 +1391,61 @@ const PayableList: React.FC = () => {
                         baseFieldName: 'business_date',
                         t,
                     })}
+                />
+                <ProFormTextArea name="notes" label={t('common.remark')} colProps={financeColFull} />
+                <DocumentAttachmentsField category="payable_attachments" />
+            </ModalForm>
+
+            <ModalForm
+                key={editingRecord ? `edit-payable-${editingRecord.id}` : 'edit-payable'}
+                title={t(`${P}.editTitle`)}
+                open={Boolean(editingRecord)}
+                onOpenChange={(open) => {
+                    if (!open) setEditingRecord(null);
+                }}
+                initialValues={
+                    editingRecord
+                        ? {
+                              supplier_id: editingRecord.supplier_id,
+                              total_amount: editingRecord.total_amount,
+                              business_date: editingRecord.business_date
+                                  ? dayjs(editingRecord.business_date)
+                                  : dayjs(),
+                              due_date: editingRecord.due_date ? dayjs(editingRecord.due_date) : undefined,
+                              notes: editingRecord.notes,
+                          }
+                        : undefined
+                }
+                onFinish={handleUpdate}
+                width={MODAL_CONFIG.STANDARD_WIDTH}
+                {...financeFormGridProps}
+            >
+                <ProFormSelect
+                    name="supplier_id"
+                    label={t('app.kuaicaiwu.common.supplier')}
+                    options={supplierOptions}
+                    rules={[{ required: true, message: t('app.kuaicaiwu.common.selectSupplier') }]}
+                    placeholder={t('app.kuaicaiwu.common.selectSupplier')}
+                    colProps={financeColHalf}
+                />
+                <ProFormMoney
+                    name="total_amount"
+                    label={t(`${P}.col.amount`)}
+                    min={0.01}
+                    rules={[{ required: true }]}
+                    colProps={financeColHalf}
+                />
+                <ProFormDatePicker
+                    name="business_date"
+                    label={t('app.kuaicaiwu.common.businessDate')}
+                    fieldProps={{ style: { width: '100%' } }}
+                    colProps={financeColHalf}
+                />
+                <ProFormDatePicker
+                    name="due_date"
+                    label={t('app.kuaicaiwu.common.dueDate')}
+                    rules={[{ required: true }]}
+                    colProps={financeColHalf}
                 />
                 <ProFormTextArea name="notes" label={t('common.remark')} colProps={financeColFull} />
                 <DocumentAttachmentsField category="payable_attachments" />

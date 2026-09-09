@@ -12,6 +12,7 @@ from tortoise.queryset import Q
 from apps.common.base_service import AppBaseService
 from apps.kuaicaiwu.models.invoice import Invoice
 from apps.kuaicaiwu.models.receivable import Receivable
+from apps.kuaicaiwu.services.finance_tax import money_exceeds_max, money_to_json_float
 from apps.kuaizhizao.models.document_relation import DocumentRelation
 from apps.kuaizhizao.constants.price_type import DEFAULT_SALES_PRICE_TYPE, normalize_price_type
 from infra.exceptions.exceptions import BusinessLogicError, NotFoundError
@@ -49,7 +50,12 @@ class SalesInvoiceService(AppBaseService[Invoice]):
         not_allowed_reason: str,
         no_lines_reason: str,
         already_pulled_reason: str,
+        source_type: Optional[str] = None,
     ) -> tuple[bool, Optional[str]]:
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
+        if is_sales_return_offset_receivable(source_type):
+            return False, "sales_invoice.pull_from_receivable.sales_return_offset"
         if not source_allowed:
             return False, not_allowed_reason
         if not preview_items:
@@ -272,6 +278,15 @@ class SalesInvoiceService(AppBaseService[Invoice]):
         return result
 
     def _receivable_source_allowed(self, receivable: Any) -> bool:
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
+        source_type = (
+            receivable.get("source_type")
+            if isinstance(receivable, dict)
+            else getattr(receivable, "source_type", None)
+        )
+        if is_sales_return_offset_receivable(source_type):
+            return False
         review = str(
             (receivable.get("review_status") if isinstance(receivable, dict) else getattr(receivable, "review_status", ""))
             or ""
@@ -293,9 +308,9 @@ class SalesInvoiceService(AppBaseService[Invoice]):
         quantity: Decimal,
         pushed: Decimal,
     ) -> Dict[str, Any]:
-        qty = float(quantity)
-        pushed_f = float(pushed)
-        max_push = float(max(Decimal("0"), quantity - pushed))
+        qty = money_to_json_float(quantity)
+        pushed_f = money_to_json_float(pushed)
+        max_push = money_to_json_float(max(Decimal("0"), quantity - pushed))
         return {
             "item_id": int(source_id),
             "source_code": source_code,
@@ -522,6 +537,7 @@ class SalesInvoiceService(AppBaseService[Invoice]):
             not_allowed_reason="sales_invoice.pull_from_receivable.not_allowed",
             no_lines_reason="sales_invoice.pull_from_receivable.no_lines",
             already_pulled_reason="sales_invoice.pull_from_receivable.already_pulled",
+            source_type=str(getattr(receivable, "source_type", "") or ""),
         )
         code = str(receivable.receivable_code or receivable_id)
         pushable = float(preview_items[0]["max_push_quantity"]) if preview_items else 0.0
@@ -538,7 +554,11 @@ class SalesInvoiceService(AppBaseService[Invoice]):
             "items": preview_items,
             "has_blocking_issues": not allowed,
             "blocking_reason": reason,
-            "tip": "价税合计不可超过可开票金额；删除未审核销项发票后，可开票金额自动回退。",
+            "tip": (
+                "销售退货冲减应收不可从应收开票；请对原蓝字业务开票或申请红字发票。"
+                if reason == "sales_invoice.pull_from_receivable.sales_return_offset"
+                else "价税合计不可超过可开票金额；删除未审核销项发票后，可开票金额自动回退。"
+            ),
             "customer_id": receivable.customer_id,
             "customer_name": receivable.customer_name,
             "receivable_id": receivable.id,
@@ -694,7 +714,7 @@ class SalesInvoiceService(AppBaseService[Invoice]):
             tenant_id=tenant_id,
             deleted_at__isnull=True,
             total_amount__gt=0,
-        )
+        ).exclude(source_type="销售退货").exclude(status="已冲减")
         kw = str(keyword or "").strip()
         if kw:
             query = query.filter(
@@ -725,6 +745,7 @@ class SalesInvoiceService(AppBaseService[Invoice]):
                 not_allowed_reason="sales_invoice.pull_from_receivable.not_allowed",
                 no_lines_reason="sales_invoice.pull_from_receivable.no_lines",
                 already_pulled_reason="sales_invoice.pull_from_receivable.already_pulled",
+                source_type=str(getattr(receivable, "source_type", "") or ""),
             )
             code = str(receivable.receivable_code or rid)
             name = str(getattr(receivable, "customer_name", "") or "").strip()
@@ -772,7 +793,7 @@ class SalesInvoiceService(AppBaseService[Invoice]):
         if not items:
             raise BusinessLogicError("无可开票金额")
         max_push = Decimal(str(items[0].get("max_push_quantity") or 0))
-        if total_amount > max_push:
+        if money_exceeds_max(total_amount, max_push):
             raise BusinessLogicError(f"价税合计 {total_amount} 超过可开票金额 {max_push}")
         return preview
 

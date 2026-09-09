@@ -824,6 +824,21 @@ class SalesForecastService(AppBaseService[SalesForecast]):
         else:
             assert_sales_forecast_capability(forecast_row, "approve")
 
+        from infra.services.business_config_service import BusinessConfigService
+        from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+
+        audit_required = await BusinessConfigService().check_audit_required(
+            tenant_id, "sales_forecast"
+        )
+        await assert_pending_approval_instance(
+            tenant_id=tenant_id,
+            entity_type="sales_forecast",
+            entity_id=forecast_id,
+            audit_required=audit_required,
+            doc_label="销售预测",
+            verb="驳回" if rejection_reason else "审核",
+        )
+
         async with in_transaction():
             approver_name = await self.get_user_name(approved_by)
 
@@ -861,9 +876,11 @@ class SalesForecastService(AppBaseService[SalesForecast]):
         forecast_id: int,
         withdrawn_by: int,
     ) -> SalesForecastResponse:
-        """撤回审核：人工审→待审核，自动审→草稿。"""
+        """撤销审核：一律回到草稿，须重新提交再审。"""
         from apps.kuaizhizao.constants import DocumentStatus, ReviewStatus
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
 
         forecast_row = await SalesForecast.get_or_none(
             tenant_id=tenant_id, id=forecast_id, deleted_at__isnull=True
@@ -884,16 +901,11 @@ class SalesForecastService(AppBaseService[SalesForecast]):
         audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "sales_forecast"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        target_status = (
-            DocumentStatus.PENDING_REVIEW.value
-            if landing == "pending"
-            else DocumentStatus.DRAFT.value
-        )
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
 
         async with in_transaction():
             await SalesForecast.filter(tenant_id=tenant_id, id=forecast_id).update(
-                status=target_status,
+                status=DocumentStatus.DRAFT.value,
                 review_status=ReviewStatus.PENDING.value,
                 reviewer_id=None,
                 reviewer_name=None,
@@ -991,6 +1003,19 @@ class SalesForecastService(AppBaseService[SalesForecast]):
                     operator_id=submitted_by,
                 )
             else:
+                from core.services.approval.audit_flow_guard import start_document_approval_or_raise
+
+                await start_document_approval_or_raise(
+                    tenant_id=tenant_id,
+                    user_id=submitted_by,
+                    node_key="sales_forecast",
+                    entity_type="sales_forecast",
+                    entity_id=int(forecast_row.id),
+                    entity_uuid=str(forecast_row.uuid),
+                    title=f"销售预测审批: {forecast_row.forecast_code}",
+                    content=f"预测名称: {forecast_row.forecast_name or forecast_row.forecast_code}",
+                    doc_label="销售预测",
+                )
                 await SalesForecast.filter(tenant_id=tenant_id, id=forecast_id).update(
                     status=DocumentStatus.PENDING_REVIEW.value,
                     review_status=ReviewStatus.PENDING.value,

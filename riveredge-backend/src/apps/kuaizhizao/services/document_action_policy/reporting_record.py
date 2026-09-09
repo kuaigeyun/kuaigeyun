@@ -23,21 +23,24 @@ def _norm(value: Any) -> str:
 
 def derive_reporting_record_capabilities(record: Any) -> ReportingRecordCapabilities:
     status = _norm(getattr(record, "status", None))
+    editable = status in {"draft", "pending"}
 
     update_cap = _cap(
-        status == "pending",
-        "reporting_record.update.not_pending" if status != "pending" else None,
+        editable,
+        "reporting_record.update.not_pending" if not editable else None,
     )
     delete_cap = _cap(
-        status == "pending",
-        "reporting_record.delete.not_pending" if status != "pending" else None,
+        editable,
+        "reporting_record.delete.not_pending" if not editable else None,
     )
-
+    submit_cap = _cap(
+        status in {"draft", "rejected"},
+        "reporting_record.submit.not_draft" if status not in {"draft", "rejected"} else None,
+    )
     approve_cap = _cap(
         status == "pending",
         "reporting_record.approve.not_pending" if status != "pending" else None,
     )
-
     revoke_cap = _cap(
         status == "approved",
         "reporting_record.revoke_approval.not_approved" if status != "approved" else None,
@@ -48,6 +51,7 @@ def derive_reporting_record_capabilities(record: Any) -> ReportingRecordCapabili
     return ReportingRecordCapabilities(
         update=update_cap,
         delete=delete_cap,
+        submit=submit_cap,
         approve=approve_cap,
         revoke_approval=revoke_cap,
         print=print_cap,
@@ -59,6 +63,7 @@ def assert_reporting_record_capability(record: Any, action: str) -> None:
     cap_map = {
         "update": caps.update,
         "delete": caps.delete,
+        "submit": caps.submit,
         "approve": caps.approve,
         "revoke_approval": caps.revoke_approval,
         "print": caps.print,

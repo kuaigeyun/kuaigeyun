@@ -5,7 +5,7 @@
 """
 
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
 from decimal import Decimal
 from tortoise.transactions import in_transaction
@@ -730,3 +730,204 @@ class MaterialCallService(AppBaseService[MaterialCallRequest]):
         call_req.updated_by = updated_by
         await call_req.save()
         return True
+
+    async def _collect_call_purchase_lines(
+        self,
+        tenant_id: int,
+        call_id: int,
+        item_ids: Optional[List[int]] = None,
+    ) -> tuple:
+        from apps.kuaizhizao.utils.mrp_quantity import mrp_qty
+
+        call_req = await MaterialCallRequest.get_or_none(
+            tenant_id=tenant_id, id=call_id, deleted_at__isnull=True
+        )
+        if not call_req:
+            raise NotFoundError(f"补料申请不存在: {call_id}")
+        if call_req.status != "pending":
+            raise BusinessLogicError(
+                f"仅「待处理」状态的补料申请可下推采购申请，当前状态：{call_req.status}"
+            )
+
+        selected: Optional[set[int]] = None
+        if item_ids:
+            selected = {int(x) for x in item_ids if x is not None}
+
+        items = await MaterialCallRequestItem.filter(
+            tenant_id=tenant_id, request_id=call_id
+        ).order_by("line_no", "id").all()
+
+        lines: List[Dict[str, Any]] = []
+        for row in items:
+            if selected is not None and int(row.id) not in selected:
+                continue
+            remaining = mrp_qty(row.requested_quantity or 0) - mrp_qty(row.delivered_quantity or 0)
+            if remaining <= 0:
+                continue
+            lines.append(
+                {
+                    "item_id": int(row.id),
+                    "material_id": int(row.material_id),
+                    "material_code": row.material_code,
+                    "material_name": row.material_name,
+                    "material_unit": row.material_unit,
+                    "quantity": remaining,
+                }
+            )
+        return call_req, lines
+
+    async def preview_push_purchase_requisition(
+        self,
+        tenant_id: int,
+        call_id: int,
+        item_ids: Optional[List[int]] = None,
+    ) -> Dict[str, Any]:
+        call_req, lines = await self._collect_call_purchase_lines(
+            tenant_id, call_id, item_ids
+        )
+        blocking_reason = None
+        if not lines:
+            blocking_reason = "material_call.push_purchase_requisition.no_remaining_qty"
+        return {
+            "material_call_id": call_id,
+            "material_call_code": call_req.code,
+            "work_order_id": call_req.work_order_id,
+            "work_order_code": call_req.work_order_code,
+            "items": [
+                {
+                    "item_id": row["item_id"],
+                    "material_id": row["material_id"],
+                    "material_code": row["material_code"],
+                    "material_name": row["material_name"],
+                    "material_unit": row["material_unit"],
+                    "quantity": float(row["quantity"]),
+                }
+                for row in lines
+            ],
+            "blocking_reason": blocking_reason,
+        }
+
+    async def push_purchase_requisition(
+        self,
+        tenant_id: int,
+        call_id: int,
+        created_by: int,
+        item_ids: Optional[List[int]] = None,
+    ) -> Dict[str, Any]:
+        from apps.kuaizhizao.schemas.purchase_requisition import (
+            PurchaseRequisitionCreate,
+            PurchaseRequisitionItemCreate,
+        )
+        from apps.kuaizhizao.services.purchase_requisition_service import PurchaseRequisitionService
+        from apps.kuaizhizao.utils.material_source_helper import resolve_material_purchase_line_unit_price
+        from apps.kuaizhizao.utils.mrp_quantity import mrp_qty
+        from apps.master_data.models.material import Material
+        from core.utils.timezone_utils import resolve_business_datetime, to_site_date
+
+        call_req, lines = await self._collect_call_purchase_lines(
+            tenant_id, call_id, item_ids
+        )
+        if not lines:
+            raise BusinessLogicError("补料申请明细均已处理完毕，无可请购数量")
+
+        material_id_list = sorted({int(row["material_id"]) for row in lines})
+        material_rows = await Material.filter(
+            tenant_id=tenant_id, id__in=material_id_list, deleted_at__isnull=True
+        ).all()
+        material_by_id = {int(m.id): m for m in material_rows}
+
+        today = to_site_date(resolve_business_datetime())
+        req_items: List[PurchaseRequisitionItemCreate] = []
+        for row in lines:
+            mid = int(row["material_id"])
+            material = material_by_id.get(mid)
+            if not material:
+                raise NotFoundError(f"物料不存在: {mid}")
+            source_config = material.source_config if isinstance(material.source_config, dict) else {}
+            supplier_id = source_config.get("default_supplier_id")
+            unit_price = resolve_material_purchase_line_unit_price(material=material)
+            req_items.append(
+                PurchaseRequisitionItemCreate(
+                    material_id=mid,
+                    material_code=str(row["material_code"] or material.main_code or material.code or mid),
+                    material_name=str(row["material_name"] or material.name or ""),
+                    material_spec=getattr(material, "specification", None),
+                    unit=str(row["material_unit"] or material.base_unit or "件"),
+                    quantity=Decimal(str(row["quantity"])),
+                    suggested_unit_price=unit_price or Decimal(0),
+                    required_date=today,
+                    supplier_id=int(supplier_id) if supplier_id else None,
+                    work_order_id=int(call_req.work_order_id),
+                    work_order_code=call_req.work_order_code,
+                    notes=f"补料 {call_req.code} 现采",
+                )
+            )
+
+        pr_svc = PurchaseRequisitionService()
+        req = await pr_svc.create_requisition(
+            tenant_id=tenant_id,
+            data=PurchaseRequisitionCreate(
+                requisition_code="",
+                requisition_name=f"补料{call_req.code}请购",
+                requisition_date=today,
+                required_date=today,
+                source_type="material_call",
+                source_id=call_id,
+                source_code=call_req.code,
+                notes=f"由补料申请 {call_req.code} 下推（工单 {call_req.work_order_code}）",
+                items=req_items,
+            ),
+            created_by=created_by,
+        )
+
+        try:
+            from apps.kuaizhizao.schemas.document_relation import DocumentRelationCreate
+            from apps.kuaizhizao.services.document_relation_new_service import DocumentRelationNewService
+
+            rel_svc = DocumentRelationNewService()
+            await rel_svc.create_relation(
+                tenant_id=tenant_id,
+                relation_data=DocumentRelationCreate(
+                    source_type="material_call",
+                    source_id=call_id,
+                    source_code=call_req.code,
+                    source_name=None,
+                    target_type="purchase_requisition",
+                    target_id=req.id,
+                    target_code=req.requisition_code,
+                    target_name=req.requisition_name,
+                    relation_type="source",
+                    relation_mode="push",
+                    relation_desc="补料申请下推采购申请",
+                ),
+                created_by=created_by,
+            )
+            await rel_svc.create_relation(
+                tenant_id=tenant_id,
+                relation_data=DocumentRelationCreate(
+                    source_type="work_order",
+                    source_id=int(call_req.work_order_id),
+                    source_code=call_req.work_order_code,
+                    source_name=None,
+                    target_type="purchase_requisition",
+                    target_id=req.id,
+                    target_code=req.requisition_code,
+                    target_name=req.requisition_name,
+                    relation_type="source",
+                    relation_mode="push",
+                    relation_desc="补料现采关联工单",
+                ),
+                created_by=created_by,
+            )
+        except Exception as exc:
+            logger.warning("建立补料/工单→采购申请单据关联失败: %s", exc)
+
+        return {
+            "success": True,
+            "message": "下推成功，已生成采购申请",
+            "target_document": {
+                "type": "purchase_requisition",
+                "id": req.id,
+                "code": req.requisition_code,
+            },
+        }

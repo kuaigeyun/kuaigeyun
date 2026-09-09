@@ -137,6 +137,7 @@ def derive_sales_order_capabilities(
     computation_pushed_blocks_withdraw: bool = False,
     has_returnable_qty: bool = False,
     has_pushable_qty: bool = False,
+    has_remaining_work_order_qty: bool = True,
     has_existing_delivery_project: bool = False,
     require_audit_before_print: bool = False,
 ) -> SalesOrderCapabilities:
@@ -276,6 +277,8 @@ def derive_sales_order_capabilities(
             push_work_order_reason = "sales_order.push_work_order.computation_pushed"
         elif not has_items:
             push_work_order_reason = "sales_order.push_work_order.no_items"
+        elif not has_remaining_work_order_qty:
+            push_work_order_reason = "sales_order.push_work_order.no_remaining"
         else:
             push_work_order_allowed = True
     push_work_order_cap = _cap(
@@ -411,6 +414,7 @@ def assert_sales_order_capability(
     computation_pushed_blocks_withdraw: bool = False,
     has_returnable_qty: bool = False,
     has_pushable_qty: bool = False,
+    has_remaining_work_order_qty: bool = True,
     has_existing_delivery_project: bool = False,
     require_audit_before_print: bool = False,
 ) -> None:
@@ -422,6 +426,7 @@ def assert_sales_order_capability(
         computation_pushed_blocks_withdraw=computation_pushed_blocks_withdraw,
         has_returnable_qty=has_returnable_qty,
         has_pushable_qty=has_pushable_qty,
+        has_remaining_work_order_qty=has_remaining_work_order_qty,
         has_existing_delivery_project=has_existing_delivery_project,
         require_audit_before_print=require_audit_before_print,
     )

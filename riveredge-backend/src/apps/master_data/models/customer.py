@@ -110,7 +110,7 @@ class Customer(BaseModel):
 
     # 应收确认策略覆盖：null=跟随组织 finance.revenue_recognition；否则按本值与销项发票/出库路径对齐
     revenue_recognition_override = fields.CharField(
-        max_length=32, null=True, description="应收确认覆盖：on_shipment / on_invoice"
+        max_length=32, null=True, description="应收确认覆盖：on_shipment / on_invoice / manual"
     )
     
     contract_billing_mode = fields.CharField(

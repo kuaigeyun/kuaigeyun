@@ -242,7 +242,7 @@ export const SALES_ORDER_CAPABILITY_REASON_MESSAGES: Record<string, string> = {
   'sales_order.withdraw_computation.not_allowed': '当前状态不可撤回需求计算',
   'sales_order.push_work_order.not_allowed': '当前状态不可直推工单',
   'sales_order.push_work_order.no_items': '销售订单无明细，无法直推工单',
-  'sales_order.push_work_order.computation_pushed': '销售订单已下推需求计算，不可再直推工单',
+  'sales_order.push_work_order.computation_pushed': '销售订单已下推需求计算，不可再直推工单；请到需求计算下推工单，或先撤回计算',
   'sales_order.push_shipment.not_allowed': '当前状态不可下推发货通知单',
   'sales_order.push_shipment.no_backorder': '销售订单无欠发数量，无法下推发货通知单',
   'sales_order.push_delivery.not_allowed': '当前状态不可下推销售出库',
@@ -718,6 +718,8 @@ export const DEMAND_COMPUTATION_CAPABILITY_REASON_MESSAGES: Record<string, strin
   'demand_computation.push_purchase_requisition.not_completed': '只能下推已完成的需求计算',
   'demand_computation.push_purchase_requisition.already_pushed': '该需求计算已下推采购申请且仍存在，请勿重复下推',
   'demand_computation.push_purchase_requisition.no_purchase_items': '需求计算中无采购件，无法下推采购申请',
+  'demand_computation.push.covered_by_supply': '净需求已被库存/在途冲抵，无需下推工单或采购；也不会展开 BOM 子件',
+  'demand_computation.push.no_suggested_qty': '计算结果无建议下推数量，无需下推工单或采购',
   'demand_computation.push_work_order.no_pushable_items': '可下推明细均已占用，无可新建工单',
   'demand_computation.push_work_order.no_production_items': '需求计算中无生产件可生成工单',
   'demand_computation.push_work_order.requires_production_plan': '当前配置要求经生产计划生成工单，请先下推到生产计划',
@@ -959,6 +961,7 @@ export const PURCHASE_RETURN_CAPABILITY_REASON_MESSAGES: Record<string, string> 
   'purchase_return.confirm.no_items': '采购退货单无明细，无法确认退货',
   'purchase_return.confirm.already_returned': '采购退货单已确认退货',
   'purchase_return.confirm.cancelled': '已取消的采购退货单不能确认退货',
+  'purchase_return.confirm.not_audited': '采购退货单须审核通过后才能确认退货',
   'purchase_return.withdraw.not_returned': '只有已退货状态的采购退货单才能撤回',
 };
 
@@ -1019,6 +1022,11 @@ export const WORK_ORDER_CAPABILITY_REASON_MESSAGES: Record<string, string> = {
   'work_order.push_production_return.not_allowed': '当前状态不可下推生产退料',
   'work_order.push_production_return.frozen': '工单已冻结，不可下推生产退料',
   'work_order.push_production_return.no_returnable_lines': '工单无可退料明细',
+  'work_order.push_purchase_requisition.not_allowed': '仅「已下达」或「执行中」的工单可下推采购申请',
+  'work_order.push_purchase_requisition.frozen': '工单已冻结，不可下推采购申请',
+  'work_order.push_purchase_requisition.no_shortage_lines': '工单齐套分析无采购件缺料，无法下推采购申请',
+  'material_call.push_purchase_requisition.not_allowed': '仅待处理状态的补料申请可下推采购申请',
+  'material_call.push_purchase_requisition.no_remaining_qty': '补料申请明细均已处理完毕，无可请购数量',
 };
 
 export const SALES_DELIVERY_CAPABILITY_REASON_MESSAGES: Record<string, string> = {

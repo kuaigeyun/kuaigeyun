@@ -139,6 +139,64 @@ def _resolve_seal_size_unit(width: Any, size_unit: Any) -> str:
     return "px" if w >= 60 else "mm"
 
 
+def _blocks_contain_seal_overlay(blocks: Any) -> bool:
+    """递归判断分栏/块树中是否含签章叠放。"""
+    if not isinstance(blocks, list):
+        return False
+    for blk in blocks:
+        if not isinstance(blk, dict):
+            continue
+        if blk.get("type") == "seal_overlay":
+            return True
+        if blk.get("type") == "columns":
+            for col in blk.get("cols") or []:
+                if isinstance(col, dict) and _blocks_contain_seal_overlay(col.get("blocks")):
+                    return True
+    return False
+
+
+def _px_to_mm(px: float) -> float:
+    return px * 25.4 / 96.0
+
+
+def _seal_dimension_to_mm(value: float, unit: str) -> float:
+    if unit == "mm":
+        return value
+    return _px_to_mm(value)
+
+
+def _estimate_seal_overlay_min_height_css(blk: dict) -> str:
+    """
+    为签章叠放块预留最小高度（文字行高 + 印章垂直占位），
+    配合 page-break-inside: avoid，避免打印时公章被横切两页。
+    """
+    content = str(blk.get("content") or "")
+    line_count = max(1, len(content.split("\n")))
+    text_mm = line_count * 5.5
+    width_raw = blk.get("width", 40)
+    height_raw = blk.get("height", 40)
+    size_unit = _resolve_seal_size_unit(width_raw, blk.get("sizeUnit"))
+    try:
+        height_val = float(height_raw)
+    except (TypeError, ValueError):
+        height_val = 40.0
+    if height_val <= 0:
+        height_val = 40.0
+    try:
+        offset_y = float(blk.get("sealOffsetY") or 0)
+    except (TypeError, ValueError):
+        offset_y = 0.0
+    seal_span_mm = _seal_dimension_to_mm(height_val, size_unit) + _px_to_mm(offset_y)
+    min_mm = max(text_mm, seal_span_mm + 4.0)
+    schema_min = blk.get("minHeight")
+    if schema_min is not None:
+        try:
+            min_mm = max(min_mm, float(schema_min))
+        except (TypeError, ValueError):
+            pass
+    return f"min-height:{min_mm:.1f}mm;"
+
+
 class PrintTemplateService:
     _CODE_SUFFIX_PATTERN = re.compile(r"^(?P<base>.+)_(?P<seq>\d+)$")
 
@@ -1031,9 +1089,15 @@ class PrintTemplateService:
                     if "white-space" not in text_style_str.lower():
                         text_style_str = f"{text_style_str}white-space:pre-wrap;"
                     wrapper_style_str = _get_style_str(blk, is_root) if is_root else ""
-                    wrapper_css = f' style="{wrapper_style_str}"' if wrapper_style_str else ""
+                    min_height_css = _estimate_seal_overlay_min_height_css(blk)
+                    seal_root_class = "print-seal-overlay-root"
                     if is_root:
-                        wrapper_css = f' class="print-block"{wrapper_css}'
+                        cls = f"print-block {seal_root_class}"
+                    else:
+                        cls = seal_root_class
+                    wrapper_css = f' class="{cls}"'
+                    if wrapper_style_str:
+                        wrapper_css = f'{wrapper_css} style="{wrapper_style_str}"'
                     # 印章用绝对定位背景层，不参与文档流，避免撑开行高/换行
                     seal_mark_html = (
                         f'<div class="print-seal-overlay-mark" aria-hidden="true" style="'
@@ -1048,7 +1112,8 @@ class PrintTemplateService:
                         f'{text_style_str}">{content}</div>'
                     )
                     inner = (
-                        f'<div class="print-seal-overlay" style="position:relative;overflow:visible;width:100%;">'
+                        f'<div class="print-seal-overlay" style="position:relative;overflow:visible;'
+                        f"width:100%;{min_height_css}\">"
                         f"{seal_mark_html}{text_html}"
                         f"</div>"
                     )
@@ -1119,7 +1184,17 @@ class PrintTemplateService:
                         f'display: flex; gap: {gap_css}; width: 100%; '
                         f'justify-content: {justify_content}; align-items: stretch; {style_str}'
                     )
-                    wrapper_class = ' class="print-block"' if is_root else ""
+                    col_classes: list[str] = []
+                    if is_root:
+                        col_classes.append("print-block")
+                    inner_has_seal = any(
+                        _blocks_contain_seal_overlay(col.get("blocks"))
+                        for col in cols
+                        if isinstance(col, dict)
+                    )
+                    if blk.get("partySealEnabled") or inner_has_seal:
+                        col_classes.append("print-columns-with-seal")
+                    wrapper_class = f' class="{" ".join(col_classes)}"' if col_classes else ""
                     lines.append(
                         f'<div{wrapper_class} style="{container_style}">{ "".join(col_html) }</div>'
                     )
@@ -1398,12 +1473,18 @@ class PrintTemplateService:
             " max-width: 100%; max-height: 100%; width: auto; height: auto;"
             " object-fit: contain; display: block; margin: 0; }"
         )
-        parts.append("  .print-seal-overlay { position: relative; overflow: visible; width: 100%; }")
+        parts.append("  .print-seal-overlay { position: relative; overflow: visible; width: 100%; "
+                     "page-break-inside: avoid; break-inside: avoid; -webkit-column-break-inside: avoid; }")
+        parts.append(
+            "  .print-seal-overlay-root, .print-columns-with-seal {"
+            " page-break-inside: avoid; break-inside: avoid; -webkit-column-break-inside: avoid; }"
+        )
         parts.append(
             "  .print-seal-overlay-mark { position: absolute !important; z-index: 0; pointer-events: none; }"
         )
         parts.append(
-            "  .print-seal-overlay-text { position: relative; z-index: 1; white-space: pre-wrap; }"
+            "  .print-seal-overlay-text { position: relative; z-index: 1; white-space: pre-wrap; "
+            "page-break-inside: avoid; break-inside: avoid; }"
         )
         # Ensure blocks respect item_spacing strictly
         parts.append("  .print-block { width: 100%; position: relative; }")
@@ -1527,6 +1608,12 @@ class PrintTemplateService:
             if repeat_collection and for_token not in template_content:
                 need_rebuild = True
             if compile_mode == "asset_card_table" and "eq-asset-card" not in template_content:
+                need_rebuild = True
+            schema_blocks = schema.get("blocks") if isinstance(schema.get("blocks"), list) else []
+            if (
+                _blocks_contain_seal_overlay(schema_blocks)
+                and "print-seal-overlay-root" not in template_content
+            ):
                 need_rebuild = True
             if need_rebuild:
                 try:

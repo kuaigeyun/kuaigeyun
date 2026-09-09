@@ -25,7 +25,6 @@ from core.services.authorization.permission_policy_service import PermissionPoli
 from infra.api.deps.deps import get_current_user
 from infra.models.user import User
 from infra.exceptions.exceptions import BusinessLogicError
-from core.utils.timezone_utils import today_site_str
 
 router = APIRouter(prefix="/receipt-refunds", tags=["App - Kuaicaiwu - Finance"])
 refund_service = ReceiptRefundService()
@@ -123,9 +122,9 @@ async def create_receipt_refund(
     except BusinessLogicError as e:
         raise _http_exception_with_trace(422, str(e), "/receipt-refunds", tenant_id) from e
 
-    today = today_site_str()
-    count = await Receipt.filter(tenant_id=tenant_id, settlement_type="refund").count()
-    code = f"TK{today}{count + 1:04d}"
+    from apps.kuaicaiwu.services.finance_voucher_codes import allocate_receipt_refund_code
+
+    code = await allocate_receipt_refund_code(tenant_id)
 
     receipt_payload = {
         "tenant_id": tenant_id,
@@ -254,6 +253,35 @@ async def preview_pull_receipt_refund(
     tenant_id: int = Depends(get_current_tenant),
 ) -> Dict[str, Any]:
     return await refund_service.preview_pull_from_receipt(tenant_id, receipt_id)
+
+
+@router.get("/resolve-from-sales-return/{sales_return_id}")
+async def resolve_receipt_refund_from_sales_return(
+    sales_return_id: int = Path(..., description="销售退货单ID"),
+    _auth: object = Depends(require_permission_codes("kuaicaiwu:receipt-refund:create")),
+    tenant_id: int = Depends(get_current_tenant),
+) -> Dict[str, Any]:
+    from apps.kuaicaiwu.services.return_refund_bridge_service import ReturnRefundBridgeService
+    from infra.exceptions.exceptions import NotFoundError, ValidationError
+
+    try:
+        return await ReturnRefundBridgeService().resolve_receipts_for_sales_return(
+            tenant_id, sales_return_id
+        )
+    except NotFoundError as exc:
+        raise _http_exception_with_trace(
+            404,
+            str(exc),
+            "/receipt-refunds/resolve-from-sales-return/{sales_return_id}",
+            tenant_id,
+        ) from exc
+    except (ValidationError, BusinessLogicError) as exc:
+        raise _http_exception_with_trace(
+            422,
+            str(exc),
+            "/receipt-refunds/resolve-from-sales-return/{sales_return_id}",
+            tenant_id,
+        ) from exc
 
 
 @router.get("/{id}", response_model=ReceiptVoucherResponse)

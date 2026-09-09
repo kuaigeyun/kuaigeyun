@@ -95,7 +95,7 @@ class CustomerCreate(PartnerInvoiceAndExtendedMixin):
     revenue_recognition_override: Optional[str] = Field(
         None,
         max_length=32,
-        description="应收确认策略覆盖：空=跟随组织；on_shipment / on_invoice",
+        description="应收确认策略覆盖：空=跟随组织；on_shipment / on_invoice / manual",
         alias="revenueRecognitionOverride",
     )
     is_active: bool = Field(True, alias="isActive", description="是否启用")
@@ -107,8 +107,8 @@ class CustomerCreate(PartnerInvoiceAndExtendedMixin):
         if v is None or (isinstance(v, str) and not str(v).strip()):
             return None
         s = str(v).strip()
-        if s not in ("on_shipment", "on_invoice"):
-            raise ValueError("revenueRecognitionOverride 必须为 on_shipment、on_invoice 或空")
+        if s not in ("on_shipment", "on_invoice", "manual"):
+            raise ValueError("revenueRecognitionOverride 必须为 on_shipment、on_invoice、manual 或空")
         return s
 
     @validator("code")
@@ -164,7 +164,7 @@ class CustomerBase(PartnerInvoiceAndExtendedMixin):
     revenue_recognition_override: Optional[str] = Field(
         None,
         max_length=32,
-        description="应收确认策略覆盖：空=跟随组织；on_shipment / on_invoice",
+        description="应收确认策略覆盖：空=跟随组织；on_shipment / on_invoice / manual",
         alias="revenueRecognitionOverride",
     )
     is_active: bool = Field(True, alias="isActive", description="是否启用")
@@ -206,8 +206,8 @@ class CustomerUpdate(PartnerInvoiceAndExtendedMixin):
         if v is None or (isinstance(v, str) and not str(v).strip()):
             return None
         s = str(v).strip()
-        if s not in ("on_shipment", "on_invoice"):
-            raise ValueError("revenueRecognitionOverride 必须为 on_shipment、on_invoice 或空")
+        if s not in ("on_shipment", "on_invoice", "manual"):
+            raise ValueError("revenueRecognitionOverride 必须为 on_shipment、on_invoice、manual 或空")
         return s
 
     @validator("code")
@@ -274,7 +274,7 @@ class SupplierBase(PartnerInvoiceAndExtendedMixin):
     payable_recognition_override: Optional[str] = Field(
         None,
         max_length=32,
-        description="应付确认策略覆盖：空=跟随组织；on_receipt / on_purchase_invoice",
+        description="应付确认策略覆盖：空=跟随组织；on_receipt / on_purchase_invoice / manual",
         alias="payableRecognitionOverride",
     )
     is_active: bool = Field(True, alias="isActive", description="是否启用")
@@ -297,8 +297,8 @@ class SupplierBase(PartnerInvoiceAndExtendedMixin):
         if v is None or (isinstance(v, str) and not str(v).strip()):
             return None
         s = str(v).strip()
-        if s not in ("on_receipt", "on_purchase_invoice"):
-            raise ValueError("payableRecognitionOverride 必须为 on_receipt、on_purchase_invoice 或空")
+        if s not in ("on_receipt", "on_purchase_invoice", "manual"):
+            raise ValueError("payableRecognitionOverride 必须为 on_receipt、on_purchase_invoice、manual 或空")
         return s
 
     @validator("qualification_status", pre=True)
@@ -390,8 +390,8 @@ class SupplierUpdate(PartnerInvoiceAndExtendedMixin):
         if v is None or (isinstance(v, str) and not str(v).strip()):
             return None
         s = str(v).strip()
-        if s not in ("on_receipt", "on_purchase_invoice"):
-            raise ValueError("payableRecognitionOverride 必须为 on_receipt、on_purchase_invoice 或空")
+        if s not in ("on_receipt", "on_purchase_invoice", "manual"):
+            raise ValueError("payableRecognitionOverride 必须为 on_receipt、on_purchase_invoice、manual 或空")
         return s
 
     @validator("qualification_status", pre=True)

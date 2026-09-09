@@ -19,6 +19,8 @@ class ProductionPickingItem(BaseModel):
     """
     tenant_id = fields.IntField(description="租户ID")
     picking_id = fields.IntField(description="领料单ID")
+    work_order_id = fields.IntField(null=True, description="来源工单ID（批量合并领料时按行区分）")
+    work_order_code = fields.CharField(max_length=50, null=True, description="来源工单编号")
     material_id = fields.IntField(description="物料ID")
     material_code = fields.CharField(max_length=50, description="物料编码")
     material_name = fields.CharField(max_length=200, description="物料名称")
@@ -53,6 +55,7 @@ class ProductionPickingItem(BaseModel):
         table_description = "快格轻制造 - 生产领料单明细"
         indexes = [
             ("tenant_id", "picking_id"),
+            ("tenant_id", "work_order_id"),
             ("material_id",),
             ("warehouse_id",),
         ]

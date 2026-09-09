@@ -11,7 +11,7 @@ import asyncio
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, Union
 from decimal import Decimal
 
 from tortoise.exceptions import IntegrityError
@@ -509,6 +509,34 @@ def _business_datetimes_equal(a: Any, b: Any) -> bool:
     if a is None or b is None:
         return False
     return coerce_business_datetime_to_utc(a) == coerce_business_datetime_to_utc(b)
+
+
+def _operation_planned_times_outside_work_order_window(
+    operations: Sequence[Any],
+    planned_start: Any,
+    planned_end: Any,
+    *,
+    slack: timedelta = timedelta(minutes=1),
+) -> bool:
+    """工序计划时刻是否缺省，或明显落在工单计划起止窗口外。"""
+    if not operations or planned_start is None or planned_end is None:
+        return False
+    window_start = coerce_business_datetime_to_utc(planned_start)
+    window_end = coerce_business_datetime_to_utc(planned_end)
+    if window_end < window_start:
+        window_start, window_end = window_end, window_start
+    lo = window_start - slack
+    hi = window_end + slack
+    for op in operations:
+        op_start = getattr(op, "planned_start_date", None)
+        op_end = getattr(op, "planned_end_date", None)
+        if op_start is None or op_end is None:
+            return True
+        start_utc = coerce_business_datetime_to_utc(op_start)
+        end_utc = coerce_business_datetime_to_utc(op_end)
+        if start_utc < lo or end_utc > hi or start_utc > hi or end_utc < lo:
+            return True
+    return False
 
 
 def _is_schedulable_work_order_status(status: Optional[str]) -> bool:
@@ -1320,6 +1348,43 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                 if work_order.planned_end_date is None:
                     wo_updates["planned_end_date"] = resolve_business_datetime(time_slots[-1][1])
             await WorkOrder.filter(tenant_id=tenant_id, id=work_order.id).update(**wo_updates)
+
+    async def resync_operations_to_work_order_planned_window(
+        self,
+        tenant_id: int,
+        work_order: WorkOrder,
+        *,
+        updated_by: Optional[int] = None,
+        force: bool = False,
+    ) -> bool:
+        """
+        将工序计划时间对齐到工单头计划起止窗口。
+
+        force=True：头表计划刚被用户改写，必须重算。
+        force=False：仅当工序时刻缺省或落在窗口外时重算（修复编辑保存带回旧工序时间）。
+        """
+        if not (work_order.planned_start_date and work_order.planned_end_date):
+            return False
+        operations = await WorkOrderOperation.filter(
+            tenant_id=tenant_id,
+            work_order_id=work_order.id,
+            deleted_at__isnull=True,
+        ).order_by("sequence").all()
+        if not operations:
+            return False
+        if not force and not _operation_planned_times_outside_work_order_window(
+            operations,
+            work_order.planned_start_date,
+            work_order.planned_end_date,
+        ):
+            return False
+        await self.compute_and_apply_operation_planned_times(
+            tenant_id,
+            work_order,
+            operations,
+            updated_by=updated_by,
+        )
+        return True
 
     async def create_work_order(
         self,
@@ -2896,9 +2961,23 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         async with in_transaction():
             work_order = await self.get_by_id(tenant_id, work_order_id, raise_if_not_found=True)
             update_data = work_order_data.model_dump(exclude_unset=True)
+            from core.services.document_code_service import pop_and_apply_code_change_from_update_dict
+
+            await pop_and_apply_code_change_from_update_dict(
+                tenant_id,
+                "kuaizhizao-production-work-order",
+                work_order,
+                update_data,
+                "code",
+            )
             if update_data.get("status") == "cancelled":
                 assert_work_order_capability(work_order, "cancel")
             old_score_values = {f: getattr(work_order, f, None) for f in score_recalc_fields}
+            planned_dates_changing = any(
+                field in update_data
+                and not _business_datetimes_equal(update_data.get(field), old_score_values.get(field))
+                for field in ("planned_start_date", "planned_end_date")
+            )
 
             tracking_patch = {
                 field: update_data.pop(field)
@@ -3007,6 +3086,14 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                 **update_data
             )
 
+            # 头表计划起止变更，或工序仍停在旧系统排程时刻时：按窗口重算报工卡片计划时间
+            await self.resync_operations_to_work_order_planned_window(
+                tenant_id,
+                work_order,
+                updated_by=updated_by,
+                force=planned_dates_changing,
+            )
+
             if update_data.get("status") == "cancelled":
                 from apps.kuaizhizao.services.batching_order_service import BatchingOrderService
 
@@ -3111,6 +3198,12 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                 wo.planned_end_date = coerce_business_datetime_to_utc(end)
                 wo.updated_by = updated_by
                 await wo.save()
+                await self.resync_operations_to_work_order_planned_window(
+                    tenant_id,
+                    wo,
+                    updated_by=updated_by,
+                    force=True,
+                )
                 updated_wo_ids.append(int(wo_id))
                 result["updated"].append(int(wo_id))
 
@@ -4009,6 +4102,25 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             raise BusinessLogicError(
                 f"只能审核待审核的草稿工单，当前: status={status or '-'}, review={review or '-'}"
             )
+        audit_required = await BusinessConfigService().check_audit_required(
+            tenant_id, "work_order"
+        )
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="work_order",
+                entity_id=work_order_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "生产工单审核已开启但无进行中的审批流程，请先提交审批后再审核"
+                )
         approver_name = await self.get_user_name(approver_id)
         await WorkOrder.filter(tenant_id=tenant_id, id=work_order_id).update(
             review_status="已通过",
@@ -4034,6 +4146,25 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             raise BusinessLogicError(
                 f"只能驳回待审核的草稿工单，当前: status={status or '-'}, review={review or '-'}"
             )
+        audit_required = await BusinessConfigService().check_audit_required(
+            tenant_id, "work_order"
+        )
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="work_order",
+                entity_id=work_order_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "生产工单审核已开启但无进行中的审批流程，请先提交审批后再驳回"
+                )
         await WorkOrder.filter(tenant_id=tenant_id, id=work_order_id).update(
             review_status="已驳回",
             review_remarks=rejection_reason,
@@ -4074,7 +4205,9 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         work_order_id: int,
         operator_id: int,
     ) -> WorkOrderResponse:
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
 
         work_order = await self.get_by_id(tenant_id, work_order_id, raise_if_not_found=True)
@@ -4087,12 +4220,11 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "work_order"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        target_review = "待审核" if landing == "pending" else "草稿"
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
 
         async def _do_revoke() -> WorkOrderResponse:
             await WorkOrder.filter(tenant_id=tenant_id, id=work_order_id).update(
-                review_status=target_review,
+                review_status="草稿",
                 reviewer_id=None,
                 reviewer_name=None,
                 review_time=None,
@@ -5687,8 +5819,11 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                     existing_op.workshop_name = op_data.workshop_name
                     existing_op.work_center_id = op_data.work_center_id
                     existing_op.work_center_name = op_data.work_center_name
-                    existing_op.planned_start_date = op_data.planned_start_date
-                    existing_op.planned_end_date = op_data.planned_end_date
+                    fs_plan = getattr(op_data, "model_fields_set", set()) or set()
+                    if "planned_start_date" in fs_plan:
+                        existing_op.planned_start_date = op_data.planned_start_date
+                    if "planned_end_date" in fs_plan:
+                        existing_op.planned_end_date = op_data.planned_end_date
                     existing_op.standard_time = op_data.standard_time
                     existing_op.setup_time = op_data.setup_time
                     existing_op.remarks = op_data.remarks
@@ -5819,6 +5954,14 @@ class WorkOrderService(AppBaseService[WorkOrder]):
 
             # 工序清单变更不回写工单头计划时间：头表计划开始/结束由工单更新或排程写入。
             # 若此处用工序计划结束覆盖头表，编辑工单计划时间后会被旧工序时间冲掉。
+
+            # 编辑工单表单常把打开时的旧工序计划时刻一并回写；若已落在头表窗口外则按窗口重算。
+            await self.resync_operations_to_work_order_planned_window(
+                tenant_id,
+                work_order,
+                updated_by=updated_by,
+                force=False,
+            )
 
             logger.info(f"工单 {work_order.code} 的工序已更新")
 
@@ -6674,21 +6817,28 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             if picked:
                 component_owos[pid] = picked
 
-    _KITTING_PO_TERMINAL_STATUSES = frozenset(
+    _KITTING_PO_CANCELLED_STATUSES = frozenset(
         {
             DocumentStatus.CANCELLED.value,
-            DocumentStatus.CLOSED.value,
-            DocumentStatus.COMPLETED.value,
             DocumentStatus.REJECTED.value,
             "已取消",
-            "已关闭",
-            "已完成",
             "已驳回",
             "cancelled",
-            "closed",
-            "completed",
             "rejected",
         }
+    )
+    _KITTING_PO_FINISHED_STATUSES = frozenset(
+        {
+            DocumentStatus.CLOSED.value,
+            DocumentStatus.COMPLETED.value,
+            "已关闭",
+            "已完成",
+            "closed",
+            "completed",
+        }
+    )
+    _KITTING_PO_TERMINAL_STATUSES = frozenset(
+        _KITTING_PO_CANCELLED_STATUSES | _KITTING_PO_FINISHED_STATUSES
     )
     _KITTING_PR_TERMINAL_STATUSES = frozenset(
         {
@@ -6709,10 +6859,16 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         cls,
         tenant_id: int,
         material_ids: List[int],
+        work_order_id: Optional[int] = None,
     ) -> Dict[int, Dict[str, Any]]:
         """
-        按物料聚合未结采购订单 / 未转单采购申请（供齐套面板展示供给进度）。
+        按物料聚合采购订单 / 未转单采购申请（供齐套面板展示供给进度）。
         返回 material_id -> {po?: {...}, reference_po?: {...}, pr?: {...}}
+
+        work_order_id 传入时仅认行级关联该工单的 PR/PO，避免按物料误挂他人请购。
+
+        - po: 未结且仍有未到货量的采购订单（用于采购中/收货中）
+        - reference_po: 最近相关采购订单（含已完成/行已到齐），供库存已齐或到货后仍缺展示关联单号
         """
         from apps.kuaizhizao.models.purchase_order import (
             PurchaseOrderItem,
@@ -6736,17 +6892,26 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             deleted_at__isnull=True,
         ).prefetch_related("order")
 
+        cancelled_normalized = {
+            DocumentStatus.CANCELLED.value,
+            DocumentStatus.REJECTED.value,
+        }
+        finished_normalized = {
+            DocumentStatus.CLOSED.value,
+            DocumentStatus.COMPLETED.value,
+        }
+
         for item in po_items:
+            if work_order_id is not None:
+                item_wo_id = getattr(item, "work_order_id", None)
+                if item_wo_id is not None and int(item_wo_id) != int(work_order_id):
+                    continue
             order = getattr(item, "order", None)
             if order is None or getattr(order, "deleted_at", None) is not None:
                 continue
             st = str(order.status or "").strip()
-            if st in cls._KITTING_PO_TERMINAL_STATUSES or normalize_status(st) in {
-                DocumentStatus.CANCELLED.value,
-                DocumentStatus.CLOSED.value,
-                DocumentStatus.COMPLETED.value,
-                DocumentStatus.REJECTED.value,
-            }:
+            st_norm = normalize_status(st)
+            if st in cls._KITTING_PO_CANCELLED_STATUSES or st_norm in cancelled_normalized:
                 continue
             mid = int(item.material_id)
             ordered = Decimal(str(item.ordered_quantity or 0))
@@ -6763,10 +6928,12 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                 "outstanding_quantity": outstanding,
                 "expected_date": item_due or order_due,
             }
+            # 已完成/已关闭订单仍保留 reference，避免到货后误标「待请购」且丢失关联单号
             prev_ref = bucket.get("reference_po")
             if not prev_ref or int(doc_entry["document_id"]) >= int(prev_ref["document_id"]):
                 bucket["reference_po"] = doc_entry
-            if outstanding <= 0:
+            po_finished = st in cls._KITTING_PO_FINISHED_STATUSES or st_norm in finished_normalized
+            if po_finished or outstanding <= 0:
                 continue
             prev = bucket.get("po")
             # 优先展示未到货量更大的行；同等则取较新订单
@@ -6788,6 +6955,10 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             ).all()
             req_map = {int(r.id): r for r in reqs}
             for item in pr_items:
+                if work_order_id is not None:
+                    item_wo_id = getattr(item, "work_order_id", None)
+                    if item_wo_id is not None and int(item_wo_id) != int(work_order_id):
+                        continue
                 req = req_map.get(int(item.requisition_id))
                 if not req:
                     continue
@@ -6884,8 +7055,11 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         total_available: Decimal,
         has_related_production: bool,
         open_purchase: Optional[Dict[str, Any]],
+        quantity_decimal_places: int = 2,
     ) -> Optional[KittingSupplyProgress]:
-        """自制/委外有关联工单时不填；其余按库存 → 采购订单 → 采购申请 → 待请购。"""
+        """自制/委外有关联工单时不填；其余按库存 → 采购订单 → 采购申请 → 到货后仍缺 → 待请购。"""
+        from core.utils.quantity_precision import quantize_business_quantity
+
         if has_related_production:
             return None
 
@@ -6893,7 +7067,9 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         po = open_purchase.get("po")
         reference_po = open_purchase.get("reference_po")
         pr = open_purchase.get("pr")
-        stock_covered = total_available >= required_qty and required_qty > 0
+        req_q = quantize_business_quantity(required_qty, quantity_decimal_places)
+        avail_q = quantize_business_quantity(total_available, quantity_decimal_places)
+        stock_covered = avail_q >= req_q and req_q > 0
 
         if stock_covered:
             doc_po = po or reference_po
@@ -6910,7 +7086,11 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         if pr:
             return cls._kitting_supply_progress_from_pr_doc(pr, status="purchase_requisition")
 
-        if source_type == SOURCE_TYPE_BUY and required_qty > total_available:
+        # 采购行已到齐/订单已完成但仍缺料：保留关联单号，禁止误标「待请购」
+        if reference_po:
+            return cls._kitting_supply_progress_from_po_doc(reference_po, status="received_short")
+
+        if source_type == SOURCE_TYPE_BUY and req_q > avail_q:
             return KittingSupplyProgress(status="awaiting_purchase")
 
         return None
@@ -7157,7 +7337,12 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             and getattr(req, "component_type", None) != SOURCE_TYPE_OUTSOURCE
         ]
         open_purchase_map = await self._load_material_open_purchase_map(
-            tenant_id, buy_or_open_ids
+            tenant_id, buy_or_open_ids, work_order_id=work_order_id
+        )
+        from core.utils.quantity_precision import quantize_business_quantity
+
+        quantity_decimal_places = await BusinessConfigService().get_quantity_decimal_places(
+            tenant_id
         )
 
         for req in requirements:
@@ -7180,6 +7365,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                     total_available=Decimal("0"),
                     has_related_production=False,
                     open_purchase=open_purchase_map.get(mid),
+                    quantity_decimal_places=quantity_decimal_places,
                 )
                 analysis_items.append(MaterialKittingItem(
                     material_id=req.component_id,
@@ -7283,8 +7469,10 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             shortage_qty = required_qty - total_available
             if shortage_qty < 0:
                 shortage_qty = Decimal("0")
-            
-            if total_available >= required_qty:
+
+            req_q = quantize_business_quantity(required_qty, quantity_decimal_places)
+            avail_q = quantize_business_quantity(total_available, quantity_decimal_places)
+            if avail_q >= req_q and req_q > 0:
                 item_status = "fully_kitted"
                 fully_kitted_count += 1
             elif total_available > picked_qty:
@@ -7301,6 +7489,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                     related_summary is not None or related_outsource is not None
                 ),
                 open_purchase=open_purchase_map.get(mid),
+                quantity_decimal_places=quantity_decimal_places,
             )
 
             analysis_items.append(MaterialKittingItem(
@@ -7914,3 +8103,179 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             confirmed_serial_no=confirmed_serial_no,
         )
         return await self.get_work_order_by_id(tenant_id, work_order_id)
+
+    async def _collect_work_order_purchase_shortage_lines(
+        self,
+        tenant_id: int,
+        work_order_id: int,
+        material_ids: Optional[List[int]] = None,
+    ) -> tuple:
+        """齐套分析中采购件缺料行，供下推采购申请。"""
+        from apps.kuaizhizao.utils.material_source_helper import SOURCE_TYPE_BUY
+
+        analysis = await self.get_work_order_kitting_analysis(tenant_id, work_order_id)
+        wo = await WorkOrder.get_or_none(tenant_id=tenant_id, id=work_order_id, deleted_at__isnull=True)
+        if not wo:
+            raise NotFoundError(f"工单不存在: {work_order_id}")
+
+        selected: Optional[set[int]] = None
+        if material_ids:
+            selected = {int(x) for x in material_ids if x is not None}
+
+        lines: List[Dict[str, Any]] = []
+        for item in analysis.items:
+            if not item.kitting_applicable:
+                continue
+            if item.source_type != SOURCE_TYPE_BUY:
+                continue
+            mid = int(item.material_id)
+            if selected is not None and mid not in selected:
+                continue
+            shortage = item.shortage_quantity or Decimal("0")
+            if shortage <= 0:
+                continue
+            lines.append(
+                {
+                    "material_id": mid,
+                    "material_code": item.material_code,
+                    "material_name": item.material_name,
+                    "material_unit": item.material_unit,
+                    "shortage_quantity": shortage,
+                }
+            )
+        return wo, lines
+
+    async def preview_push_purchase_requisition_from_shortage(
+        self,
+        tenant_id: int,
+        work_order_id: int,
+        material_ids: Optional[List[int]] = None,
+    ) -> Dict[str, Any]:
+        wo, lines = await self._collect_work_order_purchase_shortage_lines(
+            tenant_id, work_order_id, material_ids
+        )
+        blocking_reason = None
+        if not lines:
+            blocking_reason = "work_order.push_purchase_requisition.no_shortage_lines"
+        return {
+            "work_order_id": work_order_id,
+            "work_order_code": wo.code,
+            "items": [
+                {
+                    "material_id": row["material_id"],
+                    "material_code": row["material_code"],
+                    "material_name": row["material_name"],
+                    "material_unit": row["material_unit"],
+                    "shortage_quantity": float(row["shortage_quantity"]),
+                }
+                for row in lines
+            ],
+            "blocking_reason": blocking_reason,
+        }
+
+    async def push_purchase_requisition_from_shortage(
+        self,
+        tenant_id: int,
+        work_order_id: int,
+        created_by: int,
+        material_ids: Optional[List[int]] = None,
+    ) -> Dict[str, Any]:
+        from apps.kuaizhizao.schemas.purchase_requisition import (
+            PurchaseRequisitionCreate,
+            PurchaseRequisitionItemCreate,
+        )
+        from apps.kuaizhizao.services.purchase_requisition_service import PurchaseRequisitionService
+        from apps.kuaizhizao.utils.material_source_helper import resolve_material_purchase_line_unit_price
+        from apps.master_data.models.material import Material
+        from core.utils.timezone_utils import resolve_business_datetime, to_site_date
+
+        wo, lines = await self._collect_work_order_purchase_shortage_lines(
+            tenant_id, work_order_id, material_ids
+        )
+        if not lines:
+            raise BusinessLogicError("工单齐套分析无采购件缺料，无法下推采购申请")
+
+        material_id_list = sorted({int(row["material_id"]) for row in lines})
+        material_rows = await Material.filter(
+            tenant_id=tenant_id, id__in=material_id_list, deleted_at__isnull=True
+        ).all()
+        material_by_id = {int(m.id): m for m in material_rows}
+
+        today = to_site_date(resolve_business_datetime())
+        req_items: List[PurchaseRequisitionItemCreate] = []
+        for row in lines:
+            mid = int(row["material_id"])
+            material = material_by_id.get(mid)
+            if not material:
+                raise NotFoundError(f"物料不存在: {mid}")
+            source_config = material.source_config if isinstance(material.source_config, dict) else {}
+            supplier_id = source_config.get("default_supplier_id")
+            unit_price = resolve_material_purchase_line_unit_price(material=material)
+            req_items.append(
+                PurchaseRequisitionItemCreate(
+                    material_id=mid,
+                    material_code=str(row["material_code"] or material.main_code or material.code or mid),
+                    material_name=str(row["material_name"] or material.name or ""),
+                    material_spec=getattr(material, "specification", None),
+                    unit=str(row["material_unit"] or material.base_unit or "件"),
+                    quantity=Decimal(str(row["shortage_quantity"])),
+                    suggested_unit_price=unit_price or Decimal(0),
+                    required_date=today,
+                    supplier_id=int(supplier_id) if supplier_id else None,
+                    work_order_id=work_order_id,
+                    work_order_code=wo.code,
+                    notes=f"工单 {wo.code} 齐套缺料现采",
+                )
+            )
+
+        pr_svc = PurchaseRequisitionService()
+        req = await pr_svc.create_requisition(
+            tenant_id=tenant_id,
+            data=PurchaseRequisitionCreate(
+                requisition_code="",
+                requisition_name=f"工单{wo.code}缺料请购",
+                requisition_date=today,
+                required_date=today,
+                source_type="work_order",
+                source_id=work_order_id,
+                source_code=wo.code,
+                notes=f"由工单 {wo.code} 齐套缺料下推",
+                items=req_items,
+            ),
+            created_by=created_by,
+        )
+
+        try:
+            from apps.kuaizhizao.schemas.document_relation import DocumentRelationCreate
+            from apps.kuaizhizao.services.document_relation_new_service import DocumentRelationNewService
+
+            rel_svc = DocumentRelationNewService()
+            await rel_svc.create_relation(
+                tenant_id=tenant_id,
+                relation_data=DocumentRelationCreate(
+                    source_type="work_order",
+                    source_id=work_order_id,
+                    source_code=wo.code,
+                    source_name=wo.name,
+                    target_type="purchase_requisition",
+                    target_id=req.id,
+                    target_code=req.requisition_code,
+                    target_name=req.requisition_name,
+                    relation_type="source",
+                    relation_mode="push",
+                    relation_desc="工单齐套缺料下推采购申请",
+                ),
+                created_by=created_by,
+            )
+        except Exception as exc:
+            logger.warning("建立工单→采购申请单据关联失败: %s", exc)
+
+        return {
+            "success": True,
+            "message": "下推成功，已生成采购申请",
+            "target_document": {
+                "type": "purchase_requisition",
+                "id": req.id,
+                "code": req.requisition_code,
+            },
+        }

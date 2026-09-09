@@ -255,10 +255,16 @@ export const DeliveryProjectWorkbench: React.FC = () => {
 
   const handleProjectUpdate = async (values: Record<string, unknown>) => {
     if (!projectId || !project) return;
-    const deliveryDate = values.delivery_date as dayjs.Dayjs | undefined;
+    const deliveryDate = values.delivery_date;
+    const toApiDate = (v: unknown): string | undefined => {
+      if (v == null || v === '') return undefined;
+      if (dayjs.isDayjs(v)) return v.isValid() ? v.format('YYYY-MM-DD') : undefined;
+      const d = dayjs(v as string | Date | number);
+      return d.isValid() ? d.format('YYYY-MM-DD') : undefined;
+    };
     await deliveryProjectApi.update(projectId, {
       project_name: values.project_name as string,
-      delivery_date: deliveryDate?.format('YYYY-MM-DD'),
+      delivery_date: toApiDate(deliveryDate),
       owner_id: selectedOwnerRef.current,
       members: selectedMembersRef.current,
       notes: values.notes as string | undefined,

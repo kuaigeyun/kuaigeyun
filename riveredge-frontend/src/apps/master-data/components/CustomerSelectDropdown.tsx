@@ -209,11 +209,51 @@ export const CustomerSelectDropdown: React.FC<CustomerSelectDropdownProps> = ({
 
   const handleChange = useCallback(
     (nextValue: number | undefined, option: unknown) => {
-      const c = nextValue != null ? allCustomers.find((x) => getCustomerId(x) === nextValue) : null;
-      onCustomerPick?.(c ?? null);
       onChange?.(nextValue, option as Parameters<NonNullable<UniDropdownProps['onChange']>>[1]);
+      if (nextValue == null) {
+        onCustomerPick?.(null);
+        return;
+      }
+      const id = Number(nextValue);
+      if (!Number.isFinite(id) || id <= 0) {
+        onCustomerPick?.(null);
+        return;
+      }
+      const cached = allCustomers.find((x) => getCustomerId(x) === id);
+      if (cached) {
+        onCustomerPick?.(cached);
+        return;
+      }
+      setResolvingId(id);
+      void resolveReferenceDisplay({
+        resource: 'master-data:supply-chain:customer',
+        recordIds: [id],
+        hostResource,
+      })
+        .then((items) => {
+          if (!items.length) {
+            onCustomerPick?.(null);
+            return;
+          }
+          const mapped = mapPartnerReferenceDisplayItem(items[0]) as Customer;
+          setResolvedById((prev) => {
+            const next = new Map(prev);
+            next.set(id, mapped);
+            return next;
+          });
+          onCustomerPick?.(mapped);
+        })
+        .catch((err) => {
+          if (err instanceof ReferenceDisplayAccessError) {
+            messageApi.warning(err.message);
+          }
+          onCustomerPick?.(null);
+        })
+        .finally(() => {
+          setResolvingId((cur) => (cur === id ? null : cur));
+        });
     },
-    [allCustomers, onChange, onCustomerPick],
+    [allCustomers, hostResource, messageApi, onChange, onCustomerPick],
   );
 
   const openCreate = useCallback(() => {
@@ -297,6 +337,17 @@ export const CustomerSelectDropdown: React.FC<CustomerSelectDropdownProps> = ({
                 keyword: values.keyword,
                 pageSize: 200,
               });
+              const mapped = res.items.map(
+                (item) => mapPartnerReferenceDisplayItem(item) as Customer,
+              );
+              let next = allCustomers;
+              for (const c of mapped) {
+                next = mergeCustomerList(next, c);
+              }
+              if (customersProp == null) {
+                setInternalCustomers(next);
+              }
+              onCustomersChange?.(next);
               return referenceDisplayToIdOptions(res.items);
             } catch (err) {
               if (err instanceof ReferenceDisplayAccessError) {

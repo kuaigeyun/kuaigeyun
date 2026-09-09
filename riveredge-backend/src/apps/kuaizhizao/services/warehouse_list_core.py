@@ -73,6 +73,30 @@ PRODUCTION_PICKING_KEYWORD_FIELDS = [
     "picker_name",
     "workshop_name",
 ]
+PURCHASE_RECEIPT_KEYWORD_FIELDS = [
+    "receipt_code",
+    "purchase_order_code",
+    "supplier_name",
+    "warehouse_name",
+    "receiver_name",
+    "delivery_note",
+]
+FINISHED_GOODS_RECEIPT_KEYWORD_FIELDS = [
+    "receipt_code",
+    "work_order_code",
+    "sales_order_code",
+    "warehouse_name",
+    "receiver_name",
+]
+SEMI_FINISHED_GOODS_RECEIPT_KEYWORD_FIELDS = FINISHED_GOODS_RECEIPT_KEYWORD_FIELDS
+PRODUCTION_RETURN_KEYWORD_FIELDS = [
+    "return_code",
+    "work_order_code",
+    "picking_code",
+    "warehouse_name",
+    "workshop_name",
+    "returner_name",
+]
 SALES_DELIVERY_SORTABLE_FIELDS = frozenset({
     "delivery_code", "customer_name", "warehouse_name", "status", "delivery_time",
     "total_quantity", "total_amount", "created_at", "updated_at",
@@ -80,6 +104,19 @@ SALES_DELIVERY_SORTABLE_FIELDS = frozenset({
 PRODUCTION_PICKING_SORTABLE_FIELDS = frozenset({
     "picking_code", "work_order_code", "status", "picking_time",
     "picker_name", "created_at", "updated_at",
+})
+PURCHASE_RECEIPT_SORTABLE_FIELDS = frozenset({
+    "receipt_code", "purchase_order_code", "supplier_name", "warehouse_name",
+    "status", "receipt_time", "total_quantity", "created_at", "updated_at",
+})
+FINISHED_GOODS_RECEIPT_SORTABLE_FIELDS = frozenset({
+    "receipt_code", "work_order_code", "sales_order_code", "warehouse_name",
+    "status", "receipt_time", "total_quantity", "created_at", "updated_at",
+})
+SEMI_FINISHED_GOODS_RECEIPT_SORTABLE_FIELDS = FINISHED_GOODS_RECEIPT_SORTABLE_FIELDS
+PRODUCTION_RETURN_SORTABLE_FIELDS = frozenset({
+    "return_code", "work_order_code", "picking_code", "warehouse_name",
+    "status", "return_time", "created_at", "updated_at",
 })
 CUSTOMER_MATERIAL_REGISTRATION_KEYWORD_FIELDS = [
     "registration_code",

@@ -280,7 +280,7 @@ const ManagementReviewsPage: React.FC = () => {
                 name="review_code"
                 label={t('app.kuaizhizao.quality.qms.reviewCode')}
                 pageCode="kuaizhizao-quality-management-review"
-                disabled={!!editing}
+                documentId={editing?.id}
               />
             </Col>
             <Col span={8}>

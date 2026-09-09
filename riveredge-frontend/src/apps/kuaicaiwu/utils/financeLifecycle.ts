@@ -10,6 +10,7 @@ const STAGE_NAME_KEYS: Record<string, string> = {
   已驳回: `${FL}.rejected`,
   待审核: `${FL}.pendingReview`,
   已结清: `${FL}.settled`,
+  已冲减: `${FL}.offsetDone`,
   部分收款: `${FL}.partialCollection`,
   未收款: `${FL}.unpaid`,
   部分付款: `${FL}.partialPayment`,
@@ -41,14 +42,46 @@ function translateResult(result: LifecycleResult, t: LifecycleTranslateFn | unde
   return stageNameKey ? { ...withSub, stageName: t(stageNameKey) } : withSub;
 }
 
-/** 应收单：审核 → 收款进度 */
+/** 应收单：审核 → 收款进度（销售退货冲减为审核 → 冲减） */
 export function getReceivableLifecycle(
   record: Record<string, unknown>,
   t?: LifecycleTranslateFn,
 ): LifecycleResult {
   const { reviewRejected, reviewPending, reviewDone } = reviewSubStages(String(record.review_status ?? ''));
   const status = String(record.status ?? '');
-  const subKeys = { rv: `${FL}.review`, col: `${FL}.collection` };
+  const sourceType = String(record.source_type ?? '').trim();
+  const isOffset = sourceType === '销售退货' || status === '已冲减';
+  const subKeys = isOffset
+    ? { rv: `${FL}.review`, col: `${FL}.offset` }
+    : { rv: `${FL}.review`, col: `${FL}.collection` };
+
+  if (isOffset) {
+    const subStages: SubStage[] = [
+      { key: 'rv', label: '审核', status: reviewPending ? 'active' : 'done' },
+      { key: 'col', label: '冲减', status: 'pending' },
+    ];
+    if (reviewRejected) {
+      return translateResult(
+        {
+          percent: 0,
+          stageName: '已驳回',
+          status: 'exception',
+          subStages: [
+            { key: 'rv', label: '审核', status: 'active' },
+            { key: 'col', label: '冲减', status: 'pending' },
+          ],
+        },
+        t,
+        subKeys,
+      );
+    }
+    if (reviewPending) {
+      return translateResult({ percent: 40, stageName: '待审核', status: 'normal', subStages }, t, subKeys);
+    }
+    subStages[0].status = 'done';
+    subStages[1].status = 'done';
+    return translateResult({ percent: 100, stageName: '已冲减', status: 'success', subStages }, t, subKeys);
+  }
 
   if (reviewRejected) {
     return translateResult(

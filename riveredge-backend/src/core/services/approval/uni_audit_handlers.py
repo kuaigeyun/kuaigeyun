@@ -70,7 +70,7 @@ async def _dispatch_sales_order_change(
     if action == "withdraw":
         return await svc.withdraw(tenant_id, entity_id, user_id)
     if action == "revoke":
-        _unsupported("sales_order_change", action)
+        return await svc.revoke_sales_order_change_approval(tenant_id, entity_id, user_id)
     _unsupported("sales_order_change", action)
 
 
@@ -331,9 +331,9 @@ async def _dispatch_sales_contract_change(
             tenant_id, entity_id, user_id, review_remarks=reason or "审批驳回"
         )
     if action == "withdraw":
-        _unsupported("sales_contract_change", action)
+        return await svc.withdraw_contract_change(tenant_id, entity_id, user_id)
     if action == "revoke":
-        _unsupported("sales_contract_change", action)
+        return await svc.revoke_contract_change_approval(tenant_id, entity_id, user_id)
     _unsupported("sales_contract_change", action)
 
 
@@ -534,7 +534,9 @@ async def _dispatch_reporting_record(
         )
     if action == "revoke":
         return await svc.revoke_reporting_approval(tenant_id, entity_id, user_id)
-    if action in ("submit", "withdraw"):
+    if action == "submit":
+        return await svc.submit_reporting_record(tenant_id, entity_id, user_id)
+    if action == "withdraw":
         _unsupported("reporting_record", action)
     _unsupported("reporting_record", action)
 

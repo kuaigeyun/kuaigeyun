@@ -112,6 +112,15 @@ def derive_sales_order_change_capabilities(
         "sales_order_change.apply.not_audited" if not apply_allowed else None,
     )
 
+    is_audited = normalize_status(_norm_status(status)) == DocumentStatus.AUDITED.value
+    revoke_allowed = (is_audited or is_rejected) and not applied
+    revoke_reason = None
+    if applied:
+        revoke_reason = "sales_order_change.revoke_approval.applied"
+    elif not (is_audited or is_rejected):
+        revoke_reason = "sales_order_change.revoke_approval.not_allowed"
+    revoke_cap = _cap(revoke_allowed, revoke_reason)
+
     preview_cap = _cap(is_draft or is_pending or _is_audited_pending_apply(doc))
 
     print_cap = _cap(True)
@@ -128,6 +137,7 @@ def derive_sales_order_change_capabilities(
         submit=submit_cap,
         withdraw_submit=withdraw_cap,
         approve=approve_cap,
+        revoke_approval=revoke_cap,
         apply=apply_cap,
         preview_impact=preview_cap,
         print=print_cap,
@@ -148,6 +158,7 @@ def assert_sales_order_change_capability(
         "submit": caps.submit,
         "withdraw_submit": caps.withdraw_submit,
         "approve": caps.approve,
+        "revoke_approval": caps.revoke_approval,
         "apply": caps.apply,
         "preview_impact": caps.preview_impact,
         "print": caps.print,

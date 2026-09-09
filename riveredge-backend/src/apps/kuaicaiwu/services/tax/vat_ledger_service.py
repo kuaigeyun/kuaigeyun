@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
+from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -25,6 +27,12 @@ def _d(v: Any) -> Decimal:
     return Decimal(str(v or 0)).quantize(_MONEY)
 
 
+def _period_date_bounds(year: int, month: int) -> tuple[date, date]:
+    """属期自然月起止日（含末日；禁止写死 31 日以免 2/4/6/9/11 月越界）。"""
+    last = monthrange(year, month)[1]
+    return date(year, month, 1), date(year, month, last)
+
+
 class VatLedgerService:
     def __init__(self) -> None:
         self.settings_service = TaxSettingsService()
@@ -39,6 +47,7 @@ class VatLedgerService:
         settings = await self.settings_service.get_or_create(tenant_id)
         period_key = f"{year:04d}-{month:02d}"
         is_small = settings.taxpayer_type == TAXPAYER_SMALL_SCALE
+        period_start, period_end = _period_date_bounds(year, month)
 
         output_tax = Decimal("0")
         sales_q = Invoice.filter(
@@ -58,8 +67,8 @@ class VatLedgerService:
             certified = PurchaseInvoice.filter(
                 tenant_id=tenant_id,
                 verification_status=VERIFICATION_CERTIFIED,
-                verification_date__gte=f"{year:04d}-{month:02d}-01",
-                verification_date__lte=f"{year:04d}-{month:02d}-31",
+                verification_date__gte=period_start,
+                verification_date__lte=period_end,
                 deleted_at__isnull=True,
             )
             for inv in await certified.all():
@@ -70,8 +79,8 @@ class VatLedgerService:
             transferred = PurchaseInvoice.filter(
                 tenant_id=tenant_id,
                 verification_status=VERIFICATION_TRANSFERRED_OUT,
-                verification_date__gte=f"{year:04d}-{month:02d}-01",
-                verification_date__lte=f"{year:04d}-{month:02d}-31",
+                verification_date__gte=period_start,
+                verification_date__lte=period_end,
                 deleted_at__isnull=True,
             )
             for inv in await transferred.all():

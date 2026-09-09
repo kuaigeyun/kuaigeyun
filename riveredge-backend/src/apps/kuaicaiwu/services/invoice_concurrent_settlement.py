@@ -14,7 +14,6 @@ from apps.kuaicaiwu.services.bank_account_service import BankAccountService
 from apps.kuaicaiwu.services.finance_voucher_posting_service import FinanceVoucherPostingService
 from apps.kuaicaiwu.services.payment_pull_service import PaymentPullService
 from apps.kuaicaiwu.services.receipt_pull_service import ReceiptPullService
-from core.utils.timezone_utils import today_site_str
 from apps.common.audit_actor import apply_create_audit
 from infra.exceptions.exceptions import BusinessLogicError, ValidationError
 from infra.models.user import User
@@ -54,9 +53,9 @@ async def create_concurrent_receipt_for_receivable(
         total_amount=amount,
     )
 
-    today = today_site_str()
-    count = await Receipt.filter(tenant_id=tenant_id).count()
-    code = f"SK{today}{count + 1:04d}"
+    from apps.kuaicaiwu.services.finance_voucher_codes import allocate_receipt_code
+
+    code = await allocate_receipt_code(tenant_id)
     customer_id = int(pull_preview.get("customer_id") or 0)
     customer_name = str(pull_preview.get("customer_name") or "")
 
@@ -131,9 +130,9 @@ async def create_concurrent_payment_for_payable(
         total_amount=amount,
     )
 
-    today = today_site_str()
-    count = await Payment.filter(tenant_id=tenant_id).count()
-    code = f"PK{today}{count + 1:04d}"
+    from apps.kuaicaiwu.services.finance_voucher_codes import allocate_payment_code
+
+    code = await allocate_payment_code(tenant_id)
     supplier_id = int(pull_preview.get("supplier_id") or 0)
     supplier_name = str(pull_preview.get("supplier_name") or "")
 

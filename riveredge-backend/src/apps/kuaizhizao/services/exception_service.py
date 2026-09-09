@@ -954,8 +954,43 @@ class ExceptionService:
         从检验单创建质量异常记录。
 
         source_type: incoming_inspection | process_inspection | finished_goods_inspection | oqc_inspection | lab_request
+
+        幂等：同一检验单 + inspection_failure 已有未删除记录时不再新建。
+        - 仍有未闭环（pending/investigating/correcting）→ 返回最早一条
+        - 已 closed → 返回最近一条 closed（禁止闭环后再造「待处理」污染跟踪报表）
+        - 仅 cancelled → 允许新建
         """
         import uuid
+
+        existing_base = QualityException.filter(
+            tenant_id=tenant_id,
+            inspection_record_id=source_id,
+            inspection_source_type=source_type,
+            exception_type="inspection_failure",
+            deleted_at__isnull=True,
+        )
+        active = (
+            await existing_base.filter(status__in=list(ACTIVE_QUALITY_EXCEPTION_STATUSES))
+            .order_by("id")
+            .first()
+        )
+        if active:
+            logger.info(
+                "检验单已有未闭环质量异常，跳过重复创建: source={}#{} exception_id={}",
+                source_type,
+                source_id,
+                active.id,
+            )
+            return QualityExceptionResponse.model_validate(active)
+        closed = await existing_base.filter(status="closed").order_by("-id").first()
+        if closed:
+            logger.info(
+                "检验单质量异常已闭环，跳过重复创建: source={}#{} exception_id={}",
+                source_type,
+                source_id,
+                closed.id,
+            )
+            return QualityExceptionResponse.model_validate(closed)
 
         work_order_id = None
         work_order_code = None

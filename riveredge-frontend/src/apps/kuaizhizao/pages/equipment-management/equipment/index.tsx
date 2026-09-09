@@ -1151,6 +1151,7 @@ const EquipmentPage: React.FC = () => {
               required={false}
               autoGenerateOnCreate={!isEdit}
               showGenerateButton={false}
+              documentId={isEdit ? currentEquipment?.id : undefined}
             />
           </Col>
           <Col span={12}>

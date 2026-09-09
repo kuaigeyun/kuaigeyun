@@ -148,6 +148,46 @@ class SalesOrderService:
         return await collect_document_salesmen(query)
 
     @staticmethod
+    def _sales_order_items_content_changed(
+        existing_items: List[Any],
+        new_items: Optional[List[Any]],
+    ) -> bool:
+        """明细是否实质变更（表单整单回传不算变更；金额按数值比）。"""
+        if new_items is None:
+            return False
+        from core.utils.field_change_compare import audit_field_values_equal
+
+        if len(existing_items) != len(new_items):
+            return True
+        for old, new in zip(existing_items, new_items):
+            new_qty = getattr(new, "required_quantity", None)
+            if new_qty is None:
+                new_qty = getattr(new, "order_quantity", None)
+            pairs = (
+                (getattr(old, "material_id", None), getattr(new, "material_id", None)),
+                (getattr(old, "material_code", None), getattr(new, "material_code", None)),
+                (getattr(old, "order_quantity", None), new_qty),
+                (getattr(old, "unit_price", None), getattr(new, "unit_price", None)),
+                (getattr(old, "tax_rate", None), getattr(new, "tax_rate", None)),
+                (getattr(old, "delivery_date", None), getattr(new, "delivery_date", None)),
+                (bool(getattr(old, "is_gift", False)), bool(getattr(new, "is_gift", False))),
+                (getattr(old, "notes", None) or "", getattr(new, "notes", None) or ""),
+                (getattr(old, "variant_attributes", None), getattr(new, "variant_attributes", None)),
+                (
+                    getattr(old, "configurable_selections", None),
+                    getattr(new, "configurable_selections", None),
+                ),
+            )
+            for old_val, new_val in pairs:
+                if isinstance(old_val, (dict, list)) or isinstance(new_val, (dict, list)):
+                    if old_val != new_val:
+                        return True
+                    continue
+                if not audit_field_values_equal(old_val, new_val):
+                    return True
+        return False
+
+    @staticmethod
     def _process_sales_order_item_pricing(
         item_data: SalesOrderItemCreate,
         material_map: Dict[int, Material],
@@ -1053,6 +1093,7 @@ class SalesOrderService:
         *,
         pushable_by_item: Optional[Dict[int, Decimal]] = None,
         has_existing_delivery_project: bool = False,
+        has_remaining_work_order_qty: Optional[bool] = None,
     ) -> dict[str, bool]:
         item_list = items or []
         has_items = len(item_list) > 0
@@ -1073,6 +1114,9 @@ class SalesOrderService:
         pushed = bool(demand and getattr(demand, "pushed_to_computation", False))
         if getattr(order, "planning_pushed_to_computation", False):
             pushed = True
+        remaining_wo = (
+            True if has_remaining_work_order_qty is None else bool(has_remaining_work_order_qty)
+        )
         return {
             "pushed_to_computation": pushed,
             "has_items": has_items,
@@ -1080,6 +1124,7 @@ class SalesOrderService:
             "computation_pushed_blocks_withdraw": pushed,
             "has_returnable_qty": has_returnable_qty,
             "has_pushable_qty": has_pushable_qty,
+            "has_remaining_work_order_qty": remaining_wo,
             "has_existing_delivery_project": has_existing_delivery_project,
         }
 
@@ -1103,9 +1148,19 @@ class SalesOrderService:
         has_existing_delivery_project = await self._order_has_delivery_project(
             tenant_id, order.id
         )
+        pushed_wo = await self._pushed_work_orders_by_sales_order(tenant_id, [order.id])
+        pushed_wo_qty = Decimal(str((pushed_wo.get(order.id) or {}).get("qty") or 0))
+        order_total = Decimal(str(order.total_quantity or 0))
+        if order_total <= 0 and items:
+            order_total = sum(
+                (Decimal(str(getattr(it, "order_quantity", 0) or 0)) for it in items),
+                Decimal("0"),
+            )
+        remaining_wo = order_total - pushed_wo_qty
         ctx = self._sales_order_capability_context(
             order, items, demand, pushable_by_item=pushable_by_item,
             has_existing_delivery_project=has_existing_delivery_project,
+            has_remaining_work_order_qty=remaining_wo > 0,
         )
         require_audit_before_print = (
             await self.business_config_service.get_sales_require_audit_before_print(tenant_id)
@@ -1851,6 +1906,15 @@ class SalesOrderService:
         has_existing_delivery_project = await self._order_has_delivery_project(
             tenant_id, sales_order_id
         )
+        pushed_wo = await self._pushed_work_orders_by_sales_order(tenant_id, [sales_order_id])
+        pushed_wo_qty = Decimal(str((pushed_wo.get(sales_order_id) or {}).get("qty") or 0))
+        order_total = Decimal(str(order.total_quantity or 0))
+        if order_total <= 0 and items:
+            order_total = sum(
+                (Decimal(str(getattr(it, "order_quantity", 0) or 0)) for it in items),
+                Decimal("0"),
+            )
+        remaining_wo = order_total - pushed_wo_qty
         from apps.kuaizhizao.services.sales_order_terms_service import SalesOrderTermsService
 
         payment_milestones = await SalesOrderTermsService.load_payment_milestones(
@@ -1878,8 +1942,24 @@ class SalesOrderService:
             **self._sales_order_capability_context(
                 order, items, demand, pushable_by_item=pushable_by_item,
                 has_existing_delivery_project=has_existing_delivery_project,
+                has_remaining_work_order_qty=remaining_wo > 0,
             ),
         )
+        from core.config.code_rule_pages import CODE_RULE_PAGES
+        from apps.kuaizhizao.services.sales_order_code_sync import resolve_sales_order_code_editable
+
+        page_cfg = next(
+            (p for p in CODE_RULE_PAGES if p.get("page_code") == "kuaizhizao-sales-order"),
+            None,
+        )
+        allow_manual = bool(page_cfg.get("allow_manual_edit", True)) if page_cfg else True
+        code_editable, code_lock_reason = await resolve_sales_order_code_editable(
+            tenant_id,
+            order,
+            allow_manual_edit=allow_manual,
+        )
+        resp.order_code_editable = code_editable
+        resp.order_code_locked_reason = code_lock_reason
         return resp
 
     async def _sales_order_ids_matching_lifecycle(
@@ -2485,6 +2565,7 @@ class SalesOrderService:
                         has_existing_delivery_project=delivery_project_by_order.get(
                             order.id, False
                         ),
+                        has_remaining_work_order_qty=remaining_qty > 0,
                     ),
                 )
             )
@@ -2527,22 +2608,27 @@ class SalesOrderService:
                     raise BusinessLogicError("单据审核中，仅发起人或已开启改单权限的当前审批人可修改")
 
         old_values = {
-            "order_date": str(order.order_date) if order.order_date else None,
-            "delivery_date": str(order.delivery_date) if order.delivery_date else None,
+            "order_date": order.order_date,
+            "delivery_date": order.delivery_date,
             "customer_name": order.customer_name,
             "customer_contact": order.customer_contact,
             "customer_phone": order.customer_phone,
-            "total_quantity": str(order.total_quantity) if order.total_quantity is not None else None,
-            "total_amount": str(order.total_amount) if order.total_amount is not None else None,
+            "total_quantity": order.total_quantity,
+            "total_amount": order.total_amount,
             "price_type": order.price_type,
-            "discount_amount": str(getattr(order, "discount_amount", 0) or 0),
+            "discount_amount": getattr(order, "discount_amount", None) or 0,
             "salesman_name": order.salesman_name,
             "shipping_address": order.shipping_address,
             "shipping_method": order.shipping_method,
             "payment_terms": order.payment_terms,
             "notes": order.notes,
         }
-        items_changed = sales_order_data.items is not None
+        existing_items = await SalesOrderItem.filter(
+            tenant_id=tenant_id, sales_order_id=sales_order_id
+        ).order_by("id")
+        items_changed = self._sales_order_items_content_changed(
+            existing_items, sales_order_data.items
+        )
 
         if approval_edit_context:
             from core.config.audit_editable_fields import is_field_editable
@@ -2589,8 +2675,47 @@ class SalesOrderService:
             # status/review_status 由工作流控制，禁止通过 update 修改，确保二者始终同步
             upd.pop("status", None)
             upd.pop("review_status", None)
+
+            old_code = (order.order_code or "").strip()
+            code_changed = False
+            if "order_code" in sales_order_data.model_fields_set:
+                new_order_code = (upd.pop("order_code", None) or "").strip()
+                if new_order_code != old_code:
+                    from core.config.code_rule_pages import CODE_RULE_PAGES
+                    from apps.kuaizhizao.services.sales_order_code_sync import (
+                        assert_sales_order_code_change_allowed,
+                        sync_sales_order_code_snapshots,
+                    )
+
+                    page_cfg = next(
+                        (p for p in CODE_RULE_PAGES if p.get("page_code") == "kuaizhizao-sales-order"),
+                        None,
+                    )
+                    allow_manual = bool(page_cfg.get("allow_manual_edit", True)) if page_cfg else True
+                    await assert_sales_order_code_change_allowed(
+                        tenant_id,
+                        order,
+                        new_order_code,
+                        allow_manual_edit=allow_manual,
+                    )
+                    upd["order_code"] = new_order_code
+                    if not (getattr(order, "order_name", None) or "").strip() or order.order_name == old_code:
+                        upd["order_name"] = new_order_code
+                    code_changed = True
+
             if upd:
                 await SalesOrder.filter(id=sales_order_id).update(**upd)
+
+            if code_changed:
+                from apps.kuaizhizao.services.sales_order_code_sync import sync_sales_order_code_snapshots
+
+                await sync_sales_order_code_snapshots(
+                    tenant_id,
+                    sales_order_id,
+                    upd["order_code"],
+                    old_code=old_code or None,
+                )
+                order = await SalesOrder.get(tenant_id=tenant_id, id=sales_order_id)
 
             if sales_order_data.items is not None:
                 await SalesOrderItem.filter(
@@ -2670,6 +2795,11 @@ class SalesOrderService:
 
         result = await self.get_sales_order_by_id(tenant_id, sales_order_id, include_items=True)
         # 记录编辑操作及变更字段（含修改前后值，供操作记录展示）
+        from core.utils.field_change_compare import (
+            audit_field_values_equal,
+            format_audit_field_value,
+        )
+
         changed_fields = []
         field_changes = []
         field_labels = {
@@ -2681,21 +2811,20 @@ class SalesOrderService:
         }
         if upd:
             for k in upd:
-                if k in ("updated_by",) or k not in old_values:
+                if k in ("updated_by", "updated_by_name") or k not in old_values:
                     continue
                 old_val = old_values.get(k)
                 new_val = upd[k]
-                old_str = str(old_val) if old_val is not None else ""
-                new_str = str(new_val) if new_val is not None else ""
-                if old_str != new_str:
-                    label = field_labels.get(k, k)
-                    changed_fields.append(label)
-                    field_changes.append({
-                        "field": k,
-                        "label": label,
-                        "from": old_str,
-                        "to": new_str,
-                    })
+                if audit_field_values_equal(old_val, new_val):
+                    continue
+                label = field_labels.get(k, k)
+                changed_fields.append(label)
+                field_changes.append({
+                    "field": k,
+                    "label": label,
+                    "from": format_audit_field_value(old_val),
+                    "to": format_audit_field_value(new_val),
+                })
         if items_changed:
             changed_fields.append("订单明细")
             field_changes.append({"field": "items", "label": "订单明细", "from": "", "to": "已修改"})
@@ -2780,9 +2909,9 @@ class SalesOrderService:
             fc.get("field") == "delivery_date"
             for fc in (field_changes if changed_fields else [])
         ) or (
-            upd
+            bool(upd)
             and "delivery_date" in upd
-            and str(upd.get("delivery_date")) != str(old_values.get("delivery_date"))
+            and not audit_field_values_equal(upd.get("delivery_date"), old_values.get("delivery_date"))
         )
         if delivery_changed or items_changed:
             try:
@@ -2921,8 +3050,38 @@ class SalesOrderService:
         )
         if not order:
             raise NotFoundError(f"销售订单不存在: {sales_order_id}")
+        if not self._is_pending_review_status(order.status):
+            raise BusinessLogicError(
+                f"只能审核待审核状态的订单，当前: {order.status}"
+            )
         if not self._is_review_pending(order.review_status):
             raise BusinessLogicError(f"只能审核待审核状态的订单，当前: {order.review_status}")
+
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "sales_order"
+        )
+        force_approval, _force_reason = await self._check_price_deviation_requires_approval(
+            tenant_id=tenant_id,
+            sales_order_id=sales_order_id,
+        )
+        if force_approval:
+            audit_required = True
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="sales_order",
+                entity_id=sales_order_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "销售订单审核已开启但无进行中的审批流程，请先提交审批后再审核"
+                )
 
         await self._validate_customer_credit_limit_before_release(
             tenant_id=tenant_id,
@@ -3023,8 +3182,38 @@ class SalesOrderService:
         )
         if not order:
             raise NotFoundError(f"销售订单不存在: {sales_order_id}")
+        if not self._is_pending_review_status(order.status):
+            raise BusinessLogicError(
+                f"只能驳回待审核状态的订单，当前: {order.status}"
+            )
         if not self._is_review_pending(order.review_status):
             raise BusinessLogicError(f"只能审核待审核状态的订单，当前: {order.review_status}")
+
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "sales_order"
+        )
+        force_approval, _force_reason = await self._check_price_deviation_requires_approval(
+            tenant_id=tenant_id,
+            sales_order_id=sales_order_id,
+        )
+        if force_approval:
+            audit_required = True
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="sales_order",
+                entity_id=sales_order_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "销售订单审核已开启但无进行中的审批流程，请先提交审批后再驳回"
+                )
 
         from core.services.approval.uni_audit_service import UniAuditService
 
@@ -3083,14 +3272,16 @@ class SalesOrderService:
         from core.services.approval.uni_audit_service import UniAuditService
 
         from core.services.approval.audit_transition import (
-            resolve_revoke_landing_phase,
+            resolve_sales_order_revoke_landing_phase,
             resolve_sales_order_revoke_state,
         )
 
         audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "sales_order"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
+        landing = resolve_sales_order_revoke_landing_phase(
+            manual_audit_enabled=audit_required
+        )
         revoke_state = resolve_sales_order_revoke_state(landing=landing)
 
         async def _do_revoke() -> SalesOrderResponse:
@@ -3614,6 +3805,7 @@ class SalesOrderService:
         selected_item_ids: Optional[List[int]] = None,
         selected_quantities: Optional[Dict[int, float]] = None,
         selected_work_centers: Optional[Dict[int, int]] = None,
+        selected_item_remarks: Optional[Dict[int, str]] = None,
         work_order_granularity: Optional[str] = None,
         push_mode: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -3735,6 +3927,7 @@ class SalesOrderService:
             delivery_date,
             work_center_id: Optional[int] = None,
             work_center_name: Optional[str] = None,
+            line_remarks: Optional[str] = None,
         ):
             if qty <= 0:
                 return
@@ -3748,6 +3941,7 @@ class SalesOrderService:
                     "earliest_delivery": delivery_date,
                     "work_center_id": int(work_center_id) if work_center_id else None,
                     "work_center_name": work_center_name or None,
+                    "remarks": None,
                 }
             wo_pool[key]["quantity"] += Decimal(str(qty))
             if delivery_date and (
@@ -3755,6 +3949,13 @@ class SalesOrderService:
                 or delivery_date < wo_pool[key]["earliest_delivery"]
             ):
                 wo_pool[key]["earliest_delivery"] = delivery_date
+            remark_text = (line_remarks or "").strip()
+            if remark_text:
+                existing = (wo_pool[key].get("remarks") or "").strip()
+                if not existing:
+                    wo_pool[key]["remarks"] = remark_text
+                elif remark_text not in existing:
+                    wo_pool[key]["remarks"] = f"{existing}\n{remark_text}"
 
         work_order_service = WorkOrderService()
         relation_service = DocumentRelationNewService()
@@ -3788,6 +3989,10 @@ class SalesOrderService:
                 selected_by_material[material_id] = selected_by_material.get(material_id, Decimal("0")) + use_qty
             qty = float(use_qty)
             delivery_date = it.delivery_date
+            if selected_item_remarks is not None and item_id in selected_item_remarks:
+                line_remarks = str(selected_item_remarks[item_id] or "").strip() or None
+            else:
+                line_remarks = (getattr(it, "notes", None) or "").strip() or None
 
             bom = await get_bom_by_material_id(
                 tenant_id=tenant_id,
@@ -3818,6 +4023,7 @@ class SalesOrderService:
                         delivery_date,
                         selected_work_center_id,
                         selected_work_center_name,
+                        line_remarks=line_remarks,
                     )
                     variant_attrs = getattr(it, "variant_attributes", None)
                     cfg_selections = getattr(it, "configurable_selections", None)
@@ -3856,6 +4062,7 @@ class SalesOrderService:
                         delivery_date,
                         selected_work_center_id,
                         selected_work_center_name,
+                        line_remarks=line_remarks,
                     )
 
         for mid, sel_qty in selected_by_material.items():
@@ -3868,6 +4075,8 @@ class SalesOrderService:
         work_orders = []
 
         async def _create_one_work_order(info: Dict[str, Any], qty_dec: Decimal):
+            custom_remarks = (info.get("remarks") or "").strip()
+            default_remarks = f"由销售订单 {order.order_code} 直推（含半成品）"
             wo_data = WorkOrderCreate(
                 code_rule="WORK_ORDER_CODE",
                 product_id=info["material_id"],
@@ -3888,7 +4097,7 @@ class SalesOrderService:
                     datetime.combine(info["earliest_delivery"], datetime.min.time())
                     if info.get("earliest_delivery") else None
                 ),
-                remarks=f"由销售订单 {order.order_code} 直推（含半成品）",
+                remarks=custom_remarks or default_remarks,
             )
             wo = await work_order_service.create_work_order(
                 tenant_id=tenant_id,
@@ -4078,6 +4287,7 @@ class SalesOrderService:
                     "pushed_quantity": float(pushed_by_material.get(mid, Decimal("0"))),
                     "max_push_quantity": float(max_qty),
                     "delivery_date": str(it.delivery_date) if it.delivery_date else None,
+                    "item_notes": (getattr(it, "notes", None) or "").strip() or None,
                     "suggested_action": "生产",
                     "source_type": source_type or "Make",
                     "blocking_issues": errors,

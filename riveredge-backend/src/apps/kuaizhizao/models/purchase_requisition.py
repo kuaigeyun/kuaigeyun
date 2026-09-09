@@ -75,6 +75,8 @@ class PurchaseRequisitionItem(BaseModel):
 
     # 来源
     demand_computation_item_id = fields.IntField(null=True, description="需求计算明细ID")
+    work_order_id = fields.IntField(null=True, description="关联工单ID（现采/补领请购）")
+    work_order_code = fields.CharField(max_length=50, null=True, description="关联工单编码快照")
 
     # 转单后
     purchase_order_id = fields.IntField(null=True, description="已转采购订单ID")

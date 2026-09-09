@@ -60,6 +60,19 @@ function flattenMenuTreeByUuid(nodes: MenuTree[]): Map<string, MenuTree> {
   return byUuid;
 }
 
+/** 与菜单管理保存侧一致：有 menu_ref 即视为应启用自组映射 */
+function layoutNodesHaveMenuRefs(nodes: CustomMenuLayoutNode[]): boolean {
+  for (const node of nodes) {
+    if (node.type === 'menu_ref' && String(node.menu_uuid || '').trim()) {
+      return true;
+    }
+    if (node.children?.length && layoutNodesHaveMenuRefs(node.children)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function cloneSourceMenuNode(
   source: MenuTree,
   nodeIdPrefix: string,
@@ -283,11 +296,14 @@ export function useUnifiedMenuData(
   }, [fullMenuTree]);
 
   const mappedApplicationMenus = useMemo(() => {
-    if (!menuCustomLayout?.enabled || !(menuCustomLayout.nodes || []).length) {
+    const layoutNodes = menuCustomLayout?.nodes || [];
+    const layoutActive =
+      Boolean(menuCustomLayout?.enabled) || layoutNodesHaveMenuRefs(layoutNodes);
+    if (!layoutActive || !layoutNodes.length) {
       return applicationMenus;
     }
     const sourceByUuid = flattenMenuTreeByUuid(applicationMenus);
-    return buildMappedMenuTree(menuCustomLayout.nodes || [], sourceByUuid, 'custom-layout-root');
+    return buildMappedMenuTree(layoutNodes, sourceByUuid, 'custom-layout-root');
   }, [applicationMenus, menuCustomLayout?.enabled, menuCustomLayout?.nodes]);
 
   // 蓝图下线后不再做业务配置过滤；菜单可见性完全由 is_active + 权限控制。

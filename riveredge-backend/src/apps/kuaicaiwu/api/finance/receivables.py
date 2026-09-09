@@ -384,6 +384,23 @@ async def approve_receivable(
         raise _http_exception_with_trace(400, str(e), "/receivables/{id}/approve", tenant_id)
 
 
+@router.put("/{id}", response_model=ReceivableResponse)
+async def update_receivable(
+    id: int,
+    data: ReceivableUpdate,
+    _auth: object = Depends(require_permission_codes("kuaicaiwu:receivable:update")),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """更新应收单（无收款、无退款时可改）"""
+    try:
+        return await receivable_service.update_receivable(tenant_id, id, data, current_user.id)
+    except NotFoundError as e:
+        raise _http_exception_with_trace(404, str(e), "/receivables/{id}", tenant_id) from e
+    except (BusinessLogicError, ValidationError) as e:
+        raise _http_exception_with_trace(400, str(e), "/receivables/{id}", tenant_id) from e
+
+
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_receivable(
     id: int,

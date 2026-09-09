@@ -193,6 +193,8 @@ export function referenceDisplayItemsToMaterials(items: ReferenceDisplayItem[]):
     .map((item) => {
       const extra = item.extra ?? {};
       const code = String(item.code ?? extra.main_code ?? '').trim();
+      const baseUnit = (extra.base_unit ?? extra.baseUnit) as string | undefined;
+      const units = (extra.units ?? undefined) as Material['units'] | undefined;
       return {
         id: item.id as number,
         uuid: item.uuid ?? undefined,
@@ -201,7 +203,9 @@ export function referenceDisplayItemsToMaterials(items: ReferenceDisplayItem[]):
         code,
         name: item.name ?? undefined,
         specification: extra.specification as string | undefined,
-        base_unit: extra.base_unit as string | undefined,
+        baseUnit,
+        base_unit: baseUnit,
+        units,
         source_type: extra.source_type as string | undefined,
         group_id: extra.group_id as number | undefined,
         images: extra.images,

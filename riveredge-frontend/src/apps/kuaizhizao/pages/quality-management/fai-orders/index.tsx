@@ -818,7 +818,7 @@ const FaiOrdersPage: React.FC = () => {
                 name="fai_code"
                 label={t('app.kuaizhizao.quality.fai.faiCode')}
                 pageCode="kuaizhizao-quality-fai-order"
-                disabled={!!editing}
+                documentId={editing?.id}
               />
             </Col>
             <Col span={8}>

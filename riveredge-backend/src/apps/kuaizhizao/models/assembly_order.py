@@ -59,6 +59,9 @@ class AssemblyOrder(BaseModel):
     product_material_id = fields.IntField(description="成品物料ID")
     product_material_code = fields.CharField(max_length=50, description="成品物料编码")
     product_material_name = fields.CharField(max_length=200, description="成品物料名称")
+    product_batch_number = fields.CharField(
+        max_length=100, null=True, description="成品入库批号（可选；空则按规则自动生成）"
+    )
 
     assembly_template_id = fields.IntField(null=True, description="套用的组装模板ID")
     assembly_template_code = fields.CharField(max_length=50, null=True, description="套用的组装模板编码")
@@ -116,6 +119,9 @@ class AssemblyOrderItem(BaseModel):
     quantity = fields.DecimalField(max_digits=14, decimal_places=4, description="消耗数量")
     unit_price = fields.DecimalField(max_digits=14, decimal_places=4, default=0, description="单价")
     amount = fields.DecimalField(max_digits=14, decimal_places=4, default=0, description="金额")
+    batch_number = fields.CharField(
+        max_length=100, null=True, description="组件出库批号（批号管理物料组装扣减必填）"
+    )
 
     status = fields.CharField(max_length=20, default="pending", description="状态（pending/consumed）")
     remarks = fields.TextField(null=True, description="备注")

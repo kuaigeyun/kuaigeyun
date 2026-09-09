@@ -61,6 +61,7 @@ class SalesOrderChangeCapabilities(BaseModel):
     submit: ActionCapability
     withdraw_submit: ActionCapability
     approve: ActionCapability
+    revoke_approval: ActionCapability
     apply: ActionCapability
     preview_impact: ActionCapability
     print: ActionCapability
@@ -229,6 +230,7 @@ class WorkOrderCapabilities(BaseModel):
     push_production_picking: ActionCapability
     push_finished_goods_receipt: ActionCapability
     push_production_return: ActionCapability
+    push_purchase_requisition: ActionCapability
 
 
 class OutsourceWorkOrderCapabilities(BaseModel):
@@ -262,6 +264,7 @@ class ReworkOrderCapabilities(BaseModel):
 class ReportingRecordCapabilities(BaseModel):
     update: ActionCapability
     delete: ActionCapability
+    submit: ActionCapability
     approve: ActionCapability
     revoke_approval: ActionCapability
     print: ActionCapability
@@ -418,7 +421,8 @@ CAPABILITY_REASON_MESSAGES: dict[str, str] = {
     "sales_order.withdraw_computation.not_allowed": "当前状态不可撤回需求计算",
     "sales_order.push_work_order.not_allowed": "当前状态不可直推工单",
     "sales_order.push_work_order.no_items": "销售订单无明细，无法直推工单",
-    "sales_order.push_work_order.computation_pushed": "销售订单已下推需求计算，不可再直推工单",
+    "sales_order.push_work_order.no_remaining": "订单数量已全部下推工单，无可下推量",
+    "sales_order.push_work_order.computation_pushed": "销售订单已下推需求计算，不可再直推工单；请到需求计算下推工单，或先撤回计算",
     "sales_order.push_shipment.not_allowed": "当前状态不可下推发货通知单",
     "sales_order.push_shipment.no_backorder": "销售订单无欠发数量，无法下推发货通知单",
     "sales_order.push_delivery.not_allowed": "当前状态不可下推销售出库",
@@ -440,6 +444,8 @@ CAPABILITY_REASON_MESSAGES: dict[str, str] = {
     "sales_order_change.submit.no_changes": "变更单无任何变更内容，无法提交",
     "sales_order_change.withdraw_submit.not_pending": "仅待审核状态可撤回",
     "sales_order_change.approve.not_pending": "仅待审核状态可审批",
+    "sales_order_change.revoke_approval.not_allowed": "当前状态不可撤销审核",
+    "sales_order_change.revoke_approval.applied": "已生效的销售变更单不可撤销审核",
     "sales_order_change.apply.not_audited": "变更单未审核通过，无法生效",
     "sales_order_change.reopen.not_rejected": "仅已驳回的变更单可重新编辑",
     "sales_contract.update.not_draft": "仅草稿或待审核状态合同可编辑",
@@ -514,6 +520,8 @@ CAPABILITY_REASON_MESSAGES: dict[str, str] = {
     "purchase_requisition.push_inquiry.not_allowed": "当前状态不可下推询价单",
     "purchase_requisition.push_inquiry.no_lines": "没有可询价的采购申请明细",
     "demand_computation.push_purchase_requisition.not_completed": "只能下推已完成的需求计算",
+    "demand_computation.push.covered_by_supply": "净需求已被库存/在途冲抵，无需下推工单或采购；也不会展开 BOM 子件",
+    "demand_computation.push.no_suggested_qty": "计算结果无建议下推数量，无需下推工单或采购",
     "demand_computation.push_purchase_requisition.already_pushed": "该需求计算已下推采购申请且仍存在，请勿重复下推",
     "demand_computation.push_purchase_requisition.no_purchase_items": "需求计算中无采购件，无法下推采购申请",
     "purchase_inquiry.update.not_draft": "只有草稿状态可编辑询价单",
@@ -617,6 +625,11 @@ CAPABILITY_REASON_MESSAGES: dict[str, str] = {
     "work_order.push_production_return.not_allowed": "当前状态不可下推生产退料",
     "work_order.push_production_return.frozen": "工单已冻结，不可下推生产退料",
     "work_order.push_production_return.no_returnable_lines": "工单无可退料明细",
+    "work_order.push_purchase_requisition.not_allowed": "仅「已下达」或「执行中」的工单可下推采购申请",
+    "work_order.push_purchase_requisition.frozen": "工单已冻结，不可下推采购申请",
+    "work_order.push_purchase_requisition.no_shortage_lines": "工单齐套分析无采购件缺料，无法下推采购申请",
+    "material_call.push_purchase_requisition.not_allowed": "仅待处理状态的补料申请可下推采购申请",
+    "material_call.push_purchase_requisition.no_remaining_qty": "补料申请明细均已处理完毕，无可请购数量",
     "outsource_work_order.push_outsource_issue.not_allowed": "当前状态不可委外发料",
     "outsource_work_order.push_outsource_issue.frozen": "委外工单已冻结，不可发料",
     "outsource_work_order.push_outsource_receipt.not_allowed": "当前状态不可委外收货",
@@ -662,8 +675,9 @@ CAPABILITY_REASON_MESSAGES: dict[str, str] = {
     "rework_order.cancel.terminal": "已关闭的返工单不能取消",
     "rework_order.hold.not_allowed": "当前状态不可暂停",
     "rework_order.resume.not_on_hold": "仅暂停中的返工单可恢复",
-    "reporting_record.update.not_pending": "仅待审核报工记录可编辑",
-    "reporting_record.delete.not_pending": "仅待审核报工记录可删除",
+    "reporting_record.update.not_pending": "仅草稿或待审核报工记录可编辑",
+    "reporting_record.delete.not_pending": "仅草稿或待审核报工记录可删除",
+    "reporting_record.submit.not_draft": "仅草稿或已驳回报工记录可提交审核",
     "reporting_record.approve.not_pending": "只有待审核状态的报工记录才可以审核",
     "reporting_record.revoke_approval.not_approved": "只有已审核通过的报工记录才可以撤回审核",
     "exception_process.cancel.already_finished": "该异常处理流程已结束，无法取消",

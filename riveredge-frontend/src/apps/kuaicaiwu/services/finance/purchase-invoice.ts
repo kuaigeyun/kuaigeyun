@@ -60,6 +60,12 @@ export const purchaseInvoiceService = {
     });
   },
 
+  delete: (id: number) => {
+    return apiRequest<void>(`${PURCHASE_INVOICE_API}/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   listPurchaseOrderPullCandidates: async (params?: { skip?: number; limit?: number; keyword?: string }) =>
     apiRequest<{ data: PurchaseInvoicePullCandidate[]; total: number; success: boolean }>(
       `${PURCHASE_INVOICE_API}/pull-candidates/purchase-orders`,

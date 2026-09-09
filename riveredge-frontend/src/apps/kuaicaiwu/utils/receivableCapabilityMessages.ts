@@ -10,6 +10,8 @@ const FALLBACK: Record<string, string> = {
   'receipt.pull_from_receivable.not_allowed': '当前状态的应收单不可加载收款单',
   'receipt.pull_from_receivable.no_lines': '应收单无可收款金额',
   'receipt.pull_from_receivable.already_pulled': '应收单可收款金额已全部占用，作废未核销收款单后可再次加载',
+  'receipt.pull_from_receivable.sales_return_offset': '销售退货冲减应收不可加载正向收款',
+  'sales_invoice.pull_from_receivable.sales_return_offset': '销售退货冲减应收不可开蓝字销项发票',
 };
 
 export const receivableCapabilityReasonMessage = (reason: string | undefined | null, t: TFunction): string => {

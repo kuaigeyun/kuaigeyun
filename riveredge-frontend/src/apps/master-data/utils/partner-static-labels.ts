@@ -154,6 +154,7 @@ export function partnerRevenueRecognitionOverrideLabel(t: TFunction, code?: stri
   if (code == null || code === '') return t('field.partner.recognitionOverrideInherit');
   if (code === 'on_shipment') return t('pages.system.configCenter.param.finance_revenue_recognition_opt_on_shipment');
   if (code === 'on_invoice') return t('pages.system.configCenter.param.finance_revenue_recognition_opt_on_invoice');
+  if (code === 'manual') return t('pages.system.configCenter.param.finance_revenue_recognition_opt_manual');
   return code;
 }
 
@@ -164,5 +165,6 @@ export function partnerPayableRecognitionOverrideLabel(t: TFunction, code?: stri
   if (code === 'on_purchase_invoice') {
     return t('pages.system.configCenter.param.finance_payable_recognition_opt_on_purchase_invoice');
   }
+  if (code === 'manual') return t('pages.system.configCenter.param.finance_payable_recognition_opt_manual');
   return code;
 }

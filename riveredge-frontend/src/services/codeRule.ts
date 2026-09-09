@@ -389,3 +389,18 @@ export async function getCodeRulePageConfig(pageCode: string): Promise<CodeRuleP
   return null;
 }
 }
+
+export interface DocumentCodeEditabilityResult {
+  editable: boolean;
+  locked_reason: string | null;
+  code_field: string;
+}
+
+export async function getDocumentCodeEditability(
+  pageCode: string,
+  documentId: number,
+): Promise<DocumentCodeEditabilityResult> {
+  return apiRequest<DocumentCodeEditabilityResult>(
+    `/core/code-rules/pages/${encodeURIComponent(pageCode)}/documents/${documentId}/code-editability`,
+  );
+}

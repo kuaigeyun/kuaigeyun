@@ -267,6 +267,7 @@ const InboundSalesReturnPullEntryPage: React.FC = () => {
       }
       await warehouseApi.salesReturn.update(String(created.id), {
         return_time: toApiDateTimeString(returnTime),
+        returner_id: receiverHook.receiverId,
         returner_name: receiverHook.receiverName.trim() || undefined,
         notes: returnNotes.trim() || undefined,
         attachments: normalizeDocumentAttachments(attachments),

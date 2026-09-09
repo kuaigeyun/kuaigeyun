@@ -710,8 +710,27 @@ class DemandService(AppBaseService[Demand]):
         if demand.review_status != ReviewStatus.PENDING:
             raise BusinessLogicError(f"只能审核待审核状态的需求，当前审核状态: {demand.review_status}")
 
+        from infra.services.business_config_service import BusinessConfigService
+        from core.services.approval.approval_instance_service import ApprovalInstanceService
         from core.services.approval.uni_audit_service import UniAuditService
         from apps.kuaizhizao.services.state_transition_service import StateTransitionService
+
+        audit_required = await BusinessConfigService().check_audit_required(tenant_id, "demand")
+        if audit_required:
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="demand",
+                entity_id=demand_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                verb = "驳回" if rejection_reason else "审核"
+                raise BusinessLogicError(
+                    f"需求审核已开启但无进行中的审批流程，请先提交审批后再{verb}"
+                )
 
         from_status = demand.status
 
@@ -987,7 +1006,7 @@ class DemandService(AppBaseService[Demand]):
         撤销审核需求
         
         只有“已审核”或“已驳回”状态的需求可以撤销审核。
-        人工审→待审核；自动审→草稿。
+        一律回到草稿，须重新提交再审。
         
         Args:
             tenant_id: 租户ID
@@ -1018,16 +1037,14 @@ class DemandService(AppBaseService[Demand]):
                 except BusinessLogicError:
                     raise
 
-            from core.services.approval.audit_transition import resolve_revoke_landing_phase
+            from core.services.approval.audit_transition import (
+                resolve_revoke_to_draft_landing_phase,
+            )
             from infra.services.business_config_service import BusinessConfigService
 
             audit_required = await BusinessConfigService().check_audit_required(tenant_id, "demand")
-            landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-            target_status = (
-                DemandStatus.PENDING_REVIEW
-                if landing == "pending"
-                else DemandStatus.DRAFT
-            )
+            _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
+            target_status = DemandStatus.DRAFT
 
             # 使用状态流转服务记录
             operator_name = await self.get_user_name(unapproved_by)

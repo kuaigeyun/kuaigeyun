@@ -1031,7 +1031,7 @@ async def unapprove_sales_order(
     """
     反审核销售订单
     
-    将销售订单状态从"已审核"或"已驳回"恢复为"待审核"状态。
+    将销售订单从已审核/已生效撤回到草稿；修改后须重新提交，再走审批。
     """
     try:
         result = await sales_order_service.unapprove_sales_order(
@@ -1168,7 +1168,7 @@ async def push_sales_order_to_work_order(
     sales_order_id: int = Path(..., description="销售订单ID"),
     body: Optional[Dict[str, Any]] = Body(
         default=None,
-        description="可选：push_mode=draft|confirm，work_order_granularity=grouped|peer_group，selected_item_ids=[1,2]，selected_quantities={\"1\": 2}，selected_work_centers={\"1\": 3}",
+        description="可选：push_mode=draft|confirm，work_order_granularity=grouped|peer_group，selected_item_ids=[1,2]，selected_quantities={\"1\": 2}，selected_work_centers={\"1\": 3}，selected_item_remarks={\"1\": \"客户加急\"}",
     ),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -1204,6 +1204,15 @@ async def push_sales_order_to_work_order(
                         selected_work_centers[item_id] = center_id
                 except Exception:
                     continue
+        selected_item_remarks_raw = payload.get("selected_item_remarks")
+        selected_item_remarks = None
+        if isinstance(selected_item_remarks_raw, dict):
+            selected_item_remarks = {}
+            for k, v in selected_item_remarks_raw.items():
+                try:
+                    selected_item_remarks[int(k)] = str(v or "")
+                except Exception:
+                    continue
         result = await sales_order_service.push_sales_order_to_work_order(
             tenant_id=tenant_id,
             sales_order_id=sales_order_id,
@@ -1211,6 +1220,7 @@ async def push_sales_order_to_work_order(
             selected_item_ids=selected_item_ids,
             selected_quantities=selected_quantities,
             selected_work_centers=selected_work_centers,
+            selected_item_remarks=selected_item_remarks,
             work_order_granularity=payload.get("work_order_granularity"),
             push_mode=payload.get("push_mode"),
         )

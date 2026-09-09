@@ -738,7 +738,16 @@ export function resolveInboundHubListParams(
     resolveCommonDateRanges(s);
   return {
     order_by: resolveOrderBy(sort),
-    keyword: pickString(s, 'keyword'),
+    // 主体/单号列 dataIndex 可能为 receipt_code / return_code / inbound_code 等
+    keyword: pickFirstString(s, [
+      'keyword',
+      'receipt_code',
+      'return_code',
+      'inbound_code',
+      'registration_code',
+      'purchase_order_code',
+      'work_order_code',
+    ]),
     status: typeof s.status === 'string' && s.status && s.status !== 'all' ? s.status : undefined,
     receipt_type: typeof s.receipt_type === 'string' && s.receipt_type ? s.receipt_type : undefined,
     warehouse_id: s.warehouse_id != null && s.warehouse_id !== '' ? Number(s.warehouse_id) : undefined,
@@ -847,6 +856,60 @@ export function filterOutboundHubRows(
     }
     if (totalItems != null && Number.isFinite(totalItems)) {
       if (Number(row.total_items) !== totalItems) return false;
+    }
+    return true;
+  });
+}
+
+/** 入库 Hub 合并多源后的字段级筛选（补齐各源 API 未覆盖的条件） */
+export function filterInboundHubRows(
+  rows: Record<string, unknown>[],
+  params: Record<string, unknown>,
+): Record<string, unknown>[] {
+  const keyword = typeof params.keyword === 'string' ? params.keyword.trim().toLowerCase() : '';
+  const supplierName =
+    typeof params.supplier_name === 'string' ? params.supplier_name.trim().toLowerCase() : '';
+  const warehouseId =
+    params.warehouse_id != null && params.warehouse_id !== ''
+      ? Number(params.warehouse_id)
+      : undefined;
+
+  if (!keyword && !supplierName && !(warehouseId != null && Number.isFinite(warehouseId))) {
+    return rows;
+  }
+
+  return rows.filter((row) => {
+    if (keyword) {
+      const hay = [
+        row.receipt_code,
+        row.return_code,
+        row.inbound_code,
+        row.registration_code,
+        row.code,
+        row.purchase_order_code,
+        row.work_order_code,
+        row.sales_order_code,
+        row.picking_code,
+        row.supplier_name,
+        row.customer_name,
+        row.warehouse_name,
+        row.receiver_name,
+        row.returner_name,
+        row.outsource_work_order_code,
+      ]
+        .map((x) => String(x ?? '').toLowerCase())
+        .join(' ');
+      if (!hay.includes(keyword)) return false;
+    }
+    if (supplierName) {
+      if (!String(row.supplier_name ?? '')
+        .toLowerCase()
+        .includes(supplierName)) {
+        return false;
+      }
+    }
+    if (warehouseId != null && Number.isFinite(warehouseId)) {
+      if (Number(row.warehouse_id) !== warehouseId) return false;
     }
     return true;
   });

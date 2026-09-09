@@ -2084,17 +2084,9 @@ const BOMDesignerPage: React.FC = () => {
       try {
         setMaterialFormLoading(true);
         await materialApi.update(materialToEdit.uuid, values as MaterialUpdate);
-        messageApi.success(t('common.updateSuccess'));
-        setMaterialEditModalVisible(false);
-        setMaterialToEdit(null);
         const updated = await materialApi.get(materialToEdit.uuid);
-        setMaterials((prev) => {
-          const rest = prev.filter((m) => m.id !== updated.id && m.uuid !== updated.uuid);
-          return [...rest, updated];
-        });
-        if (rootMaterial && materialToEdit.uuid === (rootMaterial.uuid || (rootMaterial as any).uuid)) {
-          setRootMaterial(updated);
-        }
+        messageApi.success(t('common.updateSuccess'));
+        return updated;
       } catch (error: any) {
         messageApi.error(error.message || t('common.updateFailed'));
         throw error;
@@ -2102,7 +2094,22 @@ const BOMDesignerPage: React.FC = () => {
         setMaterialFormLoading(false);
       }
     },
-    [materialToEdit, rootMaterial, messageApi]
+    [materialToEdit, messageApi, t]
+  );
+
+  const handleMaterialEditSubmitSuccess = useCallback(
+    (updated: Material) => {
+      setMaterialEditModalVisible(false);
+      setMaterialToEdit(null);
+      setMaterials((prev) => {
+        const rest = prev.filter((m) => m.id !== updated.id && m.uuid !== updated.uuid);
+        return [...rest, updated];
+      });
+      if (rootMaterial && updated.uuid === (rootMaterial.uuid || (rootMaterial as any).uuid)) {
+        setRootMaterial(updated);
+      }
+    },
+    [rootMaterial],
   );
 
   /**
@@ -3836,6 +3843,7 @@ const BOMDesignerPage: React.FC = () => {
         setMaterialToEdit(null);
       }}
       onFinish={handleMaterialEditSubmit}
+      onSubmitSuccess={handleMaterialEditSubmitSuccess}
       isEdit={true}
       material={materialToEdit || undefined}
       materialGroups={materialGroups}
@@ -3885,21 +3893,24 @@ const BOMDesignerPage: React.FC = () => {
         setMaterialFormLoading(true);
         try {
           const created = await materialApi.create(values as MaterialCreate);
-          setNewCreatedMaterial(created);
-          setSelectedMaterialInForm(created);
-          const baseUnit = (created as any).base_unit ?? created.baseUnit ?? '';
-          nodeConfigForm.setFieldsValue({
-            materialId: created.id,
-            unit: baseUnit,
-          });
-          setCreateMaterialModalVisible(false);
           messageApi.success(t('common.createSuccess'));
+          return created;
         } catch (e: any) {
           messageApi.error(e?.message ?? t('common.createFailed'));
           throw e;
         } finally {
           setMaterialFormLoading(false);
         }
+      }}
+      onSubmitSuccess={(created) => {
+        setNewCreatedMaterial(created);
+        setSelectedMaterialInForm(created);
+        const baseUnit = (created as any).base_unit ?? created.baseUnit ?? '';
+        nodeConfigForm.setFieldsValue({
+          materialId: created.id,
+          unit: baseUnit,
+        });
+        setCreateMaterialModalVisible(false);
       }}
       isEdit={false}
       materialGroups={materialGroups}

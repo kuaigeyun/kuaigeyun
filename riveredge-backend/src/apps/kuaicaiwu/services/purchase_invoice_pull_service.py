@@ -12,6 +12,7 @@ from tortoise.queryset import Q
 from apps.common.base_service import AppBaseService
 from apps.kuaicaiwu.models.payable import Payable
 from apps.kuaicaiwu.models.purchase_invoice import PurchaseInvoice
+from apps.kuaicaiwu.services.finance_tax import money_exceeds_max, money_to_json_float
 from apps.kuaizhizao.models.document_relation import DocumentRelation
 from infra.exceptions.exceptions import BusinessLogicError, NotFoundError
 
@@ -335,9 +336,9 @@ class PurchaseInvoicePullService(AppBaseService[PurchaseInvoice]):
         quantity: Decimal,
         pushed: Decimal,
     ) -> Dict[str, Any]:
-        qty = float(quantity)
-        pushed_f = float(pushed)
-        max_push = float(max(Decimal("0"), quantity - pushed))
+        qty = money_to_json_float(quantity)
+        pushed_f = money_to_json_float(pushed)
+        max_push = money_to_json_float(max(Decimal("0"), quantity - pushed))
         return {
             "item_id": int(source_id),
             "source_code": source_code,
@@ -797,7 +798,7 @@ class PurchaseInvoicePullService(AppBaseService[PurchaseInvoice]):
         if not items:
             raise BusinessLogicError("无可开票金额")
         max_push = Decimal(str(items[0].get("max_push_quantity") or 0))
-        if total_amount > max_push:
+        if money_exceeds_max(total_amount, max_push):
             raise BusinessLogicError(f"价税合计 {total_amount} 超过可开票金额 {max_push}")
         return preview
 

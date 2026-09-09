@@ -36,15 +36,37 @@ def _partner_uuid(entity: Any) -> str | None:
     return str(raw) if raw is not None else None
 
 
+def _partner_primary_contact_fields(entity: Any) -> dict[str, Any]:
+    """首条联系人：优先 contacts 明细，否则 legacy 快照字段（与详情 API 一致）。"""
+    from apps.master_data.services.supply_chain_service import _partner_contacts_for_response
+
+    rows = _partner_contacts_for_response(entity)
+    if not rows:
+        return {
+            "contact_person": None,
+            "phone": None,
+            "email": None,
+            "contact_title": None,
+        }
+    first = rows[0]
+    return {
+        "contact_person": first.get("contact_person"),
+        "phone": first.get("phone"),
+        "email": first.get("email"),
+        "contact_title": first.get("contact_title"),
+    }
+
+
 def _customer_display_row(entity: Any) -> dict[str, Any]:
-    """客户下拉回填：首条联系人快照 + 业务员/地址（供销售订单等表单自动带出）。"""
+    """客户下拉回填：首条联系人 + 业务员/地址（供销售订单等表单自动带出）。"""
+    contact = _partner_primary_contact_fields(entity)
     return _row(
         id=int(entity.id),
         uuid=_partner_uuid(entity),
         code=getattr(entity, "code", None),
         name=getattr(entity, "name", None),
-        contact_person=getattr(entity, "contact_person", None),
-        phone=getattr(entity, "phone", None),
+        contact_person=contact.get("contact_person"),
+        phone=contact.get("phone"),
         address=getattr(entity, "address", None),
         delivery_address=getattr(entity, "delivery_address", None),
         salesman_id=getattr(entity, "salesman_id", None),
@@ -54,14 +76,15 @@ def _customer_display_row(entity: Any) -> dict[str, Any]:
 
 
 def _supplier_display_row(entity: Any) -> dict[str, Any]:
-    """供应商下拉回填：首条联系人快照 + 采购员（供采购订单等表单自动带出）。"""
+    """供应商下拉回填：首条联系人 + 采购员（供采购订单等表单自动带出）。"""
+    contact = _partner_primary_contact_fields(entity)
     return _row(
         id=int(entity.id),
         uuid=_partner_uuid(entity),
         code=getattr(entity, "code", None),
         name=getattr(entity, "name", None),
-        contact_person=getattr(entity, "contact_person", None),
-        phone=getattr(entity, "phone", None),
+        contact_person=contact.get("contact_person"),
+        phone=contact.get("phone"),
         buyer_id=getattr(entity, "buyer_id", None),
         buyer_name=getattr(entity, "buyer_name", None),
     )
@@ -255,6 +278,7 @@ class _MaterialDisplayProvider:
                     **_row(id=r.id, uuid=r.uuid, code=r.main_code or r.code, name=r.name),
                     "specification": r.specification,
                     "base_unit": r.base_unit,
+                    "units": r.units,
                     "source_type": r.source_type,
                     "main_code": r.main_code,
                     "group_id": r.group_id,
@@ -292,6 +316,7 @@ class _MaterialDisplayProvider:
                 **_row(id=r.id, uuid=r.uuid, code=r.main_code or r.code, name=r.name),
                 "specification": r.specification,
                 "base_unit": r.base_unit,
+                "units": r.units,
                 "source_type": r.source_type,
                 "source_config": _flatten_material_source_config(r.source_config),
                 "main_code": r.main_code,

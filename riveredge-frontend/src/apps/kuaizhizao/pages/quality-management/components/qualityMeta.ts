@@ -414,6 +414,7 @@ const QUALITY_EXCEPTION_STATUS_I18N: Record<string, string> = {
   investigating: 'app.kuaizhizao.productionException.status.investigating',
   correcting: 'app.kuaizhizao.productionException.status.correcting',
   closed: 'app.kuaizhizao.productionException.status.closed',
+  cancelled: 'app.kuaizhizao.productionException.status.cancelled',
 };
 
 const QUALITY_EXCEPTION_SEVERITY_I18N: Record<string, string> = {

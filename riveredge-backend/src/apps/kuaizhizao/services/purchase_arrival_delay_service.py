@@ -170,6 +170,19 @@ class PurchaseArrivalDelayService(AppBaseService[PurchaseArrivalDelayReport]):
         user_info = await self.get_user_info(operator_id)
         async with in_transaction():
             if audit_required:
+                from core.services.approval.audit_flow_guard import start_document_approval_or_raise
+
+                await start_document_approval_or_raise(
+                    tenant_id=tenant_id,
+                    user_id=operator_id,
+                    node_key="purchase_arrival_delay",
+                    entity_type="purchase_arrival_delay",
+                    entity_id=int(doc.id),
+                    entity_uuid=str(doc.uuid),
+                    title=f"到货延期审批: {doc.report_code}",
+                    content=f"采购订单: {doc.order_code or '—'}, 新交期: {doc.estimated_arrival_date}",
+                    doc_label="到货延期填报",
+                )
                 doc.status = DocumentStatus.PENDING_REVIEW.value
                 doc.review_status = ReviewStatus.PENDING.value
             else:
@@ -193,6 +206,20 @@ class PurchaseArrivalDelayService(AppBaseService[PurchaseArrivalDelayReport]):
         doc = await self._get_or_raise(tenant_id, report_id)
         if doc.status != DocumentStatus.PENDING_REVIEW.value:
             raise BusinessLogicError("仅待审核可审批")
+
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "purchase_arrival_delay"
+        )
+        from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+
+        await assert_pending_approval_instance(
+            tenant_id=tenant_id,
+            entity_type="purchase_arrival_delay",
+            entity_id=report_id,
+            audit_required=audit_required,
+            doc_label="到货延期填报",
+            verb="审核" if body.approved else "驳回",
+        )
 
         user_info = await self.get_user_info(operator_id)
         async with in_transaction():

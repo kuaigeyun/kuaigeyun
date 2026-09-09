@@ -1104,15 +1104,20 @@ const InventoryAlertPage: React.FC = () => {
             <Row gutter={16}>
               <Col span={12}>
                 <UniMaterialSelect
+                  key={`rule-material-ids-${material_group_id ?? 'all'}`}
                   name="material_ids"
                   label={t('app.kuaizhizao.warehouseCommon.colMaterial')}
                   placeholder={t('app.kuaizhizao.inventoryAlert.formMaterialMultiPlaceholder')}
                   disabled={!!currentRuleId}
                   showQuickCreate={!material_group_id}
                   showAdvancedSearch
-                  groupId={material_group_id}
+                  mode="multiple"
+                  groupId={
+                    material_group_id != null && Number(material_group_id) > 0
+                      ? Number(material_group_id)
+                      : undefined
+                  }
                   fallbackOption={ruleMaterialFallbackOption}
-                  fieldProps={{ mode: 'multiple' }}
                   onChange={(value, materials) => {
                     const ids = Array.isArray(value) ? value : [];
                     if (ids.length === 1) {

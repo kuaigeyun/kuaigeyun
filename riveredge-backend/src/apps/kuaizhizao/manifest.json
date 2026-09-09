@@ -4716,6 +4716,22 @@
       "business_type": "multi_signoff"
     },
     {
+      "node_key": "work_order",
+      "entity_type": "work_order",
+      "resource": "kuaizhizao:work-order",
+      "name": "生产工单审核",
+      "template": "simple",
+      "config_category": "production"
+    },
+    {
+      "node_key": "production_picking",
+      "entity_type": "production_picking",
+      "resource": "kuaizhizao:inbound",
+      "name": "生产领料审核",
+      "template": "simple",
+      "config_category": "warehouse"
+    },
+    {
       "node_key": "supplier_evaluation",
       "entity_type": "supplier_evaluation",
       "resource": "kuaizhizao:supplier-eval",

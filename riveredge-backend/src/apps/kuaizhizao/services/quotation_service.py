@@ -861,7 +861,34 @@ class QuotationService:
         )
         if not quotation:
             raise NotFoundError(f"报价单不存在: {quotation_id}")
+        if quotation.status != "已发送":
+            raise BusinessLogicError(
+                f"只能审核待审核状态的报价单，当前状态: {quotation.status}"
+            )
+        rs = (quotation.review_status or "").strip()
+        if rs not in LEGACY_PENDING_VALUES and rs != "":
+            raise BusinessLogicError(
+                f"只能审核待审核状态的报价单，当前审核状态: {quotation.review_status}"
+            )
         await self._assert_quotation_capability(tenant_id, quotation, "approve")
+
+        audit_required = await self._quotation_audit_required(tenant_id)
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="quotation",
+                entity_id=quotation_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "报价单审核已开启但无进行中的审批流程，请先提交审批后再审核"
+                )
 
         from core.services.approval.uni_audit_service import UniAuditService
 
@@ -922,6 +949,24 @@ class QuotationService:
         if rs not in LEGACY_PENDING_VALUES and rs != "":
             raise BusinessLogicError(f"仅待审核的报价单可驳回，当前审核状态: {quotation.review_status}")
 
+        audit_required = await self._quotation_audit_required(tenant_id)
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="quotation",
+                entity_id=quotation_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "报价单审核已开启但无进行中的审批流程，请先提交审批后再驳回"
+                )
+
         from core.services.approval.uni_audit_service import UniAuditService
 
         async def _do_reject(reason: Optional[str]) -> QuotationResponse:
@@ -969,8 +1014,10 @@ class QuotationService:
         quotation_id: int,
         operator_id: int,
     ) -> QuotationResponse:
-        """撤销审核：已发送 + 已通过 → 人工审回到待审核，自动审回到草稿。"""
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        """撤销审核：已发送 + 已通过 → 一律草稿，须重新提交再审。"""
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
 
         quotation = await Quotation.get_or_none(
@@ -980,53 +1027,33 @@ class QuotationService:
             raise NotFoundError(f"报价单不存在: {quotation_id}")
         await self._assert_quotation_capability(tenant_id, quotation, "revoke_approval")
 
-        audit_required = await self.business_config_service.check_audit_required(
-            tenant_id, "quotation"
-        )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
+        audit_required = await self._quotation_audit_required(tenant_id)
+        # 已迁移单据：落点恒为 draft（签名对称调用，结果不分支）
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
 
         async def _do_revoke() -> QuotationResponse:
             from apps.common.base_service import AppBaseService
 
             op_name = await AppBaseService().get_user_name(operator_id)
             async with in_transaction():
-                if landing == "draft":
-                    await Quotation.filter(tenant_id=tenant_id, id=quotation_id).update(
-                        status="草稿",
-                        review_status="",
-                        reviewer_id=None,
-                        reviewer_name=None,
-                        review_time=None,
-                        review_remarks=None,
-                        updated_by=operator_id,
-                    )
-                    await self._log_quotation_state_transition(
-                        tenant_id,
-                        quotation_id,
-                        "已通过",
-                        "草稿",
-                        operator_id,
-                        op_name,
-                        "撤销审核",
-                    )
-                else:
-                    await Quotation.filter(tenant_id=tenant_id, id=quotation_id).update(
-                        review_status="待审核",
-                        reviewer_id=None,
-                        reviewer_name=None,
-                        review_time=None,
-                        review_remarks=None,
-                        updated_by=operator_id,
-                    )
-                    await self._log_quotation_state_transition(
-                        tenant_id,
-                        quotation_id,
-                        "已通过",
-                        "待审核",
-                        operator_id,
-                        op_name,
-                        "撤销审核",
-                    )
+                await Quotation.filter(tenant_id=tenant_id, id=quotation_id).update(
+                    status="草稿",
+                    review_status="",
+                    reviewer_id=None,
+                    reviewer_name=None,
+                    review_time=None,
+                    review_remarks=None,
+                    updated_by=operator_id,
+                )
+                await self._log_quotation_state_transition(
+                    tenant_id,
+                    quotation_id,
+                    "已通过",
+                    "草稿",
+                    operator_id,
+                    op_name,
+                    "撤销审核",
+                )
             return await self.get_quotation_by_id(tenant_id, quotation_id, include_items=True)
 
         return await UniAuditService.revoke_with_flow_fallback(

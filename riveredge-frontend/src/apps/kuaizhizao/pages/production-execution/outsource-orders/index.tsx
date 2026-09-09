@@ -1341,8 +1341,8 @@ export const OutsourceOrdersTable: React.FC = () => {
             required={!isEdit}
             autoGenerateOnCreate={!isEdit}
             showGenerateButton={false}
+            documentId={isEdit ? currentOutsourceOrder?.id : undefined}
             context={{}}
-            disabled={isEdit}
           />
           <ProFormItem
             name="supplier_id"

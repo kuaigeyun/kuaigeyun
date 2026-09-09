@@ -111,10 +111,14 @@ async def _resolve_rule_material_scope(
         raise ValidationError(f"物料不存在: {missing[0]}")
 
     if material_group_id is not None:
-        gid = int(material_group_id)
+        from apps.master_data.services.material_service import MaterialService
+
+        allowed_group_ids = set(
+            await MaterialService._get_all_child_group_ids(tenant_id, int(material_group_id))
+        )
         for material in materials:
             group_id = getattr(material, "group_id", None)
-            if group_id is None or int(group_id) != gid:
+            if group_id is None or int(group_id) not in allowed_group_ids:
                 code = getattr(material, "main_code", None) or material.id
                 raise ValidationError(f"物料 {code} 不属于所选物料分组")
 

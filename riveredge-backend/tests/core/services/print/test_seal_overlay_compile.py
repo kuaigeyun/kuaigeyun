@@ -100,5 +100,26 @@ def test_image_logo_block_company_logo_variable():
         }
     )
     assert "print-seal-overlay-mark" in html
-    assert "min-height:" not in html
+    assert "min-height:" in html
     assert "white-space:pre-wrap" in html
+
+
+def test_seal_overlay_avoids_page_break_inside():
+    html = _compile_seal(
+        {
+            "blocks": [
+                {
+                    "id": "seal-page-break",
+                    "type": "seal_overlay",
+                    "url": "{{ company_seal }}",
+                    "width": 100,
+                    "height": 100,
+                    "content": "单位名称：示例\n法定代表人：张三\n账号：123",
+                    "sealOffsetY": 24,
+                }
+            ]
+        }
+    )
+    assert "print-seal-overlay-root" in html
+    assert "page-break-inside: avoid" in html
+    assert "print-columns-with-seal" not in html

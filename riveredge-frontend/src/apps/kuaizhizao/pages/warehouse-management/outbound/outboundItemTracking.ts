@@ -13,13 +13,20 @@ export {
 
 import type { OutboundIssueType } from './outboundHubTypes';
 
+export type OutboundConfirmationBatchAllocation = {
+  batch_number: string;
+  quantity: number;
+};
+
 export type OutboundConfirmationItemPayload = {
   item_id: number;
   warehouse_id?: number;
+  warehouse_name?: string;
   location_id?: number;
   location_code?: string;
   batch_number?: string;
   batch_no?: string;
+  batch_allocations?: OutboundConfirmationBatchAllocation[];
   serial_numbers?: string[];
 };
 
@@ -41,8 +48,19 @@ export function buildOutboundConfirmPayloadFromForm(
     .map((it) => {
       const lineId = Number(it.id);
       if (!Number.isFinite(lineId) || lineId <= 0) return null;
+      const allocRaw = formValues[`batch_alloc_${lineId}`];
+      const allocs = Array.isArray(allocRaw)
+        ? (allocRaw as Array<{ batchNo?: string; quantity?: number }>)
+            .map((a) => ({
+              batch_number: String(a?.batchNo ?? '').trim(),
+              quantity: Number(a?.quantity ?? 0),
+            }))
+            .filter((a) => a.batch_number && a.quantity > 0)
+        : [];
       const batchRaw = formValues[`batch_${lineId}`] ?? it.batch_number;
-      const batch = String(batchRaw ?? '').trim();
+      const batchFromSingle = String(batchRaw ?? '').trim();
+      const batch =
+        allocs.length > 0 ? allocs[0].batch_number : batchFromSingle;
       const locId = formValues[`location_${lineId}`];
       const locCode = formValues[`location_code_${lineId}`] ?? it.location_code;
       const serials = formValues[`serial_${lineId}`] ?? it.serial_numbers;
@@ -58,6 +76,7 @@ export function buildOutboundConfirmPayloadFromForm(
         location_code: locCode != null && String(locCode).trim() ? String(locCode).trim() : undefined,
         batch_number: batch || undefined,
         batch_no: batch || undefined,
+        batch_allocations: allocs.length > 0 ? allocs : undefined,
         serial_numbers: Array.isArray(serials) ? (serials as string[]) : undefined,
       };
     })

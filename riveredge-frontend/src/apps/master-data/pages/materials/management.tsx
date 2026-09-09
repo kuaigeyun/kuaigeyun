@@ -361,6 +361,14 @@ import {
   MATERIAL_PINNED_ACTIVE_FIELD,
   resolveMaterialListParams,
 } from '../../utils/materialListCore'
+import {
+  type MaterialListGroupFilterId,
+  normalizeMaterialListGroupFilterId,
+  persistMaterialListGroupFilter,
+  readPersistedMaterialListGroupFilter,
+  resolveRestoreGroupIdAfterMaterialSave,
+  shouldApplyRestoredGroupSelection,
+} from './materialListGroupFilter'
 import { getSuspendedModal, clearSuspendedModal } from '../../utils/suspendedModal'
 import { useCustomFieldsForList } from '../../../../hooks/useCustomFieldsForList'
 import { useCustomFields } from '../../../../hooks/useCustomFields'
@@ -514,13 +522,11 @@ const MATERIAL_LIST_PATH = '/apps/master-data/materials'
 const MATERIAL_CREATE_PATH = `${MATERIAL_LIST_PATH}/new`
 const materialEditPath = (uuid: string) => `${MATERIAL_LIST_PATH}/${uuid}/edit`
 
-/** 列表左侧分组筛选：null=全部物料，-1=未分组，>0=具体分组 */
-type MaterialListGroupFilterId = number | null
-
 type MaterialListReturnState = {
   reloadMaterials?: boolean
   openFabricationWizard?: FabricationMaterialRef
   restoreGroupId?: MaterialListGroupFilterId
+  closeTab?: string
 }
 
 function readMaterialListGroupFilterFromRef(
@@ -529,39 +535,6 @@ function readMaterialListGroupFilterFromRef(
   const id = ref.current
   if (id == null) return null
   return id
-}
-
-function normalizeMaterialListGroupFilterId(value: unknown): MaterialListGroupFilterId | undefined {
-  if (value === undefined) return undefined
-  if (value === null) return null
-  if (value === 'no-group') return -1
-  const n = Number(value)
-  if (!Number.isFinite(n)) return undefined
-  if (n === -1) return -1
-  if (n > 0) return n
-  return undefined
-}
-
-function resolveRestoreGroupIdAfterMaterialSave(params: {
-  isCreatePage: boolean
-  entryGroupId: MaterialListGroupFilterId | undefined
-  previousGroupId?: number | null
-  savedGroupId?: number | null
-}): MaterialListGroupFilterId {
-  const saved =
-    params.savedGroupId != null && params.savedGroupId > 0 ? params.savedGroupId : null
-  const prev =
-    params.previousGroupId != null && params.previousGroupId > 0
-      ? params.previousGroupId
-      : null
-
-  if (params.isCreatePage) {
-    return saved ?? params.entryGroupId ?? null
-  }
-  if (saved != null && saved !== prev) {
-    return saved
-  }
-  return params.entryGroupId ?? null
 }
 
 function buildMaterialEditFormValues(material: Material): Record<string, unknown> {
@@ -1017,17 +990,20 @@ const MaterialsManagementPage: React.FC = () => {
       selectedGroupIdRef.current = null
       setSelectedGroupId(null)
       setSelectedGroupKeys(['all'])
+      persistMaterialListGroupFilter(null)
       return
     }
     if (groupId === -1) {
       selectedGroupIdRef.current = -1
       setSelectedGroupId(-1)
       setSelectedGroupKeys(['no-group'])
+      persistMaterialListGroupFilter(-1)
       return
     }
     selectedGroupIdRef.current = groupId
     setSelectedGroupId(groupId)
     setSelectedGroupKeys([String(groupId)])
+    persistMaterialListGroupFilter(groupId)
   }, [])
 
   const leaveMaterialFormPage = useCallback(() => {
@@ -1035,6 +1011,7 @@ const MaterialsManagementPage: React.FC = () => {
       formEntryGroupIdRef.current !== undefined
         ? formEntryGroupIdRef.current
         : readMaterialListGroupFilterFromRef(selectedGroupIdRef)
+    persistMaterialListGroupFilter(restoreGroupId)
     navigateClosingTab(
       navigate,
       MATERIAL_LIST_PATH,
@@ -1230,19 +1207,29 @@ const MaterialsManagementPage: React.FC = () => {
 
   useEffect(() => {
     if (isFormPage) return
-    const state = location.state as MaterialListReturnState | null
+    const state = location.state as (MaterialListReturnState & { closeTab?: string }) | null
     if (!state) return
 
-    const restoreGroupId = normalizeMaterialListGroupFilterId(state.restoreGroupId)
-    const hasRestore = restoreGroupId !== undefined
+    let restoreGroupId = normalizeMaterialListGroupFilterId(state.restoreGroupId)
+    if (restoreGroupId === undefined && (state.reloadMaterials || state.restoreGroupId !== undefined)) {
+      restoreGroupId = readPersistedMaterialListGroupFilter()
+    }
+    const hasConcreteRestore = shouldApplyRestoredGroupSelection(restoreGroupId)
     const hasReload = Boolean(state.reloadMaterials)
     const hasWizard = Boolean(state.openFabricationWizard)
 
-    if (!hasRestore && !hasReload && !hasWizard) return
+    if (!hasConcreteRestore && !hasReload && !hasWizard && !state.closeTab) return
 
-    if (hasRestore) {
-      applyMaterialGroupSelection(restoreGroupId ?? null)
+    // 具体分组才应用；restore=null（全部）不得冲掉内存中仍保留的树选中
+    if (hasConcreteRestore) {
+      applyMaterialGroupSelection(restoreGroupId)
     }
+
+    // UniTabs 会再 navigate 剥离 closeTab；本次只同步分组，避免抢先 state:{} 丢掉 restore
+    if (state.closeTab) {
+      return
+    }
+
     if (hasReload) {
       actionRef.current?.reload()
       void loadMaterialGroups()
@@ -1251,7 +1238,9 @@ const MaterialsManagementPage: React.FC = () => {
       setFabricationWizardMaterial(state.openFabricationWizard)
       setFabricationWizardOpen(true)
     }
-    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} })
+    if (hasConcreteRestore || hasReload || hasWizard) {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: {} })
+    }
   }, [
     isFormPage,
     location.state,
@@ -1261,6 +1250,22 @@ const MaterialsManagementPage: React.FC = () => {
     loadMaterialGroups,
     applyMaterialGroupSelection,
   ])
+
+  /**
+   * 列表与表单是不同标签：进编辑时列表会卸载，返回时整页 remount（选中被重置为「全部」）。
+   * 无 navigation state 时从 session 恢复上次分组，否则客户仍会看到跳回全部。
+   */
+  useEffect(() => {
+    if (isFormPage) return
+    const state = location.state as MaterialListReturnState | null
+    if (state?.restoreGroupId !== undefined || state?.reloadMaterials || state?.closeTab) {
+      return
+    }
+    const persisted = readPersistedMaterialListGroupFilter()
+    if (!shouldApplyRestoredGroupSelection(persisted)) return
+    if (selectedGroupIdRef.current === persisted) return
+    applyMaterialGroupSelection(persisted)
+  }, [isFormPage, location.pathname, applyMaterialGroupSelection])
 
   useEffect(() => {
     if (!isFormPage) {
@@ -1272,15 +1277,24 @@ const MaterialsManagementPage: React.FC = () => {
     )
     if (fromState !== undefined) {
       formEntryGroupIdRef.current = fromState
+      persistMaterialListGroupFilter(fromState)
       return
     }
     if (isCreatePage) {
       const raw = searchParams.get('groupId')
       const n = raw != null ? Number(raw) : NaN
-      formEntryGroupIdRef.current = Number.isFinite(n) && n > 0 ? n : null
+      const fromQuery = Number.isFinite(n) && n > 0 ? n : null
+      formEntryGroupIdRef.current = fromQuery
+      if (fromQuery != null) persistMaterialListGroupFilter(fromQuery)
       return
     }
-    formEntryGroupIdRef.current = null
+    // 编辑页无 state（深链 / tabs 丢 state）：回落 session 或当前列表选中，禁止默认成「全部」
+    const fromPersist = readPersistedMaterialListGroupFilter()
+    if (fromPersist !== undefined) {
+      formEntryGroupIdRef.current = fromPersist
+      return
+    }
+    formEntryGroupIdRef.current = readMaterialListGroupFilterFromRef(selectedGroupIdRef)
   }, [isFormPage, isCreatePage, location.state, searchParams])
 
   /**
@@ -1410,7 +1424,10 @@ const MaterialsManagementPage: React.FC = () => {
       setSearchParams({}, { replace: true })
     }
     if (materialUuid && action === 'edit') {
-      navigate(materialEditPath(materialUuid), { replace: true })
+      navigate(materialEditPath(materialUuid), {
+        replace: true,
+        state: buildMaterialFormNavigationState(),
+      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormPage, searchParams, setSearchParams, handleViewMaterial, navigate])
@@ -1582,13 +1599,16 @@ const MaterialsManagementPage: React.FC = () => {
       if (key === 'all') {
         selectedGroupIdRef.current = null
         setSelectedGroupId(null)
+        persistMaterialListGroupFilter(null)
       } else if (key === 'no-group') {
         selectedGroupIdRef.current = -1
         setSelectedGroupId(-1)
+        persistMaterialListGroupFilter(-1)
       } else {
         const groupId = parseInt(key)
         selectedGroupIdRef.current = groupId
         setSelectedGroupId(groupId)
+        persistMaterialListGroupFilter(groupId)
       }
     }
   }
@@ -3701,6 +3721,12 @@ const MaterialsManagementPage: React.FC = () => {
     }
   }
 
+  const pendingMaterialLeaveRef = useRef<{
+    reloadMaterials: true
+    restoreGroupId: MaterialListGroupFilterId
+    openFabricationWizard?: FabricationMaterialRef
+  } | null>(null)
+
   const resolveFabricationWizardMaterial = async (
     saved: Material,
     formValues: Record<string, unknown>,
@@ -3745,24 +3771,33 @@ const MaterialsManagementPage: React.FC = () => {
         previousGroupId,
         savedGroupId,
       })
-      navigateClosingTab(
-        navigate,
-        MATERIAL_LIST_PATH,
-        uniTabKey(location.pathname, location.search),
-        {
-          reloadMaterials: true,
-          restoreGroupId,
-          ...(wizardMaterial ? { openFabricationWizard: wizardMaterial } : {}),
-        },
-      )
+      pendingMaterialLeaveRef.current = {
+        reloadMaterials: true,
+        restoreGroupId,
+        ...(wizardMaterial ? { openFabricationWizard: wizardMaterial } : {}),
+      }
       return saved
     } catch (error: any) {
+      pendingMaterialLeaveRef.current = null
       messageApi.error(error.message || (isEditPage ? t('common.updateFailed') : t('common.createFailed')))
       throw error
     } finally {
       setMaterialFormLoading(false)
     }
   }
+
+  const handleMaterialSubmitSuccess = useCallback(() => {
+    const leave = pendingMaterialLeaveRef.current
+    pendingMaterialLeaveRef.current = null
+    if (!leave) return
+    persistMaterialListGroupFilter(leave.restoreGroupId)
+    navigateClosingTab(
+      navigate,
+      MATERIAL_LIST_PATH,
+      uniTabKey(location.pathname, location.search),
+      leave,
+    )
+  }, [location.pathname, location.search, navigate])
 
   /**
    * 获取物料分组名称
@@ -4321,6 +4356,7 @@ const MaterialsManagementPage: React.FC = () => {
         open
         onClose={leaveMaterialFormPage}
         onFinish={handleMaterialSubmit}
+        onSubmitSuccess={handleMaterialSubmitSuccess}
         isEdit={isEditPage}
         material={currentMaterial || undefined}
         materialGroups={materialGroups}

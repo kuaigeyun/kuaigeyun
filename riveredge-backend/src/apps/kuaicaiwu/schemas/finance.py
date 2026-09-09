@@ -54,9 +54,16 @@ class PayableCreate(PayableBase):
     pull_source_id: Optional[int] = Field(None, description="加载源单ID")
 
 
-class PayableUpdate(PayableBase):
-    """应付单更新schema"""
-    payable_code: Optional[str] = Field(None, max_length=50, description="应付单编码")
+class PayableUpdate(BaseSchema):
+    """应付单更新schema（可纠错字段；未传字段保持原值）"""
+    supplier_id: Optional[int] = None
+    supplier_name: Optional[str] = Field(None, max_length=200)
+    total_amount: Optional[Decimal] = Field(None, gt=0)
+    due_date: Optional[date] = None
+    payment_terms: Optional[str] = Field(None, max_length=100)
+    business_date: Optional[date] = None
+    notes: Optional[str] = None
+    attachments: Optional[List[dict]] = None
 
 
 class PayableResponse(PayableBase):
@@ -213,9 +220,16 @@ class ReceivableCreate(ReceivableBase):
     pull_source_id: Optional[int] = Field(None, description="加载源单ID")
 
 
-class ReceivableUpdate(ReceivableBase):
-    """应收单更新schema"""
-    receivable_code: Optional[str] = Field(None, max_length=50, description="应收单编码")
+class ReceivableUpdate(BaseSchema):
+    """应收单更新schema（可纠错字段；未传字段保持原值）"""
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = Field(None, max_length=200)
+    total_amount: Optional[Decimal] = Field(None, gt=0)
+    due_date: Optional[date] = None
+    payment_terms: Optional[str] = Field(None, max_length=100)
+    business_date: Optional[date] = None
+    notes: Optional[str] = None
+    attachments: Optional[List[dict]] = None
 
 
 class ReceivableResponse(ReceivableBase):
@@ -315,6 +329,9 @@ class PaymentVoucherCreate(PaymentVoucherBase):
 
 class PaymentVoucherUpdate(BaseSchema):
     """付款单更新schema"""
+    supplier_id: Optional[int] = None
+    supplier_name: Optional[str] = Field(None, max_length=200)
+    total_amount: Optional[Decimal] = Field(None, gt=0)
     payment_date: Optional[date] = None
     payment_method: Optional[str] = Field(None, max_length=50)
     bank_account: Optional[str] = Field(None, max_length=100)
@@ -385,6 +402,9 @@ class ReceiptVoucherCreate(ReceiptVoucherBase):
 
 class ReceiptVoucherUpdate(BaseSchema):
     """收款单更新schema"""
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = Field(None, max_length=200)
+    total_amount: Optional[Decimal] = Field(None, gt=0)
     receipt_date: Optional[date] = None
     payment_method: Optional[str] = Field(None, max_length=50)
     bank_account: Optional[str] = Field(None, max_length=100)

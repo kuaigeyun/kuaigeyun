@@ -380,6 +380,21 @@ async def get_purchase_invoice(
         raise _http_exception_with_trace(404, str(e), "/purchase-invoices/{id}", tenant_id)
 
 
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_purchase_invoice(
+    id: int,
+    _auth: object = Depends(require_permission_codes("kuaicaiwu:purchase-invoice:delete")),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """删除采购进项发票（软删除）并清理单据关联。"""
+    try:
+        await invoice_service.delete_purchase_invoice(tenant_id, id)
+    except NotFoundError as e:
+        raise _http_exception_with_trace(404, str(e), "/purchase-invoices/{id}", tenant_id)
+    except BusinessLogicError as e:
+        raise _http_exception_with_trace(400, str(e), "/purchase-invoices/{id}", tenant_id)
+
+
 @router.post("/{id}/approve", response_model=PurchaseInvoiceResponse)
 async def approve_purchase_invoice(
     id: int,

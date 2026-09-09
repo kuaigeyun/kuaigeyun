@@ -709,8 +709,18 @@ const CustomMenuLayoutEditor: React.FC<CustomMenuLayoutEditorProps> = ({
         messageApi.warning(t('pages.system.menus.customLayoutAppCannotHoldMenus'));
         return;
       }
+      // 「转移」：从其它分组移除后再加入目标分组，避免同菜单一边加入一边仍挂在原分组
+      const stripFromOtherGroups = (groups: CustomLayoutGroupNode[]): CustomLayoutGroupNode[] =>
+        groups.map((group) => ({
+          ...group,
+          menuUuids:
+            group.id === activeGroupId
+              ? group.menuUuids
+              : group.menuUuids.filter((uuid) => uuid !== menuUuid),
+          children: stripFromOtherGroups(group.children),
+        }));
       setAppGroups((prev) =>
-        updateGroupTree(prev, activeGroupId, (node) => {
+        updateGroupTree(stripFromOtherGroups(prev), activeGroupId, (node) => {
           if (node.menuUuids.includes(menuUuid)) return node;
           return { ...node, menuUuids: [...node.menuUuids, menuUuid] };
         }),
@@ -739,9 +749,22 @@ const CustomMenuLayoutEditor: React.FC<CustomMenuLayoutEditorProps> = ({
           value={group.menuUuids.filter((uuid) => menuLookup.has(uuid))}
           disabled={group.type === 'app_group'}
           onChange={(value) =>
-            setAppGroups((prev) =>
-              updateGroupTree(prev, group.id, (node) => ({ ...node, menuUuids: value as string[] })),
-            )
+            setAppGroups((prev) => {
+              const nextUuids = value as string[];
+              const added = nextUuids.filter((uuid) => !group.menuUuids.includes(uuid));
+              const stripAddedFromOthers = (
+                groups: CustomLayoutGroupNode[],
+              ): CustomLayoutGroupNode[] =>
+                groups.map((g) => ({
+                  ...g,
+                  menuUuids:
+                    g.id === group.id
+                      ? nextUuids
+                      : g.menuUuids.filter((uuid) => !added.includes(uuid)),
+                  children: stripAddedFromOthers(g.children),
+                }));
+              return stripAddedFromOthers(prev);
+            })
           }
           options={appMenuLibrary.map((item) => ({ value: item.key, label: item.title }))}
           placeholder={t('pages.system.menus.customLayoutGroupMenus')}

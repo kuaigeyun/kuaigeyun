@@ -1056,6 +1056,7 @@ class OQCInspectionService(AppBaseService[OQCInspection]):
             _maybe_create_quality_exception_from_inspection,
             _quality_inspection_conduct_finalize_fields,
             _resolve_conduct_inspector_id,
+            _start_quality_inspection_approval_after_conduct,
         )
 
         row = await OQCInspection.get_or_none(id=inspection_id, tenant_id=tenant_id, deleted_at__isnull=True)
@@ -1110,6 +1111,14 @@ class OQCInspectionService(AppBaseService[OQCInspection]):
         row.updated_by_name = user_info["name"]
         await row.save()
 
+        await _start_quality_inspection_approval_after_conduct(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            stage_code="oqc_inspection",
+            inspection=row,
+            doc_label="出货检验",
+        )
+
         if row.quality_status == "不合格" or payload.inspection_result == "不合格":
             await _maybe_create_quality_exception_from_inspection(
                 tenant_id=tenant_id,
@@ -1130,11 +1139,21 @@ class OQCInspectionService(AppBaseService[OQCInspection]):
         from apps.kuaizhizao.services.document_action_policy.oqc_inspection import (
             assert_oqc_inspection_capability,
         )
+        from apps.kuaizhizao.services.quality_service import (
+            _assert_quality_inspection_pending_approval,
+        )
 
         row = await OQCInspection.get_or_none(id=inspection_id, tenant_id=tenant_id, deleted_at__isnull=True)
         if not row:
             raise NotFoundError("OQC 检验单不存在")
         assert_oqc_inspection_capability(row, "approve" if approve else "reject")
+        await _assert_quality_inspection_pending_approval(
+            tenant_id=tenant_id,
+            stage_code="oqc_inspection",
+            inspection_id=inspection_id,
+            doc_label="出货检验",
+            verb="审核" if approve else "驳回",
+        )
         user_info = await self.get_user_info(user_id)
         row.review_status = "已审核" if approve else "已驳回"
         row.status = "已审核" if approve else "已驳回"
@@ -1173,7 +1192,9 @@ class OQCInspectionService(AppBaseService[OQCInspection]):
         from apps.kuaizhizao.services.document_action_policy.oqc_inspection import (
             assert_oqc_inspection_capability,
         )
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
         from infra.services.business_config_service import BusinessConfigService
 
         row = await OQCInspection.get_or_none(
@@ -1185,9 +1206,9 @@ class OQCInspectionService(AppBaseService[OQCInspection]):
         audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "oqc_inspection"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
         row.status = "已检验"
-        row.review_status = "待审核" if landing == "pending" else ""
+        row.review_status = ""
         row.reviewer_id = None
         row.reviewer_name = None
         row.review_time = None

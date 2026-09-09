@@ -39,7 +39,7 @@ import { DictionarySelect } from '../../../../../components/dictionary-select';
 import { MaterialUnitLabel } from '../../../../../components/material-unit-label';
 import FeeDetailsTable from '../../../../../components/FeeDetailsTable';
 import PriceTypeSwitch, { type PriceTypeValue } from '../../../../../components/price-type-switch/PriceTypeSwitch';
-import { deferConvertLineItemsByPriceType, setFormPriceType } from '../../../../../utils/priceTypeSwitch';
+import { setFormPriceType } from '../../../../../utils/priceTypeSwitch';
 import {
   importDropdownLabelsFromOptions,
   parseImportOptionCell,
@@ -155,7 +155,10 @@ import {
 } from '../../../components/document-detail-table/documentDetailTable';
 import { DocumentAmountSummary } from '../../../components/document-amount-summary/DocumentAmountSummary';
 import {
+  applyDocumentLineInclAmountEdit,
   computeSalesDocumentTotals,
+  recalcDocumentStoredLineAmount,
+  resolveDocumentLineDisplayAmounts,
   resolveSalesDocumentStoredLineAmount,
   resolveSalesDocumentStoredTotalAmount,
   resolveSalesOrderDisplayTotalAmount,
@@ -250,6 +253,7 @@ import { buildFutureDateShortcutFieldProps, FutureDatePicker } from '../../../..
 import { coerceFormDate, toApiDateString, formDateRangeFormItemProps } from '../../../../../utils/formDate';
 import { generateCode, testGenerateCode, getCodeRulePageConfig } from '../../../../../services/codeRule';
 import { isAutoGenerateEnabled, getPageRuleCode } from '../../../../../utils/codeRulePage';
+import CodeField from '../../../../../components/code-field';
 import { getFileDownloadUrl } from '../../../../../services/file';
 import DocumentAttachmentsField from '../../../components/DocumentAttachmentsField';
 /** 用户列表：对接系统管理-用户管理-帐户管理（/core/users） */
@@ -767,6 +771,8 @@ const SalesOrdersPage: React.FC = () => {
   /** 价税合计正在编辑的行：{ index, value }，失焦时反算单价 */
   const [editingIncl, setEditingIncl] = useState<{ index: number; value: number | null } | null>(null);
   const editingInclValueRef = useRef<number | null>(null);
+  /** 价税合计写入 unit_price+item_amount 时跳过 onValuesChange 用单价反算冲掉合计 */
+  const skipLineAmountResyncRef = useRef(false);
   const lastPriceTypeRef = useRef<PriceTypeValue>(DEFAULT_SALES_PRICE_TYPE);
 
   const [modalSubmitting, setModalSubmitting] = useState(false);
@@ -962,7 +968,38 @@ const SalesOrdersPage: React.FC = () => {
   );
 
   const handleSalesOrderFormValuesChange = useCallback(
-    (changedValues: Record<string, unknown>) => {
+    (changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => {
+      const changedItems = changedValues.items;
+      if (Array.isArray(changedItems) && !skipLineAmountResyncRef.current) {
+        const priceType = salesFormPriceType(allValues.price_type);
+        const currentItems = normalizeFormListItems<any>(allValues.items);
+        let dirty = false;
+        const nextItems = currentItems.map((row, index) => {
+          const patch = changedItems[index];
+          if (patch == null || typeof patch !== 'object') return row;
+          const keys = Object.keys(patch as object);
+          const drivers = keys.filter((k) =>
+            k === 'required_quantity' || k === 'unit_price' || k === 'tax_rate' || k === 'is_gift',
+          );
+          if (drivers.length === 0) return row;
+          const item_amount = recalcDocumentStoredLineAmount(
+            {
+              qty: row.required_quantity,
+              unit_price: row.unit_price,
+              tax_rate: row.tax_rate,
+              is_gift: row.is_gift,
+            },
+            priceType,
+          );
+          if (Number(row.item_amount) === item_amount) return row;
+          dirty = true;
+          return { ...row, item_amount };
+        });
+        if (dirty) {
+          formRef.current?.setFieldsValue({ items: nextItems });
+        }
+      }
+
       if (!termTemplateTerms.length || !termFieldBindingKeys.length) return;
       const affectsBindings = Object.keys(changedValues).some((key) =>
         termFieldBindingKeys.includes(key),
@@ -1180,6 +1217,7 @@ const SalesOrdersPage: React.FC = () => {
           required_quantity: Number(item.required_quantity) || 0,
           unit_price: item.unit_price != null ? Number(item.unit_price) : undefined,
           tax_rate: item.tax_rate != null ? Number(item.tax_rate) : 0,
+          item_amount: item.item_amount != null ? Number(item.item_amount) : undefined,
           is_gift: Boolean((item as any).is_gift),
           gift_ref_unit_price:
             (item as any).gift_ref_unit_price != null
@@ -1288,7 +1326,32 @@ const SalesOrdersPage: React.FC = () => {
     lastPriceTypeRef.current = nextType;
     setEditingIncl(null);
     editingInclValueRef.current = null;
-    deferConvertLineItemsByPriceType(formRef.current, fromType, nextType, convertUnitPriceByPriceType);
+    const form = formRef.current;
+    if (!form || fromType === nextType) return;
+    const items = form.getFieldValue('items');
+    if (!Array.isArray(items) || items.length === 0) return;
+    const snapshot = items;
+    queueMicrotask(() => {
+      const convertedItems = snapshot.map((row: Record<string, unknown>) => {
+        const unit_price = convertUnitPriceByPriceType(
+          row?.unit_price,
+          row?.tax_rate,
+          fromType,
+          nextType,
+        );
+        const item_amount = recalcDocumentStoredLineAmount(
+          {
+            qty: row.required_quantity,
+            unit_price,
+            tax_rate: row.tax_rate,
+            is_gift: row.is_gift,
+          },
+          nextType,
+        );
+        return { ...row, unit_price, item_amount };
+      });
+      form.setFieldsValue({ items: convertedItems });
+    });
   }, []);
 
   const openFollowUpFromSalesOrder = (record: SalesOrder) => {
@@ -1484,7 +1547,11 @@ const SalesOrdersPage: React.FC = () => {
           delivery_date: deliveryDateStr ?? mainDeliveryStr,
           unit_price: giftFields.unit_price,
           tax_rate: taxR(it),
-          item_amount: isGift ? 0 : resolveSalesDocumentStoredLineAmount(line, values.price_type),
+          item_amount: isGift
+            ? 0
+            : (it as any).item_amount != null && Number.isFinite(Number((it as any).item_amount))
+              ? Number((it as any).item_amount)
+              : resolveSalesDocumentStoredLineAmount(line, values.price_type),
           is_gift: giftFields.is_gift,
           gift_ref_unit_price: giftFields.gift_ref_unit_price,
           notes: (it as any).notes,
@@ -1666,6 +1733,7 @@ const SalesOrdersPage: React.FC = () => {
   const [pushPreviewConfirming, setPushPreviewConfirming] = useState(false);
   const [workOrderSelectedItemIds, setWorkOrderSelectedItemIds] = useState<number[]>([]);
   const [workOrderPushQuantities, setWorkOrderPushQuantities] = useState<Record<number, number>>({});
+  const [workOrderPushRemarks, setWorkOrderPushRemarks] = useState<Record<number, string>>({});
   const [workOrderSelectedWorkCenters, setWorkOrderSelectedWorkCenters] = useState<Record<number, number>>({});
   const [workCenterList, setWorkCenterList] = useState<WorkCenter[]>([]);
   const [workCenterListLoading, setWorkCenterListLoading] = useState(false);
@@ -1705,6 +1773,7 @@ const SalesOrdersPage: React.FC = () => {
     setPushPreviewData(null);
     setWorkOrderSelectedItemIds([]);
     setWorkOrderPushQuantities({});
+    setWorkOrderPushRemarks({});
     setWorkOrderSelectedWorkCenters({});
     setWorkOrderPushMode('draft');
     setWorkOrderGranularity('grouped');
@@ -1741,6 +1810,7 @@ const SalesOrdersPage: React.FC = () => {
           const rows = Array.isArray(res.items) ? res.items : [];
           const ids: number[] = [];
           const qtyMap: Record<number, number> = {};
+          const remarksMap: Record<number, string> = {};
           rows.forEach((row) => {
             const itemId = Number((row as any).item_id);
             if (!Number.isFinite(itemId) || itemId <= 0) return;
@@ -1749,9 +1819,16 @@ const SalesOrdersPage: React.FC = () => {
               ids.push(itemId);
             }
             qtyMap[itemId] = Number.isFinite(defaultQty) && defaultQty > 0 ? defaultQty : 0;
+            const lineNotes = String((row as any).item_notes ?? '').trim();
+            if (lineNotes) {
+              remarksMap[itemId] = lineNotes;
+            }
           });
           setWorkOrderSelectedItemIds(ids);
           setWorkOrderPushQuantities(qtyMap);
+          if (res.target_type === 'work_order') {
+            setWorkOrderPushRemarks(remarksMap);
+          }
           if (res.target_type === 'work_order') {
             const defaultMode = res.push_mode_default === 'confirm' ? 'confirm' : 'draft';
             setWorkOrderPushMode(defaultMode);
@@ -1805,6 +1882,7 @@ const SalesOrdersPage: React.FC = () => {
         setPushPreviewOpen(false);
         setPushPreviewLoading(false);
         setWorkOrderSelectedWorkCenters({});
+        setWorkOrderPushRemarks({});
         setWorkOrderGranularity('grouped');
       });
   };
@@ -1833,6 +1911,7 @@ const SalesOrdersPage: React.FC = () => {
         }
         const selectedQuantities: Record<number, number> = {};
         const selectedWorkCenters: Record<number, number> = {};
+        const selectedItemRemarks: Record<number, string> = {};
         const selectedBlockingIssues: string[] = [];
         for (const id of selectedIds) {
           const row = rowById.get(id);
@@ -1853,6 +1932,7 @@ const SalesOrdersPage: React.FC = () => {
           if (Number.isFinite(centerId) && centerId > 0) {
             selectedWorkCenters[id] = centerId;
           }
+          selectedItemRemarks[id] = String(workOrderPushRemarks[id] ?? '').trim();
           selectedQuantities[id] = qty;
         }
         if (workOrderPushMode === 'confirm' && selectedBlockingIssues.length > 0) {
@@ -1865,6 +1945,7 @@ const SalesOrdersPage: React.FC = () => {
           selected_item_ids: selectedIds,
           selected_quantities: selectedQuantities,
           selected_work_centers: selectedWorkCenters,
+          selected_item_remarks: selectedItemRemarks,
         });
       } else if (pushPreviewData.target_type === 'shipment_notice') {
         const rows = (pushPreviewData.items || []).filter((row: any) => Number(row?.item_id) > 0);
@@ -2131,9 +2212,14 @@ const SalesOrdersPage: React.FC = () => {
           order: preview.sales_order_code ?? id,
         }),
         onOk: async () => {
-          const project = await deliveryProjectApi.pushFromSalesOrder(id, {});
-          messageApi.success(t('app.kuaizhizao.deliveryProject.pushSuccess'));
-          navigate(`/apps/kuaizhizao/delivery-project/projects/${project.id}`);
+          try {
+            const project = await deliveryProjectApi.pushFromSalesOrder(id, {});
+            messageApi.success(t('app.kuaizhizao.deliveryProject.pushSuccess'));
+            navigate(`/apps/kuaizhizao/delivery-project/projects/${project.id}`);
+          } catch (err: unknown) {
+            messageApi.error(salesOrderCatchMessage(err, t('app.kuaizhizao.salesOrder.pushFailed')));
+            throw err;
+          }
         },
       });
     } catch (e: any) {
@@ -2953,6 +3039,10 @@ const SalesOrdersPage: React.FC = () => {
           unit_price: unitPrice,
           delivery_date: deliveryDate ? coerceFormDate(deliveryDate) ?? undefined : undefined,
           tax_rate: taxR,
+          item_amount: recalcDocumentStoredLineAmount(
+            { qty: quantity, unit_price: unitPrice, tax_rate: taxR },
+            priceTypeForm,
+          ),
         };
       })
       .filter((it): it is NonNullable<typeof it> => it !== null && (it.material_id !== undefined || it.material_code !== ''));
@@ -2994,11 +3084,23 @@ const SalesOrdersPage: React.FC = () => {
       }
       const items = [...normalizeFormListItems<any>(formRef.current?.getFieldValue('items'))];
       if (items[index]) {
-        items[index] = {
+        const nextRow = {
           ...items[index],
           unit_price: up,
           tax_rate: taxRate,
           variant_attributes: attrs ?? items[index].variant_attributes,
+        };
+        items[index] = {
+          ...nextRow,
+          item_amount: recalcDocumentStoredLineAmount(
+            {
+              qty: nextRow.required_quantity,
+              unit_price: nextRow.unit_price,
+              tax_rate: nextRow.tax_rate,
+              is_gift: nextRow.is_gift,
+            },
+            pt,
+          ),
         };
         formRef.current?.setFieldsValue({ items });
       }
@@ -3034,6 +3136,10 @@ const SalesOrdersPage: React.FC = () => {
           delivery_date: coerceFormDate(formRef.current?.getFieldValue('delivery_date')) ?? undefined,
           unit_price: pricing.unitPrice,
           tax_rate: pricing.taxRate,
+          item_amount: recalcDocumentStoredLineAmount(
+            { qty: 1, unit_price: pricing.unitPrice, tax_rate: pricing.taxRate },
+            pt,
+          ),
           variant_attributes: undefined,
           _sourceType: st,
           _masterMaterialUuid: m.uuid,
@@ -3374,6 +3480,22 @@ const SalesOrdersPage: React.FC = () => {
         menuItems={toolbarPushMenuItems}
         disabled={selectedRowKeys.length !== 1 || !selectedOrderForToolbar}
         disabledReason={salesOrderToolbarPushDisabledReason}
+        sourceDocument={
+          selectedOrderForToolbar?.id
+            ? { type: 'sales_order', id: Number(selectedOrderForToolbar.id) }
+            : null
+        }
+        pushTargets={{
+          computation: 'demand_computation',
+          workorder: 'work_order',
+          'delivery-project': 'delivery_project',
+          invoice: 'sales_invoice',
+          shipment: 'shipment_notice',
+          delivery: 'sales_delivery',
+          'sales-return': 'sales_return',
+          'sales-order-change': 'sales_order_change',
+          'backfill-sales-contract': 'sales_contract',
+        }}
       />,
     ],
     [
@@ -4093,12 +4215,15 @@ const SalesOrdersPage: React.FC = () => {
           <div className="document-form-untitled-group">
       <Row gutter={16}>
         <Col span={6}>
-          <ProFormText
+          <CodeField
+            pageCode="kuaizhizao-sales-order"
             name="order_code"
             label={t('app.kuaizhizao.salesOrder.orderCode')}
-            placeholder={isAutoGenerateEnabled('kuaizhizao-sales-order') ? t('app.kuaizhizao.salesOrder.orderCodeAutoPlaceholder') : t('app.kuaizhizao.salesOrder.orderCodePlaceholder')}
-            rules={[{ required: true, message: t('app.kuaizhizao.salesOrder.orderCodeRequired') }]}
-            fieldProps={{ disabled: isEditPage }}
+            required
+            autoGenerateOnCreate={!isEditPage}
+            documentId={isEditPage ? formEditOrder?.id : undefined}
+            codeEditable={formEditOrder?.order_code_editable}
+            lockedReason={formEditOrder?.order_code_locked_reason}
           />
         </Col>
         <Col span={6}>
@@ -4408,7 +4533,17 @@ const SalesOrdersPage: React.FC = () => {
                                   }
                                   onChange={(checked) => {
                                     const nextItems = [...items];
-                                    nextItems[index] = applyGiftToggleToLine(row, checked, material);
+                                    const toggled = applyGiftToggleToLine(row, checked, material);
+                                    const item_amount = recalcDocumentStoredLineAmount(
+                                      {
+                                        qty: toggled.required_quantity,
+                                        unit_price: toggled.unit_price,
+                                        tax_rate: toggled.tax_rate,
+                                        is_gift: toggled.is_gift,
+                                      },
+                                      priceType,
+                                    );
+                                    nextItems[index] = { ...toggled, item_amount };
                                     formRef.current?.setFieldsValue({ items: nextItems });
                                   }}
                                 />
@@ -4470,10 +4605,14 @@ const SalesOrdersPage: React.FC = () => {
                                 {({ getFieldValue }: any) => {
                                   const items = normalizeFormListItems<any>(getFieldValue('items'));
                                   const row = items[index];
-                                  const line = calcSalesLineAmounts(
-                                    row?.required_quantity,
-                                    row?.unit_price,
-                                    row?.tax_rate,
+                                  const line = resolveDocumentLineDisplayAmounts(
+                                    {
+                                      qty: row?.required_quantity,
+                                      unit_price: row?.unit_price,
+                                      tax_rate: row?.tax_rate,
+                                      item_amount: row?.item_amount,
+                                      is_gift: row?.is_gift,
+                                    },
                                     priceType,
                                   );
                                   return (
@@ -4502,7 +4641,19 @@ const SalesOrdersPage: React.FC = () => {
                                   if (rate != null && rate !== '') {
                                     const num = Math.round(parseFloat(rate));
                                     if (!Number.isNaN(num) && num >= 0 && num <= 100) {
-                                      const next = items.map((it: any) => ({ ...it, tax_rate: num }));
+                                      const next = items.map((it: any) => {
+                                        const tax_rate = num;
+                                        const item_amount = recalcDocumentStoredLineAmount(
+                                          {
+                                            qty: it.required_quantity,
+                                            unit_price: it.unit_price,
+                                            tax_rate,
+                                            is_gift: it.is_gift,
+                                          },
+                                          priceType,
+                                        );
+                                        return { ...it, tax_rate, item_amount };
+                                      });
                                       formRef.current?.setFieldsValue({ items: next });
                                     }
                                   }
@@ -4524,10 +4675,14 @@ const SalesOrdersPage: React.FC = () => {
                                 {({ getFieldValue }: any) => {
                                   const items = normalizeFormListItems<any>(getFieldValue('items'));
                                   const row = items[index];
-                                  const line = calcSalesLineAmounts(
-                                    row?.required_quantity,
-                                    row?.unit_price,
-                                    row?.tax_rate,
+                                  const line = resolveDocumentLineDisplayAmounts(
+                                    {
+                                      qty: row?.required_quantity,
+                                      unit_price: row?.unit_price,
+                                      tax_rate: row?.tax_rate,
+                                      item_amount: row?.item_amount,
+                                      is_gift: row?.is_gift,
+                                    },
                                     priceType,
                                   );
                                   return (
@@ -4554,11 +4709,14 @@ const SalesOrdersPage: React.FC = () => {
                             const items = normalizeFormListItems<any>(getFieldValue('items'));
                             const row = items[index];
                             const qty = Number(row?.required_quantity) || 0;
-                            const taxRate = Number(row?.tax_rate) || 0;
-                            const line = calcSalesLineAmounts(
-                              row?.required_quantity,
-                              row?.unit_price,
-                              row?.tax_rate,
+                            const line = resolveDocumentLineDisplayAmounts(
+                              {
+                                qty: row?.required_quantity,
+                                unit_price: row?.unit_price,
+                                tax_rate: row?.tax_rate,
+                                item_amount: row?.item_amount,
+                                is_gift: row?.is_gift,
+                              },
                               priceType,
                             );
                             if (!showTaxColumns) {
@@ -4595,13 +4753,24 @@ const SalesOrdersPage: React.FC = () => {
                                 onBlur={() => {
                                   const incl = editingInclValueRef.current;
                                   if (editingIncl?.index === index && incl != null && qty > 0) {
-                                    const factor = 1 + taxRate / 100;
-                                    const newPrice = priceType === 'tax_inclusive'
-                                      ? incl / qty
-                                      : (factor > 0 ? incl / factor : incl) / qty;
+                                    const applied = applyDocumentLineInclAmountEdit({
+                                      qty,
+                                      taxRate: row?.tax_rate,
+                                      priceType,
+                                      inclAmount: incl,
+                                      priceDecimals,
+                                    });
                                     const next = [...items];
-                                    next[index] = { ...row, unit_price: newPrice };
+                                    next[index] = {
+                                      ...row,
+                                      unit_price: applied.unit_price,
+                                      item_amount: applied.item_amount,
+                                    };
+                                    skipLineAmountResyncRef.current = true;
                                     formRef.current?.setFieldsValue({ items: next });
+                                    queueMicrotask(() => {
+                                      skipLineAmountResyncRef.current = false;
+                                    });
                                   }
                                   setEditingIncl(null);
                                 }}
@@ -5780,6 +5949,7 @@ const SalesOrdersPage: React.FC = () => {
               <Table
                 size="small"
                 dataSource={pushPreviewData.items}
+                scroll={{ x: 1280 }}
                 columns={[
                   {
                     title: t('common.select'),
@@ -5862,6 +6032,36 @@ const SalesOrdersPage: React.FC = () => {
                           onChange={(val) => {
                             const next = Number(val ?? 0);
                             setWorkOrderPushQuantities((prev) => ({ ...prev, [itemId]: next }));
+                          }}
+                        />
+                      );
+                    },
+                  },
+                  {
+                    title: t('common.remark'),
+                    dataIndex: 'item_notes',
+                    key: 'item_notes',
+                    width: 180,
+                    render: (_: unknown, row: any) => {
+                      const itemId = Number(row?.item_id);
+                      if (!Number.isFinite(itemId) || itemId <= 0) return null;
+                      return (
+                        <Input
+                          size={DOCUMENT_DETAIL_CONTROL_SIZE}
+                          maxLength={500}
+                          placeholder={t('common.remark')}
+                          value={workOrderPushRemarks[itemId] ?? ''}
+                          onChange={(e) => {
+                            const text = e.target.value;
+                            setWorkOrderPushRemarks((prev) => {
+                              const next = { ...prev };
+                              if (text.trim()) {
+                                next[itemId] = text;
+                              } else {
+                                delete next[itemId];
+                              }
+                              return next;
+                            });
                           }}
                         />
                       );

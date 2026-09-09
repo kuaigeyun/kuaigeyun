@@ -9,10 +9,14 @@
 
 import React, { useRef, useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import type { TFunction } from 'i18next';
-import { rowActionKind, rowActionLabelKeep } from '../../../../../components/uni-action';
+import { rowActionKind, rowActionLabelKeep, rowActionCreateRefund } from '../../../../../components/uni-action';
 import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
 import { useInvalidateMenuBadgeCounts } from '../../../../../hooks/useInvalidateMenuBadgeCounts';
 import { useNavigate } from 'react-router-dom';
+import {
+  paymentRefundService,
+  PAYMENT_REFUND_RESOURCE,
+} from '../../../../kuaicaiwu/services/finance/payment-refund';
 import {
   ActionType,
   ProColumns,
@@ -162,7 +166,11 @@ import { withSingleNewShortcutHint } from '../../../../../utils/globalNewShortcu
 const PURCHASE_RETURN_RESOURCE = 'kuaizhizao:purchase-return';
 
 const PURCHASE_RETURN_LIST_PERSISTENCE_ID =
-  'apps.kuaizhizao.pages.purchase-management.purchase-returns-width-v1';
+  'apps.kuaizhizao.pages.purchase-management.purchase-returns-width-v2';
+const PURCHASE_RETURN_REFUNDED_STATUSES = new Set(['已退货', 'completed', '已完成', 'RETURNED']);
+
+const isPurchaseReturnRefundEligible = (record: { status?: string; id?: number }) =>
+  record.id != null && PURCHASE_RETURN_REFUNDED_STATUSES.has(String(record.status || '').trim());
 
 /** 与后端 review_status 对齐，供 UniWorkflowActions 识别 */
 const PR_WORKFLOW_DRAFT_STATUSES = ['草稿', 'draft'];
@@ -383,7 +391,9 @@ const PurchaseReturnsPage: React.FC = () => {
   const pullSourceOrderIdRef = useRef<number | undefined>(undefined);
   const [pullSourceOrderId, setPullSourceOrderId] = useState<number | undefined>();
   const [pullSourceOrderOptions, setPullSourceOrderOptions] = useState<Array<{ value: number; label: string }>>([]);
+  const [poPullLineBatch, setPoPullLineBatch] = useState<Record<number, string>>({});
   const purchaseReturnPerms = useResourcePermissions(PURCHASE_RETURN_RESOURCE);
+  const paymentRefundPerms = useResourcePermissions(PAYMENT_REFUND_RESOURCE);
   const invalidateMenuBadgeCounts = useInvalidateMenuBadgeCounts();
   const queryClient = useQueryClient();
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -588,14 +598,6 @@ const PurchaseReturnsPage: React.FC = () => {
         }
   };
 
-  const handleConfirm = async (record: PurchaseReturn) => {
-    modalApi.confirm({
-      title: t('app.kuaizhizao.purchaseReturn.confirmTitle'),
-      content: t('app.kuaizhizao.purchaseReturn.confirmContent', { code: record.return_code }),
-      onOk: () => executeConfirm(record),
-    });
-  };
-
   const handleCreate = () => {
     setEditingId(null);
     setEditingDetail(null);
@@ -640,6 +642,7 @@ const PurchaseReturnsPage: React.FC = () => {
     onOpen: () => {
       pullSourceOrderIdRef.current = undefined;
       setPullSourceOrderId(undefined);
+      setPoPullLineBatch({});
       void listPurchaseOrders({ skip: 0, limit: 100 })
         .then((res) => {
           setPullSourceOrderOptions(
@@ -670,16 +673,32 @@ const PurchaseReturnsPage: React.FC = () => {
     },
     isRowDisabled: (record) => !isPullLineSelectable(record),
     onConfirm: async (_keys, rows) => {
-      const selectedIds = rows
-        .filter((row) => isPullLineSelectable(row))
-        .map((row) => Number(row.id))
-        .filter((id) => id > 0);
+      const selectedRows = rows.filter((row) => isPullLineSelectable(row));
+      const selectedIds = selectedRows.map((row) => Number(row.id)).filter((id) => id > 0);
       if (!selectedIds.length) {
         messageApi.warning(t('app.kuaizhizao.purchaseReturn.pull.selectLinesFirst'));
         return;
       }
+      const lineBatches: Record<number, string> = {};
+      for (const row of selectedRows) {
+        const id = Number(row.id);
+        if (!(id > 0)) continue;
+        const batch =
+          String(poPullLineBatch[id] || row.suggested_batch_number || '').trim() || undefined;
+        if (row.requires_batch_number && !batch) {
+          messageApi.error(
+            t('app.kuaizhizao.purchaseReturn.pull.batchRequired', {
+              material: row.material_name || row.material_code || '-',
+            }),
+          );
+          return;
+        }
+        if (batch) lineBatches[id] = batch;
+      }
       try {
-        const res = await warehouseApi.purchaseReturn.pullFromPurchaseOrderItems(selectedIds);
+        const res = await warehouseApi.purchaseReturn.pullFromPurchaseOrderItems(selectedIds, {
+          lineBatches,
+        });
         messageApi.success(
           res.message ||
             t('app.kuaizhizao.shipmentNotice.createFromSourceSuccess', {
@@ -688,9 +707,10 @@ const PurchaseReturnsPage: React.FC = () => {
             }),
         );
         pullFromPurchaseOrderQuery.closeModal();
+        setPoPullLineBatch({});
         invalidatePurchaseReturnStatistics();
         invalidateMenuBadgeCounts();
-    actionRef.current?.reload();
+        actionRef.current?.reload();
       } catch (error: unknown) {
         messageApi.error(
           getApiErrorMessage(
@@ -704,6 +724,26 @@ const PurchaseReturnsPage: React.FC = () => {
       }
     },
   });
+
+  useEffect(() => {
+    if (!pullFromPurchaseOrderQuery.open) return;
+    const rows = pullFromPurchaseOrderQuery.dataSource;
+    if (!rows.length) return;
+    setPoPullLineBatch((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const row of rows) {
+        const id = Number(row.id);
+        if (!(id > 0) || next[id]) continue;
+        const suggested = String(row.suggested_batch_number || '').trim();
+        if (suggested) {
+          next[id] = suggested;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [pullFromPurchaseOrderQuery.open, pullFromPurchaseOrderQuery.dataSource]);
 
   const pullFromIncomingInspectionQuery = useUniPullQuery<PullIncomingInspectionCandidate>({
     rowKey: 'id',
@@ -834,14 +874,6 @@ const PurchaseReturnsPage: React.FC = () => {
           messageApi.error(getApiErrorMessage(error, t('app.kuaizhizao.purchaseReturn.withdrawFailed')));
           throw error;
         }
-  };
-
-  const handleWithdraw = async (record: PurchaseReturn) => {
-    modalApi.confirm({
-      title: t('app.kuaizhizao.purchaseReturn.withdrawTitle'),
-      content: t('app.kuaizhizao.purchaseReturn.withdrawContent', { code: record.return_code }),
-      onOk: () => executeWithdraw(record),
-    });
   };
 
   const buildPurchaseReturnItemsPayload = (items: any[]) =>
@@ -1226,6 +1258,39 @@ const PurchaseReturnsPage: React.FC = () => {
     }
   };
 
+  const handleCreateRefund = useCallback(
+    async (record: PurchaseReturn) => {
+      if (!paymentRefundPerms.canCreate) {
+        messageApi.warning(t('app.kuaizhizao.purchaseReturn.refundNoPermission'));
+        return;
+      }
+      if (!isPurchaseReturnRefundEligible(record)) {
+        messageApi.warning(t('app.kuaizhizao.purchaseReturn.refundNotCompleted'));
+        return;
+      }
+      const returnId = Number(record.id);
+      if (!Number.isFinite(returnId) || returnId <= 0) return;
+      try {
+        const resolved = await paymentRefundService.resolveFromPurchaseReturn(returnId);
+        const ids = (resolved.source_ids || [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0);
+        if (!ids.length) {
+          messageApi.warning(t('app.kuaizhizao.purchaseReturn.refundNoPayment'));
+          return;
+        }
+        navigate('/apps/kuaicaiwu/finance-management/payment-refunds', {
+          state: { pullSourceIds: ids },
+        });
+      } catch (error) {
+        messageApi.error(
+          getApiErrorMessage(error, t('app.kuaizhizao.purchaseReturn.refundResolveFailed')),
+        );
+      }
+    },
+    [messageApi, navigate, paymentRefundPerms.canCreate, t],
+  );
+
   const columns: ProColumns<PurchaseReturn>[] = useMemo(
     () => alignProColumns<PurchaseReturn>([
       {
@@ -1460,35 +1525,58 @@ const PurchaseReturnsPage: React.FC = () => {
           );
           if (canShowPurchaseReturnConfirm(record, purchaseReturnPerms.canAction?.('submit') ?? false)) {
             parts.push(
-              <Button
-                {...rowActionKind('skip')}
-                {...rowActionLabelKeep()}
+              <ActionConfirmPopconfirm
                 key="c"
-                type="link"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleConfirm(record);
-                }}
+                title={t('app.kuaizhizao.purchaseReturn.confirmTitle')}
+                description={t('app.kuaizhizao.purchaseReturn.confirmContent', {
+                  code: record.return_code,
+                })}
+                onConfirm={() => executeConfirm(record)}
               >
-                {t('app.kuaizhizao.purchaseReturn.confirmReturn')}
-              </Button>
+                <Button
+                  {...rowActionKind('submit')}
+                  {...rowActionLabelKeep()}
+                  type="link"
+                  size="small"
+                  icon={<CheckCircleOutlined />}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {t('app.kuaizhizao.purchaseReturn.confirmReturn')}
+                </Button>
+              </ActionConfirmPopconfirm>,
             );
           }
           if (record.capabilities?.withdraw?.allowed === true && (purchaseReturnPerms.canAction?.('revoke') ?? false)) {
             parts.push(
-              <Button {...rowActionKind('skip')}
+              <ActionConfirmPopconfirm
                 key="w"
-                type="link"
-                size="small"
+                title={t('app.kuaizhizao.purchaseReturn.withdrawTitle')}
+                description={t('app.kuaizhizao.purchaseReturn.withdrawContent', {
+                  code: record.return_code,
+                })}
+                onConfirm={() => executeWithdraw(record)}
+              >
+                <Button
+                  {...rowActionKind('revoke')}
+                  type="link"
+                  size="small"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {t('app.kuaizhizao.purchaseReturn.withdrawConfirm')}
+                </Button>
+              </ActionConfirmPopconfirm>,
+            );
+          }
+          if (isPurchaseReturnRefundEligible(record) && paymentRefundPerms.canCreate) {
+            parts.push(
+              <Button
+                {...rowActionCreateRefund('create')}
+                key="refund"
                 onClick={(e) => {
                   e.stopPropagation();
-                  void handleWithdraw(record);
+                  void handleCreateRefund(record);
                 }}
-              >
-                {t('app.kuaizhizao.purchaseReturn.withdrawConfirm')}
-              </Button>
+              />,
             );
           }
           return parts;
@@ -1496,11 +1584,13 @@ const PurchaseReturnsPage: React.FC = () => {
       },
     ], SALES_DOC_LIST_FIELD_RANK),
     [
-      handleConfirm,
+      executeConfirm,
+      executeWithdraw,
+      handleCreateRefund,
       handleDetail,
       handleEdit,
       handlePurchaseReturnAuditSuccess,
-      handleWithdraw,
+      paymentRefundPerms.canCreate,
       purchaseReturnAuditColumn,
       purchaseReturnCustomFieldColumns,
       purchaseReturnLifecycleValueEnum,
@@ -1663,6 +1753,66 @@ const PurchaseReturnsPage: React.FC = () => {
         render: (v) => formatQuantity(v),
       },
       {
+        title: t('app.kuaizhizao.purchaseReturn.import.batchNumber'),
+        key: 'batch_number',
+        dataIndex: 'suggested_batch_number',
+        width: 160,
+        render: (_: unknown, record: PurchaseReturnPullLine) => {
+          const options = (record.available_batches || [])
+            .map((row) => String(row.batch_number || '').trim())
+            .filter(Boolean)
+            .map((batch) => ({ value: batch, label: batch }));
+          const current = poPullLineBatch[record.id] ?? record.suggested_batch_number ?? undefined;
+          if (!record.requires_batch_number && !options.length) {
+            return current || '-';
+          }
+          if (!options.length) {
+            return (
+              <Input
+                size="small"
+                allowClear={!record.requires_batch_number}
+                placeholder={t('app.kuaizhizao.purchaseReturn.pull.selectBatch')}
+                value={current || undefined}
+                status={record.requires_batch_number && !current ? 'error' : undefined}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  const next = String(e.target.value || '').trim();
+                  setPoPullLineBatch((prev) => {
+                    const copy = { ...prev };
+                    if (next) copy[record.id] = next;
+                    else delete copy[record.id];
+                    return copy;
+                  });
+                }}
+              />
+            );
+          }
+          return (
+            <Select
+              size="small"
+              allowClear={!record.requires_batch_number}
+              showSearch
+              optionFilterProp="label"
+              placeholder={t('app.kuaizhizao.purchaseReturn.pull.selectBatch')}
+              style={{ width: '100%' }}
+              value={current || undefined}
+              options={options}
+              status={record.requires_batch_number && !current ? 'error' : undefined}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(value) => {
+                const next = String(value || '').trim();
+                setPoPullLineBatch((prev) => {
+                  const copy = { ...prev };
+                  if (next) copy[record.id] = next;
+                  else delete copy[record.id];
+                  return copy;
+                });
+              }}
+            />
+          );
+        },
+      },
+      {
         title: t('app.kuaizhizao.receiptNotice.supplier'),
         dataIndex: 'supplier_name',
         width: 140,
@@ -1687,7 +1837,7 @@ const PurchaseReturnsPage: React.FC = () => {
           ),
       },
     ],
-    [t, i18n.language],
+    [t, i18n.language, poPullLineBatch],
   );
 
   const pullIncomingInspectionColumns = useMemo<ProColumns<PullIncomingInspectionCandidate>[]>(
@@ -2462,6 +2612,16 @@ const PurchaseReturnsPage: React.FC = () => {
                       <Button {...rowActionKind('update')} onClick={() => void handleEdit(returnDetail)}>
                         {t('common.edit')}
                       </Button>
+                    ),
+                  },
+                  {
+                    key: 'refund',
+                    visible: isPurchaseReturnRefundEligible(returnDetail) && paymentRefundPerms.canCreate,
+                    render: () => (
+                      <Button
+                        {...rowActionCreateRefund('create')}
+                        onClick={() => void handleCreateRefund(returnDetail)}
+                      />
                     ),
                   },
                 ]}

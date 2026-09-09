@@ -128,6 +128,10 @@ const supplierBusinessFields: FieldConfig[] = [
         labelKey: 'pages.system.configCenter.param.finance_payable_recognition_opt_on_purchase_invoice',
         value: 'on_purchase_invoice',
       },
+      {
+        labelKey: 'pages.system.configCenter.param.finance_payable_recognition_opt_manual',
+        value: 'manual',
+      },
     ],
   },
   {

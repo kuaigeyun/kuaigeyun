@@ -1,19 +1,22 @@
 /**
  * 供应商选择下拉：快速新建 / 快速编辑 / 高级搜索
+ *
+ * 选中时必须带回完整引用展示（含联系人），禁止因「不在本地 200 条缓存 / 高级搜索」而 onSupplierPick(null)。
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { App } from 'antd';
 import { UniDropdown, type UniDropdownProps } from '../../../components/uni-dropdown';
 import type { Supplier } from '../types/supply-chain';
 import { SupplierFormModal } from './SupplierFormModal';
-import { useGlobalStore } from '../../../stores/globalStore';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import {
   ReferenceDisplayAccessError,
   canReadReferenceResource,
   mapPartnerReferenceDisplayItem,
   referenceDisplayToIdOptions,
+  resolveReferenceDisplay,
   searchReferenceDisplay,
+  type ReferenceDisplayItem,
 } from '../../../utils/referenceDisplay';
 
 function formatSupplierLabel(s: Supplier | Record<string, unknown>): string {
@@ -28,6 +31,10 @@ function getSupplierId(s: Supplier | Record<string, unknown>): number | undefine
   const row = s as Record<string, unknown>;
   const id = row.id ?? row.supplier_id;
   return id != null ? Number(id) : undefined;
+}
+
+function mapDisplayItemsToSuppliers(items: ReferenceDisplayItem[]): Supplier[] {
+  return items.map((item) => mapPartnerReferenceDisplayItem(item) as Supplier);
 }
 
 export type SupplierSelectDropdownProps = Omit<
@@ -58,6 +65,7 @@ export const SupplierSelectDropdown: React.FC<SupplierSelectDropdownProps> = ({
   const currentUser = useCurrentUser();
   const [internalSuppliers, setInternalSuppliers] = useState<Supplier[]>([]);
   const [internalLoading, setInternalLoading] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editUuid, setEditUuid] = useState<string | null>(null);
 
@@ -75,6 +83,27 @@ export const SupplierSelectDropdown: React.FC<SupplierSelectDropdownProps> = ({
     return [...prev, supplier];
   }, []);
 
+  const mergeManySuppliers = useCallback(
+    (prev: Supplier[], incoming: Supplier[]) => {
+      let next = prev;
+      for (const s of incoming) {
+        next = mergeSupplierList(next, s);
+      }
+      return next;
+    },
+    [mergeSupplierList],
+  );
+
+  const commitSupplierList = useCallback(
+    (nextList: Supplier[]) => {
+      if (suppliersProp == null) {
+        setInternalSuppliers(nextList);
+      }
+      onSuppliersChange?.(nextList);
+    },
+    [onSuppliersChange, suppliersProp],
+  );
+
   const refreshSuppliers = useCallback(async () => {
     setInternalLoading(true);
     try {
@@ -83,13 +112,8 @@ export const SupplierSelectDropdown: React.FC<SupplierSelectDropdownProps> = ({
         hostResource,
         pageSize: 200,
       });
-      const list = res.items.map(
-        (item) => mapPartnerReferenceDisplayItem(item) as Supplier,
-      );
-      if (suppliersProp == null) {
-        setInternalSuppliers(list);
-      }
-      onSuppliersChange?.(list);
+      const list = mapDisplayItemsToSuppliers(res.items);
+      commitSupplierList(list);
       return list;
     } catch (err) {
       if (err instanceof ReferenceDisplayAccessError) {
@@ -99,7 +123,7 @@ export const SupplierSelectDropdown: React.FC<SupplierSelectDropdownProps> = ({
     } finally {
       setInternalLoading(false);
     }
-  }, [hostResource, messageApi, onSuppliersChange, suppliersProp]);
+  }, [commitSupplierList, hostResource, messageApi]);
 
   useEffect(() => {
     if (autoLoad && suppliersProp == null) {
@@ -116,13 +140,57 @@ export const SupplierSelectDropdown: React.FC<SupplierSelectDropdownProps> = ({
     [suppliers],
   );
 
+  const resolveSupplierById = useCallback(
+    async (supplierId: number): Promise<Supplier | null> => {
+      const cached = suppliers.find((x) => getSupplierId(x) === supplierId);
+      if (cached) return cached;
+      try {
+        const items = await resolveReferenceDisplay({
+          resource: 'master-data:supply-chain:supplier',
+          recordIds: [supplierId],
+          hostResource,
+        });
+        if (!items.length) return null;
+        const mapped = mapPartnerReferenceDisplayItem(items[0]) as Supplier;
+        commitSupplierList(mergeSupplierList(suppliers, mapped));
+        return mapped;
+      } catch (err) {
+        if (err instanceof ReferenceDisplayAccessError) {
+          messageApi.warning(err.message);
+        }
+        return null;
+      }
+    },
+    [commitSupplierList, hostResource, mergeSupplierList, messageApi, suppliers],
+  );
+
   const handleChange = useCallback(
     (value: number | undefined, option: unknown) => {
-      const s = value != null ? suppliers.find((x) => getSupplierId(x) === value) : null;
-      onSupplierPick?.(s ?? null);
       onChange?.(value, option as Parameters<NonNullable<UniDropdownProps['onChange']>>[1]);
+      if (value == null) {
+        onSupplierPick?.(null);
+        return;
+      }
+      const id = Number(value);
+      if (!Number.isFinite(id) || id <= 0) {
+        onSupplierPick?.(null);
+        return;
+      }
+      const cached = suppliers.find((x) => getSupplierId(x) === id);
+      if (cached) {
+        onSupplierPick?.(cached);
+        return;
+      }
+      setPicking(true);
+      void resolveSupplierById(id)
+        .then((s) => {
+          onSupplierPick?.(s);
+        })
+        .finally(() => {
+          setPicking(false);
+        });
     },
-    [onChange, onSupplierPick, suppliers],
+    [onChange, onSupplierPick, resolveSupplierById, suppliers],
   );
 
   const openCreate = useCallback(() => {
@@ -147,10 +215,7 @@ export const SupplierSelectDropdown: React.FC<SupplierSelectDropdownProps> = ({
   const handleSuccess = useCallback(
     (supplier: Supplier) => {
       const nextList = mergeSupplierList(suppliers, supplier);
-      if (suppliersProp == null) {
-        setInternalSuppliers(nextList);
-      }
-      onSuppliersChange?.(nextList);
+      commitSupplierList(nextList);
       onSupplierPick?.(supplier);
       onChange?.(supplier.id, {
         value: supplier.id,
@@ -159,7 +224,7 @@ export const SupplierSelectDropdown: React.FC<SupplierSelectDropdownProps> = ({
       setFormOpen(false);
       setEditUuid(null);
     },
-    [mergeSupplierList, onChange, onSupplierPick, onSuppliersChange, suppliers, suppliersProp],
+    [commitSupplierList, mergeSupplierList, onChange, onSupplierPick, suppliers],
   );
 
   const canManageSupplier = canReadReferenceResource(currentUser, 'master-data:supply-chain:supplier');
@@ -170,7 +235,7 @@ export const SupplierSelectDropdown: React.FC<SupplierSelectDropdownProps> = ({
         {...rest}
         showSearch
         allowClear
-        loading={loading}
+        loading={loading || picking}
         options={options}
         onChange={handleChange}
         quickCreate={
@@ -200,6 +265,8 @@ export const SupplierSelectDropdown: React.FC<SupplierSelectDropdownProps> = ({
                 keyword: values.keyword,
                 pageSize: 200,
               });
+              const mapped = mapDisplayItemsToSuppliers(res.items);
+              commitSupplierList(mergeManySuppliers(suppliers, mapped));
               return referenceDisplayToIdOptions(res.items);
             } catch (err) {
               if (err instanceof ReferenceDisplayAccessError) {

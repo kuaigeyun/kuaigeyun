@@ -52,6 +52,23 @@ def exclude_staging_picking_ids(
     return [int(x) for x in picking_ids if int(x) not in staging]
 
 
+def resolve_work_order_pick_limit(
+    allowed_bom: Decimal,
+    over_issue_allowance_ratio: Decimal,
+) -> Decimal:
+    """
+    工单领料上限 = BOM 配方毛需求 × (1 + 组织允许超发比例)。
+    over_issue_allowance_ratio 取值 0～1，默认 0 与历史口径一致。
+    """
+    ratio = mrp_qty(over_issue_allowance_ratio)
+    if ratio < 0:
+        ratio = Decimal("0")
+    if ratio > 1:
+        ratio = Decimal("1")
+    base = mrp_qty(allowed_bom)
+    return mrp_qty(base * (Decimal("1") + ratio))
+
+
 def exceeds_work_order_pick_limit(total_attempt: Decimal, allowed: Decimal) -> bool:
     """
     工单领料是否超出 BOM 配方上限（含 1% 容差）。

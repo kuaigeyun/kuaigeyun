@@ -328,3 +328,11 @@ class CodeRuleComponentsConfig(BaseModel):
         
         return v
 
+
+class DocumentCodeEditabilityResponse(BaseModel):
+    """单据编号可编辑性（草稿或无下游可改）。"""
+
+    editable: bool = Field(..., description="编号是否可编辑")
+    locked_reason: Optional[str] = Field(None, description="锁定原因码（i18n key）")
+    code_field: str = Field(..., description="编号字段名")
+

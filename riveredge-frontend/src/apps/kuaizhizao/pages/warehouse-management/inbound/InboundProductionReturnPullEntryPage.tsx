@@ -306,6 +306,7 @@ const InboundProductionReturnPullEntryPage: React.FC = () => {
         warehouse_id: warehouseId,
         warehouse_name: whOpt.name,
         return_time: toApiDateTimeString(returnTime),
+        returner_id: receiverHook.receiverId,
         returner_name: receiverHook.receiverName.trim() || undefined,
         notes: returnNotes.trim() || undefined,
         items: activeLines.map((it) => ({

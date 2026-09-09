@@ -1189,6 +1189,24 @@ class ReportingService(AppBaseService[ReportingRecord]):
                 approved_by_name=approved_by_name,
             )
 
+            if reporting_record.status == "pending" and reporting_audit_required:
+                from core.services.approval.audit_flow_guard import start_document_approval_or_raise
+
+                await start_document_approval_or_raise(
+                    tenant_id=tenant_id,
+                    user_id=reported_by,
+                    node_key="reporting_record",
+                    entity_type="reporting_record",
+                    entity_id=int(reporting_record.id),
+                    entity_uuid=str(reporting_record.uuid),
+                    title=f"报工审批: {trusted_work_order_code}",
+                    content=(
+                        f"工序: {trusted_operation_name}, "
+                        f"数量: {reporting_data.reported_quantity}"
+                    ),
+                    doc_label="报工记录",
+                )
+
             # 更新工单工序状态和进度（核心功能，新增）
             if work_order_operation.status == 'pending':
                 work_order_operation.status = 'in_progress'
@@ -1770,6 +1788,20 @@ class ReportingService(AppBaseService[ReportingRecord]):
             if record.status != 'pending':
                 raise ValidationError("只能审核待审核状态的报工记录")
 
+            audit_required = await BusinessConfigService().check_audit_required(
+                tenant_id, "reporting_record"
+            )
+            from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+
+            await assert_pending_approval_instance(
+                tenant_id=tenant_id,
+                entity_type="reporting_record",
+                entity_id=record_id,
+                audit_required=audit_required,
+                doc_label="报工记录",
+                verb="驳回" if rejection_reason else "审核",
+            )
+
             # 获取审核人信息
             approved_by_name = await self.get_user_name(approved_by)
 
@@ -1908,8 +1940,24 @@ class ReportingService(AppBaseService[ReportingRecord]):
             if record.status != 'approved':
                 raise ValidationError("只有已审核通过的报工记录才可以撤回审核")
 
-            # 更新记录状态
-            record.status = 'pending'
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+            from core.services.approval.audit_transition import (
+                resolve_revoke_to_draft_landing_phase,
+            )
+
+            audit_required = await BusinessConfigService().check_audit_required(
+                tenant_id, "reporting_record"
+            )
+            _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
+            await ApprovalInstanceService.cancel_approval(
+                tenant_id=tenant_id,
+                entity_type="reporting_record",
+                entity_id=record_id,
+                operator_id=revoked_by,
+            )
+
+            # 更新记录状态：一律草稿，须重新提交再审
+            record.status = 'draft'
             record.approved_at = None
             record.approved_by = None
             record.approved_by_name = None
@@ -1925,12 +1973,52 @@ class ReportingService(AppBaseService[ReportingRecord]):
 
             await record.save()
 
-            # 重新计算工单进度（因为 status 变为 pending，_update_work_order_progress 只统计 approved）
+            # 重新计算工单进度（因为 status 变为 draft，_update_work_order_progress 只统计 approved）
             await self._update_work_order_progress(tenant_id, record.work_order_id)
             
             logger.info(f"撤回报工审核成功：报工记录ID {record_id}，操作人 {user_info['name']}")
 
             return ReportingRecordResponse.model_validate(record)
+
+    async def submit_reporting_record(
+        self,
+        tenant_id: int,
+        record_id: int,
+        submitted_by: int,
+    ) -> ReportingRecordResponse:
+        """草稿/驳回报工重新提交审核并启动审批流。"""
+        record = await ReportingRecord.get_or_none(id=record_id, tenant_id=tenant_id)
+        if not record:
+            raise NotFoundError(f"报工记录不存在: {record_id}")
+        assert_reporting_record_capability(record, "submit")
+
+        audit_required = await BusinessConfigService().check_audit_required(
+            tenant_id, "reporting_record"
+        )
+        if not audit_required:
+            # 关审：提交即自动通过（与创建时 auto 路径一致）
+            return await self.approve_reporting_record(tenant_id, record_id, submitted_by)
+
+        from core.services.approval.audit_flow_guard import start_document_approval_or_raise
+
+        await start_document_approval_or_raise(
+            tenant_id=tenant_id,
+            user_id=submitted_by,
+            node_key="reporting_record",
+            entity_type="reporting_record",
+            entity_id=int(record.id),
+            entity_uuid=str(record.uuid),
+            title=f"报工审批: {record.work_order_code or record.id}",
+            content=(
+                f"工序: {record.operation_name or record.operation_code or '—'}, "
+                f"数量: {record.reported_quantity}"
+            ),
+            doc_label="报工记录",
+        )
+        record.status = "pending"
+        record.rejection_reason = None
+        await record.save()
+        return ReportingRecordResponse.model_validate(record)
 
     async def batch_revoke_reporting_approval(
         self,
@@ -1983,8 +2071,8 @@ class ReportingService(AppBaseService[ReportingRecord]):
                         results["details"].append({"id": rid, "status": "failed", "reason": f"当前状态为 {record.status}，无法撤回审核"})
                         continue
 
-                    # 更新记录状态
-                    record.status = 'pending'
+                    # 更新记录状态：一律草稿
+                    record.status = 'draft'
                     record.approved_at = None
                     record.approved_by = None
                     record.approved_by_name = None
@@ -1997,6 +2085,14 @@ class ReportingService(AppBaseService[ReportingRecord]):
                         record.remarks = revocation_note
 
                     await record.save()
+                    from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+                    await ApprovalInstanceService.cancel_approval(
+                        tenant_id=tenant_id,
+                        entity_type="reporting_record",
+                        entity_id=int(rid),
+                        operator_id=revoked_by,
+                    )
                     affected_work_order_ids.add(record.work_order_id)
                     
                     results["success"] += 1

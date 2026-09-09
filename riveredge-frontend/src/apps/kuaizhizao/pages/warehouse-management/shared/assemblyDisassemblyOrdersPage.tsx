@@ -55,12 +55,25 @@ import {
 import { useNewShortcut } from '../../../../../hooks/useNewShortcut';
 import { withSingleNewShortcutHint } from '../../../../../utils/globalNewShortcut';
 import { getAntdModal } from '../../../../../utils/antdAppApis';
+import { materialApi } from '../../../../master-data/services/material';
+import type { Material } from '../../../../master-data/types/material';
+import {
+  loadBatchOptionsByMaterialId,
+  type InventoryPickOption,
+} from '../outbound/outboundConfirmInventoryOptions';
+import {
+  isMaterialBatchEntryEnabled,
+  useWarehouseTrackingFlags,
+} from './warehouseTrackingFlags';
+
 type OrderLike = {
   id?: number;
   code?: string;
   warehouse_id?: number;
   warehouse_name?: string;
+  product_material_id?: number;
   product_material_name?: string;
+  product_batch_number?: string;
   total_quantity?: number;
   total_items?: number;
   status?: string;
@@ -80,6 +93,7 @@ type ItemLike = {
   quantity?: number;
   unit_price?: number;
   amount?: number;
+  batch_number?: string;
   status?: string;
   remarks?: string;
   [key: string]: any;
@@ -123,6 +137,8 @@ type PageConfig = {
   attachmentCategory: string;
   getLifecycle: (record: Record<string, unknown>, t: LifecycleTranslateFn) => LifecycleResult;
   enableTemplateApply?: boolean;
+  /** product=拆卸扣成品；items=组装扣组件 */
+  stockConsumeKind: 'product' | 'items';
 };
 
 const orderStatusKeys: Record<string, { key: string; color: string }> = {
@@ -165,6 +181,160 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
     { label: string; value: number; productMaterialId?: number }[]
   >([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>();
+  const [productBatchManaged, setProductBatchManaged] = useState(false);
+  const [productBatchOptions, setProductBatchOptions] = useState<InventoryPickOption[]>([]);
+  const [productBatchLoading, setProductBatchLoading] = useState(false);
+  const [itemBatchManaged, setItemBatchManaged] = useState(false);
+  const [itemBatchOptions, setItemBatchOptions] = useState<InventoryPickOption[]>([]);
+  const [itemBatchLoading, setItemBatchLoading] = useState(false);
+  const trackingFlags = useWarehouseTrackingFlags();
+
+  const resolveMaterialBatchManaged = async (
+    material?: Material | null,
+    materialId?: number,
+  ): Promise<boolean> => {
+    let managed = !!(material?.batchManaged ?? (material as { batch_managed?: boolean } | null | undefined)?.batch_managed);
+    const uuid = String(material?.uuid ?? '').trim();
+    if (uuid) {
+      try {
+        const full = await materialApi.get(uuid);
+        managed = !!full.batchManaged;
+      } catch {
+        // keep picker / list flag
+      }
+      return isMaterialBatchEntryEnabled(trackingFlags, managed);
+    }
+    const id = Number(materialId ?? material?.id ?? 0);
+    if (id > 0) {
+      try {
+        const res = await materialApi.list({ ids: [id], limit: 1 });
+        const row = res.items?.[0];
+        if (row) managed = !!row.batchManaged;
+      } catch {
+        // keep prior flag
+      }
+    }
+    return isMaterialBatchEntryEnabled(trackingFlags, managed);
+  };
+
+  const loadProductBatchOptions = async (
+    materialId?: number,
+    warehouseId?: number,
+  ): Promise<InventoryPickOption[]> => {
+    if (config.stockConsumeKind !== 'product' || !materialId || !warehouseId) {
+      setProductBatchOptions([]);
+      return [];
+    }
+    setProductBatchLoading(true);
+    try {
+      const map = await loadBatchOptionsByMaterialId([materialId], warehouseId);
+      const options = map[materialId] ?? [];
+      setProductBatchOptions(options);
+      return options;
+    } catch {
+      setProductBatchOptions([]);
+      return [];
+    } finally {
+      setProductBatchLoading(false);
+    }
+  };
+
+  const loadItemBatchOptions = async (
+    materialId?: number,
+    warehouseId?: number,
+  ): Promise<InventoryPickOption[]> => {
+    if (config.stockConsumeKind !== 'items' || !materialId || !warehouseId) {
+      setItemBatchOptions([]);
+      return [];
+    }
+    setItemBatchLoading(true);
+    try {
+      const map = await loadBatchOptionsByMaterialId([materialId], warehouseId);
+      const options = map[materialId] ?? [];
+      setItemBatchOptions(options);
+      return options;
+    } catch {
+      setItemBatchOptions([]);
+      return [];
+    } finally {
+      setItemBatchLoading(false);
+    }
+  };
+
+  const syncProductOutboundBatch = async (
+    material: Material | undefined,
+    materialId?: number,
+    warehouseId?: number,
+    preferBatch?: string,
+  ) => {
+    if (config.stockConsumeKind !== 'product') {
+      setProductBatchManaged(false);
+      setProductBatchOptions([]);
+      return;
+    }
+    const enabled = await resolveMaterialBatchManaged(material, materialId);
+    setProductBatchManaged(enabled);
+    if (!enabled) {
+      setProductBatchOptions([]);
+      createFormRef.current?.setFieldsValue({ product_batch_number: undefined });
+      return;
+    }
+    const mid = Number(materialId ?? material?.id ?? createFormRef.current?.getFieldValue('product_material_id'));
+    const wid = Number(warehouseId ?? createFormRef.current?.getFieldValue('warehouse_id'));
+    const options = await loadProductBatchOptions(mid, wid);
+    const preferred = String(preferBatch ?? createFormRef.current?.getFieldValue('product_batch_number') ?? '').trim();
+    let next: string | undefined;
+    if (preferred && options.some((o) => o.value === preferred)) {
+      next = preferred;
+    } else if (options.length === 1) {
+      next = options[0].value;
+    } else {
+      next = undefined;
+    }
+    createFormRef.current?.setFieldsValue({ product_batch_number: next });
+  };
+
+  const syncItemOutboundBatch = async (
+    material: Material | undefined,
+    materialId?: number,
+    preferBatch?: string,
+  ) => {
+    if (config.stockConsumeKind !== 'items') {
+      setItemBatchManaged(false);
+      setItemBatchOptions([]);
+      return;
+    }
+    const enabled = await resolveMaterialBatchManaged(material, materialId);
+    setItemBatchManaged(enabled);
+    if (!enabled) {
+      setItemBatchOptions([]);
+      itemFormRef.current?.setFieldsValue({ batch_number: undefined });
+      return;
+    }
+    const mid = Number(materialId ?? material?.id ?? itemFormRef.current?.getFieldValue('material_id'));
+    const wid = Number(currentOrder?.warehouse_id ?? 0);
+    const options = await loadItemBatchOptions(mid, wid);
+    const preferred = String(preferBatch ?? itemFormRef.current?.getFieldValue('batch_number') ?? '').trim();
+    let next: string | undefined;
+    if (preferred && options.some((o) => o.value === preferred)) {
+      next = preferred;
+    } else if (options.length === 1) {
+      next = options[0].value;
+    } else {
+      next = undefined;
+    }
+    itemFormRef.current?.setFieldsValue({ batch_number: next });
+  };
+
+  const resetProductBatchUi = () => {
+    setProductBatchManaged(false);
+    setProductBatchOptions([]);
+  };
+
+  const resetItemBatchUi = () => {
+    setItemBatchManaged(false);
+    setItemBatchOptions([]);
+  };
 
   const loadTemplateOptions = async (productMaterialId?: number) => {
     if (!config.enableTemplateApply) return;
@@ -208,6 +378,7 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
 
   const openCreateModal = () => {
     setEditingOrder(null);
+    resetProductBatchUi();
     setCreateModalVisible(true);
     setTimeout(() => {
       createFormRef.current?.resetFields();
@@ -239,6 +410,7 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
         product_material_id: order.product_material_id,
         product_material_code: order.product_material_code,
         product_material_name: order.product_material_name,
+        product_batch_number: order.product_batch_number,
         total_quantity: order.total_quantity ?? 1,
         assembly_template_id: order.assembly_template_id,
         remarks: order.remarks,
@@ -247,6 +419,12 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
       if (config.enableTemplateApply) {
         void loadTemplateOptions(order.product_material_id);
       }
+      void syncProductOutboundBatch(
+        undefined,
+        order.product_material_id,
+        order.warehouse_id,
+        order.product_batch_number,
+      );
     }, 0);
   };
 
@@ -259,6 +437,7 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
         product_material_id: values.product_material_id,
         product_material_code: values.product_material_code || '',
         product_material_name: values.product_material_name || '',
+        product_batch_number: values.product_batch_number || undefined,
         total_quantity: Number(values.total_quantity || 0),
         assembly_template_id: values.assembly_template_id || undefined,
         remarks: values.remarks,
@@ -365,6 +544,7 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
   const openItemModal = (record: OrderLike, item?: ItemLike) => {
     setCurrentOrderId(record.id ?? null);
     setEditingItem(item ?? null);
+    resetItemBatchUi();
     setItemModalVisible(true);
     setTimeout(() => {
       itemFormRef.current?.resetFields();
@@ -373,10 +553,12 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
           material_id: item.material_id,
           material_code: item.material_code,
           material_name: item.material_name,
+          batch_number: item.batch_number,
           quantity: item.quantity,
           unit_price: item.unit_price,
           remarks: item.remarks,
         });
+        void syncItemOutboundBatch(undefined, item.material_id, item.batch_number);
       }
     }, 0);
   };
@@ -391,6 +573,7 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
         await api.updateItem(String(currentOrderId), String(editingItem.id), {
           quantity: Number(values.quantity || 0),
           unit_price: Number(values.unit_price || 0),
+          batch_number: values.batch_number || undefined,
           remarks: values.remarks,
         });
         messageApi.success(config.updateItemSuccessText || t('app.kuaizhizao.warehouseCommon.updateItemSuccess', { noun: config.actionNoun }));
@@ -401,6 +584,7 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
           material_name: values.material_name || '',
           quantity: Number(values.quantity || 0),
           unit_price: Number(values.unit_price || 0),
+          batch_number: values.batch_number || undefined,
           remarks: values.remarks,
         });
         messageApi.success(config.addItemSuccessText);
@@ -609,6 +793,9 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
     { title: t('app.kuaizhizao.warehouseCommon.colWarehouse'), dataIndex: 'warehouse_name' },
     { title: config.dateLabel, dataIndex: config.dateField, valueType: 'date' },
     { title: t('app.kuaizhizao.warehouseCommon.colProductMaterial'), dataIndex: 'product_material_name' },
+    ...(config.stockConsumeKind === 'product'
+      ? [{ title: t('app.kuaizhizao.warehouseCommon.colBatchNo'), dataIndex: 'product_batch_number' as const }]
+      : []),
     {
       title: t('common.status'),
       dataIndex: 'status',
@@ -688,6 +875,9 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
     () => [
       { title: t('app.kuaizhizao.warehouseCommon.colComponentCode'), dataIndex: 'material_code', width: 120 },
       { title: t('app.kuaizhizao.warehouseCommon.colComponentName'), dataIndex: 'material_name', width: 150 },
+      ...(config.stockConsumeKind === 'items'
+        ? [{ title: t('app.kuaizhizao.warehouseCommon.colBatchNo'), dataIndex: 'batch_number', width: 120 }]
+        : []),
       { title: t('common.quantity'), dataIndex: 'quantity', width: 90, align: 'right' as const, render: formatQuantity },
       {
         title: t('app.kuaizhizao.warehouseCommon.colUnitPrice'),
@@ -811,6 +1001,7 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
         onClose={() => {
           setCreateModalVisible(false);
           setEditingOrder(null);
+          resetProductBatchUi();
           createFormRef.current?.resetFields();
         }}
         onFinish={submitCreateOrder}
@@ -825,11 +1016,16 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
               label={t('app.kuaizhizao.warehouseCommon.colWarehouse')}
               placeholder={t('app.kuaizhizao.warehouseCommon.selectWarehouse')}
               required
-              onChange={(_, option) => {
+              onChange={(value, warehouse) => {
                 createFormRef.current?.setFieldsValue({
-                  _warehouse_name: option?.name ?? '',
-                  warehouse_name: option?.name ?? '',
+                  _warehouse_name: warehouse?.name ?? '',
+                  warehouse_name: warehouse?.name ?? '',
+                  product_batch_number: undefined,
                 });
+                const materialId = Number(createFormRef.current?.getFieldValue('product_material_id'));
+                if (config.stockConsumeKind === 'product' && materialId) {
+                  void syncProductOutboundBatch(undefined, materialId, value);
+                }
               }}
             />
           </Col>
@@ -853,15 +1049,43 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
             product_material_code: 'mainCode',
             product_material_name: 'name',
           }}
-          fieldProps={{
-            onChange: (value: number) => {
-              if (config.enableTemplateApply) {
-                void loadTemplateOptions(value);
-                createFormRef.current?.setFieldsValue({ assembly_template_id: undefined });
-              }
-            },
+          onChange={(value, material) => {
+            const mid = Array.isArray(value) ? value[0] : value;
+            createFormRef.current?.setFieldsValue({ product_batch_number: undefined });
+            if (config.enableTemplateApply) {
+              void loadTemplateOptions(typeof mid === 'number' ? mid : undefined);
+              createFormRef.current?.setFieldsValue({ assembly_template_id: undefined });
+            }
+            const mat = Array.isArray(material) ? material[0] : material;
+            void syncProductOutboundBatch(mat, typeof mid === 'number' ? mid : undefined);
           }}
         />
+        {config.stockConsumeKind === 'product' && productBatchManaged && (
+          <AntForm.Item
+            name="product_batch_number"
+            label={t('app.kuaizhizao.warehouseCommon.colBatchNo')}
+            rules={[
+              {
+                required: true,
+                message: t('app.kuaizhizao.warehouseCommon.batchRequiredOutbound'),
+              },
+            ]}
+          >
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              loading={productBatchLoading}
+              placeholder={t('app.kuaizhizao.warehouseCommon.selectBatchPlaceholder')}
+              options={productBatchOptions}
+              notFoundContent={
+                productBatchLoading
+                  ? undefined
+                  : t('app.kuaizhizao.warehouseCommon.batchOptionsEmpty')
+              }
+            />
+          </AntForm.Item>
+        )}
         {config.enableTemplateApply && (
           <AntForm.Item name="assembly_template_id" label={t('app.kuaizhizao.assemblyOrder.assemblyTemplate')}>
             <Select
@@ -893,6 +1117,7 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
           setItemModalVisible(false);
           setCurrentOrderId(null);
           setEditingItem(null);
+          resetItemBatchUi();
           itemFormRef.current?.resetFields();
         }}
         onFinish={submitCreateItem}
@@ -911,7 +1136,39 @@ export const AssemblyDisassemblyOrdersPage: React.FC<{
             material_code: 'mainCode',
             material_name: 'name',
           }}
+          onChange={(value, material) => {
+            const mid = Array.isArray(value) ? value[0] : value;
+            itemFormRef.current?.setFieldsValue({ batch_number: undefined });
+            const mat = Array.isArray(material) ? material[0] : material;
+            void syncItemOutboundBatch(mat, typeof mid === 'number' ? mid : undefined);
+          }}
         />
+        {config.stockConsumeKind === 'items' && itemBatchManaged && (
+          <AntForm.Item
+            name="batch_number"
+            label={t('app.kuaizhizao.warehouseCommon.colBatchNo')}
+            rules={[
+              {
+                required: true,
+                message: t('app.kuaizhizao.warehouseCommon.batchRequiredOutbound'),
+              },
+            ]}
+          >
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              loading={itemBatchLoading}
+              placeholder={t('app.kuaizhizao.warehouseCommon.selectBatchPlaceholder')}
+              options={itemBatchOptions}
+              notFoundContent={
+                itemBatchLoading
+                  ? undefined
+                  : t('app.kuaizhizao.warehouseCommon.batchOptionsEmpty')
+              }
+            />
+          </AntForm.Item>
+        )}
         <ProFormDigit
           name="quantity"
           label={t('common.quantity')}

@@ -17,6 +17,7 @@ import { PurchaseInvoice } from '../../../types/finance/purchase-invoice';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { UniTable } from '../../../../../components/uni-table';
 import { UniAuditBatchMenuButton, createUniAuditBatchHandlers } from '../../../../../components/uni-batch';
+import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
 import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions';
 import { useAuditRequired } from '../../../../../hooks/useAuditRequired';
 import { UniLifecycle } from '../../../../../components/uni-lifecycle';
@@ -33,6 +34,7 @@ import {
 } from '../../../../../components/uni-pull-query';
 import { getChineseInvoiceLifecycle } from '../../../utils/financeLifecycle';
 import { UniWorkflowActions } from '../../../../../components/uni-workflow-actions';
+import { canDeletePurchaseInvoice } from '../../../utils/purchaseInvoiceUi';
 import {
   ModalForm,
   ProForm,
@@ -47,7 +49,8 @@ import {
 } from '@ant-design/pro-components';
 import {
   convertInvoiceAmountBetweenModes,
-  invoiceInclFromExcl,
+  invoiceExclFromIncl,
+  moneyExceedsMax,
   recalcEnteredAmountOnTaxRateChange,
   resolveInvoiceAmountsForSubmit,
   type InvoiceAmountInputMode,
@@ -159,6 +162,29 @@ const PurchaseInvoiceList: React.FC = () => {
   const handlePurchaseInvoiceAuditBatchSuccess = () => {
     setSelectedRowKeys([]);
     actionRef.current?.reload();
+  };
+
+  const executeDelete = async (record: PurchaseInvoice) => {
+    try {
+      await purchaseInvoiceService.delete(Number(record.id));
+      messageApi.success(t('common.deleteSuccess'));
+      actionRef.current?.reload();
+    } catch (e: unknown) {
+      messageApi.error(resolveApiErrorMessage(e, t('common.operationFailed')));
+    }
+  };
+
+  const handleBatchDelete = async (keys: React.Key[]) => {
+    try {
+      for (const id of keys) {
+        await purchaseInvoiceService.delete(Number(id));
+      }
+      messageApi.success(t(`${P}.batchDeleteSuccess`, { count: keys.length }));
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+    } catch (error: unknown) {
+      messageApi.error(resolveApiErrorMessage(error, t('common.batchDeleteFailed')));
+    }
   };
 
   useEffect(() => {
@@ -389,9 +415,10 @@ const PurchaseInvoiceList: React.FC = () => {
       enteredAmount,
       taxRate,
       amountMode,
+      { maxTotalIncl: maxPush },
     );
-    if (estimatedTotal > maxPush) {
-      messageApi.warning(t(`${P}.pullExceedMax`, { max: maxPush.toFixed(2) }));
+    if (moneyExceedsMax(estimatedTotal, maxPush)) {
+      messageApi.warning(t(`${P}.pullExceedMax`, { max: Number(maxPush).toFixed(2) }));
       return false;
     }
     const sourceLabel =
@@ -445,7 +472,8 @@ const PurchaseInvoiceList: React.FC = () => {
         invoice_type: values.invoice_type || '增值税专用发票',
         tax_rate: taxRate,
         invoice_amount: invoiceAmount,
-        ...(amountMode === 'tax_inclusive' ? { total_amount: estimatedTotal } : {}),
+        // 始终传价税合计，与后端含税真源一致；不含税录入在分位钳制后也须走合计反算
+        total_amount: estimatedTotal,
         notes:
           String(values.notes ?? '').trim() ||
           t('app.kuaicaiwu.common.createdFromSourceNote', {
@@ -633,33 +661,50 @@ const PurchaseInvoiceList: React.FC = () => {
         key: 'action',
         fixed: 'right',
         hideInSearch: true,
-        render: (_, record) => [
-          <Button
-            key="det"
-            {...rowActionKind('read')}
-            onClick={() => navigate(`/apps/kuaicaiwu/finance-management/purchase-invoices/${record.id}`)}
-          />,
-          <UniWorkflowActions
-            {...rowActionKind('skip')}
-            key="wf"
-            record={record}
-            apiPrefix="/apps/kuaicaiwu/purchase-invoices"
-            entityType="purchase_invoice"
-            entityName={t(`${P}.entityName`)}
-            statusField="status"
-            reviewStatusField="review_status"
-            draftStatuses={['草稿', 'draft']}
-            pendingStatuses={['待审核']}
-            approvedStatuses={['已审核']}
-            rejectedStatuses={['已驳回', '驳回']}
-            theme="link"
-            size="small"
-            onSuccess={() => actionRef.current?.reload()}
-          />,
-        ],
+        render: (_, record) => {
+          const acts: React.ReactNode[] = [
+            <Button
+              key="det"
+              {...rowActionKind('read')}
+              onClick={() => navigate(`/apps/kuaicaiwu/finance-management/purchase-invoices/${record.id}`)}
+            />,
+            <UniWorkflowActions
+              {...rowActionKind('skip')}
+              key="wf"
+              record={record}
+              apiPrefix="/apps/kuaicaiwu/purchase-invoices"
+              entityType="purchase_invoice"
+              entityName={t(`${P}.entityName`)}
+              statusField="status"
+              reviewStatusField="review_status"
+              draftStatuses={['草稿', 'draft']}
+              pendingStatuses={['待审核']}
+              approvedStatuses={['已审核']}
+              rejectedStatuses={['已驳回', '驳回']}
+              theme="link"
+              size="small"
+              onSuccess={() => actionRef.current?.reload()}
+            />,
+          ];
+          if (canDeletePurchaseInvoice(record) && purchaseInvoicePerms.canDelete) {
+            acts.push(
+              <ActionConfirmPopconfirm
+                key="del"
+                title={t(`${P}.deleteTitle`)}
+                description={t(`${P}.deleteContent`, {
+                  number: record.invoice_number?.trim() || record.invoice_code || record.id,
+                })}
+                onConfirm={() => executeDelete(record)}
+              >
+                <Button {...rowActionKind('delete')} onClick={(e) => e.stopPropagation()} />
+              </ActionConfirmPopconfirm>,
+            );
+          }
+          return acts;
+        },
       },
     ],
-    [t, navigate, supplierOptions, reviewStatusEnum],
+    [t, navigate, supplierOptions, reviewStatusEnum, purchaseInvoicePerms.canDelete],
   );
 
 
@@ -708,7 +753,8 @@ const PurchaseInvoiceList: React.FC = () => {
     if (!pullPreviewData || !pullPreviewKind) return undefined;
     const maxPush = Number(pullPreviewData.items?.[0]?.max_push_quantity ?? 0);
     const taxRate = 13;
-    const defaultExcl = maxPush > 0 ? Number((maxPush / (1 + taxRate / 100)).toFixed(2)) : undefined;
+    // 由可开票含税上限反算不含税，避免默认值正算再超 0.01
+    const defaultExcl = maxPush > 0 ? invoiceExclFromIncl(maxPush, taxRate) : undefined;
     const sourceLabel =
       pullPreviewKind === 'purchase_order'
         ? pullFromPurchaseOrderAction.sourceLabel
@@ -766,14 +812,17 @@ const PurchaseInvoiceList: React.FC = () => {
     const entered = Number(pullInvoiceAmountWatch || 0);
     const taxRate = Number(pullTaxRateWatch) || 13;
     if (!(entered > 0)) return '';
-    if ((pullAmountInputMode || 'tax_exclusive') === 'tax_inclusive') {
-      const excl = resolveInvoiceAmountsForSubmit(entered, taxRate, 'tax_inclusive').invoiceAmountExcl;
-      return t(`${P}.form.amountHintExcl`, { amount: excl.toFixed(2) });
+    const mode = (pullAmountInputMode || 'tax_exclusive') as InvoiceAmountInputMode;
+    const resolved = resolveInvoiceAmountsForSubmit(entered, taxRate, mode, {
+      maxTotalIncl: pullPreviewMaxPush,
+    });
+    if (mode === 'tax_inclusive') {
+      return t(`${P}.form.amountHintExcl`, { amount: resolved.invoiceAmountExcl.toFixed(2) });
     }
     return t(`${P}.form.amountHintIncl`, {
-      amount: invoiceInclFromExcl(entered, taxRate).toFixed(2),
+      amount: resolved.totalIncl.toFixed(2),
     });
-  }, [pullAmountInputMode, pullInvoiceAmountWatch, pullTaxRateWatch, t]);
+  }, [pullAmountInputMode, pullInvoiceAmountWatch, pullTaxRateWatch, pullPreviewMaxPush, t]);
 
   const handlePullPreviewOk = async () => {
     if (pullPreviewLoading || !pullPreviewData) {
@@ -813,7 +862,7 @@ const PurchaseInvoiceList: React.FC = () => {
         onRowSelectionChange={setSelectedRowKeys}
         onTableDataChange={setTableRows}
         columns={alignProColumns(columns, SALES_DOC_LIST_FIELD_RANK)}
-        columnPersistenceId="apps.kuaicaiwu.pages.finance-management.purchase-invoices.list-v2"
+        columnPersistenceId="apps.kuaicaiwu.pages.finance-management.purchase-invoices.list-v3"
         showAdvancedSearch
         request={async (params, sort, _filter, searchFormValues) => {
           const listParams = resolvePurchaseInvoiceListParams(searchFormValues, sort);
@@ -841,7 +890,11 @@ const PurchaseInvoiceList: React.FC = () => {
         showCreateButton={false}
         createButtonText={t(`${P}.createButton`)}
         onCreate={() => setCreateModalVisible(true)}
-        toolBarActionsAfterBatch={[
+        showDeleteButton
+        onDelete={handleBatchDelete}
+        deleteConfirmTitle={t('app.kuaicaiwu.common.confirmBatchDelete')}
+        deleteConfirmDescription={(count) => t(`${P}.batchDeleteConfirm`, { count })}
+        toolBarActionsAfterDelete={[
           <UniAuditBatchMenuButton
             key="purchase-invoice-batch-audit"
             selectedRowKeys={selectedRowKeys}

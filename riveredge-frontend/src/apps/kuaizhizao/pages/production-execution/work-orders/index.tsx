@@ -3201,12 +3201,14 @@ const WorkOrdersPage: React.FC = () => {
         console.error('加载工单工序失败', e)
         setSelectedOperations([])
       }
-      // 编辑时 product_id 禁用，不加载物料来源（属性字段在编辑时也不展示）
+      // 编辑时 product_id 禁用，仍须加载完整物料（含多单位）以便计划数量按生产单位回填
+      let editProductMaterial: Material | null = null
       if (detail.product_id) {
         const mats = await resolveMaterialFormReference(KUAIZHIZAO_DOC_HOST.workOrder, [
           detail.product_id,
         ])
-        setFormProductMaterial(mats[0] ?? null)
+        editProductMaterial = mats[0] ?? null
+        setFormProductMaterial(editProductMaterial)
       } else {
         setFormProductMaterial(null)
       }
@@ -3221,7 +3223,7 @@ const WorkOrdersPage: React.FC = () => {
           product_id: detail.product_id,
           product_code: detail.product_code,
           product_name: detail.product_name,
-          quantity: resolveWorkOrderFormQuantity(detail),
+          quantity: resolveWorkOrderFormQuantity(detail, 'quantity', editProductMaterial),
           production_mode: mode,
           variant_attributes: variantAttrs != null
             ? (typeof variantAttrs === 'string' ? variantAttrs : JSON.stringify(variantAttrs, null, 2))
@@ -5003,8 +5005,7 @@ const WorkOrdersPage: React.FC = () => {
           workshop_name: op.workshop_name,
           work_center_id: op.work_center_id,
           work_center_name: op.work_center_name,
-          planned_start_date: op.planned_start_date,
-          planned_end_date: op.planned_end_date,
+          // 工序计划时刻由后端按工单头计划起止窗口重算；勿回写打开表单时的旧系统排程时间
           standard_time: op.standard_time,
           setup_time: op.setup_time,
           remarks: op.remarks,
@@ -8103,6 +8104,17 @@ const WorkOrdersPage: React.FC = () => {
               menuItems={toolbarPushMenuItems}
               disabled={!canUseToolbarPush}
               disabledReason={toolbarPushDisabledReason}
+              sourceDocument={
+                selectedWorkOrderForToolbarPush?.id
+                  ? { type: 'work_order', id: Number(selectedWorkOrderForToolbarPush.id) }
+                  : null
+              }
+              pushTargets={{
+                'push-production-picking-outbound': 'production_picking',
+                'push-finished-goods-inspection': 'finished_goods_inspection',
+                'push-finished-goods-inbound': 'finished_goods_receipt',
+                'push-production-return-inbound': 'production_return',
+              }}
             />,
           ]}
           toolBarActionsAfterDelete={workOrderToolBarActionsAfterDelete}
@@ -9039,6 +9051,7 @@ const WorkOrdersPage: React.FC = () => {
                 required={true}
                 autoGenerateOnCreate={!isEdit}
                 showGenerateButton={false}
+                documentId={isEdit ? currentWorkOrder?.id : undefined}
                 context={{}}
                 colProps={{ span: 6 }}
               />
@@ -9068,6 +9081,7 @@ const WorkOrdersPage: React.FC = () => {
               required={true}
               autoGenerateOnCreate={false}
               showGenerateButton={false}
+              documentId={isEdit ? currentWorkOrder?.id : undefined}
               context={{}}
               colProps={{ span: 6 }}
             />

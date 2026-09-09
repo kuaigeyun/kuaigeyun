@@ -417,6 +417,7 @@ const InboundPoPullEntryPage: React.FC = () => {
       warehouse_id: headerWhId,
       warehouse_name: whOpt.name,
       receipt_time: toApiDateTimeString(receiptTime),
+      receiver_id: receiverHook.receiverId,
       receiver_name: receiverHook.receiverName.trim() || undefined,
       delivery_note: deliveryNote.trim() || undefined,
       notes: receiptNotes.trim() || undefined,

@@ -1044,6 +1044,27 @@ class SalesContractService(AppBaseService[SalesContract]):
         if not contract:
             raise NotFoundError("销售合同不存在")
         assert_sales_contract_capability(contract, "approve")
+
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "sales_contract"
+        )
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="sales_contract",
+                entity_id=contract_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "销售合同审核已开启但无进行中的审批流程，请先提交审批后再审核"
+                )
+
         contract.status = "已生效"
         contract.review_status = ReviewStatus.APPROVED
         contract.reviewer_id = reviewer_id
@@ -1066,6 +1087,27 @@ class SalesContractService(AppBaseService[SalesContract]):
         if not contract:
             raise NotFoundError("销售合同不存在")
         assert_sales_contract_capability(contract, "reject")
+
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "sales_contract"
+        )
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="sales_contract",
+                entity_id=contract_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                raise BusinessLogicError(
+                    "销售合同审核已开启但无进行中的审批流程，请先提交审批后再驳回"
+                )
+
         contract.status = "草稿"
         contract.review_status = ReviewStatus.REJECTED
         contract.reviewer_id = reviewer_id
@@ -1114,8 +1156,11 @@ class SalesContractService(AppBaseService[SalesContract]):
         contract_id: int,
         operator_id: int,
     ) -> SalesContractResponse:
-        """撤销审核：人工审→待审核，自动审→草稿。"""
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        """撤销审核：一律回到草稿，须重新提交再审。"""
+        from core.services.approval.approval_instance_service import ApprovalInstanceService
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
 
         contract = await SalesContract.get_or_none(
             tenant_id=tenant_id, id=contract_id, deleted_at__isnull=True
@@ -1130,8 +1175,16 @@ class SalesContractService(AppBaseService[SalesContract]):
         audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "sales_contract"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        contract.status = "待审核" if landing == "pending" else "草稿"
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
+
+        await ApprovalInstanceService.cancel_approval(
+            tenant_id=tenant_id,
+            entity_type="sales_contract",
+            entity_id=contract_id,
+            operator_id=operator_id,
+        )
+
+        contract.status = "草稿"
         contract.review_status = ReviewStatus.PENDING.value
         contract.reviewer_id = None
         contract.reviewer_name = None
@@ -2423,6 +2476,43 @@ class SalesContractService(AppBaseService[SalesContract]):
             updated_at=row.updated_at,
         )
 
+    async def submit_contract_change(
+        self, tenant_id: int, change_id: int, operator_id: int
+    ) -> SalesContractChangeResponse:
+        change = await SalesContractChange.get_or_none(
+            tenant_id=tenant_id, id=change_id, deleted_at__isnull=True
+        )
+        if not change:
+            raise NotFoundError("合同变更单不存在")
+        if (change.status or "") != "草稿":
+            raise BusinessLogicError("仅草稿变更单可提交")
+        from infra.services.business_config_service import BusinessConfigService
+
+        audit_required = await BusinessConfigService().check_audit_required(
+            tenant_id, "sales_contract_change"
+        )
+        if audit_required:
+            from core.services.approval.audit_flow_guard import start_document_approval_or_raise
+
+            await start_document_approval_or_raise(
+                tenant_id=tenant_id,
+                user_id=operator_id,
+                node_key="sales_contract_change",
+                entity_type="sales_contract_change",
+                entity_id=int(change.id),
+                entity_uuid=str(change.uuid),
+                title=f"销售合同变更审批: {change.change_code}",
+                content=f"合同: {change.contract_code or '—'}",
+                doc_label="销售合同变更",
+            )
+            change.status = "待审核"
+            change.review_status = ReviewStatus.PENDING
+        else:
+            return await self.approve_contract_change(tenant_id, change_id, operator_id)
+        change.updated_by = operator_id
+        await change.save(update_fields=["status", "review_status", "updated_by", "updated_at"])
+        return await self._change_to_response(change)
+
     async def approve_contract_change(
         self,
         tenant_id: int,
@@ -2435,7 +2525,29 @@ class SalesContractService(AppBaseService[SalesContract]):
         if not change:
             raise NotFoundError("合同变更单不存在")
         if (change.status or "") != "待审核":
-            raise BusinessLogicError("仅待审核变更单可审批")
+            # 关审直提：submit 在无审核时会直接调本方法，此时仍为草稿
+            from infra.services.business_config_service import BusinessConfigService
+
+            audit_required = await BusinessConfigService().check_audit_required(
+                tenant_id, "sales_contract_change"
+            )
+            if audit_required or (change.status or "") != "草稿":
+                raise BusinessLogicError("仅待审核变更单可审批")
+        else:
+            from infra.services.business_config_service import BusinessConfigService
+            from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+
+            audit_required = await BusinessConfigService().check_audit_required(
+                tenant_id, "sales_contract_change"
+            )
+            await assert_pending_approval_instance(
+                tenant_id=tenant_id,
+                entity_type="sales_contract_change",
+                entity_id=change_id,
+                audit_required=audit_required,
+                doc_label="销售合同变更",
+                verb="审核",
+            )
         contract = await SalesContract.get(id=change.contract_id)
         new_total = contract.total_amount
         if change.new_total_amount is not None:
@@ -2459,6 +2571,96 @@ class SalesContractService(AppBaseService[SalesContract]):
         await change.save()
         return await self._change_to_response(change)
 
+    async def withdraw_contract_change(
+        self, tenant_id: int, change_id: int, operator_id: int
+    ) -> SalesContractChangeResponse:
+        change = await SalesContractChange.get_or_none(
+            tenant_id=tenant_id, id=change_id, deleted_at__isnull=True
+        )
+        if not change:
+            raise NotFoundError("合同变更单不存在")
+        if (change.status or "") != "待审核":
+            raise BusinessLogicError("仅待审核变更单可撤回")
+        from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+        await ApprovalInstanceService.cancel_approval(
+            tenant_id=tenant_id,
+            entity_type="sales_contract_change",
+            entity_id=change_id,
+            operator_id=operator_id,
+        )
+        change.status = "草稿"
+        change.review_status = ReviewStatus.PENDING
+        change.updated_by = operator_id
+        await change.save(update_fields=["status", "review_status", "updated_by", "updated_at"])
+        return await self._change_to_response(change)
+
+    async def revoke_contract_change_approval(
+        self, tenant_id: int, change_id: int, operator_id: int
+    ) -> SalesContractChangeResponse:
+        """撤销审核：已生效回草稿，须重新提交再审。"""
+        from core.services.approval.audit_transition import resolve_revoke_to_draft_landing_phase
+        from core.services.approval.uni_audit_service import UniAuditService
+        from infra.services.business_config_service import BusinessConfigService
+
+        change = await SalesContractChange.get_or_none(
+            tenant_id=tenant_id, id=change_id, deleted_at__isnull=True
+        )
+        if not change:
+            raise NotFoundError("合同变更单不存在")
+        if (change.status or "") not in ("已生效", "已驳回"):
+            raise BusinessLogicError("仅已生效或已驳回的合同变更单可撤销审核")
+
+        audit_required = await BusinessConfigService().check_audit_required(
+            tenant_id, "sales_contract_change"
+        )
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
+
+        async def _do_revoke() -> SalesContractChangeResponse:
+            change.status = "草稿"
+            change.review_status = ReviewStatus.PENDING
+            change.updated_by = operator_id
+            await change.save(update_fields=["status", "review_status", "updated_by", "updated_at"])
+            return await self._change_to_response(change)
+
+        return await UniAuditService.revoke_with_flow_fallback(
+            tenant_id=tenant_id,
+            entity_type="sales_contract_change",
+            entity_id=change_id,
+            operator_id=operator_id,
+            flow_revoke=_do_revoke,
+        )
+
+    async def reject_contract_change(
+        self, tenant_id: int, change_id: int, reviewer_id: int, review_remarks: Optional[str] = None
+    ) -> SalesContractChangeResponse:
+        change = await SalesContractChange.get_or_none(
+            tenant_id=tenant_id, id=change_id, deleted_at__isnull=True
+        )
+        if not change:
+            raise NotFoundError("合同变更单不存在")
+        if (change.status or "") != "待审核":
+            raise BusinessLogicError("仅待审核变更单可驳回")
+        from infra.services.business_config_service import BusinessConfigService
+        from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+
+        audit_required = await BusinessConfigService().check_audit_required(
+            tenant_id, "sales_contract_change"
+        )
+        await assert_pending_approval_instance(
+            tenant_id=tenant_id,
+            entity_type="sales_contract_change",
+            entity_id=change_id,
+            audit_required=audit_required,
+            doc_label="销售合同变更",
+            verb="驳回",
+        )
+        change.status = "草稿"
+        change.review_status = ReviewStatus.REJECTED
+        change.updated_by = reviewer_id
+        await change.save(update_fields=["status", "review_status", "updated_by", "updated_at"])
+        return await self._change_to_response(change)
+
     async def list_contract_changes(
         self,
         tenant_id: int,
@@ -2476,37 +2678,6 @@ class SalesContractService(AppBaseService[SalesContract]):
             q = q.filter(contract_id=contract_id)
         rows = await q.order_by("-created_at").offset(skip).limit(limit)
         return [await self._change_to_response(r) for r in rows]
-
-    async def submit_contract_change(
-        self, tenant_id: int, change_id: int, operator_id: int
-    ) -> SalesContractChangeResponse:
-        change = await SalesContractChange.get_or_none(
-            tenant_id=tenant_id, id=change_id, deleted_at__isnull=True
-        )
-        if not change:
-            raise NotFoundError("合同变更单不存在")
-        if (change.status or "") != "草稿":
-            raise BusinessLogicError("仅草稿变更单可提交")
-        change.status = "待审核"
-        change.updated_by = operator_id
-        await change.save(update_fields=["status", "updated_by", "updated_at"])
-        return await self._change_to_response(change)
-
-    async def reject_contract_change(
-        self, tenant_id: int, change_id: int, reviewer_id: int, review_remarks: Optional[str] = None
-    ) -> SalesContractChangeResponse:
-        change = await SalesContractChange.get_or_none(
-            tenant_id=tenant_id, id=change_id, deleted_at__isnull=True
-        )
-        if not change:
-            raise NotFoundError("合同变更单不存在")
-        if (change.status or "") != "待审核":
-            raise BusinessLogicError("仅待审核变更单可驳回")
-        change.status = "草稿"
-        change.review_status = ReviewStatus.REJECTED
-        change.updated_by = reviewer_id
-        await change.save(update_fields=["status", "review_status", "updated_by", "updated_at"])
-        return await self._change_to_response(change)
 
     async def _change_to_response(self, row: SalesContractChange) -> SalesContractChangeResponse:
         return SalesContractChangeResponse(

@@ -85,7 +85,7 @@ import {
   FinanceVoucherDetailProvider,
   useFinanceVoucherDetail,
 } from '../../../components/FinanceVoucherDetailProvider';
-import { canCreateRefundFromVoucher } from '../../../utils/financeVoucherDocType';
+import { canCorrectFinanceVoucher, canCreateRefundFromVoucher } from '../../../utils/financeVoucherDocType';
 import { PAYMENT_REFUND_RESOURCE } from '../../../services/finance/payment-refund';
 type PullPayableCandidate = PaymentPullCandidate;
 
@@ -96,6 +96,7 @@ const PaymentsPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const lastListParamsRef = useRef<Record<string, string | number | boolean | undefined>>({});
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<PaymentVoucher | null>(null);
   const [pullPreviewOpen, setPullPreviewOpen] = useState(false);
   const [pullPreviewLoading, setPullPreviewLoading] = useState(false);
   const [pullPreviewData, setPullPreviewData] = useState<PaymentPullPreview | null>(null);
@@ -424,6 +425,82 @@ const PaymentsPage: React.FC = () => {
         } catch (e: any) {
           messageApi.error(e?.message || t('common.operationFailed'));
         }
+  };
+
+  const executeUnconfirm = async (record: PaymentVoucher) => {
+    try {
+      await paymentService.unconfirmPayment(record.id);
+      messageApi.success(t(`${P}.unconfirmSuccess`));
+      actionRef.current?.reload();
+      refreshOpenDetail();
+    } catch (e: any) {
+      messageApi.error(e?.message || t('common.operationFailed'));
+    }
+  };
+
+  const executeDelete = async (record: PaymentVoucher) => {
+    try {
+      await paymentService.deletePayment(record.id);
+      messageApi.success(t('common.deleteSuccess'));
+      actionRef.current?.reload();
+      if (detailRetryIdRef.current === record.id) closeDetail();
+    } catch (e: any) {
+      messageApi.error(e?.message || t('common.operationFailed'));
+    }
+  };
+
+  const openEdit = (record: PaymentVoucher) => {
+    setEditingRecord(record);
+  };
+
+  const handleUpdate = async (values: any) => {
+    if (!editingRecord) return false;
+    try {
+      assertBankAccountForPaymentMethod(values.payment_method, values.bank_account_id, t);
+    } catch (e: unknown) {
+      messageApi.warning((e as Error).message);
+      return false;
+    }
+    try {
+      await paymentService.updatePayment(editingRecord.id, {
+        supplier_id: values.supplier_id,
+        supplier_name: supplierOptions.find((o) => o.value === values.supplier_id)?.label || '',
+        total_amount: values.total_amount,
+        payment_date: formatDateTime(values.payment_date || dayjs(), 'YYYY-MM-DD'),
+        payment_method: values.payment_method,
+        bank_account_id: values.bank_account_id,
+        bank_account: resolveFinanceVoucherReferenceNote(
+          bankAccounts,
+          values.payment_method,
+          values.bank_account_id,
+          values.bank_account,
+        ),
+        settlement_type: values.settlement_type || 'normal',
+        notes: values.notes,
+        attachments: normalizeDocumentAttachments(values.attachments),
+      });
+      messageApi.success(t('common.updateSuccess'));
+      setEditingRecord(null);
+      actionRef.current?.reload();
+      refreshOpenDetail();
+      return true;
+    } catch (e: any) {
+      messageApi.error(e?.message || t('common.updateFailed'));
+      return false;
+    }
+  };
+
+  const handleBatchDelete = async (keys: React.Key[]) => {
+    try {
+      for (const key of keys) {
+        await paymentService.deletePayment(Number(key));
+      }
+      messageApi.success(t(`${P}.batchDeleted`, { count: keys.length }));
+      setSelectedRowKeys([]);
+      actionRef.current?.reload();
+    } catch (error: any) {
+      messageApi.error(error?.message || t('common.deleteFailed'));
+    }
   };
 
   const handleBatchConfirm = async (keys: React.Key[]) => {
@@ -778,10 +855,45 @@ const PaymentsPage: React.FC = () => {
             />,
           );
         }
-        if (record.status !== 'Cancelled' && record.settled_amount === 0 && paymentPerms.canAction?.('revoke')) {
+        if (record.status === 'Draft' && paymentPerms.canUpdate) {
+          acts.push(
+            <Button key="ed" {...rowActionKind('update')} onClick={() => openEdit(record)} />,
+          );
+        }
+        if (
+          record.status === 'Confirmed' &&
+          canCorrectFinanceVoucher(record) &&
+          paymentPerms.canAction?.('revoke')
+        ) {
+          acts.push(
+            <ActionConfirmPopconfirm
+              title={t(`${P}.unconfirmTitle`)}
+              description={t(`${P}.unconfirmContent`, { code: record.payment_code })}
+              onConfirm={() => executeUnconfirm(record)}
+            >
+              <Button key="uc" {...rowActionKind('revoke')} onClick={(e) => e.stopPropagation()} />
+            </ActionConfirmPopconfirm>,
+          );
+        }
+        if (
+          record.status === 'Draft' &&
+          canCorrectFinanceVoucher(record) &&
+          paymentPerms.canAction?.('revoke')
+        ) {
           acts.push(
             <ActionConfirmPopconfirm title={t(`${P}.voidTitle`)} description={t(`${P}.voidContent`, { code: record.payment_code })} onConfirm={() => executeCancelVoucher(record)}>
               <Button key="ca" {...rowActionKind('revoke')} onClick={(e) => e.stopPropagation()} />
+            </ActionConfirmPopconfirm>,
+          );
+        }
+        if (
+          canCorrectFinanceVoucher(record) &&
+          paymentPerms.canDelete &&
+          (record.status === 'Draft' || record.status === 'Cancelled' || record.status === 'Confirmed')
+        ) {
+          acts.push(
+            <ActionConfirmPopconfirm title={t(`${P}.deleteTitle`)} description={t(`${P}.deleteContent`, { code: record.payment_code })} okType="danger" onConfirm={() => executeDelete(record)}>
+              <Button key="del" {...rowActionKind('delete')} onClick={(e) => e.stopPropagation()} />
             </ActionConfirmPopconfirm>,
           );
         }
@@ -806,13 +918,18 @@ const PaymentsPage: React.FC = () => {
           tableRowsRef.current = rows;
         }}
         rowKey="id"
-        columnPersistenceId="apps.kuaicaiwu.pages.finance-management.payments.list-v2"
+        columnPersistenceId="apps.kuaicaiwu.pages.finance-management.payments.list-v3"
         showAdvancedSearch
         search={{ labelWidth: 120 }}
         showCreateButton={false}
         createButtonText={t(`${P}.createTitle`)}
         onCreate={() => setCreateModalVisible(true)}
-        toolBarActionsAfterBatch={[
+        showDeleteButton
+        deleteButtonText={t('common.batchDelete')}
+        onDelete={handleBatchDelete}
+        deleteConfirmTitle={t('app.kuaicaiwu.common.confirmBatchDelete')}
+        deleteConfirmDescription={(count) => t(`${P}.deleteConfirm`, { count })}
+        toolBarActionsAfterDelete={[
           <UniBatchMenuButton
             key="payment-batch-actions"
             selectedRowKeys={selectedRowKeys}
@@ -1093,6 +1210,81 @@ const PaymentsPage: React.FC = () => {
         <DocumentAttachmentsField category="payment_attachments" />
       </ModalForm>
 
+      <ModalForm
+        key={editingRecord ? `edit-payment-${editingRecord.id}` : 'edit-payment'}
+        title={t(`${P}.editTitle`)}
+        open={Boolean(editingRecord)}
+        onOpenChange={(open) => {
+          if (!open) setEditingRecord(null);
+        }}
+        initialValues={
+          editingRecord
+            ? {
+                supplier_id: editingRecord.supplier_id,
+                total_amount: editingRecord.total_amount,
+                payment_date: editingRecord.payment_date ? dayjs(editingRecord.payment_date) : dayjs(),
+                payment_method: editingRecord.payment_method,
+                settlement_type: editingRecord.settlement_type || 'normal',
+                bank_account_id: editingRecord.bank_account_id,
+                bank_account: editingRecord.bank_account,
+                notes: editingRecord.notes,
+              }
+            : undefined
+        }
+        onFinish={handleUpdate}
+        width={MODAL_CONFIG.STANDARD_WIDTH}
+        {...financeFormGridProps}
+      >
+        <ProFormSelect
+          name="supplier_id"
+          label={t('app.kuaicaiwu.common.supplier')}
+          options={supplierOptions}
+          rules={[{ required: true, message: t('app.kuaicaiwu.common.selectSupplier') }]}
+          placeholder={t('app.kuaicaiwu.common.selectSupplier')}
+          showSearch
+          colProps={financeColHalf}
+        />
+        <ProFormDigit
+          name="total_amount"
+          label={t(`${P}.col.amount`)}
+          min={0.01}
+          rules={[{ required: true }]}
+          fieldProps={financeAmountDigitFieldProps}
+          colProps={financeColHalf}
+        />
+        <ProFormDatePicker
+          name="payment_date"
+          label={t(`${P}.col.paymentDate`)}
+          rules={[{ required: true }]}
+          fieldProps={{ style: { width: '100%' } }}
+          colProps={financeColHalf}
+        />
+        <ProFormSelect
+          name="payment_method"
+          label={t(`${P}.col.paymentMethod`)}
+          options={paymentMethodOptions}
+          rules={[{ required: true, message: t(`${P}.selectPaymentMethod`) }]}
+          placeholder={t(`${P}.selectPaymentMethod`)}
+          colProps={financeColHalf}
+        />
+        <ProFormSelect
+          name="settlement_type"
+          label={t(`${P}.settlementType.label`)}
+          options={paymentSettlementTypeOptions}
+          colProps={financeColHalf}
+        />
+        <LedgerAccountFormFields
+          accounts={bankAccounts}
+          accountLabel={t(`${P}.outBankAccount`)}
+          noteLabel={t(`${P}.outAccountNote`)}
+          noteColProps={financeColFull}
+          acceptanceNoteDirection="payable"
+          partnerFieldName="supplier_id"
+        />
+        <ProFormTextArea name="notes" label={t('common.remark')} colProps={financeColFull} />
+        <DocumentAttachmentsField category="payment_attachments" />
+      </ModalForm>
+
       <FinanceVoucherDetailDrawer
         kind="payment"
         open={detailOpen}
@@ -1148,6 +1340,15 @@ const PaymentsPage: React.FC = () => {
                   ),
                 },
                 {
+                  key: 'edit',
+                  visible: detailRecord.status === 'Draft' && Boolean(paymentPerms.canUpdate),
+                  render: (
+                    <Button {...rowActionKind('update')} onClick={() => openEdit(detailRecord)}>
+                      {t('common.edit')}
+                    </Button>
+                  ),
+                },
+                {
                   key: 'settle',
                   visible: detailRecord.status === 'Confirmed' && Number(detailRecord.unsettled_amount ?? 0) > 0,
                   render: (
@@ -1165,10 +1366,22 @@ const PaymentsPage: React.FC = () => {
                   ),
                 },
                 {
+                  key: 'unconfirm',
+                  visible:
+                    detailRecord.status === 'Confirmed'
+                    && canCorrectFinanceVoucher(detailRecord)
+                    && Boolean(paymentPerms.canAction?.('revoke')),
+                  render: (
+                    <Button {...rowActionKind('revoke')} onClick={() => void executeUnconfirm(detailRecord)}>
+                      {t(`${P}.unconfirm`)}
+                    </Button>
+                  ),
+                },
+                {
                   key: 'void',
                   visible:
-                    detailRecord.status !== 'Cancelled'
-                    && detailRecord.settled_amount === 0
+                    detailRecord.status === 'Draft'
+                    && canCorrectFinanceVoucher(detailRecord)
                     && Boolean(paymentPerms.canAction?.('revoke')),
                   render: (
                     <ActionConfirmPopconfirm
@@ -1178,6 +1391,27 @@ const PaymentsPage: React.FC = () => {
                     >
                       <Button {...rowActionKind('revoke')} onClick={(e) => e.stopPropagation()}>
                         {t('app.kuaicaiwu.common.void')}
+                      </Button>
+                    </ActionConfirmPopconfirm>
+                  ),
+                },
+                {
+                  key: 'delete',
+                  visible:
+                    canCorrectFinanceVoucher(detailRecord)
+                    && Boolean(paymentPerms.canDelete)
+                    && (detailRecord.status === 'Draft'
+                      || detailRecord.status === 'Cancelled'
+                      || detailRecord.status === 'Confirmed'),
+                  render: (
+                    <ActionConfirmPopconfirm
+                      title={t(`${P}.deleteTitle`)}
+                      description={t(`${P}.deleteContent`, { code: detailRecord.payment_code })}
+                      okType="danger"
+                      onConfirm={() => executeDelete(detailRecord)}
+                    >
+                      <Button danger {...rowActionKind('delete')} onClick={(e) => e.stopPropagation()}>
+                        {t('common.delete')}
                       </Button>
                     </ActionConfirmPopconfirm>
                   ),

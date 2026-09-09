@@ -202,12 +202,6 @@ const ComputationHistoryPane: React.FC<{
               ellipsis: true,
             },
             {
-              title: t('app.kuaizhizao.demandComputation.colPushTime'),
-              dataIndex: 'created_at',
-              width: 176,
-              render: (createdAt: string) => (createdAt ? formatDateTimeBySiteSetting(createdAt) : '—'),
-            },
-            {
               title: t('common.status'),
               dataIndex: 'target_exists',
               width: 88,

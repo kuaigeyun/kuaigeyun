@@ -942,6 +942,28 @@ class PurchaseOrderChangeService(AppBaseService[PurchaseOrderChangeOrder]):
         if not doc:
             raise NotFoundError(f"采购变更单不存在: {change_id}")
         assert_purchase_order_change_capability(doc, "approve")
+
+        audit_required = await self.business_config_service.check_audit_required(
+            tenant_id, "purchase_order_change"
+        )
+        if audit_required:
+            from core.services.approval.approval_instance_service import ApprovalInstanceService
+
+            approval_status = await ApprovalInstanceService.get_approval_status(
+                tenant_id=tenant_id,
+                entity_type="purchase_order_change",
+                entity_id=change_id,
+            )
+            has_pending_flow = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "pending"
+            )
+            if not has_pending_flow:
+                verb = "审核" if body.approved else "驳回"
+                raise BusinessLogicError(
+                    f"采购变更单审核已开启但无进行中的审批流程，请先提交审批后再{verb}"
+                )
+
         doc.reviewer_id = operator_id
         doc.reviewer_name = await self.get_user_name(operator_id)
         doc.review_time = resolve_business_datetime()
@@ -1032,8 +1054,10 @@ class PurchaseOrderChangeService(AppBaseService[PurchaseOrderChangeOrder]):
         change_id: int,
         operator_id: int,
     ) -> PurchaseOrderChangeWithItemsResponse:
-        """撤销审核：人工审→待审核，自动审→草稿。已生效变更单不可撤销。"""
-        from core.services.approval.audit_transition import resolve_revoke_landing_phase
+        """撤销审核：一律回到草稿，须重新提交再审。已生效变更单不可撤销。"""
+        from core.services.approval.audit_transition import (
+            resolve_revoke_to_draft_landing_phase,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
 
         doc = await PurchaseOrderChangeOrder.get_or_none(
@@ -1046,16 +1070,11 @@ class PurchaseOrderChangeService(AppBaseService[PurchaseOrderChangeOrder]):
         audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "purchase_order_change"
         )
-        landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
-        target_status = (
-            DocumentStatus.PENDING_REVIEW.value
-            if landing == "pending"
-            else DocumentStatus.DRAFT.value
-        )
+        _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
 
         async def _do_revoke() -> PurchaseOrderChangeWithItemsResponse:
             user_info = await self.get_user_info(operator_id)
-            doc.status = target_status
+            doc.status = DocumentStatus.DRAFT.value
             doc.review_status = ReviewStatus.PENDING.value
             doc.reviewer_id = None
             doc.reviewer_name = None

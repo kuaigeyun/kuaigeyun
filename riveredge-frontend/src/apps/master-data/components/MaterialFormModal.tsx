@@ -55,12 +55,10 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({
       // 这里的 values 已经是 MaterialForm 处理过（转换过单位、来源配置等）的深度对象
       const created = await materialApi.create(values as MaterialCreate);
       messageApi.success(t('common.createSuccess'));
-      if (onSuccess) {
-        onSuccess(created);
-      }
-      onClose();
+      return created;
     } catch (error: any) {
       messageApi.error(error?.message || t('common.createFailed'));
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -71,6 +69,10 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({
       open={open}
       onClose={onClose}
       onFinish={handleFinish}
+      onSubmitSuccess={(created) => {
+        onSuccess?.(created);
+        onClose();
+      }}
       materialGroups={materialGroups}
       onMaterialGroupsChange={loadMaterialGroups}
       loading={loading}

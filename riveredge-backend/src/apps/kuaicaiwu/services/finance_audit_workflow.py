@@ -170,6 +170,36 @@ async def withdraw_finance_review(
     )
 
 
+async def assert_finance_pending_approval_flow(
+    *,
+    tenant_id: int,
+    doc_id: int,
+    node_key: str,
+    doc_label: str,
+    verb: str = "审核",
+) -> None:
+    """审核已开时须存在 pending 审批实例，禁止撤销后空壳直审。"""
+    from core.services.approval.approval_instance_service import ApprovalInstanceService
+    from infra.services.business_config_service import BusinessConfigService
+
+    audit_required = await BusinessConfigService().check_audit_required(tenant_id, node_key)
+    if not audit_required:
+        return
+    approval_status = await ApprovalInstanceService.get_approval_status(
+        tenant_id=tenant_id,
+        entity_type=node_key,
+        entity_id=doc_id,
+    )
+    has_pending_flow = bool(
+        approval_status.get("has_instance")
+        and approval_status.get("status") == "pending"
+    )
+    if not has_pending_flow:
+        raise BusinessLogicError(
+            f"{doc_label}审核已开启但无进行中的审批流程，请先提交审批后再{verb}"
+        )
+
+
 async def revoke_finance_review(
     *,
     model: Type[Any],
@@ -179,7 +209,9 @@ async def revoke_finance_review(
     doc_label: str,
     node_key: str,
 ) -> None:
-    from core.services.approval.audit_transition import resolve_revoke_landing_phase
+    from core.services.approval.audit_transition import (
+        resolve_revoke_to_draft_landing_phase,
+    )
     from infra.services.business_config_service import BusinessConfigService
 
     doc = await model.get_or_none(tenant_id=tenant_id, id=doc_id, deleted_at__isnull=True)
@@ -190,9 +222,9 @@ async def revoke_finance_review(
         raise BusinessLogicError(f"{doc_label}未审核通过，无法撤销审核")
 
     audit_required = await BusinessConfigService().check_audit_required(tenant_id, node_key)
-    landing = resolve_revoke_landing_phase(manual_audit_enabled=audit_required)
+    _ = resolve_revoke_to_draft_landing_phase(manual_audit_enabled=audit_required)
     patch: dict[str, Any] = {
-        "review_status": "待审核" if landing == "pending" else "草稿",
+        "review_status": "草稿",
         "reviewer_id": None,
         "reviewer_name": None,
         "review_time": None,

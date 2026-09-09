@@ -104,6 +104,75 @@ def _as_date(value: Any, fallback: Optional[date] = None) -> date:
     return fallback or _site_today()
 
 
+async def aggregate_on_hand_qty_by_material(tenant_id: int) -> Dict[int, Decimal]:
+    """
+    租户全仓在库数量按物料汇总（运营看板「总库存」、仓储看板 total_quantity / 金额共用）。
+
+    口径与 get_material_inventory_info（不限仓）一致：
+    - 主仓：合格、未删除、quantity>0、未过期，排除 out_stock/scrapped/expired
+    - 线边：status=available 的 quantity 合计
+    """
+    from apps.master_data.models.material_batch import MaterialBatch
+    from apps.kuaizhizao.models.line_side_inventory import LineSideInventory
+
+    out: Dict[int, Decimal] = {}
+    today = _site_today()
+
+    batch_rows = (
+        await MaterialBatch.filter(
+            tenant_id=tenant_id,
+            deleted_at__isnull=True,
+            quantity__gt=0,
+            quality_status=QUALIFIED,
+        )
+        .filter(~Q(status__in=["out_stock", "scrapped", "expired"]))
+        .filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=today))
+        .group_by("material_id")
+        .annotate(qty=Sum("quantity"))
+        .values("material_id", "qty")
+    )
+    for row in batch_rows:
+        mid = int(row["material_id"])
+        out[mid] = _decimal_or_zero(row.get("qty"))
+
+    line_rows = (
+        await LineSideInventory.filter(
+            tenant_id=tenant_id,
+            deleted_at__isnull=True,
+            status="available",
+        )
+        .group_by("material_id")
+        .annotate(qty=Sum("quantity"))
+        .values("material_id", "qty")
+    )
+    for row in line_rows:
+        mid = int(row["material_id"])
+        out[mid] = out.get(mid, Decimal("0")) + _decimal_or_zero(row.get("qty"))
+
+    return {mid: qty for mid, qty in out.items() if qty > 0}
+
+
+async def sum_on_hand_quantity(tenant_id: int) -> Decimal:
+    """租户全仓在库总数量（与 aggregate_on_hand_qty_by_material 同口径）。"""
+    qty_map = await aggregate_on_hand_qty_by_material(tenant_id)
+    return sum(qty_map.values(), Decimal("0"))
+
+
+async def count_on_hand_batches(tenant_id: int) -> int:
+    """在库批次数（与 aggregate_on_hand_qty_by_material 主仓批次过滤同口径）。"""
+    from apps.master_data.models.material_batch import MaterialBatch
+
+    today = _site_today()
+    return await MaterialBatch.filter(
+        tenant_id=tenant_id,
+        deleted_at__isnull=True,
+        quantity__gt=0,
+        quality_status=QUALIFIED,
+    ).filter(~Q(status__in=["out_stock", "scrapped", "expired"])).filter(
+        Q(expiry_date__isnull=True) | Q(expiry_date__gte=today)
+    ).count()
+
+
 async def batch_sum_open_supply_quantities_with_breakdown(
     tenant_id: int,
     material_ids: Iterable[int],
@@ -462,16 +531,22 @@ async def get_material_inventory_info(
             )
 
             if wh_scope is not None:
-                scope_set = set(wh_scope)
-                default_map = await _material_default_warehouse_ids(
-                    tenant_id, [material_id]
-                )
-                include_unassigned = default_map.get(material_id) in scope_set
-                batch_query = batch_query.filter(
-                    _apply_material_batch_warehouse_scope_q(
-                        wh_scope, include_unassigned=include_unassigned
+                # 显式多仓（warehouse_ids）：MRP 等场景严格按仓，不认领未归属批次。
+                # 单仓（warehouse_id）：出库可用量仍可按默认仓认领 warehouse_id=0。
+                explicit_multi_scope = warehouse_ids is not None and warehouse_id is None
+                if explicit_multi_scope:
+                    batch_query = batch_query.filter(warehouse_id__in=wh_scope)
+                else:
+                    scope_set = set(wh_scope)
+                    default_map = await _material_default_warehouse_ids(
+                        tenant_id, [material_id]
                     )
-                )
+                    include_unassigned = default_map.get(material_id) in scope_set
+                    batch_query = batch_query.filter(
+                        _apply_material_batch_warehouse_scope_q(
+                            wh_scope, include_unassigned=include_unassigned
+                        )
+                    )
 
             batch_agg = (
                 await batch_query.group_by("material_id")
@@ -592,7 +667,7 @@ async def get_material_inventory_info(
                 "quantity": float(batch_qty),
                 "note_zh": (
                     "MaterialBatch：quantity>0、未删除、未过期，且状态非已出库/报废/过期；"
-                    "按参与计算的仓库过滤 warehouse_id（历史未归属按物料默认仓计入）"
+                    "按参与计算的仓库过滤 warehouse_id（显式多仓时不含历史未归属 warehouse_id=0）"
                 ),
             },
             "line_side_scope_zh": line_scope_zh,
@@ -856,11 +931,12 @@ async def batch_get_material_inventory(
     """
     批量获取物料库存（SQL GROUP BY，减少数据库往返）。
 
-    口径与 get_material_inventory_info（无 breakdown）一致：
+    口径与 get_material_inventory_info（无 breakdown）在「不限仓」时一致；
+    传入 warehouse_ids 显式多仓时严格按仓（不含 warehouse_id=0 默认仓认领）：
     - on_hand = 主仓批次 + 线边现存量（均按 warehouse_id / warehouse_ids 收窄）
     - reserved_quantity = 线边预留
     - available_quantity = on_hand - reserved（下限 0）
-    - 仓库范围 None=全部；[]=不计入；非空=仅所选仓（主仓历史 warehouse_id=0 按物料默认仓归属）
+    - 仓库范围 None=全部（含未归属）；[]=不计入；非空=仅所选仓（warehouse_id 必须落在范围内）
 
     Returns:
         Dict[int, Dict[str, Decimal]]: material_id -> {
@@ -910,8 +986,8 @@ async def batch_get_material_inventory(
                     if mid in on_hand_map:
                         on_hand_map[mid] += _decimal_or_zero(row.get("qty"))
             else:
-                scope_set = set(wh_scope)
-                # 已归属所选仓的批次
+                # 显式仓库范围（MRP 参与计算的仓库）：只计 warehouse_id 落在范围内的批次。
+                # 禁止把 warehouse_id=0 按物料默认仓「认领」进来——否则未选仓库的实物仍会被算入净需求。
                 attributed_rows = (
                     await batch_q.filter(warehouse_id__in=wh_scope)
                     .group_by("material_id")
@@ -922,25 +998,6 @@ async def batch_get_material_inventory(
                     mid = int(row["material_id"])
                     if mid in on_hand_map:
                         on_hand_map[mid] += _decimal_or_zero(row.get("qty"))
-
-                # 历史未归属：仅当物料默认仓在所选范围内时计入（与出库可用量口径一致）
-                zero_rows = (
-                    await batch_q.filter(warehouse_id=0)
-                    .group_by("material_id")
-                    .annotate(qty=Sum("quantity"))
-                    .values("material_id", "qty")
-                )
-                if zero_rows:
-                    zero_mids = [int(r["material_id"]) for r in zero_rows]
-                    default_map = await _material_default_warehouse_ids(
-                        tenant_id, zero_mids
-                    )
-                    for row in zero_rows:
-                        mid = int(row["material_id"])
-                        if mid not in on_hand_map:
-                            continue
-                        if default_map.get(mid) in scope_set:
-                            on_hand_map[mid] += _decimal_or_zero(row.get("qty"))
     except Exception as e:
         logger.warning(f"MaterialBatch 批量查询失败: {e}")
 

@@ -75,6 +75,7 @@ from apps.kuaizhizao.schemas.work_order import (
     WorkOrderTrackingPreviewResponse,
     WorkOrderConfirmTrackingRequest,
     WorkOrderCompleteRequest,
+    WorkOrderPushPurchaseRequisitionRequest,
 )
 from apps.kuaizhizao.schemas.work_order_score import (
     WorkOrderScoreResponse,
@@ -2190,6 +2191,55 @@ async def preview_push_work_order_to_production_picking(
         return await ProductionPickingService().preview_push_work_order_to_production_picking(
             tenant_id=tenant_id,
             work_order_id=work_order_id,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(e))
+    except BusinessLogicError as e:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get(
+    "/work-orders/{work_order_id}/push-purchase-requisition/preview",
+    summary="Preview push work order shortage to purchase requisition",
+    dependencies=[Depends(require_permission_codes("kuaizhizao:work-order:read"))],
+)
+async def preview_push_work_order_purchase_requisition(
+    work_order_id: int,
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """工单齐套缺料下推采购申请预览。"""
+    try:
+        return await WorkOrderService().preview_push_purchase_requisition_from_shortage(
+            tenant_id=tenant_id,
+            work_order_id=work_order_id,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/work-orders/{work_order_id}/push-purchase-requisition",
+    summary="Push work order shortage to purchase requisition",
+    dependencies=[
+        Depends(require_permission_codes("kuaizhizao:work-order:update")),
+        Depends(require_permission_codes("kuaizhizao:purchase-requisition:create")),
+    ],
+)
+async def push_work_order_purchase_requisition(
+    work_order_id: int,
+    body: WorkOrderPushPurchaseRequisitionRequest = Body(default_factory=WorkOrderPushPurchaseRequisitionRequest),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """工单齐套缺料下推采购申请（行级挂工单）。"""
+    material_ids = body.material_ids
+    try:
+        return await WorkOrderService().push_purchase_requisition_from_shortage(
+            tenant_id=tenant_id,
+            work_order_id=work_order_id,
+            created_by=current_user.id,
+            material_ids=material_ids,
         )
     except NotFoundError as e:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(e))

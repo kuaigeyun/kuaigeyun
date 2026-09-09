@@ -200,12 +200,18 @@ async def get_purchase_order_statistics(
     tenant_id: int = Depends(get_current_tenant),
 ) -> Dict[str, Any]:
     from apps.kuaizhizao.models.purchase_order import PurchaseOrder
-    from datetime import timedelta
+    from datetime import datetime, timedelta, time
+
+    from core.utils.timezone_utils import (
+        coerce_business_datetime_to_utc,
+        resolve_business_datetime,
+        to_site_date,
+    )
 
     def _sum(vals):
         return float(sum(v for v in vals if v is not None))
 
-    today = date.today()
+    today = to_site_date(resolve_business_datetime())
     base = PurchaseOrder.filter(tenant_id=tenant_id)
     audited = ("AUDITED", "已审核", "CONFIRMED", "已确认", "audited", "已通过")
     pending_review = ("PENDING", "PENDING_REVIEW", "待审核", "pending_review")
@@ -267,10 +273,57 @@ async def get_purchase_order_statistics(
         else:
             monthly_arrival_rate = 0.0
 
-        # 供应商准时率：已审核且要求到货日未逾期 / 已审核总数（当年）
-        audited_total = await base.filter(status__in=list(audited), order_date__gte=year_start).count() or 1
-        on_time = await base.filter(status__in=list(audited), order_date__gte=year_start, delivery_date__gte=today).count()
-        supplier_on_time_rate = round(on_time / audited_total * 100, 1)
+        # 供应商准时交货率：与「供应商交货统计」同口径
+        # 当年已确认入库行：站点日历入库日 <= 采购订单行要求到货日
+        from apps.kuaizhizao.models.purchase_order import PurchaseOrderItem
+        from apps.kuaizhizao.models.purchase_receipt import PurchaseReceipt
+        from apps.kuaizhizao.models.purchase_receipt_item import PurchaseReceiptItem
+
+        year_start_utc = coerce_business_datetime_to_utc(datetime.combine(year_start, time.min))
+        year_receipts = await PurchaseReceipt.filter(
+            tenant_id=tenant_id,
+            deleted_at__isnull=True,
+            receipt_time__isnull=False,
+            receipt_time__gte=year_start_utc,
+        ).values("id", "receipt_time")
+        receipt_map = {r["id"]: r for r in year_receipts}
+        timed_count = 0
+        ontime_count = 0
+        if receipt_map:
+            year_lines = await PurchaseReceiptItem.filter(
+                tenant_id=tenant_id,
+                deleted_at__isnull=True,
+                receipt_id__in=list(receipt_map.keys()),
+            ).values("receipt_id", "purchase_order_item_id", "receipt_time")
+            poi_ids = [
+                int(ln["purchase_order_item_id"])
+                for ln in year_lines
+                if ln.get("purchase_order_item_id")
+            ]
+            required_map: Dict[int, Any] = {}
+            if poi_ids:
+                for poi in await PurchaseOrderItem.filter(id__in=poi_ids).values("id", "required_date"):
+                    required_map[int(poi["id"])] = poi.get("required_date")
+            for ln in year_lines:
+                head = receipt_map.get(ln.get("receipt_id"), {})
+                raw_rt = ln.get("receipt_time") or head.get("receipt_time")
+                if isinstance(raw_rt, datetime):
+                    rec_d = to_site_date(raw_rt)
+                elif isinstance(raw_rt, date):
+                    rec_d = raw_rt
+                else:
+                    continue
+                req_raw = required_map.get(int(ln["purchase_order_item_id"])) if ln.get("purchase_order_item_id") else None
+                if isinstance(req_raw, datetime):
+                    req_d = to_site_date(req_raw)
+                elif type(req_raw) is date:
+                    req_d = req_raw
+                else:
+                    continue
+                timed_count += 1
+                if rec_d <= req_d:
+                    ontime_count += 1
+        supplier_on_time_rate = round(ontime_count / timed_count * 100, 1) if timed_count else 0.0
 
         # 近7月趋势
         trend_annual = []

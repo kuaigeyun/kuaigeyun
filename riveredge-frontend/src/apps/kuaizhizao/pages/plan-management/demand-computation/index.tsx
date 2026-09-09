@@ -654,7 +654,7 @@ const InventoryParamsForm: React.FC<{
                   style={{ width: '100%' }}
                   options={warehouseOptions}
                   value={whValue}
-                  onChange={ids => handleChange('warehouse_ids', ids)}
+                  onChange={ids => handleChange('warehouse_ids', Array.isArray(ids) ? ids : [])}
                 />
               </div>
               {bomMultiVersionAllowed && materials.length === 0 && (
@@ -1427,6 +1427,14 @@ const DemandComputationPage: React.FC = () => {
     // 有按物料指定时，不传 bom_version，留空物料自动使用该物料 BOM 默认版本
     if (executeModalMaterials.length > 0) {
       delete params.bom_version
+    }
+    // 仓库范围必须显式数组：避免 undefined 被 JSON 丢掉后后端回落「全部普通仓」
+    if (!Array.isArray(params.warehouse_ids)) {
+      params.warehouse_ids = [...normalWarehouseIds]
+    } else {
+      params.warehouse_ids = params.warehouse_ids
+        .map((id: unknown) => Number(id))
+        .filter((id: number) => Number.isFinite(id) && id > 0)
     }
     return params
   }
@@ -2315,12 +2323,15 @@ const DemandComputationPage: React.FC = () => {
       ...DOCUMENT_PROGRESS_COLUMN_DEFAULTS,
       render: (_, record) => {
         const percent = resolveDownstreamPushPercent(record.downstream_push_progress)
+        const tooltip = record.downstream_push_no_need
+          ? t('app.kuaizhizao.demandComputation.pushProgressNoNeedTooltip', { percent: Math.round(percent) })
+          : t('app.kuaizhizao.demandComputation.pushProgressTooltip', {
+              percent: Math.round(percent),
+            })
         return (
           <DocumentPushProgressBar
             percent={percent}
-            tooltip={t('app.kuaizhizao.demandComputation.pushProgressTooltip', {
-              percent: Math.round(percent),
-            })}
+            tooltip={tooltip}
           />
         )
       },
@@ -2434,15 +2445,21 @@ const DemandComputationPage: React.FC = () => {
         handleOpenPushPanel(selectedComputationForToolbar, preset)
       }
     }
+    const noPushNeededReason =
+      toolbarPushOptions?.no_push_reason
+        ? demandComputationCapabilityReasonMessage(toolbarPushOptions.no_push_reason, t)
+        : undefined
     const productionPathBlockedReason =
       computationPushBlockedReason
       ?? (toolbarPushOptions && !toolbarPushOptions.has_production_items && !toolbarPushOptions.has_outsource_items
-        ? t('app.kuaizhizao.demandComputation.pushNoProductionItems', { defaultValue: '计算结果无生产/委外需求' })
+        ? (noPushNeededReason
+          || t('app.kuaizhizao.demandComputation.pushNoProductionItems', { defaultValue: '计算结果无生产/委外需求' }))
         : undefined)
     const purchasePathBlockedReason =
       computationPushBlockedReason
       ?? (toolbarPushOptions && !toolbarPushOptions.has_purchase_items
-        ? t('app.kuaizhizao.demandComputation.pushNoPurchaseItems', { defaultValue: '计算结果无采购需求' })
+        ? (noPushNeededReason
+          || t('app.kuaizhizao.demandComputation.pushNoPurchaseItems', { defaultValue: '计算结果无采购需求' }))
         : undefined)
 
     return buildUniPushMenuItems([
@@ -2471,8 +2488,8 @@ const DemandComputationPage: React.FC = () => {
       {
         key: 'push-documents-panel',
         label: t('app.kuaizhizao.demandComputation.pushDocuments'),
-        disabled: !!computationPushBlockedReason,
-        title: computationPushBlockedReason,
+        disabled: !!(computationPushBlockedReason || noPushNeededReason),
+        title: computationPushBlockedReason || noPushNeededReason,
         onClick: () => openPush(),
       },
     ])
@@ -2994,6 +3011,13 @@ const DemandComputationPage: React.FC = () => {
             if (createModalMaterials.length > 0) {
               delete computationParams.bom_version
             }
+            if (!Array.isArray(computationParams.warehouse_ids)) {
+              computationParams.warehouse_ids = [...normalWarehouseIds]
+            } else {
+              computationParams.warehouse_ids = computationParams.warehouse_ids
+                .map((id: unknown) => Number(id))
+                .filter((id: number) => Number.isFinite(id) && id > 0)
+            }
             const createData: any = {
               computation_type: 'MRP',
               computation_params: computationParams,
@@ -3117,6 +3141,16 @@ const DemandComputationPage: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {pushPreviewLoadError ? (
               <Alert type="error" showIcon title={pushPreviewLoadError} />
+            ) : null}
+            {pushOptions?.no_push_needed ? (
+              <Alert
+                type="info"
+                showIcon
+                title={
+                  demandComputationCapabilityReasonMessage(pushOptions.no_push_reason, t)
+                  || t('app.kuaizhizao.demandComputation.pushPreviewNoLines')
+                }
+              />
             ) : null}
             {pushOptions && (
               <>

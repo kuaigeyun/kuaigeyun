@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ProDescriptions } from '@ant-design/pro-components';
-import { Button, Spin, Empty, Typography, Timeline, Space } from 'antd';
+import { App, Button, Spin, Empty, Typography, Timeline, Space } from 'antd';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { purchaseInvoiceService } from '../../../services/finance/purchase-invoice';
@@ -15,16 +15,22 @@ import {
 } from '../../../../../components/layout-templates';
 import { getChineseInvoiceLifecycle } from '../../../utils/financeLifecycle';
 import { formatChineseInvoiceType } from '../../../utils/financeSharedOptions';
+import { canDeletePurchaseInvoice } from '../../../utils/purchaseInvoiceUi';
+import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions';
+import { formatApiErrorDetail } from '../../../../../services/api';
 
 const P = 'app.kuaicaiwu.purchaseInvoice';
+const PURCHASE_INVOICE_RESOURCE = 'kuaicaiwu:purchase-invoice';
 
 const PurchaseInvoiceDetail: React.FC = () => {
   const { t } = useTranslation();
+  const { message, modal } = App.useApp();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const [data, setData] = useState<PurchaseInvoice>();
   const [loading, setLoading] = useState(false);
+  const purchaseInvoicePerms = useResourcePermissions(PURCHASE_INVOICE_RESOURCE);
 
   const pageTitle = useMemo(() => {
     const num = String(data?.invoice_number ?? '').trim();
@@ -63,6 +69,30 @@ const PurchaseInvoiceDetail: React.FC = () => {
     loadData();
   }, [id]);
 
+  const remove = () => {
+    if (!id || !data) return;
+    modal.confirm({
+      title: t(`${P}.deleteTitle`),
+      content: t(`${P}.deleteConfirm`),
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await purchaseInvoiceService.delete(Number(id));
+          message.success(t('common.deleteSuccess'));
+          navigate('/apps/kuaicaiwu/finance-management/purchase-invoices');
+        } catch (e: unknown) {
+          const err = e as { response?: { data?: { detail?: unknown } }; message?: string };
+          message.error(
+            formatApiErrorDetail(err?.response?.data?.detail)
+              || err?.message
+              || t('common.operationFailed'),
+          );
+          throw e;
+        }
+      },
+    });
+  };
+
   const pageActions = data ? (
     <>
       <Button onClick={() => navigate(-1)}>{t('common.back')}</Button>
@@ -80,6 +110,11 @@ const PurchaseInvoiceDetail: React.FC = () => {
         theme="default"
         onSuccess={loadData}
       />
+      {canDeletePurchaseInvoice(data) && purchaseInvoicePerms.canDelete ? (
+        <Button danger onClick={remove}>
+          {t('common.delete')}
+        </Button>
+      ) : null}
     </>
   ) : null;
 

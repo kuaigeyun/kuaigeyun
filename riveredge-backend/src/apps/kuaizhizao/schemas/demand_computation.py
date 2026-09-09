@@ -13,8 +13,9 @@ computation_params（MRP）中小企业常用键白名单（JSON 存取，与前
 - 建议量依据：mrp_suggestion_basis: "net" | "gross"（默认 net）。
   net=建议工单/采购/委外量按净需求，供需净算四项按参数参与；
   gross=建议量按毛需求（BOM 汇总），服务端强制关闭安全库存/在途/预留/再订货点对净需求的参与，与前端隐藏供需净算一致。
-- 仓库范围：warehouse_ids: int[]；缺省时后端按全部启用且 warehouse_type=normal 的仓库汇总线边库存；
-  MaterialBatch 主仓批次不按仓过滤（全量计入）。
+- 仓库范围：warehouse_ids: int[]；缺省时后端按全部启用且 warehouse_type=normal 的仓库汇总；
+  显式传入时主仓批次与线边库存均严格按 warehouse_id 过滤（不含历史未归属 warehouse_id=0 的默认仓认领）。
+  空数组表示不计入任何仓库库存。
 - 时间窗：planning_horizon: int（天），有交期的需求行交期晚于「今天+horizon」则跳过；缺省或 <=0 不裁剪。
 - 计划时间栏：planning_fence_days: int（天，默认 7；0=关闭），release 落在栏内的新计划自动确认（firm）。
 - 建议量：apply_lot_sizing: bool（默认 true）；suggested_qty_min / suggested_qty_max / suggested_qty_multiple / suggested_qty_fixed（全局覆盖）；
@@ -137,10 +138,10 @@ class DemandComputationCreate(DemandComputationBase):
 
 
 class ExecuteComputationRequest(BaseModel):
-    """执行需求计算请求Schema（可选临时覆盖参数）"""
+    """执行需求计算请求Schema（可选覆盖参数）"""
     computation_params: Optional[Dict[str, Any]] = Field(
         None,
-        description="临时覆盖的计算参数，仅本次执行生效，不持久化"
+        description="覆盖计算参数（含 warehouse_ids）；合并后落库并用于本次执行",
     )
 
 
@@ -261,6 +262,10 @@ class DemandComputationResponse(DemandComputationBase):
     items: Optional[List[DemandComputationItemResponse]] = Field(default_factory=list)
     downstream_push_progress: Optional[float] = Field(
         None, description="下推进度 0-100（列表用）"
+    )
+    downstream_push_no_need: Optional[bool] = Field(
+        None,
+        description="无建议下推量（净需求已冲抵等）；进度 100% 表示无需下推，而非已全部下推",
     )
     lifecycle: Optional[dict] = Field(None, description="生命周期（后端计算，供 UniLifecycleStepper 展示）")
     capabilities: Optional[DemandComputationCapabilities] = Field(

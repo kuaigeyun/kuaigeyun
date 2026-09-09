@@ -112,10 +112,9 @@ class MergeSettlementService:
             if str(p.get("source_code") or "").strip()
         ]
         from apps.kuaicaiwu.services.bank_account_service import build_voucher_bank_summary
+        from apps.kuaicaiwu.services.finance_voucher_codes import allocate_receipt_code
 
-        today = today_site_str()
-        count = await Receipt.filter(tenant_id=tenant_id).count()
-        code = f"SK{today}{count + 1:04d}"
+        code = await allocate_receipt_code(tenant_id)
         merge_notes = (data.notes or "").strip() or build_voucher_bank_summary(
             voucher_kind="receipt",
             voucher_code=code,
@@ -240,10 +239,9 @@ class MergeSettlementService:
             if str(p.get("source_code") or "").strip()
         ]
         from apps.kuaicaiwu.services.bank_account_service import build_voucher_bank_summary
+        from apps.kuaicaiwu.services.finance_voucher_codes import allocate_payment_code
 
-        today = today_site_str()
-        count = await Payment.filter(tenant_id=tenant_id).count()
-        code = f"FK{today}{count + 1:04d}"
+        code = await allocate_payment_code(tenant_id)
         merge_notes = (data.notes or "").strip() or build_voucher_bank_summary(
             voucher_kind="payment",
             voucher_code=code,

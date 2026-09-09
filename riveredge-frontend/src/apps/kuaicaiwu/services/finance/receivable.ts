@@ -71,6 +71,13 @@ export const receivableService = {
     });
   },
 
+  updateReceivable: (id: number, data: Partial<ReceivableCreateData>) => {
+    return apiRequest<Receivable>(`${RECEIVABLE_API}/${id}`, {
+      method: 'PUT',
+      data,
+    });
+  },
+
   recordReceipt: (id: number, data: ReceiptRecordCreate) => {
     return apiRequest<Receivable>(`${RECEIVABLE_API}/${id}/receipt`, {
       method: 'POST',

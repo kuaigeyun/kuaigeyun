@@ -1921,17 +1921,16 @@ export const OutsourceWorkOrdersTable: React.FC = () => {
         grid={true}
         formRef={formRef}
       >
-        {!isEdit && (
-          <CodeField
-            pageCode="kuaizhizao-production-outsource-work-order"
-            name="code"
-            label={t('app.kuaizhizao.outsourceWorkOrder.fieldCode')}
-            autoGenerateOnCreate={true}
-            showGenerateButton={false}
-            context={{}}
-            colProps={{ span: 12 }}
-          />
-        )}
+        <CodeField
+          pageCode="kuaizhizao-production-outsource-work-order"
+          name="code"
+          label={t('app.kuaizhizao.outsourceWorkOrder.fieldCode')}
+          autoGenerateOnCreate={!isEdit}
+          showGenerateButton={false}
+          documentId={isEdit ? currentWorkOrder?.id : undefined}
+          context={{}}
+          colProps={{ span: 12 }}
+        />
         <ProFormText
           name="name"
           label={t('app.kuaizhizao.outsourceWorkOrder.fieldName')}

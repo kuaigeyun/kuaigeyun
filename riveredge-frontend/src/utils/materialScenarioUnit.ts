@@ -150,7 +150,13 @@ export function resolveWorkOrderFormQuantity(
     unitToBaseFactor?: number;
   },
   qtyField: Parameters<typeof formatWorkOrderDisplayQuantity>[1] = 'quantity',
+  material?: MaterialUnitLike | null,
 ): number | undefined {
+  if (qtyField === 'quantity' && material) {
+    const converted = convertFromBaseQuantity(material, Number(record.quantity) || 0);
+    if (Number.isFinite(converted)) return converted;
+  }
+
   if (qtyField !== 'quantity') {
     const { value } = formatWorkOrderDisplayQuantity(record, qtyField);
     return Number.isFinite(value) ? value : undefined;

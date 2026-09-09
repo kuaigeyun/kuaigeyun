@@ -7,6 +7,7 @@ import {
   outsourceProductReturnApi,
 } from '../../../services/production';
 import {
+  filterInboundHubRows,
   normalizeWarehouseListResponse,
   sortInboundHubRows,
 } from '../../../utils/warehouseListCore';
@@ -27,6 +28,9 @@ function withInboundHubDisplayFields(row: InboundHubOrder): InboundHubOrder {
 }
 
 const emptyList = { items: [] as unknown[], total: 0 };
+
+/** 与入库 Hub 各源列表 API 的 limit 上限对齐（成品/采购等为 1000） */
+const INBOUND_HUB_SOURCE_FETCH_MAX = 1000;
 
 const toList = (r: unknown) => {
   const { data, total } = normalizeWarehouseListResponse(r);
@@ -50,7 +54,8 @@ export async function fetchInboundHubList(
   const hubStatus = params.status as string | undefined;
   const typed = Boolean(typeFilter);
   const fetchSkip = typed ? skip : 0;
-  const fetchLimit = typed ? limit : skip + limit;
+  // 「全部」视图需从各源拉取 skip+limit 再前端切片；不得超过各源 API limit 上限，否则 422
+  const fetchLimit = Math.min(typed ? limit : skip + limit, INBOUND_HUB_SOURCE_FETCH_MAX);
 
   const fetchPurchase = shouldFetchInboundHubType(user, typeFilter, 'purchase');
   const fetchFinished = shouldFetchInboundHubType(user, typeFilter, 'finished_goods');
@@ -64,13 +69,31 @@ export async function fetchInboundHubList(
   const fetchOtherInbound = shouldFetchInboundHubType(user, typeFilter, 'other_inbound');
   const fetchMaterialReturn = shouldFetchInboundHubType(user, typeFilter, 'material_return');
 
+  const warehouseIdRaw =
+    params.warehouse_id != null && params.warehouse_id !== ''
+      ? Number(params.warehouse_id)
+      : undefined;
+  const warehouseId =
+    warehouseIdRaw != null && Number.isFinite(warehouseIdRaw) ? warehouseIdRaw : undefined;
+  const keyword =
+    typeof params.keyword === 'string' && params.keyword.trim()
+      ? params.keyword.trim()
+      : undefined;
+  const orderBy =
+    typeof params.order_by === 'string' && params.order_by.trim()
+      ? params.order_by.trim()
+      : undefined;
+
   const baseParams = {
     skip: fetchSkip,
     limit: fetchLimit,
-    keyword: params.keyword,
-    order_by: params.order_by,
-    warehouse_id: params.warehouse_id,
-    supplier_name: params.supplier_name,
+    keyword,
+    order_by: orderBy,
+    warehouse_id: warehouseId,
+    supplier_name:
+      typeof params.supplier_name === 'string' && params.supplier_name.trim()
+        ? params.supplier_name.trim()
+        : undefined,
     created_start_date: params.created_start_date,
     created_end_date: params.created_end_date,
     updated_start_date: params.updated_start_date,
@@ -129,8 +152,23 @@ export async function fetchInboundHubList(
 
   const anySourceFailed = settled.some((s) => s.status === 'rejected');
   if (anySourceFailed) {
-    const firstReject = settled.find((s): s is PromiseRejectedResult => s.status === 'rejected');
-    console.warn('[inboundHub] partial list source failed', firstReject?.reason);
+    const sourceNames = [
+      'purchase',
+      'finished_goods',
+      'semi_finished_goods',
+      'production_return',
+      'customer_material',
+      'sales_return',
+      'outsource_receipt',
+      'outsource_material_return',
+      'outsource_product_return',
+      'other_inbound',
+      'material_return',
+    ] as const;
+    const failed = settled
+      .map((s, i) => (s.status === 'rejected' ? { source: sourceNames[i], reason: s.reason } : null))
+      .filter(Boolean);
+    console.warn('[inboundHub] partial list source failed', failed);
   }
   const settledOrEmpty = (s: PromiseSettledResult<unknown>) =>
     s.status === 'fulfilled' ? s.value : emptyList;
@@ -335,8 +373,13 @@ export async function fetchInboundHubList(
     ...materialReturnData,
   ].map(withInboundHubDisplayFields);
 
-  const sorted = sortInboundHubRows(
+  const filteredCombined = filterInboundHubRows(
     combinedData as Record<string, unknown>[],
+    params,
+  ) as InboundHubOrder[];
+
+  const sorted = sortInboundHubRows(
+    filteredCombined as Record<string, unknown>[],
     typeof params.order_by === 'string' ? params.order_by : undefined,
   ) as InboundHubOrder[];
 
@@ -353,10 +396,13 @@ export async function fetchInboundHubList(
     (fetchOtherInbound ? toList(otherInboundRes).total : 0) +
     (fetchMaterialReturn ? toList(materialReturnRes).total : 0);
 
+  // 各源已返回真实 total（成品/采购等）；客户端再筛仅影响本窗口展示
+  const total = sourceTotal;
+
   if (typed) {
-    return { data: sorted, success: !anySourceFailed, total: sourceTotal };
+    return { data: sorted, success: !anySourceFailed, total };
   }
 
   const page = sorted.slice(skip, skip + limit);
-  return { data: page, success: !anySourceFailed, total: sourceTotal };
+  return { data: page, success: !anySourceFailed, total };
 }

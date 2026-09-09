@@ -625,7 +625,7 @@ const InspectionPlansPage: React.FC = () => {
                   required
                   autoGenerateOnCreate={!isEdit}
                   showGenerateButton={false}
-                  disabled={isEdit}
+                  documentId={isEdit ? currentPlan?.id : undefined}
                   context={{
                     plan_type: plan_type || '',
                   }}

@@ -131,6 +131,10 @@ const customerBusinessFields: FieldConfig[] = [
         labelKey: 'pages.system.configCenter.param.finance_revenue_recognition_opt_on_invoice',
         value: 'on_invoice',
       },
+      {
+        labelKey: 'pages.system.configCenter.param.finance_revenue_recognition_opt_manual',
+        value: 'manual',
+      },
     ],
   },
   {

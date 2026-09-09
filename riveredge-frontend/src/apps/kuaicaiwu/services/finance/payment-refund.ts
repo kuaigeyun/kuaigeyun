@@ -70,6 +70,16 @@ export const paymentRefundService = {
       method: 'GET',
       params: { payment_ids: paymentIds.join(',') },
     }),
+
+  resolveFromPurchaseReturn: (purchaseReturnId: number) =>
+    apiRequest<{
+      purchase_return_id: number;
+      purchase_return_code?: string;
+      supplier_id?: number;
+      supplier_name?: string;
+      source_ids: number[];
+      source_codes?: string[];
+    }>(`${API}/resolve-from-purchase-return/${purchaseReturnId}`, { method: 'GET' }),
 };
 
 export const PAYMENT_REFUND_RESOURCE = 'kuaicaiwu:payment-refund';

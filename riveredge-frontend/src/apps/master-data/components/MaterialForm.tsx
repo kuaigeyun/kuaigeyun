@@ -166,8 +166,16 @@ export interface MaterialFormProps {
   open: boolean;
   /** 关闭回调 */
   onClose: () => void;
-  /** 提交回调 */
-  onFinish: (values: MaterialCreate | MaterialUpdate) => Promise<void>;
+  /**
+   * 仅持久化标准物料字段，须返回含数字主键 id 的物料（供自定义字段落库）。
+   * 禁止在此回调内关页/关弹窗/navigate——须等自定义字段保存后再走 onSubmitSuccess。
+   */
+  onFinish: (values: MaterialCreate | MaterialUpdate) => Promise<Material | void>;
+  /**
+   * 标准字段 + 自定义字段均已落库后调用（关页、关弹窗、刷新列表放这里）。
+   * 不传则兼容旧调用方仍在 onFinish 内关闭（存在丢自定义字段风险）。
+   */
+  onSubmitSuccess?: (saved: Material) => void;
   /** 是否为编辑模式 */
   isEdit?: boolean;
   /** 当前物料数据（编辑模式） */
@@ -195,6 +203,7 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
   open,
   onClose,
   onFinish,
+  onSubmitSuccess,
   isEdit = false,
   material,
   materialGroups = [],
@@ -786,11 +795,17 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
       resetFieldValues();
       return;
     }
-    if (isEdit && material?.id && customFields.length > 0) {
-      loadFieldValues(material.id).then((values) => {
-        formRef.current?.setFieldsValue(values);
-      });
-    }
+    if (!isEdit || !material?.id || customFields.length === 0) return;
+
+    let cancelled = false;
+    loadFieldValues(material.id).then((values) => {
+      if (cancelled || !formRef.current) return;
+      if (Object.keys(values).length === 0) return;
+      formRef.current.setFieldsValue(values);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [open, isEdit, material?.id, customFields.length, loadFieldValues, resetFieldValues]);
 
   /**
@@ -1240,9 +1255,17 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
         }
       });
 
-      // 自定义字段须从 onFinish 的 values / 表单实例读取；submitData 仅含标准字段蛇形键，不含 custom_*
-      const { customData: cfValues } = extractFormValues(values, formRef.current ?? undefined);
+      // 自定义字段须从表单实例 + onFinish values 读取；submitData 仅含标准字段蛇形键，不含 custom_*
+      const mergedFormValues = {
+        ...(formRef.current?.getFieldsValue?.(true) || {}),
+        ...values,
+      };
+      const { customData: cfValues } = extractFormValues(
+        mergedFormValues,
+        formRef.current ?? undefined,
+      );
 
+      // 先落库标准字段；关页/关弹窗必须在自定义字段保存之后（onSubmitSuccess）
       const result = await onFinish(submitData as any);
 
       if (
@@ -1262,18 +1285,27 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
           setPendingVariantRows([]);
         }
       }
-      
-      // 保存自定义字段值（API 要求 record_id 为数字主键，勿传 uuid）
+
+      const savedMaterial: Material | undefined =
+        result && typeof result === 'object' && (result as Material).id != null
+          ? (result as Material)
+          : material;
+
+      // 保存自定义字段值（API 要求 record_id 为数字主键，勿传 uuid）；必须在关页之前完成
       const recordIdForCustom =
-        (result as any)?.id != null ? Number((result as any).id) : (material as any)?.id != null ? Number((material as any).id) : NaN;
+        savedMaterial?.id != null ? Number(savedMaterial.id) : NaN;
       if (Number.isFinite(recordIdForCustom) && recordIdForCustom > 0) {
         await saveCustomFieldValues(recordIdForCustom, cfValues);
+      } else if (Object.keys(cfValues).length > 0) {
+        throw new Error(t('app.master-data.materialForm.customFieldRecordIdMissing', {
+          defaultValue: '物料主键缺失，无法保存自定义字段',
+        }));
       }
-      
-      // 如果是新建模式，需要等待物料创建完成后再保存外部系统编号映射
-      // 如果是编辑模式，外部系统编号映射已经在 CodeMappingTab 中单独管理
-      // 这里不需要额外处理，因为外部系统编号映射是独立实体，有自己的API
-      
+
+      if (onSubmitSuccess && savedMaterial) {
+        onSubmitSuccess(savedMaterial);
+      }
+
       return result;
     } catch (error: any) {
       messageApi.error(error.message || t('app.master-data.materialForm.submitFailed'));

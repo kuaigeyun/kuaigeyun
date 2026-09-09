@@ -288,13 +288,38 @@ class PayableService(AppBaseService[Payable]):
         return await enrich_items(tenant_id, "payable", rows), total
 
     async def update_payable(self, tenant_id: int, payable_id: int, payable_data: PayableUpdate, updated_by: int) -> PayableResponse:
-        """更新应付单"""
+        """更新应付单（无付款、无退款时可改）"""
         async with in_transaction():
-            await self.get_payable_by_id(tenant_id, payable_id)
+            payable = await self.get_payable_by_id(tenant_id, payable_id)
+            if self._money(payable.paid_amount) > Decimal("0.00"):
+                raise BusinessLogicError("已有付款记录的应付单不能修改")
+            if self._money(getattr(payable, "refunded_amount", 0) or 0) > Decimal("0.00"):
+                raise BusinessLogicError("已有退款记录的应付单不能修改")
             user_info = await self.get_user_info(updated_by)
-            update_data = payable_data.model_dump(exclude_unset=True, exclude={'updated_by'})
-            update_data['updated_by'] = updated_by
-            update_data['updated_by_name'] = user_info['name']
+            update_data = payable_data.model_dump(
+                exclude_unset=True,
+                exclude={
+                    "updated_by",
+                    "paid_amount",
+                    "remaining_amount",
+                    "status",
+                    "review_status",
+                    "reviewer_id",
+                    "reviewer_name",
+                    "review_time",
+                    "review_remarks",
+                    "refunded_amount",
+                    "refund_execution_status",
+                },
+            )
+            if "total_amount" in update_data:
+                total = self._money(update_data["total_amount"])
+                update_data["total_amount"] = total
+                update_data["paid_amount"] = Decimal("0.00")
+                update_data["remaining_amount"] = total
+                update_data["status"] = "未付款"
+            update_data["updated_by"] = updated_by
+            update_data["updated_by_name"] = user_info["name"]
             await Payable.filter(tenant_id=tenant_id, id=payable_id).update(**update_data)
             return await self.get_payable_by_id(tenant_id, payable_id)
 
@@ -312,8 +337,9 @@ class PayableService(AppBaseService[Payable]):
             raise ValidationError("付款金额不能超过剩余金额")
 
         today = today_site_str()
-        count = await Payment.filter(tenant_id=tenant_id).count()
-        code = f"PK{today}{count + 1:04d}"
+        from apps.kuaicaiwu.services.finance_voucher_codes import allocate_payment_code
+
+        code = await allocate_payment_code(tenant_id)
 
         note_parts: list[str] = []
         if payment_data.notes:
@@ -360,7 +386,18 @@ class PayableService(AppBaseService[Payable]):
 
     async def approve_payable(self, tenant_id: int, payable_id: int, approved_by: int, rejection_reason: Optional[str] = None) -> PayableResponse:
         """审核应付单（有流程时先关审批任务，再写回单据）。"""
+        from apps.kuaicaiwu.services.finance_audit_workflow import (
+            assert_finance_pending_approval_flow,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
+
+        await assert_finance_pending_approval_flow(
+            tenant_id=tenant_id,
+            doc_id=payable_id,
+            node_key="payable",
+            doc_label="应付单",
+            verb="驳回" if rejection_reason else "审核",
+        )
 
         async def _do_approve() -> PayableResponse:
             async with in_transaction():
@@ -500,12 +537,12 @@ class PayableService(AppBaseService[Payable]):
         }
 
     async def delete_payable(self, tenant_id: int, payable_id: int) -> None:
-        """删除应付单"""
+        """删除应付单（无付款、无退款时可删，含已审核）"""
         payable = await self.get_payable_by_id(tenant_id, payable_id)
-        if str(payable.review_status or '') == '已审核':
-            raise BusinessLogicError("已审核的应付单不能删除")
-        if payable.paid_amount > 0:
+        if self._money(payable.paid_amount) > Decimal("0.00"):
             raise BusinessLogicError("已有付款记录的应付单不能删除")
+        if self._money(getattr(payable, "refunded_amount", 0) or 0) > Decimal("0.00"):
+            raise BusinessLogicError("已有退款记录的应付单不能删除")
         await Payable.filter(tenant_id=tenant_id, id=payable_id).delete()
 
 
@@ -754,13 +791,78 @@ class PurchaseInvoiceService(AppBaseService[PurchaseInvoice]):
 
     async def get_purchase_invoice_by_id(self, tenant_id: int, invoice_id: int) -> PurchaseInvoiceResponse:
         """根据ID获取采购发票"""
-        invoice = await PurchaseInvoice.get_or_none(tenant_id=tenant_id, id=invoice_id)
+        invoice = await PurchaseInvoice.get_or_none(
+            tenant_id=tenant_id, id=invoice_id, deleted_at__isnull=True
+        )
         if not invoice:
             raise NotFoundError(f"采购发票不存在: {invoice_id}")
         resp = PurchaseInvoiceResponse.model_validate(invoice)
         from core.services.approval.audit_record_enricher import enrich_record
 
         return await enrich_record(tenant_id, "purchase_invoice", resp)
+
+    async def delete_purchase_invoice(self, tenant_id: int, invoice_id: int) -> None:
+        """
+        软删除采购进项发票，并清理单据关联。
+
+        若发票自动生成了下游应付单且应付单仍可删（未审核、无付款），一并删除应付单；
+        若应付单已审核或已有付款，则拒绝删除发票。
+        """
+        from tortoise.queryset import Q
+
+        from apps.kuaizhizao.models.document_relation import DocumentRelation
+
+        invoice = await PurchaseInvoice.get_or_none(
+            tenant_id=tenant_id, id=invoice_id, deleted_at__isnull=True
+        )
+        if not invoice:
+            raise NotFoundError(f"采购发票不存在: {invoice_id}")
+
+        status = str(invoice.status or "").strip()
+        if status in ("已审核", "已作废", "已红冲"):
+            raise BusinessLogicError("已审核、已作废或已红冲的发票不能删除（保留审计轨迹）")
+
+        cascade_payable_id: Optional[int] = None
+        payable_id = getattr(invoice, "payable_id", None)
+        if payable_id:
+            payable = await Payable.get_or_none(tenant_id=tenant_id, id=int(payable_id))
+            if payable is not None:
+                src_type = str(getattr(payable, "source_type", "") or "").strip()
+                src_id = getattr(payable, "source_id", None)
+                generated_from_invoice = (
+                    src_type in ("PurchaseInvoice", "purchase_invoice")
+                    and src_id is not None
+                    and int(src_id) == int(invoice_id)
+                )
+                if generated_from_invoice:
+                    if str(payable.review_status or "").strip() == "已审核":
+                        raise BusinessLogicError("已关联已审核应付单，请先处理应付单后再删除发票")
+                    if Decimal(str(payable.paid_amount or 0)) > 0:
+                        raise BusinessLogicError("已关联有付款记录的应付单，请先处理应付单后再删除发票")
+                    cascade_payable_id = int(payable.id)
+
+        async with in_transaction():
+            await DocumentRelation.filter(
+                Q(tenant_id=tenant_id)
+                & (
+                    Q(target_type="purchase_invoice", target_id=invoice_id)
+                    | Q(source_type="purchase_invoice", source_id=invoice_id)
+                )
+            ).delete()
+
+            if cascade_payable_id is not None:
+                await DocumentRelation.filter(
+                    Q(tenant_id=tenant_id)
+                    & (
+                        Q(target_type="payable", target_id=cascade_payable_id)
+                        | Q(source_type="payable", source_id=cascade_payable_id)
+                    )
+                ).delete()
+                await Payable.filter(tenant_id=tenant_id, id=cascade_payable_id).delete()
+
+            await PurchaseInvoice.filter(tenant_id=tenant_id, id=invoice_id).update(
+                deleted_at=resolve_business_datetime()
+            )
 
     async def list_purchase_invoices(
         self, tenant_id: int, skip: int = 0, limit: int = 20, **filters
@@ -810,7 +912,18 @@ class PurchaseInvoiceService(AppBaseService[PurchaseInvoice]):
 
     async def approve_invoice(self, tenant_id: int, invoice_id: int, approved_by: int, rejection_reason: Optional[str] = None) -> PurchaseInvoiceResponse:
         """审核采购发票（有流程时先关审批任务，再写回单据）。"""
+        from apps.kuaicaiwu.services.finance_audit_workflow import (
+            assert_finance_pending_approval_flow,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
+
+        await assert_finance_pending_approval_flow(
+            tenant_id=tenant_id,
+            doc_id=invoice_id,
+            node_key="purchase_invoice",
+            doc_label="采购发票",
+            verb="驳回" if rejection_reason else "审核",
+        )
 
         async def _do_approve() -> PurchaseInvoiceResponse:
             async with in_transaction():
@@ -1108,16 +1221,25 @@ class ReceivableService(AppBaseService[Receivable]):
 
         核销单号在事务外生成，避免嵌套事务 + 编码锁占住连接。
         """
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
         receivable = await self.get_receivable_by_id(tenant_id, receivable_id)
+        if is_sales_return_offset_receivable(getattr(receivable, "source_type", None)):
+            raise BusinessLogicError(
+                "销售退货冲减应收不可登记正向收款；请在客商对账中按贷方冲减，或走收款退款流程"
+            )
         if receivable.status == '已结清':
             raise BusinessLogicError("应收单已结清，无法继续收款")
+        if str(receivable.status or "").strip() == "已冲减":
+            raise BusinessLogicError("冲减应收不可登记正向收款")
         receipt_amount = self._money(receipt_data.receipt_amount)
         if receipt_amount > receivable.remaining_amount:
             raise ValidationError("收款金额不能超过剩余金额")
 
         today = today_site_str()
-        count = await Receipt.filter(tenant_id=tenant_id).count()
-        code = f"SK{today}{count + 1:04d}"
+        from apps.kuaicaiwu.services.finance_voucher_codes import allocate_receipt_code
+
+        code = await allocate_receipt_code(tenant_id)
 
         note_parts: list[str] = []
         if receipt_data.notes:
@@ -1164,7 +1286,18 @@ class ReceivableService(AppBaseService[Receivable]):
 
     async def approve_receivable(self, tenant_id: int, receivable_id: int, approved_by: int, rejection_reason: Optional[str] = None) -> ReceivableResponse:
         """审核应收单（有流程时先关审批任务，再写回单据）。"""
+        from apps.kuaicaiwu.services.finance_audit_workflow import (
+            assert_finance_pending_approval_flow,
+        )
         from core.services.approval.uni_audit_service import UniAuditService
+
+        await assert_finance_pending_approval_flow(
+            tenant_id=tenant_id,
+            doc_id=receivable_id,
+            node_key="receivable",
+            doc_label="应收单",
+            verb="驳回" if rejection_reason else "审核",
+        )
 
         async def _do_approve() -> ReceivableResponse:
             async with in_transaction():
@@ -1304,13 +1437,63 @@ class ReceivableService(AppBaseService[Receivable]):
         }
 
     async def delete_receivable(self, tenant_id: int, receivable_id: int) -> None:
-        """删除应收单"""
+        """删除应收单（无收款、无退款时可删，含已审核）"""
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
         receivable = await self.get_receivable_by_id(tenant_id, receivable_id)
-        if str(receivable.review_status or '') == '已审核':
-            raise BusinessLogicError("已审核的应收单不能删除")
-        if receivable.received_amount > 0:
+        if is_sales_return_offset_receivable(getattr(receivable, "source_type", None)):
+            raise BusinessLogicError("销售退货冲减应收不可删除")
+        if self._money(receivable.received_amount) > Decimal("0.00"):
             raise BusinessLogicError("已有收款记录的应收单不能删除")
+        if self._money(getattr(receivable, "refunded_amount", 0) or 0) > Decimal("0.00"):
+            raise BusinessLogicError("已有退款记录的应收单不能删除")
         await Receivable.filter(tenant_id=tenant_id, id=receivable_id).delete()
+
+    async def update_receivable(
+        self,
+        tenant_id: int,
+        receivable_id: int,
+        receivable_data: ReceivableUpdate,
+        updated_by: int,
+    ) -> ReceivableResponse:
+        """更新应收单（无收款、无退款时可改）"""
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
+        async with in_transaction():
+            receivable = await self.get_receivable_by_id(tenant_id, receivable_id)
+            if is_sales_return_offset_receivable(getattr(receivable, "source_type", None)):
+                raise BusinessLogicError("销售退货冲减应收不可修改")
+            if self._money(receivable.received_amount) > Decimal("0.00"):
+                raise BusinessLogicError("已有收款记录的应收单不能修改")
+            if self._money(getattr(receivable, "refunded_amount", 0) or 0) > Decimal("0.00"):
+                raise BusinessLogicError("已有退款记录的应收单不能修改")
+            user_info = await self.get_user_info(updated_by)
+            update_data = receivable_data.model_dump(
+                exclude_unset=True,
+                exclude={
+                    "updated_by",
+                    "received_amount",
+                    "remaining_amount",
+                    "status",
+                    "review_status",
+                    "reviewer_id",
+                    "reviewer_name",
+                    "review_time",
+                    "review_remarks",
+                    "refunded_amount",
+                    "refund_execution_status",
+                },
+            )
+            if "total_amount" in update_data:
+                total = self._money(update_data["total_amount"])
+                update_data["total_amount"] = total
+                update_data["received_amount"] = Decimal("0.00")
+                update_data["remaining_amount"] = total
+                update_data["status"] = "未收款"
+            update_data["updated_by"] = updated_by
+            update_data["updated_by_name"] = user_info["name"]
+            await Receivable.filter(tenant_id=tenant_id, id=receivable_id).update(**update_data)
+            return await self.get_receivable_by_id(tenant_id, receivable_id)
 
 
 class AccountSettlementService(AppBaseService[SettlementRecord]):
@@ -1595,8 +1778,9 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
 
         today = resolve_business_datetime()
         day_key = today.strftime("%Y%m%d")
-        receipt_count = await Receipt.filter(tenant_id=tenant_id).count()
-        receipt_code = f"SK{day_key}{receipt_count + 1:04d}"
+        from apps.kuaicaiwu.services.finance_voucher_codes import allocate_receipt_code
+
+        receipt_code = await allocate_receipt_code(tenant_id)
 
         receipt_date = receivable.business_date or today.date()
         if getattr(receivable, "updated_at", None):

@@ -21,7 +21,6 @@ from core.api.deps.deps import get_current_tenant
 from infra.api.deps.deps import get_current_user
 from infra.models.user import User
 from infra.exceptions.exceptions import BusinessLogicError
-from core.utils.timezone_utils import today_site_str
 
 router = APIRouter(prefix="/payments", tags=["App - Kuaicaiwu - Finance"])
 payment_pull_service = PaymentPullService()
@@ -97,9 +96,9 @@ async def create_payment(
                 total_amount=Decimal(data.total_amount),
             )
 
-        today = today_site_str()
-        count = await Payment.filter(tenant_id=tenant_id).count()
-        code = f"PK{today}{count + 1:04d}"
+        from apps.kuaicaiwu.services.finance_voucher_codes import allocate_payment_code
+
+        code = await allocate_payment_code(tenant_id)
         supplier_id = data.supplier_id
         supplier_name = data.supplier_name
         if pull_preview:
@@ -260,14 +259,17 @@ async def update_payment(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):
-    """更新付款单"""
-    payment = await _get_or_404(tenant_id, id)
-    if payment.status == "Confirmed":
-        raise _http_exception_with_trace(400, "已确认的付款单不能修改", "/payments/{id}", tenant_id)
-    update_data = data.model_dump(exclude_unset=True)
+    """更新付款单（仅草稿；已确认请先撤回确认）"""
+    from apps.kuaicaiwu.services.finance_voucher_correction import assert_voucher_correction_allowed
     from apps.kuaicaiwu.services.bank_account_service import BankAccountService
     from infra.exceptions.exceptions import ValidationError as FinanceValidationError
 
+    payment = await _get_or_404(tenant_id, id)
+    try:
+        assert_voucher_correction_allowed(payment, action="update")
+    except BusinessLogicError as exc:
+        raise _http_exception_with_trace(400, str(exc), "/payments/{id}", tenant_id) from exc
+    update_data = data.model_dump(exclude_unset=True)
     method = update_data.get("payment_method", payment.payment_method)
     account_id = update_data.get("bank_account_id", payment.bank_account_id)
     try:
@@ -276,6 +278,10 @@ async def update_payment(
         )
     except FinanceValidationError as exc:
         raise _http_exception_with_trace(400, str(exc), "/payments/{id}", tenant_id) from exc
+    if "total_amount" in update_data:
+        total = update_data["total_amount"]
+        update_data["settled_amount"] = 0
+        update_data["unsettled_amount"] = total
     apply_update_audit(update_data, current_user)
     await Payment.filter(id=id).update(**update_data)
     return _serialize(await _get_or_404(tenant_id, id))
@@ -315,11 +321,59 @@ async def cancel_payment(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
-    """作废付款单"""
+    """作废付款单（已确认须冲回核销与银行流水）"""
+    from apps.kuaicaiwu.services.finance_voucher_correction import (
+        assert_voucher_correction_allowed,
+        apply_confirmed_voucher_unpost,
+    )
+    from infra.exceptions.exceptions import ValidationError
+
     payment = await _get_or_404(tenant_id, id)
-    if payment.settled_amount > 0:
-        raise _http_exception_with_trace(400, "已有核销记录的付款单不能作废", "/payments/{id}/cancel", tenant_id)
-    await Payment.filter(id=id).update(status="Cancelled")
+    try:
+        assert_voucher_correction_allowed(payment, action="cancel")
+        if str(payment.status or "") == "Confirmed":
+            await apply_confirmed_voucher_unpost(
+                tenant_id,
+                voucher_type="payment",
+                voucher_id=id,
+                operator_id=current_user.id,
+            )
+    except (BusinessLogicError, ValidationError) as exc:
+        raise _http_exception_with_trace(400, str(exc), "/payments/{id}/cancel", tenant_id) from exc
+    payload = {"status": "Cancelled"}
+    apply_update_audit(payload, current_user)
+    await Payment.filter(id=id).update(**payload)
+    return _serialize(await _get_or_404(tenant_id, id))
+
+
+@router.post("/{id}/unconfirm", response_model=PaymentVoucherResponse)
+async def unconfirm_payment(
+    id: int,
+    _auth: object = Depends(require_permission_codes("kuaicaiwu:payment:revoke")),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """撤回确认：已确认 → 草稿（冲回核销与银行流水），便于修改后重新确认。"""
+    from apps.kuaicaiwu.services.finance_voucher_correction import (
+        assert_voucher_correction_allowed,
+        apply_confirmed_voucher_unpost,
+    )
+    from infra.exceptions.exceptions import ValidationError
+
+    payment = await _get_or_404(tenant_id, id)
+    try:
+        assert_voucher_correction_allowed(payment, action="unconfirm")
+        await apply_confirmed_voucher_unpost(
+            tenant_id,
+            voucher_type="payment",
+            voucher_id=id,
+            operator_id=current_user.id,
+        )
+    except (BusinessLogicError, ValidationError) as exc:
+        raise _http_exception_with_trace(400, str(exc), "/payments/{id}/unconfirm", tenant_id) from exc
+    payload = {"status": "Draft"}
+    apply_update_audit(payload, current_user)
+    await Payment.filter(id=id).update(**payload)
     return _serialize(await _get_or_404(tenant_id, id))
 
 
@@ -330,8 +384,23 @@ async def delete_payment(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant)
 ):
-    """删除付款单"""
+    """删除付款单（草稿/已作废/已确认无退款；已确认须冲回核销与银行流水）"""
+    from apps.kuaicaiwu.services.finance_voucher_correction import (
+        assert_voucher_correction_allowed,
+        apply_confirmed_voucher_unpost,
+    )
+    from infra.exceptions.exceptions import ValidationError
+
     payment = await _get_or_404(tenant_id, id)
-    if payment.status == "Confirmed":
-        raise _http_exception_with_trace(400, "已确认的付款单不能删除", "/payments/{id}", tenant_id)
+    try:
+        assert_voucher_correction_allowed(payment, action="delete")
+        if str(payment.status or "") == "Confirmed":
+            await apply_confirmed_voucher_unpost(
+                tenant_id,
+                voucher_type="payment",
+                voucher_id=id,
+                operator_id=current_user.id,
+            )
+    except (BusinessLogicError, ValidationError) as exc:
+        raise _http_exception_with_trace(400, str(exc), "/payments/{id}", tenant_id) from exc
     await Payment.filter(id=id).delete()

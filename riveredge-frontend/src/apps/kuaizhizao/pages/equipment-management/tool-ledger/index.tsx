@@ -676,6 +676,7 @@ const ToolLedgerPage: React.FC = () => {
               required={false}
               autoGenerateOnCreate={!isEdit}
               showGenerateButton={false}
+              documentId={isEdit ? currentTool?.id : undefined}
             />
           </Col>
           <Col span={12}>

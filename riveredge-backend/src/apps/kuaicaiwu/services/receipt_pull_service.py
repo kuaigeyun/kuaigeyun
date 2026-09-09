@@ -33,7 +33,12 @@ class ReceiptPullService(AppBaseService[Receipt]):
         not_allowed_reason: str,
         no_lines_reason: str,
         already_pulled_reason: str,
+        source_type: Optional[str] = None,
     ) -> tuple[bool, Optional[str]]:
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
+        if is_sales_return_offset_receivable(source_type):
+            return False, "receipt.pull_from_receivable.sales_return_offset"
         if not source_allowed:
             return False, not_allowed_reason
         if not preview_items:
@@ -133,11 +138,36 @@ class ReceiptPullService(AppBaseService[Receipt]):
         ]
 
     def _receivable_source_allowed(self, receivable: Any) -> bool:
-        status = str(getattr(receivable, "status", "") or "").strip()
-        review = str(getattr(receivable, "review_status", "") or "").strip()
-        remaining = Decimal(str(receivable.remaining_amount or 0))
-        total = Decimal(str(receivable.total_amount or 0))
-        if status == "已结清" or remaining <= 0 or total <= 0:
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
+        source_type = (
+            receivable.get("source_type")
+            if isinstance(receivable, dict)
+            else getattr(receivable, "source_type", None)
+        )
+        if is_sales_return_offset_receivable(source_type):
+            return False
+        status = str(
+            (receivable.get("status") if isinstance(receivable, dict) else getattr(receivable, "status", ""))
+            or ""
+        ).strip()
+        review = str(
+            (receivable.get("review_status") if isinstance(receivable, dict) else getattr(receivable, "review_status", ""))
+            or ""
+        ).strip()
+        remaining = Decimal(
+            str(
+                (receivable.get("remaining_amount") if isinstance(receivable, dict) else getattr(receivable, "remaining_amount", 0))
+                or 0
+            )
+        )
+        total = Decimal(
+            str(
+                (receivable.get("total_amount") if isinstance(receivable, dict) else getattr(receivable, "total_amount", 0))
+                or 0
+            )
+        )
+        if status in ("已结清", "已冲减") or remaining <= 0 or total <= 0:
             return False
         return review in self._RECEIVABLE_ELIGIBLE_REVIEW
 
@@ -160,6 +190,7 @@ class ReceiptPullService(AppBaseService[Receipt]):
             not_allowed_reason="receipt.pull_from_receivable.not_allowed",
             no_lines_reason="receipt.pull_from_receivable.no_lines",
             already_pulled_reason="receipt.pull_from_receivable.already_pulled",
+            source_type=str(getattr(receivable, "source_type", "") or ""),
         )
         code = str(receivable.receivable_code or receivable_id)
         pushable = float(preview_items[0]["max_push_quantity"]) if preview_items else 0.0
@@ -194,7 +225,7 @@ class ReceiptPullService(AppBaseService[Receipt]):
             tenant_id=tenant_id,
             deleted_at__isnull=True,
             remaining_amount__gt=0,
-        ).exclude(status="已结清")
+        ).exclude(status="已结清").exclude(status="已冲减").exclude(source_type="销售退货")
         kw = str(keyword or "").strip()
         if kw:
             query = query.filter(
@@ -225,6 +256,7 @@ class ReceiptPullService(AppBaseService[Receipt]):
                 not_allowed_reason="receipt.pull_from_receivable.not_allowed",
                 no_lines_reason="receipt.pull_from_receivable.no_lines",
                 already_pulled_reason="receipt.pull_from_receivable.already_pulled",
+                source_type=str(getattr(receivable, "source_type", "") or ""),
             )
             code = str(receivable.receivable_code or rid)
             name = str(getattr(receivable, "customer_name", "") or "").strip()

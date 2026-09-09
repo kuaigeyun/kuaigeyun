@@ -213,13 +213,39 @@ class SemiFinishedGoodsReceiptService(AppBaseService[SemiFinishedGoodsReceipt]):
 
     async def list_semi_finished_goods_receipts(
         self, tenant_id: int, skip: int = 0, limit: int = 20, **filters
-    ) -> List[SemiFinishedGoodsReceiptResponse]:
+    ) -> tuple[List[SemiFinishedGoodsReceiptResponse], int]:
+        from apps.kuaizhizao.services.warehouse_list_core import (
+            SEMI_FINISHED_GOODS_RECEIPT_KEYWORD_FIELDS,
+            SEMI_FINISHED_GOODS_RECEIPT_SORTABLE_FIELDS,
+            apply_warehouse_doc_list_filters,
+        )
+
         query = SemiFinishedGoodsReceipt.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if filters.get("status"):
             query = query.filter(status=filters["status"])
         if filters.get("work_order_id"):
             query = query.filter(work_order_id=filters["work_order_id"])
-        receipts = await query.offset(skip).limit(limit).order_by("-created_at")
+        if filters.get("warehouse_id"):
+            query = query.filter(warehouse_id=filters["warehouse_id"])
+
+        query, order_clause = apply_warehouse_doc_list_filters(
+            query,
+            keyword=filters.get("keyword"),
+            search=filters.get("search"),
+            order_by=filters.get("order_by"),
+            allowed_fields=SEMI_FINISHED_GOODS_RECEIPT_SORTABLE_FIELDS,
+            default_order="-created_at",
+            keyword_fields=SEMI_FINISHED_GOODS_RECEIPT_KEYWORD_FIELDS,
+            doc_date_field="receipt_time",
+            doc_start_date=filters.get("receipt_start_date"),
+            doc_end_date=filters.get("receipt_end_date"),
+            created_start_date=filters.get("created_start_date"),
+            created_end_date=filters.get("created_end_date"),
+            updated_start_date=filters.get("updated_start_date"),
+            updated_end_date=filters.get("updated_end_date"),
+        )
+        total = await query.count()
+        receipts = await query.offset(skip).limit(limit).order_by(order_clause)
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
@@ -244,7 +270,8 @@ class SemiFinishedGoodsReceiptService(AppBaseService[SemiFinishedGoodsReceipt]):
         )
         from apps.kuaizhizao.services.warehouse_service import enrich_production_receipts_with_customer
 
-        return await enrich_production_receipts_with_customer(tenant_id, receipts, responses)
+        enriched = await enrich_production_receipts_with_customer(tenant_id, receipts, responses)
+        return enriched, total
 
     @serialize_stock_document("semi_finished_goods_receipt", "receipt_id")
     async def confirm_receipt(

@@ -514,7 +514,7 @@ const SystemDocumentsPage: React.FC = () => {
                 name="document_code"
                 label={t('app.kuaizhizao.quality.qms.documentCode')}
                 pageCode="kuaizhizao-quality-system-document"
-                disabled={!!editing}
+                documentId={editing?.id}
               />
             </Col>
             <Col span={8}>

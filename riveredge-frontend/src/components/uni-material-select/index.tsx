@@ -115,8 +115,10 @@ interface UniMaterialSelectProps {
   fallbackOption?: { value: number; label: string };
   /** 按物料来源类型过滤（如 Make 仅自制件） */
   sourceType?: string;
-  /** 按物料分组过滤（仅展示该分组内物料） */
+  /** 按物料分组过滤（仅展示该分组及子分组内物料） */
   groupId?: number;
+  /** 多选；与 fieldProps.mode='multiple' 等价，显式传入更稳妥 */
+  mode?: 'multiple';
   onChange?: (
     value: number | number[] | undefined,
     material: Material | Material[] | undefined,
@@ -156,6 +158,7 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
   fallbackOption,
   sourceType,
   groupId,
+  mode,
   onChange,
   formItemProps,
   fieldProps,
@@ -166,6 +169,7 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
     onChange: fieldPropsOnChange,
     style: fieldPropsStyle,
     getPopupContainer: fieldPropsGetPopupContainer,
+    mode: fieldPropsMode,
     ...restFieldProps
   } = (fieldProps || {}) as Partial<SelectProps>;
   const form = Form.useFormInstance();
@@ -186,9 +190,17 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
   const resolvingIdsRef = useRef<Set<number>>(new Set());
   const selectedIdRef = useRef<number | undefined>(undefined);
   const selectedIdsRef = useRef<number[]>([]);
+  const listAbortRef = useRef<AbortController | null>(null);
+
+  const resolvedGroupId = useMemo(() => {
+    if (groupId == null) return undefined;
+    const n = Number(groupId);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [groupId]);
 
   const isMultiple =
-    (fieldProps as SelectProps | undefined)?.mode === 'multiple' ||
+    mode === 'multiple' ||
+    fieldPropsMode === 'multiple' ||
     (restFieldProps as SelectProps | undefined)?.mode === 'multiple';
 
   /** Form.List 内 name 为相对路径，需拼出完整字段路径才能 watch 到当前值 */
@@ -225,6 +237,9 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
   };
 
   const fetchMaterials = async (searchText: string = '') => {
+    listAbortRef.current?.abort();
+    const ac = new AbortController();
+    listAbortRef.current = ac;
     setLoading(true);
     try {
       const response: any = await materialApi.list({
@@ -232,9 +247,10 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
         isActive: activeOnly ? true : undefined,
         mastersOnly: mastersOnly ? true : undefined,
         sourceType: sourceType || undefined,
-        groupId: groupId || undefined,
+        groupId: resolvedGroupId,
         limit: 200,
       });
+      if (ac.signal.aborted) return;
       const raw = response?.data || response?.items || response || [];
       const rows = Array.isArray(raw) ? raw : [];
       const next = filterSelectableMaterials(rows, mastersOnly);
@@ -250,10 +266,13 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
         return missingKeep.length ? [...missingKeep, ...next] : next;
       });
     } catch (error) {
+      if (ac.signal.aborted) return;
       console.error('Failed to fetch materials:', error);
       message.error('加载物料列表失败，请稍后重试');
     } finally {
-      setLoading(false);
+      if (!ac.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -263,8 +282,15 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
   );
 
   useEffect(() => {
-    fetchMaterials();
-  }, [activeOnly, mastersOnly, sourceType, groupId]);
+    // 分组等过滤条件变化时立刻清空旧选项，避免仍展示上一轮「全部物料」
+    setData([]);
+    void fetchMaterials();
+    return () => {
+      listAbortRef.current?.abort();
+    };
+    // fetchMaterials 闭包随 deps 更新；debounce 经 useLatest 取最新 fn
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅过滤条件变化时重拉
+  }, [activeOnly, mastersOnly, sourceType, resolvedGroupId]);
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -346,7 +372,7 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
         isActive: activeOnly ? true : undefined,
         mastersOnly: mastersOnly ? true : undefined,
         sourceType: sourceType || undefined,
-        groupId: groupId || undefined,
+        groupId: resolvedGroupId,
       });
       selected = list.items.find((m) => Number((m as any).id) === Number(val));
       if (selected) {
@@ -498,7 +524,7 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
                   isActive: activeOnly ? true : undefined,
                   mastersOnly: mastersOnly ? true : undefined,
                   sourceType: sourceType || undefined,
-                  groupId: groupId || undefined,
+                  groupId: resolvedGroupId,
                   ...(kw && { keyword: kw }),
                 });
                 const raw = list as { items?: Material[]; data?: Material[] } | Material[];
@@ -519,6 +545,7 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
       }
       {...restFieldProps}
       {...restProps}
+      mode={isMultiple ? 'multiple' : undefined}
     />
   );
 
@@ -529,11 +556,21 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
       onSuccess={(newMaterial) => {
         setData((prev) => [newMaterial, ...prev.filter((m) => m.id !== newMaterial.id)]);
         if (form) {
-          form.setFieldValue(name, newMaterial.id);
-          handleChange(newMaterial.id, {
-            label: formatMaterialSelectLabel(newMaterial as any),
-            value: newMaterial.id,
-          });
+          if (isMultiple) {
+            const next = [...selectedIdsRef.current];
+            const id = Number(newMaterial.id);
+            if (Number.isFinite(id) && id > 0 && !next.includes(id)) {
+              next.push(id);
+            }
+            form.setFieldValue(name, next);
+            handleChange(next, undefined);
+          } else {
+            form.setFieldValue(name, newMaterial.id);
+            handleChange(newMaterial.id, {
+              label: formatMaterialSelectLabel(newMaterial as any),
+              value: newMaterial.id,
+            });
+          }
         }
         setMaterialModalVisible(false);
       }}

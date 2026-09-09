@@ -174,10 +174,21 @@ export const UniDropdown = forwardRef<any, UniDropdownProps>(({
 
   const handleAdvancedSearchSelect = useCallback(
     (value: any, label: string) => {
-      onChange?.(value, { value, label });
+      const mode = (selectProps as SelectProps).mode;
+      if (mode === 'multiple' || mode === 'tags') {
+        const current = Array.isArray((selectProps as SelectProps).value)
+          ? ([...(selectProps as SelectProps).value as any[]])
+          : [];
+        if (!current.some((v) => String(v) === String(value))) {
+          current.push(value);
+        }
+        onChange?.(current as any, current.map((v) => ({ value: v, label: String(v) })) as any);
+      } else {
+        onChange?.(value, { value, label });
+      }
       setAdvancedSearchOpen(false);
     },
-    [onChange],
+    [onChange, selectProps],
   );
 
   const quickCreateEntries = useMemo(() => {

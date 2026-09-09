@@ -206,6 +206,7 @@ class SalesOrderCreate(SalesOrderBase):
 
 class SalesOrderUpdate(BaseSchema):
     """更新销售订单schema。status/review_status 由工作流控制，不允许客户端直接修改。"""
+    order_code: Optional[str] = Field(None, max_length=50, description="订单编码（仅草稿或无下游时可改）")
     order_name: Optional[str] = Field(None, max_length=200)
     order_date: Optional[date] = None
     delivery_date: Optional[date] = None
@@ -279,6 +280,10 @@ class SalesOrderResponse(SalesOrderBase):
     capabilities: Optional[SalesOrderCapabilities] = Field(
         None,
         description="业务态动作 capabilities（不含 RBAC，与 service 门禁一致）",
+    )
+    order_code_editable: bool = Field(True, description="订单编号是否可编辑（草稿或无下游）")
+    order_code_locked_reason: Optional[str] = Field(
+        None, description="编号锁定原因码（document_code.*）"
     )
 
     class Config:

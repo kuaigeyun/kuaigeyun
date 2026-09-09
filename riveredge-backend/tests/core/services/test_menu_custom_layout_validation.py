@@ -120,3 +120,47 @@ def test_custom_layout_db_fallback_path_accepted():
                 1, nodes, _mock_source_lookup()
             )
         )
+
+
+def test_normalize_custom_menu_layout_auto_enables_when_menu_refs_exist():
+    raw = {
+        "enabled": False,
+        "show_app_names": True,
+        "version": 3,
+        "nodes": [
+            {
+                "id": "app-1",
+                "type": "app_group",
+                "title": "快制造",
+                "children": [
+                    {
+                        "id": "purchase",
+                        "type": "custom_group",
+                        "title": "采购管理",
+                        "children": [
+                            {
+                                "id": "mrp",
+                                "type": "menu_ref",
+                                "menu_uuid": "menu-mrp",
+                                "menu_path": "/apps/kuaizhizao/plan-management/demand-computation",
+                                "children": [],
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+    normalized = MenuService._normalize_custom_menu_layout(raw)  # noqa: SLF001
+    assert normalized["enabled"] is True
+    assert normalized["version"] == 3
+    assert len(normalized["nodes"]) == 1
+
+
+def test_normalize_custom_menu_layout_stays_disabled_without_menu_refs():
+    raw = {
+        "enabled": False,
+        "nodes": [{"id": "g1", "type": "custom_group", "title": "空分组", "children": []}],
+    }
+    normalized = MenuService._normalize_custom_menu_layout(raw)  # noqa: SLF001
+    assert normalized["enabled"] is False

@@ -272,7 +272,7 @@ const InternalAuditsPage: React.FC = () => {
                 name="audit_code"
                 label={t('app.kuaizhizao.quality.qms.auditCode')}
                 pageCode="kuaizhizao-quality-internal-audit"
-                disabled={!!editing}
+                documentId={editing?.id}
               />
             </Col>
             <Col span={8}>

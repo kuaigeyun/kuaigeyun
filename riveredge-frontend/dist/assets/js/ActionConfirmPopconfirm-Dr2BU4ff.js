@@ -1,0 +1,1 @@
+import{j as m,$ as a}from"./vendor-CC_RGxZu.js";function e({onConfirm:n,onCancel:r,getPopupContainer:t,children:i,...p}){return m.jsx(a,{...p,getPopupContainer:t??(o=>o?.ownerDocument?.body??document.body),onConfirm:o=>(o?.stopPropagation(),n()),onCancel:o=>{o?.stopPropagation(),r?.(o)},children:i})}e.displayName="ActionConfirmPopconfirm";export{e as A};

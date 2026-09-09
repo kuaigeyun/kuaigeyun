@@ -68,6 +68,9 @@ class DisassemblyOrderService(AppBaseService[DisassemblyOrder]):
                 product_material_id=order_data.product_material_id,
                 product_material_code=order_data.product_material_code,
                 product_material_name=order_data.product_material_name,
+                product_batch_number=(str(order_data.product_batch_number).strip() or None)
+                if order_data.product_batch_number
+                else None,
                 total_quantity=order_data.total_quantity or Decimal("0"),
                 total_items=0,
                 remarks=order_data.remarks,
@@ -233,6 +236,9 @@ class DisassemblyOrderService(AppBaseService[DisassemblyOrder]):
                 quantity=item_data.quantity,
                 unit_price=item_data.unit_price,
                 amount=amount,
+                batch_number=(str(item_data.batch_number).strip() or None)
+                if item_data.batch_number
+                else None,
                 status="pending",
                 remarks=item_data.remarks,
             )
@@ -262,6 +268,8 @@ class DisassemblyOrderService(AppBaseService[DisassemblyOrder]):
                 item.quantity = item_data.quantity
             if item_data.unit_price is not None:
                 item.unit_price = item_data.unit_price
+            if item_data.batch_number is not None:
+                item.batch_number = str(item_data.batch_number).strip() or None
             if item_data.remarks is not None:
                 item.remarks = item_data.remarks
 
@@ -343,6 +351,9 @@ class DisassemblyOrderService(AppBaseService[DisassemblyOrder]):
                 material_id=order.product_material_id,
                 quantity=order.total_quantity,
                 warehouse_id=order.warehouse_id,
+                batch_no=(str(order.product_batch_number).strip() or None)
+                if order.product_batch_number
+                else None,
                 source_type="disassembly_order",
                 source_doc_id=order_id,
                 source_doc_code=order.code,
@@ -351,17 +362,26 @@ class DisassemblyOrderService(AppBaseService[DisassemblyOrder]):
                 operator_id=executed_by,
                 operator_name=operator_name,
             )
+            ledger_date = (
+                order.disassembly_date.date()
+                if getattr(order.disassembly_date, "date", None)
+                else None
+            )
             for item in items:
                 await InventoryService.increase_stock(
                     tenant_id=tenant_id,
                     material_id=item.material_id,
                     quantity=item.quantity,
                     warehouse_id=order.warehouse_id,
+                    batch_no=(str(item.batch_number).strip() or None)
+                    if item.batch_number
+                    else None,
                     source_type="disassembly_order",
                     source_doc_id=order_id,
                     source_doc_code=order.code,
                     movement_type="disassembly_receipt",
                     to_warehouse_id=order.warehouse_id,
+                    ledger_production_date=ledger_date,
                     operator_id=executed_by,
                     operator_name=operator_name,
                 )

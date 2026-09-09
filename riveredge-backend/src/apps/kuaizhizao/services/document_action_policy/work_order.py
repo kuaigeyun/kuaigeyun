@@ -78,6 +78,7 @@ def derive_work_order_capabilities(
             push_production_picking=deny,
             push_finished_goods_receipt=deny,
             push_production_return=deny,
+            push_purchase_requisition=deny,
         )
 
     status = _norm(getattr(wo, "status", None))
@@ -225,6 +226,21 @@ def derive_work_order_capabilities(
         push_return_reason = "work_order.push_production_return.not_allowed"
     push_return_cap = _cap(push_return_allowed, push_return_reason)
 
+    push_pr_allowed = (
+        not is_frozen
+        and not is_terminal
+        and not is_completed
+        and (is_released or is_in_progress)
+    )
+    push_pr_reason = None
+    if is_frozen:
+        push_pr_reason = "work_order.push_purchase_requisition.frozen"
+    elif not (is_released or is_in_progress):
+        push_pr_reason = "work_order.push_purchase_requisition.not_allowed"
+    elif not push_pr_allowed:
+        push_pr_reason = "work_order.push_purchase_requisition.not_allowed"
+    push_pr_cap = _cap(push_pr_allowed, push_pr_reason)
+
     return WorkOrderCapabilities(
         update=update_cap,
         delete=delete_cap,
@@ -239,6 +255,7 @@ def derive_work_order_capabilities(
         push_production_picking=push_picking_cap,
         push_finished_goods_receipt=push_inbound_cap,
         push_production_return=push_return_cap,
+        push_purchase_requisition=push_pr_cap,
     )
 
 

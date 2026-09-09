@@ -5,14 +5,17 @@
     人工审核 (manual)::
 
         draft --submit--> pending --approve--> approved
-        approved --revoke--> pending --withdraw--> draft
+        approved --revoke--> draft --submit--> pending --approve--> approved
+        pending --withdraw--> draft
 
     自动审核 (auto)::
 
         draft --submit--> approved
         approved --revoke--> draft --submit--> approved
 
-``revoke`` 在自动审模式下须落到 ``draft``，否则 pending 态无法 ``submit``；
+全单据：人工/自动审 ``revoke`` 一律 ``draft``，须重新提交再启审批
+（``resolve_revoke_to_draft_landing_phase`` / ``resolve_revoke_landing_phase``）。
+
 ``withdraw`` 仅人工审 pending 态提供，退回 draft。
 """
 
@@ -30,9 +33,33 @@ class SalesOrderRevokeState(TypedDict):
     review_status: str
 
 
+def resolve_revoke_to_draft_landing_phase(
+    *,
+    manual_audit_enabled: bool = True,
+) -> RevokeLandingPhase:
+    """撤销审核落点：一律 draft（人工/自动审相同）。
+
+    ``manual_audit_enabled`` 保留入参仅为调用方签名对称，不参与分支。
+    """
+    _ = manual_audit_enabled
+    return "draft"
+
+
 def resolve_revoke_landing_phase(*, manual_audit_enabled: bool) -> RevokeLandingPhase:
-    """确定 revoke 动作的目标审核相位。"""
-    return "pending" if manual_audit_enabled else "draft"
+    """撤销审核落点（与 ``resolve_revoke_to_draft_landing_phase`` 同义）。"""
+    return resolve_revoke_to_draft_landing_phase(
+        manual_audit_enabled=manual_audit_enabled
+    )
+
+
+def resolve_sales_order_revoke_landing_phase(
+    *,
+    manual_audit_enabled: bool = True,
+) -> RevokeLandingPhase:
+    """销售订单别名；请新调用改用 ``resolve_revoke_to_draft_landing_phase``。"""
+    return resolve_revoke_to_draft_landing_phase(
+        manual_audit_enabled=manual_audit_enabled
+    )
 
 
 def resolve_sales_order_revoke_state(*, landing: RevokeLandingPhase) -> SalesOrderRevokeState:

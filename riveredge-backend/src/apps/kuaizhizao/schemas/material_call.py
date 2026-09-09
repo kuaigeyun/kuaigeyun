@@ -169,3 +169,8 @@ class MaterialCallPushPickingPreviewResponse(BaseModel):
     tip: Optional[str] = None
     has_blocking_issues: bool = False
     blocking_reason: Optional[str] = None
+
+
+class MaterialCallPushPurchaseRequisitionRequest(BaseModel):
+    """补料申请下推采购申请"""
+    item_ids: Optional[List[int]] = Field(None, description="指定补料明细行；空则全部剩余量")

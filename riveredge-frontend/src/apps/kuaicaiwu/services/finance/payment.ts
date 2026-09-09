@@ -114,6 +114,25 @@ export const paymentService = {
     });
   },
 
+  unconfirmPayment: (id: number) => {
+    return apiRequest<PaymentVoucher>(`${PAYMENT_API}/${id}/unconfirm`, {
+      method: 'POST',
+    });
+  },
+
+  updatePayment: (id: number, data: Partial<PaymentCreateData>) => {
+    return apiRequest<PaymentVoucher>(`${PAYMENT_API}/${id}`, {
+      method: 'PUT',
+      data,
+    });
+  },
+
+  deletePayment: (id: number) => {
+    return apiRequest<void>(`${PAYMENT_API}/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   listPayablePullCandidates: async (params?: { skip?: number; limit?: number; keyword?: string }) =>
     apiRequest<{ data: PaymentPullCandidate[]; total: number; success: boolean }>(
       `${PAYMENT_API}/pull-candidates/payables`,

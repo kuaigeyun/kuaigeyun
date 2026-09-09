@@ -5,6 +5,7 @@ from decimal import Decimal
 from apps.kuaizhizao.utils.picking_posting import (
     exceeds_work_order_pick_limit,
     format_pick_limit_qty,
+    resolve_work_order_pick_limit,
 )
 
 
@@ -27,3 +28,14 @@ def test_exceeds_pick_limit_blocks_material_over_cap():
 def test_format_pick_limit_qty_strips_trailing_zeros():
     assert format_pick_limit_qty(Decimal("0.2900")) == "0.29"
     assert format_pick_limit_qty(Decimal("1.7100")) == "1.71"
+
+
+def test_resolve_work_order_pick_limit_with_ratio():
+    assert resolve_work_order_pick_limit(Decimal("10"), Decimal("0")) == Decimal("10")
+    assert resolve_work_order_pick_limit(Decimal("10"), Decimal("0.2")) == Decimal("12")
+
+
+def test_exceeds_pick_limit_with_over_issue_ratio_allows_extra():
+    allowed = resolve_work_order_pick_limit(Decimal("10"), Decimal("0.2"))
+    assert exceeds_work_order_pick_limit(Decimal("12"), allowed) is False
+    assert exceeds_work_order_pick_limit(Decimal("13"), allowed) is True

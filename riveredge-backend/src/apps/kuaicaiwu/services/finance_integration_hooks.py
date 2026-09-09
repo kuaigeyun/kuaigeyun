@@ -10,7 +10,7 @@ from typing import Any, Optional
 from loguru import logger
 
 from apps.kuaicaiwu.services.accounting_event_service import AccountingEventService
-from core.utils.timezone_utils import resolve_business_datetime, today_site_str, to_site_date
+from core.utils.timezone_utils import resolve_business_datetime, to_site_date
 
 _MONEY = Decimal("0.01")
 
@@ -271,9 +271,9 @@ async def ensure_prepayment_payment_for_purchase_order(
                 payment_method=payment_method,
                 bank_account_id=bank_account_id,
             )
-        today = today_site_str()
-        count = await Payment.filter(tenant_id=tenant_id).count()
-        payment_code = f"PK{today}{count + 1:04d}"
+        from apps.kuaicaiwu.services.finance_voucher_codes import allocate_payment_code
+
+        payment_code = await allocate_payment_code(tenant_id)
         biz_date = to_site_date(resolve_business_datetime())
 
         payment = await Payment.create(
@@ -374,9 +374,9 @@ async def ensure_prepayment_receipt_for_sales_order(
                 payment_method=payment_method,
                 bank_account_id=bank_account_id,
             )
-        today = today_site_str()
-        count = await Receipt.filter(tenant_id=tenant_id).count()
-        receipt_code = f"SK{today}{count + 1:04d}"
+        from apps.kuaicaiwu.services.finance_voucher_codes import allocate_receipt_code
+
+        receipt_code = await allocate_receipt_code(tenant_id)
         biz_date = to_site_date(resolve_business_datetime())
 
         receipt = await Receipt.create(
