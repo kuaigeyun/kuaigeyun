@@ -28061,6 +28061,10 @@ export default {
     '修复 MRP 挪到采购后刷新又回计划管理',
   'pages.dashboard.updateLog.entries.mrp-menu-relocate-persist-after-refresh-v2.description':
     '自组菜单若已含菜单项则即使未标记启用也会生效并回写；菜单管理中改父级会打租户挂载标记，同步 manifest 不再冲回默认分组；自组「加入」会从原分组移出，避免假转移。',
+  'pages.dashboard.updateLog.entries.reminder-events-audit-columns.title':
+    '修复提醒事件表缺少更新人字段',
+  'pages.dashboard.updateLog.entries.reminder-events-audit-columns.description':
+    'core_reminder_events 补齐 created_by、updated_by 等审计列，避免点检等业务登记提醒时数据库报缺列。',
   'pages.dashboard.updateLog.entries.equipment-ops-audit-columns-spot-check.title':
     '修复设备点检单缺少创建人字段导致保存失败',
   'pages.dashboard.updateLog.entries.equipment-ops-audit-columns-spot-check.description':
