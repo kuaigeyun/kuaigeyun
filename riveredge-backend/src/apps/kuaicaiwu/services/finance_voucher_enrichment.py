@@ -212,6 +212,50 @@ async def list_partner_statements_for_document(
     return result
 
 
+async def attach_refund_bank_flow_capabilities(
+    tenant_id: int,
+    payloads: List[Dict[str, Any]],
+    *,
+    kind: VoucherKind,
+) -> None:
+    """已确认且指定账户、但尚无银行流水的退款单，挂 repair_bank_flow 能力。"""
+    from apps.kuaicaiwu.models.bank_transaction import BankTransaction
+
+    candidates: List[int] = []
+    for payload in payloads:
+        if str(payload.get("settlement_type") or "") != "refund":
+            continue
+        if str(payload.get("status") or "") != "Confirmed":
+            continue
+        if not payload.get("bank_account_id"):
+            continue
+        try:
+            candidates.append(int(payload["id"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    if not candidates:
+        return
+
+    existing_ids = set(
+        await BankTransaction.filter(
+            tenant_id=tenant_id,
+            source_doc_type=kind,
+            source_doc_id__in=candidates,
+            deleted_at__isnull=True,
+        ).values_list("source_doc_id", flat=True)
+    )
+    for payload in payloads:
+        try:
+            vid = int(payload["id"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if vid not in candidates or vid in existing_ids:
+            continue
+        caps = dict(payload.get("capabilities") or {})
+        caps["repair_bank_flow"] = {"allowed": True}
+        payload["capabilities"] = caps
+
+
 async def enrich_voucher_detail(
     tenant_id: int,
     payload: Dict[str, Any],
@@ -228,6 +272,7 @@ async def enrich_voucher_detail(
             enriched["source_vouchers"] = sources
             enriched["source_voucher_id"] = sources[0]["id"]
             enriched["source_voucher_code"] = "、".join(str(s["code"]) for s in sources)
+        await attach_refund_bank_flow_capabilities(tenant_id, [enriched], kind=kind)
     else:
         enriched["linked_refund_vouchers"] = await _list_refund_voucher_refs(
             tenant_id, voucher_id, kind

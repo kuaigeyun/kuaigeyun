@@ -440,6 +440,7 @@ class ReceiptRefundService(AppBaseService[Receipt]):
         *,
         current_user: Any,
     ) -> Receipt:
+        from apps.kuaicaiwu.services.bank_account_service import BankAccountService
         from apps.kuaicaiwu.services.finance_service import AccountSettlementService
 
         refund = await Receipt.get_or_none(
@@ -451,6 +452,13 @@ class ReceiptRefundService(AppBaseService[Receipt]):
             raise ValidationError("非退款类型收款单")
         if refund.status != "Draft":
             raise ValidationError("只有草稿状态的收款退款可以确认")
+
+        bank_svc = BankAccountService()
+        await bank_svc.validate_voucher_account(
+            tenant_id,
+            payment_method=refund.payment_method,
+            bank_account_id=refund.bank_account_id,
+        )
 
         allocations = await self.get_source_receipt_allocations(tenant_id, refund_receipt_id)
         if not allocations:
@@ -504,4 +512,128 @@ class ReceiptRefundService(AppBaseService[Receipt]):
                 **confirm_payload
             )
 
+            # 与确认同事务：流水失败则整单回滚，避免「已确认无流水」
+            if refund.bank_account_id:
+                await bank_svc.sync_from_confirmed_voucher(
+                    tenant_id,
+                    voucher_type="receipt",
+                    voucher_id=refund_receipt_id,
+                    operator_id=operator_id,
+                )
+
+        return await Receipt.get_or_none(tenant_id=tenant_id, id=refund_receipt_id)
+
+    async def unconfirm_refund(
+        self,
+        tenant_id: int,
+        refund_receipt_id: int,
+        operator_id: int,
+        *,
+        current_user: Any,
+    ) -> Receipt:
+        """撤回已确认收款退款：冲回银行流水、恢复源单退款额与核销，退款单回草稿。"""
+        from apps.kuaicaiwu.services.bank_account_service import BankAccountService
+        from apps.kuaicaiwu.services.finance_service import AccountSettlementService
+
+        refund = await Receipt.get_or_none(
+            tenant_id=tenant_id, id=refund_receipt_id, deleted_at__isnull=True
+        )
+        if not refund:
+            raise NotFoundError("收款退款单不存在")
+        if str(refund.settlement_type or "") != "refund":
+            raise ValidationError("非退款类型收款单")
+        if refund.status != "Confirmed":
+            raise ValidationError("只有已确认的收款退款可以撤回确认")
+
+        allocations = await self.get_source_receipt_allocations(tenant_id, refund_receipt_id)
+        if not allocations:
+            raise ValidationError("未关联源收款单，无法撤回确认")
+
+        bank_svc = BankAccountService()
+        settlement_service = AccountSettlementService()
+        async with in_transaction():
+            if refund.bank_account_id:
+                await bank_svc.reverse_from_voucher(
+                    tenant_id,
+                    voucher_type="receipt",
+                    voucher_id=refund_receipt_id,
+                    operator_id=operator_id,
+                )
+
+            for row in allocations:
+                source_id = int(row["source_id"])
+                chunk = quantize_money(row["amount"])
+                source = await Receipt.get_or_none(
+                    tenant_id=tenant_id, id=source_id, deleted_at__isnull=True
+                )
+                if not source:
+                    raise NotFoundError(f"源收款单不存在: {source_id}")
+
+                await settlement_service.restore_receivable_settlements_after_refund_unconfirm(
+                    tenant_id,
+                    source_receipt_id=source_id,
+                    refund_receipt_id=refund_receipt_id,
+                    refund_amount=chunk,
+                    operator_id=operator_id,
+                )
+
+                new_refunded = quantize_money(source.refunded_amount) - chunk
+                if new_refunded < Decimal("0"):
+                    new_refunded = Decimal("0")
+                new_status = compute_refund_execution_status(source.total_amount, new_refunded)
+                await Receipt.filter(tenant_id=tenant_id, id=source_id).update(
+                    refunded_amount=new_refunded,
+                    refund_execution_status=new_status,
+                    updated_by=operator_id,
+                )
+
+            refund_amount = quantize_money(refund.total_amount)
+            unconfirm_payload: dict = {
+                "status": "Draft",
+                "settled_amount": Decimal("0"),
+                "unsettled_amount": refund_amount,
+            }
+            apply_update_audit(unconfirm_payload, current_user)
+            await Receipt.filter(tenant_id=tenant_id, id=refund_receipt_id).update(
+                **unconfirm_payload
+            )
+
+        return await Receipt.get_or_none(tenant_id=tenant_id, id=refund_receipt_id)
+
+    async def sync_bank_flow(
+        self,
+        tenant_id: int,
+        refund_receipt_id: int,
+        *,
+        operator_id: int,
+    ) -> Receipt:
+        """已确认收款退款补记银行流水（幂等；用于历史断账修复）。"""
+        from apps.kuaicaiwu.services.bank_account_service import BankAccountService
+
+        refund = await Receipt.get_or_none(
+            tenant_id=tenant_id, id=refund_receipt_id, deleted_at__isnull=True
+        )
+        if not refund:
+            raise NotFoundError("收款退款单不存在")
+        if str(refund.settlement_type or "") != "refund":
+            raise ValidationError("非退款类型收款单")
+        if refund.status != "Confirmed":
+            raise ValidationError("仅已确认的收款退款可补记银行流水")
+
+        bank_svc = BankAccountService()
+        await bank_svc.validate_voucher_account(
+            tenant_id,
+            payment_method=refund.payment_method,
+            bank_account_id=refund.bank_account_id,
+        )
+        if not refund.bank_account_id:
+            raise ValidationError("未指定退款账户，无法补记银行流水")
+
+        async with in_transaction():
+            await bank_svc.sync_from_confirmed_voucher(
+                tenant_id,
+                voucher_type="receipt",
+                voucher_id=refund_receipt_id,
+                operator_id=operator_id,
+            )
         return await Receipt.get_or_none(tenant_id=tenant_id, id=refund_receipt_id)

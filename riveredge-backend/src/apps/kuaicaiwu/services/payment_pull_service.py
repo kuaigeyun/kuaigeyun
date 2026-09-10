@@ -133,11 +133,20 @@ class PaymentPullService(AppBaseService[Payment]):
         ]
 
     def _payable_source_allowed(self, payable: Any) -> bool:
+        from apps.kuaicaiwu.constants.finance_source_types import is_purchase_return_offset_payable
+
+        source_type = (
+            payable.get("source_type")
+            if isinstance(payable, dict)
+            else getattr(payable, "source_type", None)
+        )
+        if is_purchase_return_offset_payable(source_type):
+            return False
         status = str(getattr(payable, "status", "") or "").strip()
         review = str(getattr(payable, "review_status", "") or "").strip()
         remaining = Decimal(str(payable.remaining_amount or 0))
         total = Decimal(str(payable.total_amount or 0))
-        if status == "已结清" or remaining <= 0 or total <= 0:
+        if status in ("已结清", "已冲减") or remaining <= 0 or total <= 0:
             return False
         return review in self._PAYABLE_ELIGIBLE_REVIEW
 
@@ -145,7 +154,19 @@ class PaymentPullService(AppBaseService[Payment]):
         self,
         tenant_id: int,
         payable_id: int,
+        *,
+        operator_id: Optional[int] = None,
     ) -> Dict[str, Any]:
+        from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+            ReturnOpenBalanceOffsetService,
+        )
+
+        await ReturnOpenBalanceOffsetService().ensure_offsets_for_payable(
+            tenant_id,
+            payable_id,
+            operator_id=int(operator_id or 0) or 0,
+        )
+
         payable = await Payable.get_or_none(
             tenant_id=tenant_id, id=payable_id, deleted_at__isnull=True
         )
@@ -194,7 +215,7 @@ class PaymentPullService(AppBaseService[Payment]):
             tenant_id=tenant_id,
             deleted_at__isnull=True,
             remaining_amount__gt=0,
-        ).exclude(status="已结清")
+        ).exclude(status="已结清").exclude(status="已冲减").exclude(source_type="采购退货")
         kw = str(keyword or "").strip()
         if kw:
             query = query.filter(

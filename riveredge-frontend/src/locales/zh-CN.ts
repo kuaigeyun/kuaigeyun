@@ -16508,6 +16508,7 @@ export default {
   'app.kuaicaiwu.receipt.unconfirmTitle': '撤回确认收款单',
   'app.kuaicaiwu.receipt.unconfirmContent': '确定撤回收款单 {{code}} 的确认吗？将冲回核销与银行流水并回到草稿，修改后可重新确认。',
   'app.kuaicaiwu.receipt.unconfirmSuccess': '已撤回确认',
+  'app.kuaicaiwu.receipt.viewRefunds': '查看退款',
   'app.kuaicaiwu.receipt.batchConfirmTitle': '确认批量确认 {{count}} 条收款单',
   'app.kuaicaiwu.receipt.batchConfirmDesc': '仅草稿收款单可确认，不满足条件的记录会由后端拒绝。',
   'app.kuaicaiwu.receipt.batchVoidTitle': '确认批量作废 {{count}} 条收款单',
@@ -16543,10 +16544,25 @@ export default {
   'app.kuaicaiwu.receiptRefund.confirmContent': '确认后将冲回应收核销并记银行流出。单号：{{code}}',
   'app.kuaicaiwu.receiptRefund.confirmSuccess': '收款退款已确认',
   'app.kuaicaiwu.receiptRefund.confirmFailed': '确认失败',
+  'app.kuaicaiwu.receiptRefund.unconfirm': '撤回确认',
+  'app.kuaicaiwu.receiptRefund.unconfirmTitle': '撤回确认收款退款',
+  'app.kuaicaiwu.receiptRefund.unconfirmContent':
+    '确定撤回退款单 {{code}} 的确认吗？将冲回银行流水与核销，恢复源收款单已退金额，退款单回到草稿。',
+  'app.kuaicaiwu.receiptRefund.unconfirmSuccess': '已撤回确认',
+  'app.kuaicaiwu.receiptRefund.unconfirmFailed': '撤回确认失败',
+  'app.kuaicaiwu.receiptRefund.filterBySourceHint': '已按源收款单筛选相关退款，请先撤回退款确认后再撤销原单审核',
+  'app.kuaicaiwu.receiptRefund.filterBySourceAlert': '当前按源收款单筛选退款列表',
+  'app.kuaicaiwu.receiptRefund.clearSourceFilter': '清除筛选',
   'app.kuaicaiwu.receiptRefund.cancelTitle': '作废收款退款',
   'app.kuaicaiwu.receiptRefund.cancelContent': '确定作废草稿退款单 {{code}}？',
   'app.kuaicaiwu.receiptRefund.cancelSuccess': '已作废',
   'app.kuaicaiwu.receiptRefund.cancelFailed': '作废失败',
+  'app.kuaicaiwu.receiptRefund.syncBank': '补记流水',
+  'app.kuaicaiwu.receiptRefund.syncBankTitle': '补记银行流水',
+  'app.kuaicaiwu.receiptRefund.syncBankContent':
+    '确认后将按退款单金额补记银行账户流出流水。单号：{{code}}',
+  'app.kuaicaiwu.receiptRefund.syncBankSuccess': '银行流水已补记',
+  'app.kuaicaiwu.receiptRefund.syncBankFailed': '补记银行流水失败',
   'app.kuaicaiwu.receiptRefund.bankAccount': '退款账户',
   'app.kuaicaiwu.receiptRefund.bankAccountNote': '账号备注',
   'app.kuaicaiwu.receiptRefund.capability.receipt_refund.pull_from_receipt.not_allowed':
@@ -16617,6 +16633,7 @@ export default {
   'app.kuaicaiwu.payment.unconfirmTitle': '撤回确认付款单',
   'app.kuaicaiwu.payment.unconfirmContent': '确定撤回付款单 {{code}} 的确认吗？将冲回核销与银行流水并回到草稿，修改后可重新确认。',
   'app.kuaicaiwu.payment.unconfirmSuccess': '已撤回确认',
+  'app.kuaicaiwu.payment.viewRefunds': '查看退款',
   'app.kuaicaiwu.payment.batchConfirmTitle': '确认批量确认 {{count}} 条付款单',
   'app.kuaicaiwu.payment.batchConfirmDesc': '仅草稿付款单可确认，不满足条件的记录会由后端拒绝。',
   'app.kuaicaiwu.payment.batchVoidTitle': '确认批量作废 {{count}} 条付款单',
@@ -16651,10 +16668,25 @@ export default {
   'app.kuaicaiwu.paymentRefund.confirmContent': '确认后将冲回应付核销并记银行流入。单号：{{code}}',
   'app.kuaicaiwu.paymentRefund.confirmSuccess': '付款退款已确认',
   'app.kuaicaiwu.paymentRefund.confirmFailed': '确认失败',
+  'app.kuaicaiwu.paymentRefund.unconfirm': '撤回确认',
+  'app.kuaicaiwu.paymentRefund.unconfirmTitle': '撤回确认付款退款',
+  'app.kuaicaiwu.paymentRefund.unconfirmContent':
+    '确定撤回退款单 {{code}} 的确认吗？将冲回银行流水与核销，恢复源付款单已退金额，退款单回到草稿。',
+  'app.kuaicaiwu.paymentRefund.unconfirmSuccess': '已撤回确认',
+  'app.kuaicaiwu.paymentRefund.unconfirmFailed': '撤回确认失败',
+  'app.kuaicaiwu.paymentRefund.filterBySourceHint': '已按源付款单筛选相关退款，请先撤回退款确认后再撤销原单审核',
+  'app.kuaicaiwu.paymentRefund.filterBySourceAlert': '当前按源付款单筛选退款列表',
+  'app.kuaicaiwu.paymentRefund.clearSourceFilter': '清除筛选',
   'app.kuaicaiwu.paymentRefund.cancelTitle': '作废付款退款',
   'app.kuaicaiwu.paymentRefund.cancelContent': '确定作废草稿退款单 {{code}}？',
   'app.kuaicaiwu.paymentRefund.cancelSuccess': '已作废',
   'app.kuaicaiwu.paymentRefund.cancelFailed': '作废失败',
+  'app.kuaicaiwu.paymentRefund.syncBank': '补记流水',
+  'app.kuaicaiwu.paymentRefund.syncBankTitle': '补记银行流水',
+  'app.kuaicaiwu.paymentRefund.syncBankContent':
+    '确认后将按退款单金额补记银行账户流入流水。单号：{{code}}',
+  'app.kuaicaiwu.paymentRefund.syncBankSuccess': '银行流水已补记',
+  'app.kuaicaiwu.paymentRefund.syncBankFailed': '补记银行流水失败',
   'app.kuaicaiwu.paymentRefund.bankAccount': '退款账户',
   'app.kuaicaiwu.paymentRefund.bankAccountNote': '账号备注',
   'app.kuaicaiwu.paymentRefund.capability.payment_refund.pull_from_payment.not_allowed':
@@ -28143,6 +28175,26 @@ export default {
     '发版后旧前端资源自动刷新',
   'pages.dashboard.updateLog.entries.stale-chunk-auto-reload.description':
     '发版后若浏览器仍引用已下线的 JS chunk，进入业务应用时会自动硬刷新一次；生产环境不再误提示 compose 或重启 Vite。',
+  'pages.dashboard.updateLog.entries.ar-ap-return-open-balance-offset.title':
+    '退货冲减应收应付可收可付余额',
+  'pages.dashboard.updateLog.entries.ar-ap-return-open-balance-offset.description':
+    '销售/采购退货确认后，按未结余额冲减关联蓝字应收/应付，并写入抵减核销记录；从应收创建收款、从应付创建付款时「可收/可付」体现退货冲减，超额金额拒绝并提示；作废未核销收/付款后额度回退。已发生退货的历史单在再次打开取单预览时会补齐冲减。',
+  'pages.dashboard.updateLog.entries.purchase-order-return-preview-returnable.title':
+    '采购订单下推退货预览误报无可退明细',
+  'pages.dashboard.updateLog.entries.purchase-order-return-preview-returnable.description':
+    '列表已判断可退时，下推采购退货预览因未传入可退标志仍报「没有可退货的采购单明细」；现与正式下推一致按已入库减已退计算后再校验。',
+  'pages.dashboard.updateLog.entries.finance-refund-unconfirm-and-view.title':
+    '收付款退款可撤回确认，原单可查看退款',
+  'pages.dashboard.updateLog.entries.finance-refund-unconfirm-and-view.description':
+    '已确认的收款/付款退款支持撤回确认（同事务冲回银行流水与核销并恢复源单已退金额）；源单因退款无法撤销审核时提供「查看退款」入口，先撤回退款后再纠错原单。',
+  'pages.dashboard.updateLog.entries.bank-account-tx-drawer-cache-isolation.title':
+    '银行账户流水抽屉按账户隔离缓存',
+  'pages.dashboard.updateLog.entries.bank-account-tx-drawer-cache-isolation.description':
+    '查看流水时切换账户，标题已变但仍可能显示上一账户流水（同一笔入账像写进两个账户）；现将账户 ID 纳入列表请求参数与缓存键，避免串户。',
+  'pages.dashboard.updateLog.entries.finance-refund-bank-flow-atomic.title':
+    '收款付款退款确认与银行流水同事务',
+  'pages.dashboard.updateLog.entries.finance-refund-bank-flow-atomic.description':
+    '退款审核确认时核销冲回与银行流水写入改为同一事务，失败整单回滚，避免已确认却无流水；已确认缺流水的历史单可在列表或详情「补记流水」补记。',
   'pages.dashboard.updateLog.entries.purchase-return-pull-select-warehouse.title':
     '采购退货取单可直接选择退货仓库',
   'pages.dashboard.updateLog.entries.purchase-return-pull-select-warehouse.description':

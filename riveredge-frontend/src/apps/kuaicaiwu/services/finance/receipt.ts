@@ -8,6 +8,7 @@ export interface ReceiptListParams {
   customer_id?: number;
   unsettled_only?: boolean;
   settlement_type?: string;
+  source_id?: number;
   start_date?: string;
   end_date?: string;
   keyword?: string;
@@ -42,6 +43,10 @@ export interface ReceiptVoucher {
   updated_at?: string;
   created_by_name?: string;
   updated_by_name?: string;
+  capabilities?: {
+    pull_receipt_refund?: { allowed?: boolean; reason?: string };
+    repair_bank_flow?: { allowed?: boolean; reason?: string };
+  };
 }
 
 export type ReceiptPullPreview = DocumentPushPreview & {

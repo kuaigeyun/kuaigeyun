@@ -36,6 +36,48 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'ar-ap-return-open-balance-offset',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.ar-ap-return-open-balance-offset.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.ar-ap-return-open-balance-offset.description',
+  },
+  {
+    id: 'purchase-order-return-preview-returnable',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.purchase-order-return-preview-returnable.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.purchase-order-return-preview-returnable.description',
+  },
+  {
+    id: 'finance-refund-unconfirm-and-view',
+    date: '2026-09-10',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.finance-refund-unconfirm-and-view.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.finance-refund-unconfirm-and-view.description',
+  },
+  {
+    id: 'bank-account-tx-drawer-cache-isolation',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.bank-account-tx-drawer-cache-isolation.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.bank-account-tx-drawer-cache-isolation.description',
+  },
+  {
+    id: 'finance-refund-bank-flow-atomic',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.finance-refund-bank-flow-atomic.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.finance-refund-bank-flow-atomic.description',
+  },
+  {
     id: 'purchase-return-pull-select-warehouse',
     date: '2026-09-10',
     type: 'improvement',

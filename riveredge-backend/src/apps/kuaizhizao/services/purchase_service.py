@@ -2031,11 +2031,17 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
 
         order_items = await PurchaseOrderItem.filter(tenant_id=tenant_id, order_id=order_id).all()
         has_received = any(float(item.received_quantity or 0) > 0 for item in order_items)
+        from apps.kuaizhizao.services.document_action_policy.enricher import (
+            _purchase_order_returnable_by_ids,
+        )
+
+        returnable_map = await _purchase_order_returnable_by_ids(tenant_id, [order_id])
         assert_purchase_order_capability(
             order_model,
             "push_purchase_return",
             has_items=bool(order_items),
             has_received=has_received,
+            has_returnable=returnable_map.get(order_id, False),
         )
 
         from apps.kuaizhizao.services.warehouse_service import returned_qty_by_purchase_order_item_ids

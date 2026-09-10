@@ -48,7 +48,12 @@ from apps.common.base_service import AppBaseService
 from core.services.logging.operation_log_service import OperationLogService
 from infra.exceptions.exceptions import NotFoundError, ValidationError, BusinessLogicError
 from infra.services.business_config_service import BusinessConfigService
-from core.utils.timezone_utils import resolve_business_datetime, to_site_date, today_site_str
+from core.utils.timezone_utils import (
+    now_utc,
+    resolve_business_datetime,
+    to_site_date,
+    today_site_str,
+)
 
 
 def _serialize_aging_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
@@ -1926,10 +1931,16 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
 
         new_received = (receivable.received_amount + amount).quantize(Decimal("0.01"))
         refunded = quantize_money(getattr(receivable, "refunded_amount", 0) or 0)
+        from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+            sum_goods_offset_for_receivable,
+        )
+
+        goods_offset = await sum_goods_offset_for_receivable(tenant_id, receivable_id)
         new_rem_receivable = compute_open_balance_after_refund(
             receivable.total_amount,
             new_received,
             refunded,
+            goods_offset,
         )
         new_rem_receivable, receivable_writeoff_applied = self._apply_rounding_writeoff_value(
             value=new_rem_receivable,
@@ -2126,10 +2137,16 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
 
         new_paid = (payable.paid_amount + amount).quantize(Decimal("0.01"))
         refunded = quantize_money(getattr(payable, "refunded_amount", 0) or 0)
+        from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+            sum_goods_offset_for_payable,
+        )
+
+        goods_offset = await sum_goods_offset_for_payable(tenant_id, payable_id)
         new_rem_payable = compute_open_balance_after_refund(
             payable.total_amount,
             new_paid,
             refunded,
+            goods_offset,
         )
         new_rem_payable, payable_writeoff_applied = self._apply_rounding_writeoff_value(
             value=new_rem_payable,
@@ -2229,10 +2246,12 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
     ) -> None:
         """
         按核销真源回写应收金额：
-        已收 = 正向核销合计（毛额）；已退 = 退款冲回合计；剩余 = 总额 - (已收 - 已退)。
+        已收 = 正向核销合计（毛额）；已退 = 退款冲回合计；
+        剩余 = (总额 - 退货未付款冲减) - (已收 - 已退)。
         """
         from apps.kuaicaiwu.models.receivable import Receivable
         from apps.kuaicaiwu.services.finance_refund_utils import (
+            SETTLEMENT_CREDIT_SALES_RETURN_OFFSET,
             compute_open_balance_after_refund,
             compute_refund_execution_status,
             quantize_money,
@@ -2259,6 +2278,14 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
             is_active=True,
             deleted_at__isnull=True,
         ).all()
+        goods_offsets = await SettlementRecord.filter(
+            tenant_id=tenant_id,
+            debit_doc_type="Receivable",
+            debit_doc_id=receivable_id,
+            credit_doc_type=SETTLEMENT_CREDIT_SALES_RETURN_OFFSET,
+            is_active=True,
+            deleted_at__isnull=True,
+        ).all()
 
         gross_received = quantize_money(
             sum((quantize_money(s.amount) for s in inbound), Decimal("0"))
@@ -2266,10 +2293,14 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
         gross_refunded = quantize_money(
             sum((quantize_money(s.amount) for s in outbound), Decimal("0"))
         )
+        gross_goods_offset = quantize_money(
+            sum((quantize_money(s.amount) for s in goods_offsets), Decimal("0"))
+        )
         new_remaining = compute_open_balance_after_refund(
             receivable.total_amount,
             gross_received,
             gross_refunded,
+            gross_goods_offset,
         )
         net_received = quantize_money(gross_received - gross_refunded)
         if net_received < Decimal("0.00"):
@@ -2301,9 +2332,10 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
         operator_id: int,
         user_name: str = "",
     ) -> None:
-        """按核销真源回写应付金额（已付毛额 / 已退 / 剩余应付）。"""
+        """按核销真源回写应付金额（已付毛额 / 已退 / 退货冲减 / 剩余应付）。"""
         from apps.kuaicaiwu.models.payable import Payable
         from apps.kuaicaiwu.services.finance_refund_utils import (
+            SETTLEMENT_CREDIT_PURCHASE_RETURN_OFFSET,
             compute_open_balance_after_refund,
             compute_refund_execution_status,
             quantize_money,
@@ -2330,6 +2362,14 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
             is_active=True,
             deleted_at__isnull=True,
         ).all()
+        goods_offsets = await SettlementRecord.filter(
+            tenant_id=tenant_id,
+            debit_doc_type="Payable",
+            debit_doc_id=payable_id,
+            credit_doc_type=SETTLEMENT_CREDIT_PURCHASE_RETURN_OFFSET,
+            is_active=True,
+            deleted_at__isnull=True,
+        ).all()
 
         gross_paid = quantize_money(
             sum((quantize_money(s.amount) for s in inbound), Decimal("0"))
@@ -2337,10 +2377,14 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
         gross_refunded = quantize_money(
             sum((quantize_money(s.amount) for s in outbound), Decimal("0"))
         )
+        gross_goods_offset = quantize_money(
+            sum((quantize_money(s.amount) for s in goods_offsets), Decimal("0"))
+        )
         new_remaining = compute_open_balance_after_refund(
             payable.total_amount,
             gross_paid,
             gross_refunded,
+            gross_goods_offset,
         )
         net_paid = quantize_money(gross_paid - gross_refunded)
         if net_paid < Decimal("0.00"):
@@ -2693,6 +2737,218 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
             reversed_total += remaining_to_reverse
 
         return reversed_total
+
+    async def restore_receivable_settlements_after_refund_unconfirm(
+        self,
+        tenant_id: int,
+        *,
+        source_receipt_id: int,
+        refund_receipt_id: int,
+        refund_amount: Decimal,
+        operator_id: int,
+    ) -> Decimal:
+        """撤回收款退款确认：作废冲回核销并还原源收款单已核销金额。"""
+        from apps.kuaicaiwu.models.receipt import Receipt
+        from apps.kuaicaiwu.services.finance_refund_utils import quantize_money
+
+        source_receipt = await Receipt.get_or_none(
+            tenant_id=tenant_id, id=source_receipt_id, deleted_at__isnull=True
+        )
+        if not source_receipt:
+            raise NotFoundError("源收款单不存在")
+
+        expected = quantize_money(refund_amount)
+        if expected <= 0:
+            raise ValidationError("退款金额须大于 0")
+
+        reversals = await SettlementRecord.filter(
+            tenant_id=tenant_id,
+            debit_doc_type="Receipt",
+            debit_doc_id=refund_receipt_id,
+            credit_doc_type="Receivable",
+            is_active=True,
+            deleted_at__isnull=True,
+        ).all()
+
+        user_name = await self.get_user_name(operator_id)
+        settlement_restored = Decimal("0")
+        receivable_ids: set[int] = set()
+        for rev in reversals:
+            try:
+                meta = json.loads(rev.notes or "")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if not isinstance(meta, dict) or not meta.get("reversal"):
+                continue
+            if int(meta.get("source_receipt_id") or 0) != int(source_receipt_id):
+                continue
+            amt = quantize_money(rev.amount)
+            if amt <= 0:
+                continue
+            rev.is_active = False
+            rev.deleted_at = now_utc()
+            await rev.save()
+            settlement_restored = quantize_money(settlement_restored + amt)
+            if rev.credit_doc_id:
+                receivable_ids.add(int(rev.credit_doc_id))
+
+        for ar_id in receivable_ids:
+            await self.sync_receivable_amounts_from_settlements(
+                tenant_id,
+                ar_id,
+                operator_id=operator_id,
+                user_name=user_name,
+            )
+
+        source_receipt = await Receipt.get_or_none(
+            tenant_id=tenant_id, id=source_receipt_id, deleted_at__isnull=True
+        )
+        if not source_receipt:
+            raise NotFoundError("源收款单不存在")
+
+        total = quantize_money(source_receipt.total_amount)
+        if settlement_restored > 0:
+            new_settled = quantize_money(
+                quantize_money(source_receipt.settled_amount) + settlement_restored
+            )
+            if new_settled > total:
+                new_settled = total
+            if new_settled < Decimal("0"):
+                new_settled = Decimal("0")
+            new_unsettled = quantize_money(total - new_settled)
+            await Receipt.filter(tenant_id=tenant_id, id=source_receipt_id).update(
+                settled_amount=new_settled,
+                unsettled_amount=new_unsettled,
+                updated_by=operator_id,
+                updated_by_name=user_name or None,
+            )
+            source_receipt.settled_amount = new_settled
+            source_receipt.unsettled_amount = new_unsettled
+
+        remaining = quantize_money(expected - settlement_restored)
+        if remaining > 0:
+            new_unsettled = quantize_money(
+                quantize_money(source_receipt.unsettled_amount) + remaining
+            )
+            if new_unsettled > total:
+                new_unsettled = total
+            if new_unsettled < Decimal("0"):
+                new_unsettled = Decimal("0")
+            new_settled = quantize_money(total - new_unsettled)
+            await Receipt.filter(tenant_id=tenant_id, id=source_receipt_id).update(
+                settled_amount=new_settled,
+                unsettled_amount=new_unsettled,
+                updated_by=operator_id,
+                updated_by_name=user_name or None,
+            )
+
+        return expected
+
+    async def restore_payable_settlements_after_refund_unconfirm(
+        self,
+        tenant_id: int,
+        *,
+        source_payment_id: int,
+        refund_payment_id: int,
+        refund_amount: Decimal,
+        operator_id: int,
+    ) -> Decimal:
+        """撤回付款退款确认：作废冲回核销并还原源付款单已核销金额。"""
+        from apps.kuaicaiwu.models.payment import Payment
+        from apps.kuaicaiwu.services.finance_refund_utils import quantize_money
+
+        source_payment = await Payment.get_or_none(
+            tenant_id=tenant_id, id=source_payment_id, deleted_at__isnull=True
+        )
+        if not source_payment:
+            raise NotFoundError("源付款单不存在")
+
+        expected = quantize_money(refund_amount)
+        if expected <= 0:
+            raise ValidationError("退款金额须大于 0")
+
+        reversals = await SettlementRecord.filter(
+            tenant_id=tenant_id,
+            debit_doc_type="Payment",
+            debit_doc_id=refund_payment_id,
+            credit_doc_type="Payable",
+            is_active=True,
+            deleted_at__isnull=True,
+        ).all()
+
+        user_name = await self.get_user_name(operator_id)
+        settlement_restored = Decimal("0")
+        payable_ids: set[int] = set()
+        for rev in reversals:
+            try:
+                meta = json.loads(rev.notes or "")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if not isinstance(meta, dict) or not meta.get("reversal"):
+                continue
+            if int(meta.get("source_payment_id") or 0) != int(source_payment_id):
+                continue
+            amt = quantize_money(rev.amount)
+            if amt <= 0:
+                continue
+            rev.is_active = False
+            rev.deleted_at = now_utc()
+            await rev.save()
+            settlement_restored = quantize_money(settlement_restored + amt)
+            if rev.credit_doc_id:
+                payable_ids.add(int(rev.credit_doc_id))
+
+        for ap_id in payable_ids:
+            await self.sync_payable_amounts_from_settlements(
+                tenant_id,
+                ap_id,
+                operator_id=operator_id,
+                user_name=user_name,
+            )
+
+        source_payment = await Payment.get_or_none(
+            tenant_id=tenant_id, id=source_payment_id, deleted_at__isnull=True
+        )
+        if not source_payment:
+            raise NotFoundError("源付款单不存在")
+
+        total = quantize_money(source_payment.total_amount)
+        if settlement_restored > 0:
+            new_settled = quantize_money(
+                quantize_money(source_payment.settled_amount) + settlement_restored
+            )
+            if new_settled > total:
+                new_settled = total
+            if new_settled < Decimal("0"):
+                new_settled = Decimal("0")
+            new_unsettled = quantize_money(total - new_settled)
+            await Payment.filter(tenant_id=tenant_id, id=source_payment_id).update(
+                settled_amount=new_settled,
+                unsettled_amount=new_unsettled,
+                updated_by=operator_id,
+                updated_by_name=user_name or None,
+            )
+            source_payment.settled_amount = new_settled
+            source_payment.unsettled_amount = new_unsettled
+
+        remaining = quantize_money(expected - settlement_restored)
+        if remaining > 0:
+            new_unsettled = quantize_money(
+                quantize_money(source_payment.unsettled_amount) + remaining
+            )
+            if new_unsettled > total:
+                new_unsettled = total
+            if new_unsettled < Decimal("0"):
+                new_unsettled = Decimal("0")
+            new_settled = quantize_money(total - new_unsettled)
+            await Payment.filter(tenant_id=tenant_id, id=source_payment_id).update(
+                settled_amount=new_settled,
+                unsettled_amount=new_unsettled,
+                updated_by=operator_id,
+                updated_by_name=user_name or None,
+            )
+
+        return expected
 
     async def list_settlement_records(
         self,

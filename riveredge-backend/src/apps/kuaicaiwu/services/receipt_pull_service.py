@@ -175,7 +175,19 @@ class ReceiptPullService(AppBaseService[Receipt]):
         self,
         tenant_id: int,
         receivable_id: int,
+        *,
+        operator_id: Optional[int] = None,
     ) -> Dict[str, Any]:
+        from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+            ReturnOpenBalanceOffsetService,
+        )
+
+        await ReturnOpenBalanceOffsetService().ensure_offsets_for_receivable(
+            tenant_id,
+            receivable_id,
+            operator_id=int(operator_id or 0) or 0,
+        )
+
         receivable = await Receivable.get_or_none(
             tenant_id=tenant_id, id=receivable_id, deleted_at__isnull=True
         )

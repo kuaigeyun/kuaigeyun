@@ -52,6 +52,12 @@ export const paymentRefundService = {
 
   confirm: (id: number) => apiRequest<PaymentVoucher>(`${API}/${id}/confirm`, { method: 'POST' }),
 
+  unconfirm: (id: number) =>
+    apiRequest<PaymentVoucher>(`${API}/${id}/unconfirm`, { method: 'POST' }),
+
+  syncBank: (id: number) =>
+    apiRequest<PaymentVoucher>(`${API}/${id}/sync-bank`, { method: 'POST' }),
+
   cancel: (id: number) => apiRequest<PaymentVoucher>(`${API}/${id}/cancel`, { method: 'POST' }),
 
   listPullCandidates: (params?: { skip?: number; limit?: number; keyword?: string }) =>

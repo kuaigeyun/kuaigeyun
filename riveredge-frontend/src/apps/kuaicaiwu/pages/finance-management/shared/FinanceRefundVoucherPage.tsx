@@ -66,7 +66,7 @@ import { useResourcePermissions } from '../../../../../hooks/useResourcePermissi
 import { UniTableStackedPrimaryCell } from '../../../../../components/uni-table/stackedPrimaryColumn';
 import { MarkerTag } from '../../../../../constants/statusBadges';
 import { UNI_TABLE_MARKER_BADGE_COLUMN_DEFAULTS } from '../../../../../utils/uniTableLayoutColumns';
-import { rowActionKind } from '../../../../../components/uni-action';
+import { rowActionKind, rowActionLabelKeep } from '../../../../../components/uni-action';
 import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
 import { alignProColumns, SALES_DOC_LIST_FIELD_RANK } from '../../../../kuaizhizao/pages/sales-management/shared/documentFieldAlignment';
 import { bankAccountService, type BankAccount } from '../../../services/finance/bank-account';
@@ -117,6 +117,8 @@ const CONFIG = {
     get: receiptRefundService.get,
     create: receiptRefundService.create,
     confirm: receiptRefundService.confirm,
+    unconfirm: receiptRefundService.unconfirm,
+    syncBank: receiptRefundService.syncBank,
     cancel: receiptRefundService.cancel,
     listPullCandidates: receiptRefundService.listPullCandidates,
     previewPull: receiptRefundService.previewPull,
@@ -140,6 +142,8 @@ const CONFIG = {
     get: paymentRefundService.get,
     create: paymentRefundService.create,
     confirm: paymentRefundService.confirm,
+    unconfirm: paymentRefundService.unconfirm,
+    syncBank: paymentRefundService.syncBank,
     cancel: paymentRefundService.cancel,
     listPullCandidates: paymentRefundService.listPullCandidates,
     previewPull: paymentRefundService.previewPull,
@@ -166,6 +170,8 @@ const FinanceRefundVoucherPage: React.FC<Props> = ({ mode, columnPersistenceId }
   );
   const actionRef = useRef<ActionType>();
   const lastListParamsRef = useRef<Record<string, string | number | boolean | undefined>>({});
+  const filterSourceIdRef = useRef<number | null>(null);
+  const [filterSourceId, setFilterSourceId] = useState<number | null>(null);
   const perms = useResourcePermissions(cfg.resource);
   const paymentMethodOptions = useMemo(() => getPaymentMethodOptions(t), [t]);
 
@@ -256,7 +262,17 @@ const FinanceRefundVoucherPage: React.FC<Props> = ({ mode, columnPersistenceId }
     const state = location.state as {
       pullSourceId?: number;
       pullSourceIds?: number[];
+      filterSourceId?: number;
     } | null;
+    const filterId = Number(state?.filterSourceId);
+    if (Number.isFinite(filterId) && filterId > 0) {
+      filterSourceIdRef.current = filterId;
+      setFilterSourceId(filterId);
+      navigate(location.pathname, { replace: true, state: null });
+      messageApi.info(t(`${NS}.filterBySourceHint`));
+      actionRef.current?.reload();
+      return;
+    }
     const idsFromState = Array.isArray(state?.pullSourceIds)
       ? state!.pullSourceIds!
       : state?.pullSourceId
@@ -268,7 +284,7 @@ const FinanceRefundVoucherPage: React.FC<Props> = ({ mode, columnPersistenceId }
     if (!sourceIds.length) return;
     void openPullPreview(sourceIds);
     navigate(location.pathname, { replace: true, state: null });
-  }, [location.pathname, location.state, navigate]);
+  }, [location.pathname, location.state, navigate, messageApi, t, NS]);
 
   const isPullSelectable = useCallback(
     (record: PullCandidate) => {
@@ -437,6 +453,28 @@ const FinanceRefundVoucherPage: React.FC<Props> = ({ mode, columnPersistenceId }
         }
   };
 
+  const executeUnconfirm = async (record: RefundVoucher) => {
+    try {
+      await cfg.unconfirm(record.id);
+      messageApi.success(t(`${NS}.unconfirmSuccess`));
+      actionRef.current?.reload();
+      if (detailRecord?.id === record.id) void openDetail(record);
+    } catch (e) {
+      messageApi.error(getApiErrorMessage(e, t(`${NS}.unconfirmFailed`)));
+    }
+  };
+
+  const executeSyncBank = async (record: RefundVoucher) => {
+    try {
+      await cfg.syncBank(record.id);
+      messageApi.success(t(`${NS}.syncBankSuccess`));
+      actionRef.current?.reload();
+      if (detailRecord?.id === record.id) void openDetail(record);
+    } catch (e) {
+      messageApi.error(getApiErrorMessage(e, t(`${NS}.syncBankFailed`)));
+    }
+  };
+
   const handleConfirm = (record: RefundVoucher) => {
     getAntdModal().confirm({
       title: t(`${NS}.confirmTitle`),
@@ -456,6 +494,13 @@ const FinanceRefundVoucherPage: React.FC<Props> = ({ mode, columnPersistenceId }
       onOk: () => executeCancel(record),
     });
   };
+
+  const canRepairBankFlow = useCallback(
+    (record: RefundVoucher) =>
+      Boolean(record.capabilities?.repair_bank_flow?.allowed) &&
+      Boolean(perms.canAction?.('audit')),
+    [perms],
+  );
 
   const pullPreviewMaxPush =
     Number(
@@ -679,18 +724,73 @@ const FinanceRefundVoucherPage: React.FC<Props> = ({ mode, columnPersistenceId }
             </ActionConfirmPopconfirm>,
                 );
               }
+              if (record.status === 'Confirmed' && perms.canAction?.('revoke')) {
+                acts.push(
+                  <ActionConfirmPopconfirm
+                    key="unconfirm"
+                    title={t(`${NS}.unconfirmTitle`)}
+                    description={t(`${NS}.unconfirmContent`, {
+                      code: (record as Record<string, string>)[cfg.codeField],
+                    })}
+                    onConfirm={() => executeUnconfirm(record)}
+                  >
+                    <Button key="uc" {...rowActionKind('revoke')} onClick={(e) => e.stopPropagation()} />
+                  </ActionConfirmPopconfirm>,
+                );
+              }
+              if (canRepairBankFlow(record)) {
+                acts.push(
+                  <ActionConfirmPopconfirm
+                    key="sync-bank"
+                    title={t(`${NS}.syncBankTitle`)}
+                    description={t(`${NS}.syncBankContent`, {
+                      code: (record as Record<string, string>)[cfg.codeField],
+                    })}
+                    onConfirm={() => executeSyncBank(record)}
+                  >
+                    <Button
+                      {...rowActionKind('audit')}
+                      {...rowActionLabelKeep()}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {t(`${NS}.syncBank`)}
+                    </Button>
+                  </ActionConfirmPopconfirm>,
+                );
+              }
               return acts;
             },
           },
         ],
         SALES_DOC_LIST_FIELD_RANK,
       ),
-    [t, cfg, partnerOptions, perms, openDetail, handleConfirm, handleCancel, NS],
+    [t, cfg, partnerOptions, perms, openDetail, executeConfirm, executeCancel, executeUnconfirm, executeSyncBank, canRepairBankFlow, NS],
   );
 
 
   return (
     <ListPageTemplate helpViewConfig={undefined}>
+      {filterSourceId != null ? (
+        <Alert
+          style={{ marginBottom: 12 }}
+          type="info"
+          showIcon
+          title={t(`${NS}.filterBySourceAlert`)}
+          action={
+            <Button
+              size="small"
+              type="link"
+              onClick={() => {
+                filterSourceIdRef.current = null;
+                setFilterSourceId(null);
+                actionRef.current?.reload();
+              }}
+            >
+              {t(`${NS}.clearSourceFilter`)}
+            </Button>
+          }
+        />
+      ) : null}
       <UniTable<RefundVoucher>
         actionRef={actionRef}
         columnPersistenceId={columnPersistenceId}
@@ -716,7 +816,11 @@ const FinanceRefundVoucherPage: React.FC<Props> = ({ mode, columnPersistenceId }
           ) : null,
         ]}
         request={async (params, sort) => {
-          const listParams = cfg.resolveListParams(params, sort);
+          const sourceId = filterSourceIdRef.current;
+          const listParams = {
+            ...cfg.resolveListParams(params, sort),
+            ...(sourceId != null ? { source_id: sourceId } : {}),
+          };
           lastListParamsRef.current = listParams;
           const res = await cfg.list(listParams as never);
           return { data: res.items || [], success: true, total: res.total || 0 };
@@ -915,10 +1019,36 @@ const FinanceRefundVoucherPage: React.FC<Props> = ({ mode, columnPersistenceId }
         linkHandlers={voucherLinkHandlers}
         isRefund
         extra={
-          detailRecord?.status === 'Draft' && perms.canAction?.('audit') ? (
-            <Button {...rowActionKind('audit')} onClick={() => handleConfirm(detailRecord)}>
-              {t('common.confirm')}
-            </Button>
+          detailRecord ? (
+            <>
+              {detailRecord.status === 'Draft' && perms.canAction?.('audit') ? (
+                <Button {...rowActionKind('audit')} onClick={() => handleConfirm(detailRecord)}>
+                  {t('common.confirm')}
+                </Button>
+              ) : null}
+              {detailRecord.status === 'Confirmed' && perms.canAction?.('revoke') ? (
+                <ActionConfirmPopconfirm
+                  title={t(`${NS}.unconfirmTitle`)}
+                  description={t(`${NS}.unconfirmContent`, {
+                    code: (detailRecord as Record<string, string>)[cfg.codeField],
+                  })}
+                  onConfirm={() => executeUnconfirm(detailRecord)}
+                >
+                  <Button {...rowActionKind('revoke')} onClick={(e) => e.stopPropagation()}>
+                    {t(`${NS}.unconfirm`)}
+                  </Button>
+                </ActionConfirmPopconfirm>
+              ) : null}
+              {canRepairBankFlow(detailRecord) ? (
+                <Button
+                  {...rowActionKind('audit')}
+                  {...rowActionLabelKeep()}
+                  onClick={() => void executeSyncBank(detailRecord)}
+                >
+                  {t(`${NS}.syncBank`)}
+                </Button>
+              ) : null}
+            </>
           ) : undefined
         }
       />

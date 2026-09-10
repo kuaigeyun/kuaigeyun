@@ -233,10 +233,12 @@ async def preview_pull_payment_from_payable(
     payable_id: int = Path(..., description="应付单ID"),
     _auth: object = Depends(require_permission_codes("kuaicaiwu:payment:read")),
     tenant_id: int = Depends(get_current_tenant),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     return await payment_pull_service.preview_pull_from_payable(
         tenant_id=tenant_id,
         payable_id=payable_id,
+        operator_id=current_user.id,
     )
 
 

@@ -4,7 +4,7 @@
  * 记录向供应商支付的款项，可用于核销应付单。
  */
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { rowActionKind, rowActionSettleVoucher, rowActionCreateRefund } from '../../../../../components/uni-action';
+import { rowActionKind, rowActionSettleVoucher, rowActionCreateRefund, rowActionLabelKeep } from '../../../../../components/uni-action';
 import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
 import { ActionType, ProColumns } from '@ant-design/pro-components';
 import { App, Button, Modal, Typography, Spin, Alert, Table, Empty, Form } from 'antd';
@@ -85,7 +85,7 @@ import {
   FinanceVoucherDetailProvider,
   useFinanceVoucherDetail,
 } from '../../../components/FinanceVoucherDetailProvider';
-import { canCorrectFinanceVoucher, canCreateRefundFromVoucher } from '../../../utils/financeVoucherDocType';
+import { canCorrectFinanceVoucher, canCreateRefundFromVoucher, isFinanceVoucherCorrectionBlockedByRefund } from '../../../utils/financeVoucherDocType';
 import { PAYMENT_REFUND_RESOURCE } from '../../../services/finance/payment-refund';
 type PullPayableCandidate = PaymentPullCandidate;
 
@@ -855,6 +855,27 @@ const PaymentsPage: React.FC = () => {
             />,
           );
         }
+        if (
+          record.status === 'Confirmed' &&
+          isFinanceVoucherCorrectionBlockedByRefund(record) &&
+          paymentRefundPerms.canRead
+        ) {
+          acts.push(
+            <Button
+              key="view-refunds"
+              {...rowActionKind('read')}
+              {...rowActionLabelKeep()}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate('/apps/kuaicaiwu/finance-management/payment-refunds', {
+                  state: { filterSourceId: record.id },
+                });
+              }}
+            >
+              {t(`${P}.viewRefunds`)}
+            </Button>,
+          );
+        }
         if (record.status === 'Draft' && paymentPerms.canUpdate) {
           acts.push(
             <Button key="ed" {...rowActionKind('update')} onClick={() => openEdit(record)} />,
@@ -1321,6 +1342,26 @@ const PaymentsPage: React.FC = () => {
                       }
                     >
                       {t('app.kuaicaiwu.paymentRefund.pullCreate')}
+                    </Button>
+                  ),
+                },
+                {
+                  key: 'view-refunds',
+                  visible:
+                    detailRecord.status === 'Confirmed'
+                    && isFinanceVoucherCorrectionBlockedByRefund(detailRecord)
+                    && Boolean(paymentRefundPerms.canRead),
+                  render: (
+                    <Button
+                      {...rowActionKind('read')}
+                      {...rowActionLabelKeep()}
+                      onClick={() =>
+                        navigate('/apps/kuaicaiwu/finance-management/payment-refunds', {
+                          state: { filterSourceId: detailRecord.id },
+                        })
+                      }
+                    >
+                      {t(`${P}.viewRefunds`)}
                     </Button>
                   ),
                 },

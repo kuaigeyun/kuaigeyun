@@ -10,6 +10,10 @@ REFUND_STATUS_NONE = "未退款"
 REFUND_STATUS_PARTIAL = "部分退款"
 REFUND_STATUS_FULL = "全部退款"
 
+# 退货未付款冲减核销贷方类型（SettlementRecord.credit_doc_type）
+SETTLEMENT_CREDIT_SALES_RETURN_OFFSET = "SalesReturnOffset"
+SETTLEMENT_CREDIT_PURCHASE_RETURN_OFFSET = "PurchaseReturnOffset"
+
 _MONEY = Decimal("0.01")
 _ALLOC_KEY = "allocated_amount"
 
@@ -43,23 +47,31 @@ def compute_open_balance_after_refund(
     total_amount: Decimal,
     collected_amount: Decimal,
     refunded_amount: Decimal,
+    goods_offset_amount: Decimal = Decimal("0"),
 ) -> Decimal:
     """
-    往来未结清余额：总额 - 净已收/已付。
-    净已收/已付 = 已收(付)合计 - 已确认退款冲回合计。
-    退款须加回剩余应收/应付，禁止只用 total - collected。
+    往来未结清余额：有效总额 - 净已收/已付。
+    有效总额 = 总额 - 退货未付款冲减（货物退回抵减，非现金退款）。
+    净已收/已付 = 已收(付)合计 - 已确认现金退款冲回合计。
+    现金退款须加回剩余应收/应付；退货冲减须从可收/可付中扣减。
     """
     total = quantize_money(total_amount)
     collected = quantize_money(collected_amount)
     refunded = quantize_money(refunded_amount)
+    goods_offset = quantize_money(goods_offset_amount)
+    if goods_offset < Decimal("0"):
+        goods_offset = Decimal("0")
+    if goods_offset > total:
+        goods_offset = total
+    effective_total = quantize_money(total - goods_offset)
     net_collected = collected - refunded
     if net_collected < Decimal("0"):
         net_collected = Decimal("0")
-    remaining = total - net_collected
+    remaining = effective_total - net_collected
     if remaining < Decimal("0"):
         return Decimal("0.00")
-    if remaining > total:
-        return total
+    if remaining > effective_total:
+        return effective_total
     return remaining
 
 
@@ -71,10 +83,10 @@ def resolve_ar_status_after_amounts(
 ) -> str:
     received = quantize_money(received_amount)
     remaining = quantize_money(remaining_amount)
-    if received <= Decimal("0"):
-        return "未收款"
     if remaining <= Decimal("0"):
         return "已结清"
+    if received <= Decimal("0"):
+        return "未收款"
     return "部分收款"
 
 
@@ -86,10 +98,10 @@ def resolve_ap_status_after_amounts(
 ) -> str:
     paid = quantize_money(paid_amount)
     remaining = quantize_money(remaining_amount)
-    if paid <= Decimal("0"):
-        return "未付款"
     if remaining <= Decimal("0"):
         return "已结清"
+    if paid <= Decimal("0"):
+        return "未付款"
     return "部分付款"
 
 

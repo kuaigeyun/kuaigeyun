@@ -12302,6 +12302,23 @@ class SalesReturnService(AppBaseService[SalesReturn]):
                     )
                 except Exception as rel_e:
                     logger.warning("销售退货确认-创建应收单关联/会计事件失败: %s", rel_e)
+                red_receivable_id = int(receivable.id)
+            else:
+                red_receivable_id = None
+            if total_amount > 0:
+                try:
+                    from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+                        ReturnOpenBalanceOffsetService,
+                    )
+
+                    await ReturnOpenBalanceOffsetService().apply_sales_return_offset(
+                        tenant_id,
+                        return_id,
+                        operator_id=confirmed_by,
+                        red_receivable_id=red_receivable_id,
+                    )
+                except Exception as offset_e:
+                    logger.warning("销售退货确认-冲减蓝字应收未结余额失败: %s", offset_e)
         except Exception as fin_e:
             logger.warning("销售退货确认-创建红字应收单失败: %s", fin_e)
 
@@ -12445,6 +12462,17 @@ class SalesReturnService(AppBaseService[SalesReturn]):
             from apps.kuaizhizao.services.document_action_policy.sales_return import assert_sales_return_capability
 
             assert_sales_return_capability(return_obj, "withdraw")
+
+            try:
+                from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+                    ReturnOpenBalanceOffsetService,
+                )
+
+                await ReturnOpenBalanceOffsetService().reverse_sales_return_offset(
+                    tenant_id, return_id, operator_id=updated_by
+                )
+            except Exception as offset_e:
+                logger.warning("销售退货撤回-回滚蓝字应收冲减失败: %s", offset_e)
 
             from apps.kuaizhizao.services.inventory_service import InventoryService
             items = await SalesReturnItem.filter(tenant_id=tenant_id, return_id=return_id).all()
@@ -13907,7 +13935,8 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                     supplier_name=ret_obj.supplier_name,
                     total_amount=total_amount,
                     paid_amount=0.0,
-                    remaining_amount=total_amount,
+                    # 冲减台账：不进入待付款；对账贷方取 total_amount 绝对值
+                    remaining_amount=0.0,
                     due_date=due_date,
                     business_date=biz_date,
                     status="已冲减",
@@ -13951,6 +13980,23 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                     )
                 except Exception as rel_e:
                     logger.warning("采购退货确认-创建应付单关联/会计事件失败: %s", rel_e)
+                red_payable_id = int(payable.id)
+            else:
+                red_payable_id = None
+            if total_amount > 0:
+                try:
+                    from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+                        ReturnOpenBalanceOffsetService,
+                    )
+
+                    await ReturnOpenBalanceOffsetService().apply_purchase_return_offset(
+                        tenant_id,
+                        return_id,
+                        operator_id=confirmed_by,
+                        red_payable_id=red_payable_id,
+                    )
+                except Exception as offset_e:
+                    logger.warning("采购退货确认-冲减蓝字应付未结余额失败: %s", offset_e)
         except Exception as fin_e:
             logger.warning("采购退货确认-创建红字应付单失败: %s", fin_e)
 
@@ -14080,6 +14126,17 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
             )
 
             assert_purchase_return_capability(return_obj, "withdraw")
+
+            try:
+                from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+                    ReturnOpenBalanceOffsetService,
+                )
+
+                await ReturnOpenBalanceOffsetService().reverse_purchase_return_offset(
+                    tenant_id, return_id, operator_id=updated_by
+                )
+            except Exception as offset_e:
+                logger.warning("采购退货撤回-回滚蓝字应付冲减失败: %s", offset_e)
 
             from apps.kuaizhizao.services.inventory_service import InventoryService
             from tortoise.timezone import now as tz_now

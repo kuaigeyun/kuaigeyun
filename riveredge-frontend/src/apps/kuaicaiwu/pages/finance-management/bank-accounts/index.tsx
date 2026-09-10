@@ -416,19 +416,32 @@ const BankAccountsPage: React.FC = () => {
         size={DRAWER_CONFIG.HALF_WIDTH}
         plainBody={
           <UniTable<BankTx>
+            // 抽屉 destroyOnHidden=false：切账户必须把 accountId 打进 params/queryKey，
+            // 否则同一 persistenceId 会复用上一账户流水缓存，表现为「一笔入账出现在两个账户」。
+            key={txAccount ? `bank-tx-${txAccount.id}` : 'bank-tx-none'}
             actionRef={txRef}
             enableRowSelection
             rowKey="id"
-            columnPersistenceId="apps.kuaicaiwu.pages.finance-management.bank-accounts.transactions.list-v2"
+            columnPersistenceId="apps.kuaicaiwu.pages.finance-management.bank-accounts.transactions.list-v3"
+            params={{ bankAccountId: txAccount?.id }}
+            tanstackQuery={{
+              queryKeyPrefix: [
+                'apps.kuaicaiwu.pages.finance-management.bank-accounts.transactions.list-v3',
+                txAccount?.id ?? 0,
+              ],
+            }}
             columns={alignProColumns(txColumns, SALES_DOC_LIST_FIELD_RANK)}
             showAdvancedSearch
             skipFuzzyPinyinClientFilter
             request={async (params, sort, _filter, searchFormValues) => {
-              if (!txAccount) return { data: [], success: true, total: 0 };
+              const accountId = Number(params.bankAccountId ?? txAccount?.id);
+              if (!Number.isFinite(accountId) || accountId <= 0) {
+                return { data: [], success: true, total: 0 };
+              }
               const { current, pageSize } = params;
               const listParams = resolveBankTransactionListParams(searchFormValues, sort);
               try {
-                const res = await bankAccountService.listTransactions(txAccount.id, {
+                const res = await bankAccountService.listTransactions(accountId, {
                   skip: ((current || 1) - 1) * (pageSize || 20),
                   limit: pageSize || 20,
                   ...listParams,

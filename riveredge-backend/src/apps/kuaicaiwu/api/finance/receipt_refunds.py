@@ -161,6 +161,7 @@ async def list_receipt_refunds(
     limit: int = Query(20, ge=1, le=200),
     status: Optional[str] = None,
     customer_id: Optional[int] = None,
+    source_id: Optional[int] = Query(None, description="按源收款单过滤"),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     keyword: Optional[str] = Query(None),
@@ -173,6 +174,7 @@ async def list_receipt_refunds(
     current_user: User = Depends(get_current_user),
 ):
     from apps.kuaicaiwu.services.finance_list_core import apply_finance_voucher_list_filters
+    from apps.kuaizhizao.models.document_relation import DocumentRelation
 
     query = Receipt.filter(
         tenant_id=tenant_id, deleted_at__isnull=True, settlement_type="refund"
@@ -181,6 +183,18 @@ async def list_receipt_refunds(
         query = query.filter(status=status)
     if customer_id:
         query = query.filter(customer_id=customer_id)
+    if source_id is not None:
+        target_ids = await DocumentRelation.filter(
+            tenant_id=tenant_id,
+            source_type="receipt",
+            source_id=int(source_id),
+            target_type="receipt",
+            relation_mode="pull",
+        ).values_list("target_id", flat=True)
+        ids = [int(x) for x in target_ids if x]
+        if not ids:
+            return ReceiptVoucherListResponse(items=[], total=0, skip=skip, limit=limit)
+        query = query.filter(id__in=ids)
 
     doc_date_start = start_date.isoformat() if start_date else None
     doc_date_end = end_date.isoformat() if end_date else None
@@ -203,7 +217,16 @@ async def list_receipt_refunds(
     total = await query.count()
     items = await query.order_by(order_expr, "-id").offset(skip).limit(limit).all()
     serialized = [await _serialize(tenant_id, current_user.id, r) for r in items]
-    return ReceiptVoucherListResponse(items=serialized, total=total, skip=skip, limit=limit)
+    from apps.kuaicaiwu.services.finance_voucher_enrichment import attach_refund_bank_flow_capabilities
+
+    payloads = [item.model_dump() for item in serialized]
+    await attach_refund_bank_flow_capabilities(tenant_id, payloads, kind="receipt")
+    return ReceiptVoucherListResponse(
+        items=[ReceiptVoucherResponse.model_validate(p) for p in payloads],
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get("/pull-candidates/receipts")
@@ -319,37 +342,60 @@ async def confirm_receipt_refund(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
-    from apps.kuaicaiwu.services.bank_account_service import BankAccountService
-    from infra.exceptions.exceptions import ValidationError
-
-    receipt = await _get_or_404(tenant_id, id)
-    try:
-        await BankAccountService().validate_voucher_account(
-            tenant_id,
-            payment_method=receipt.payment_method,
-            bank_account_id=receipt.bank_account_id,
-        )
-    except ValidationError as exc:
-        raise _http_exception_with_trace(400, str(exc), "/receipt-refunds/{id}/confirm", tenant_id) from exc
+    from infra.exceptions.exceptions import NotFoundError, ValidationError
 
     try:
         await refund_service.confirm_refund(
             tenant_id, id, current_user.id, current_user=current_user
         )
-    except ValidationError as exc:
+    except (ValidationError, NotFoundError, BusinessLogicError) as exc:
         raise _http_exception_with_trace(400, str(exc), "/receipt-refunds/{id}/confirm", tenant_id) from exc
 
-    receipt = await _get_or_404(tenant_id, id)
-    if receipt.bank_account_id:
-        try:
-            await BankAccountService().sync_from_confirmed_voucher(
-                tenant_id, voucher_type="receipt", voucher_id=id, operator_id=current_user.id
-            )
-        except ValidationError as exc:
-            raise _http_exception_with_trace(
-                400, str(exc), "/receipt-refunds/{id}/confirm", tenant_id
-            ) from exc
-    return await _serialize(tenant_id, current_user.id, receipt)
+    return await _serialize(tenant_id, current_user.id, await _get_or_404(tenant_id, id))
+
+
+@router.post("/{id}/sync-bank", response_model=ReceiptVoucherResponse)
+async def sync_receipt_refund_bank(
+    id: int,
+    _auth: object = Depends(require_permission_codes("kuaicaiwu:receipt-refund:audit")),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """已确认收款退款补记银行流水（历史断账修复；幂等）。"""
+    from infra.exceptions.exceptions import NotFoundError, ValidationError
+
+    try:
+        await refund_service.sync_bank_flow(
+            tenant_id, id, operator_id=current_user.id
+        )
+    except (ValidationError, NotFoundError, BusinessLogicError) as exc:
+        raise _http_exception_with_trace(
+            400, str(exc), "/receipt-refunds/{id}/sync-bank", tenant_id
+        ) from exc
+
+    return await _serialize_detail(tenant_id, current_user.id, await _get_or_404(tenant_id, id))
+
+
+@router.post("/{id}/unconfirm", response_model=ReceiptVoucherResponse)
+async def unconfirm_receipt_refund(
+    id: int,
+    _auth: object = Depends(require_permission_codes("kuaicaiwu:receipt-refund:revoke")),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """撤回已确认收款退款（冲销银行流水与核销，退款单回草稿）。"""
+    from infra.exceptions.exceptions import NotFoundError, ValidationError
+
+    try:
+        await refund_service.unconfirm_refund(
+            tenant_id, id, current_user.id, current_user=current_user
+        )
+    except (ValidationError, NotFoundError, BusinessLogicError) as exc:
+        raise _http_exception_with_trace(
+            400, str(exc), "/receipt-refunds/{id}/unconfirm", tenant_id
+        ) from exc
+
+    return await _serialize(tenant_id, current_user.id, await _get_or_404(tenant_id, id))
 
 
 @router.post("/{id}/cancel", response_model=ReceiptVoucherResponse)
@@ -362,7 +408,10 @@ async def cancel_receipt_refund(
     receipt = await _get_or_404(tenant_id, id)
     if receipt.status == "Confirmed":
         raise _http_exception_with_trace(
-            400, "已确认的收款退款请通过冲销流程处理", "/receipt-refunds/{id}/cancel", tenant_id
+            400,
+            "已确认的收款退款请先撤回确认，再作废",
+            "/receipt-refunds/{id}/cancel",
+            tenant_id,
         )
     await Receipt.filter(id=id).update(status="Cancelled")
     return await _serialize(tenant_id, current_user.id, await _get_or_404(tenant_id, id))

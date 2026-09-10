@@ -59,9 +59,19 @@ export function canCorrectFinanceVoucher(record: {
   refunded_amount?: number;
 }): boolean {
   if (String(record.settlement_type || 'normal') === 'refund') return false;
-  const refunded = Number(record.refunded_amount ?? 0);
-  if (refunded > 0) return false;
-  const refundExec = String(record.refund_execution_status || '').trim();
-  if (refundExec === '部分退款' || refundExec === '全部退款') return false;
+  if (isFinanceVoucherCorrectionBlockedByRefund(record)) return false;
   return true;
+}
+
+/** 因已发生退款而禁止原单纠错（须先撤回相关退款确认） */
+export function isFinanceVoucherCorrectionBlockedByRefund(record: {
+  settlement_type?: string;
+  refund_execution_status?: string;
+  refunded_amount?: number;
+}): boolean {
+  if (String(record.settlement_type || 'normal') === 'refund') return false;
+  const refunded = Number(record.refunded_amount ?? 0);
+  if (refunded > 0) return true;
+  const refundExec = String(record.refund_execution_status || '').trim();
+  return refundExec === '部分退款' || refundExec === '全部退款';
 }

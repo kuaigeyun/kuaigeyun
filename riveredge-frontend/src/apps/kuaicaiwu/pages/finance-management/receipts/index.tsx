@@ -4,7 +4,7 @@
  * 记录从客户收取的款项，可用于核销应收单。
  */
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { rowActionKind, rowActionSettleVoucher, rowActionCreateRefund } from '../../../../../components/uni-action';
+import { rowActionKind, rowActionSettleVoucher, rowActionCreateRefund, rowActionLabelKeep } from '../../../../../components/uni-action';
 import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
 import { ActionType, ProColumns } from '@ant-design/pro-components';
 import { App, Button, Modal, Typography, Spin, Alert, Table, Empty, Form } from 'antd';
@@ -85,7 +85,7 @@ import {
   buildFinanceVoucherLinkHandlers,
   useFinanceVoucherDetail,
 } from '../../../components/FinanceVoucherDetailProvider';
-import { canCorrectFinanceVoucher, canCreateRefundFromVoucher } from '../../../utils/financeVoucherDocType';
+import { canCorrectFinanceVoucher, canCreateRefundFromVoucher, isFinanceVoucherCorrectionBlockedByRefund } from '../../../utils/financeVoucherDocType';
 import { RECEIPT_REFUND_RESOURCE } from '../../../services/finance/receipt-refund';
 type PullReceivableCandidate = ReceiptPullCandidate;
 
@@ -882,6 +882,27 @@ const ReceiptsPage: React.FC = () => {
             />,
           );
         }
+        if (
+          record.status === 'Confirmed' &&
+          isFinanceVoucherCorrectionBlockedByRefund(record) &&
+          receiptRefundPerms.canRead
+        ) {
+          acts.push(
+            <Button
+              key="view-refunds"
+              {...rowActionKind('read')}
+              {...rowActionLabelKeep()}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate('/apps/kuaicaiwu/finance-management/receipt-refunds', {
+                  state: { filterSourceId: record.id },
+                });
+              }}
+            >
+              {t(`${R}.viewRefunds`)}
+            </Button>,
+          );
+        }
         if (record.status === 'Draft' && receiptPerms.canUpdate) {
           acts.push(
             <Button key="ed" {...rowActionKind('update')} onClick={() => openEdit(record)} />,
@@ -1348,6 +1369,26 @@ const ReceiptsPage: React.FC = () => {
                       }
                     >
                       {t('app.kuaicaiwu.receiptRefund.pullCreate')}
+                    </Button>
+                  ),
+                },
+                {
+                  key: 'view-refunds',
+                  visible:
+                    detailRecord.status === 'Confirmed'
+                    && isFinanceVoucherCorrectionBlockedByRefund(detailRecord)
+                    && Boolean(receiptRefundPerms.canRead),
+                  render: (
+                    <Button
+                      {...rowActionKind('read')}
+                      {...rowActionLabelKeep()}
+                      onClick={() =>
+                        navigate('/apps/kuaicaiwu/finance-management/receipt-refunds', {
+                          state: { filterSourceId: detailRecord.id },
+                        })
+                      }
+                    >
+                      {t(`${R}.viewRefunds`)}
                     </Button>
                   ),
                 },

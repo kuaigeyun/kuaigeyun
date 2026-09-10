@@ -243,10 +243,12 @@ async def preview_pull_receipt_from_receivable(
     receivable_id: int = Path(..., description="应收单ID"),
     _auth: object = Depends(require_permission_codes("kuaicaiwu:receipt:read")),
     tenant_id: int = Depends(get_current_tenant),
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     return await receipt_pull_service.preview_pull_from_receivable(
         tenant_id=tenant_id,
         receivable_id=receivable_id,
+        operator_id=current_user.id,
     )
 
 

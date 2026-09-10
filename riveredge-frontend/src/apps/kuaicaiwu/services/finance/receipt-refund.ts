@@ -52,6 +52,12 @@ export const receiptRefundService = {
 
   confirm: (id: number) => apiRequest<ReceiptVoucher>(`${API}/${id}/confirm`, { method: 'POST' }),
 
+  unconfirm: (id: number) =>
+    apiRequest<ReceiptVoucher>(`${API}/${id}/unconfirm`, { method: 'POST' }),
+
+  syncBank: (id: number) =>
+    apiRequest<ReceiptVoucher>(`${API}/${id}/sync-bank`, { method: 'POST' }),
+
   cancel: (id: number) => apiRequest<ReceiptVoucher>(`${API}/${id}/cancel`, { method: 'POST' }),
 
   listPullCandidates: (params?: { skip?: number; limit?: number; keyword?: string }) =>

@@ -120,10 +120,16 @@ async def unwind_voucher_settlements(
             )
 
             refunded = quantize_money(getattr(receivable, "refunded_amount", 0) or 0)
+            from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+                sum_goods_offset_for_receivable,
+            )
+
+            goods_offset = await sum_goods_offset_for_receivable(tenant_id, int(receivable.id))
             new_remaining = compute_open_balance_after_refund(
                 receivable.total_amount,
                 new_received,
                 refunded,
+                goods_offset,
             )
             net_received = quantize_money(new_received - refunded)
             if net_received < Decimal("0.00"):
@@ -178,35 +184,40 @@ async def unwind_voucher_settlements(
         )
         if not payable:
             raise BusinessLogicError(f"核销关联应付单不存在: {settlement.debit_doc_id}")
-            new_paid = quantize_money(payable.paid_amount) - amount
-            if new_paid < 0:
-                new_paid = Decimal("0.00")
-            from apps.kuaicaiwu.services.finance_refund_utils import (
-                compute_open_balance_after_refund,
-                resolve_ap_status_after_amounts,
-            )
+        new_paid = quantize_money(payable.paid_amount) - amount
+        if new_paid < 0:
+            new_paid = Decimal("0.00")
+        from apps.kuaicaiwu.services.finance_refund_utils import (
+            compute_open_balance_after_refund,
+            resolve_ap_status_after_amounts,
+        )
+        from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+            sum_goods_offset_for_payable,
+        )
 
-            refunded = quantize_money(getattr(payable, "refunded_amount", 0) or 0)
-            new_remaining = compute_open_balance_after_refund(
-                payable.total_amount,
-                new_paid,
-                refunded,
-            )
-            net_paid = quantize_money(new_paid - refunded)
-            if net_paid < Decimal("0.00"):
-                net_paid = Decimal("0.00")
-            ap_status = resolve_ap_status_after_amounts(
-                total_amount=payable.total_amount,
-                paid_amount=net_paid,
-                remaining_amount=new_remaining,
-            )
-            await Payable.filter(tenant_id=tenant_id, id=payable.id).update(
-                paid_amount=new_paid,
-                remaining_amount=new_remaining,
-                status=ap_status,
-                updated_by=operator_id,
-                updated_by_name=user_name or None,
-            )
+        refunded = quantize_money(getattr(payable, "refunded_amount", 0) or 0)
+        goods_offset = await sum_goods_offset_for_payable(tenant_id, int(payable.id))
+        new_remaining = compute_open_balance_after_refund(
+            payable.total_amount,
+            new_paid,
+            refunded,
+            goods_offset,
+        )
+        net_paid = quantize_money(new_paid - refunded)
+        if net_paid < Decimal("0.00"):
+            net_paid = Decimal("0.00")
+        ap_status = resolve_ap_status_after_amounts(
+            total_amount=payable.total_amount,
+            paid_amount=net_paid,
+            remaining_amount=new_remaining,
+        )
+        await Payable.filter(tenant_id=tenant_id, id=payable.id).update(
+            paid_amount=new_paid,
+            remaining_amount=new_remaining,
+            status=ap_status,
+            updated_by=operator_id,
+            updated_by_name=user_name or None,
+        )
         settlement.is_active = False
         settlement.deleted_at = now_utc()
         await settlement.save()
