@@ -28175,6 +28175,10 @@ export default {
     '发版后旧前端资源自动刷新',
   'pages.dashboard.updateLog.entries.stale-chunk-auto-reload.description':
     '发版后若浏览器仍引用已下线的 JS chunk，进入业务应用时会自动硬刷新一次；生产环境不再误提示 compose 或重启 Vite。',
+  'pages.dashboard.updateLog.entries.sidebar-pro-app-badge-restore.title':
+    '侧栏 PRO 应用徽标恢复显示',
+  'pages.dashboard.updateLog.entries.sidebar-pro-app-badge-restore.description':
+    '修复分组标题解析应用 code 失败导致快报表、快数采、KU-AI 等专业版应用旁 PRO 徽标丢失的问题。',
   'pages.dashboard.updateLog.entries.ar-ap-return-open-balance-offset.title':
     '退货冲减应收应付可收可付余额',
   'pages.dashboard.updateLog.entries.ar-ap-return-open-balance-offset.description':

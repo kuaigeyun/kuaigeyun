@@ -159,20 +159,28 @@ import { buildLoginRedirectPath } from '../utils/tenantDomainAccess';
 import { isPlatformAdminLoginPathname, isPlatformInfraPath } from '../utils/platformScope';
 import { redirectAfterLogout } from '../utils/loginEntry';
 
-/** 侧栏应用分组标题 → 应用 code（任意应用；key / path / data 属性） */
+/** 侧栏应用分组标题 → 应用 code（任意应用；key / path / label data 属性） */
 function resolveSidebarAppGroupCode(item: {
   key?: React.Key;
   path?: string;
   label?: React.ReactNode;
 }): string | null {
   const keyStr = String(item.key ?? '');
-  // 兼容历史 key：app-group-code-{code}；现行 key 为 app-group-{uuid}
+  // 历史 key：app-group-code-{code}；现行 key 仅为 app-group-{uuid}，须靠 path / label
   const fromKey = keyStr.match(/^app-group-code-(.+)$/)?.[1];
   if (fromKey) return fromKey;
 
   const path = typeof item.path === 'string' ? item.path : '';
-  const fromHash = path.match(/^#app-group-(.+)$/)?.[1];
+  // ProLayout transformRoute/mergePath 会把 `#app-group-x` 收成 `/#app-group-x`
+  const fromHash = path.match(/^\/?#app-group-(.+)$/)?.[1];
   if (fromHash) return fromHash;
+
+  if (React.isValidElement(item.label)) {
+    const dataCode = (item.label.props as { 'data-app-menu-group'?: unknown })?.[
+      'data-app-menu-group'
+    ];
+    if (typeof dataCode === 'string' && dataCode && dataCode !== '1') return dataCode;
+  }
 
   return extractAppCodeFromPath(path);
 }

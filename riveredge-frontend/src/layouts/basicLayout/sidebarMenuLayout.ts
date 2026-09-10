@@ -85,10 +85,9 @@ function resolveAppCodeForShortLabel(item: MenuDataItem): string | null {
   if (normalizedPath === INDUSTRY_PACK_ROOT_PATH) return 'industry-pack';
   const fromPath = extractAppCodeFromPath(path);
   if (fromPath) return fromPath;
-  if (path.startsWith('#app-group-')) {
-    const code = path.slice('#app-group-'.length).trim();
-    return code || null;
-  }
+  // ProLayout transformRoute 可能把 `#app-group-x` 收成 `/#app-group-x`
+  const hashMatch = path.match(/^\/?#app-group-(.+)$/);
+  if (hashMatch?.[1]) return hashMatch[1].trim() || null;
   const key = typeof item.key === 'string' ? item.key : '';
   if (key.startsWith('app-group-code-')) {
     const code = key.slice('app-group-code-'.length).trim();

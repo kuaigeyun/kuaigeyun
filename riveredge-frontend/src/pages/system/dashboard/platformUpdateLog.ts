@@ -36,6 +36,14 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'sidebar-pro-app-badge-restore',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sidebar-pro-app-badge-restore.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sidebar-pro-app-badge-restore.description',
+  },
+  {
     id: 'ar-ap-return-open-balance-offset',
     date: '2026-09-10',
     type: 'fix',
