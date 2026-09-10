@@ -8,6 +8,8 @@ export type UniPushLinkedDocument = {
   documentType: string;
   documentId: number;
   documentCode?: string;
+  /** 下游单据已软删除或不存在 */
+  isDeleted?: boolean;
 };
 
 /** 下推源单据（用于拉取 document-relations） */

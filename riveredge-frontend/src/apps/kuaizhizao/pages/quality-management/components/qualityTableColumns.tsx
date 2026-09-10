@@ -2,7 +2,8 @@
  * 质量管理列表页：堆叠列与合格/不合格数量展示（Ant Design 语义色）
  *
  * 检验四单据列表列序：与 GLOBAL_DOC_LIST_FIELD_RANK 中 inspection_code /
- * quality_inspection_kind / quality_inspection_* / downstream_push_progress / inspector_name / notes 对齐；
+ * quality_inspection_material / quality_inspection_* / quality_inspection_kind /
+ * downstream_push_progress / inspector_name / notes 对齐；
  * 余量列仅 notes（buildQualityInspectionListNotesColumn）；本文件挂载 key，页面不得另起 key 或浅覆盖 rank。
  */
 
@@ -23,6 +24,7 @@ import { formatQuantity } from '../../../../../utils/format';
 import { formatQuantityWithUnit } from '../../../../../utils/materialUnitDisplay';
 import { formDateRangeFormItemProps } from '../../../../../utils/formDate';
 import {
+  getInspectionPlanNameAndCode,
   getInspectionTemplateSource,
   hasInspectionPlanSteps,
 } from './inspectionTemplateUtils';
@@ -352,10 +354,10 @@ export function buildQualityInspectionListSearchColumns<T extends object>(
   ];
 }
 
-/** 检验类型定宽：简易检验 / 方案检验 */
-const QUALITY_INSPECTION_KIND_COLUMN_WIDTH = 96;
+/** 检验方案列宽：简易质检徽章 / 方案名称+编号叠列 */
+const QUALITY_INSPECTION_KIND_COLUMN_WIDTH = 160;
 
-/** 检验四单据类型列：有方案步骤为方案检验，否则简易检验 */
+/** 检验四单据方案列：简易质检显示徽章；方案质检直接叠列方案名称 / 方案编号 */
 export function buildQualityInspectionListKindColumn<T extends object>(t: TFunction): ProColumns<T> {
   return {
     title: t('app.kuaizhizao.quality.common.columns.inspectionKind'),
@@ -365,19 +367,26 @@ export function buildQualityInspectionListKindColumn<T extends object>(t: TFunct
     minWidth: QUALITY_INSPECTION_KIND_COLUMN_WIDTH,
     uniTableKeepWidth: true,
     resizable: false,
-    fixed: 'left',
     hideInSearch: true,
     ellipsis: true,
     render: (_, record) => {
-      const isPlan = hasInspectionPlanSteps(
-        getInspectionTemplateSource(record as Record<string, unknown>),
-      );
+      const row = record as Record<string, unknown>;
+      const isPlan = hasInspectionPlanSteps(getInspectionTemplateSource(row));
+      if (!isPlan) {
+        return (
+          <MarkerTag color={resolveQualityInspectionKindMarkerColor(false)}>
+            {t('app.kuaizhizao.quality.common.inspectionKind.simple')}
+          </MarkerTag>
+        );
+      }
+      const { name, code } = getInspectionPlanNameAndCode(row);
       return (
-        <MarkerTag color={resolveQualityInspectionKindMarkerColor(isPlan)}>
-          {isPlan
-            ? t('app.kuaizhizao.quality.common.inspectionKind.plan')
-            : t('app.kuaizhizao.quality.common.inspectionKind.simple')}
-        </MarkerTag>
+        <UniTableStackedPrimaryCell
+          primary={name || '-'}
+          secondary={code || '-'}
+          secondaryCopyable={!!code}
+          skipLinkedDocumentLink
+        />
       );
     },
   };

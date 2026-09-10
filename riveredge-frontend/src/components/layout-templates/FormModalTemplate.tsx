@@ -5,7 +5,7 @@
  * 行为与厂区管理等使用本模板的弹窗一致，无内层嵌套滚动条。
  */
 
-import React, { ReactNode, useCallback, useRef } from 'react';
+import React, { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Button, App, Space, Grid, Col } from 'antd';
 import { ProForm, ProFormInstance } from '@ant-design/pro-components';
 import { useTranslation } from 'react-i18next';
@@ -133,23 +133,79 @@ export const FormModalTemplate: React.FC<FormModalTemplateProps> = ({
   const isMobile = !screens.md && screens.xs;
   const internalFormRef = useRef<ProFormInstance>();
   const formRef = externalFormRef || internalFormRef;
+  const [submitting, setSubmitting] = useState(false);
+
+  // 关闭时清提交态，避免上次请求挂起后再次打开仍转圈；禁止把 submitting 绑到 ProForm.loading
+  //（ProForm 在 loading=true 时会直接跳过 onFinish，按钮会永远转圈）
+  useEffect(() => {
+    if (!open) {
+      setSubmitting(false);
+    }
+  }, [open]);
+
+  const handleFinish = useCallback(
+    async (values: any) => {
+      setSubmitting(true);
+      try {
+        await onFinish(values);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [onFinish],
+  );
+
+  const reportFinishFailed = useCallback(
+    (errorFields?: Array<{ errors?: string[] }>) => {
+      const first = errorFields?.[0];
+      const text = first?.errors?.filter(Boolean)[0];
+      const count = errorFields?.length ?? 0;
+      messageApi.error(
+        text
+          ? count > 1
+            ? t('components.layoutTemplates.formModal.checkFormHintWithCount', {
+                message: text,
+                count: count - 1,
+              })
+            : String(text)
+          : t('components.layoutTemplates.formModal.checkFormHint'),
+      );
+    },
+    [messageApi, t],
+  );
 
   /**
-   * Modal 底栏与 body 同帧渲染时，ProForm 可能尚未把实例挂到 formRef；直接 submit 会静默无效。
-   * 延后到下一帧再调 submit，并在仍无实例时给出提示。
+   * 底栏不走 ProForm.submit()：其内部 loading 为 true 时会直接跳过 onFinish，按钮只转圈不发请求。
+   * 用 validateFields 拿到值后再调业务 onFinish。
    */
   const triggerFormSubmit = useCallback(() => {
-    requestAnimationFrame(() => {
-      const inst = formRef.current as ProFormInstance | undefined
-      if (!inst || typeof inst.submit !== 'function') {
-        messageApi.warning(t('components.layoutTemplates.formModal.formNotReady'))
-        return
-      }
-      inst.submit()
-    })
-  }, [formRef, messageApi, t])
+    if (submitting || loading) {
+      return;
+    }
+    const inst = formRef.current as ProFormInstance | undefined;
+    if (!inst || typeof inst.validateFields !== 'function') {
+      messageApi.warning(t('components.layoutTemplates.formModal.formNotReady'));
+      return;
+    }
+    setSubmitting(true);
+    void inst
+      .validateFields()
+      .then((values) => onFinish(values))
+      .catch((err: { errorFields?: Array<{ errors?: string[]; name?: unknown }>; message?: string }) => {
+        if (err?.errorFields?.length) {
+          reportFinishFailed(err.errorFields);
+          const firstName = err.errorFields[0]?.name;
+          if (firstName != null && typeof inst.scrollToField === 'function') {
+            inst.scrollToField(firstName as never, { behavior: 'smooth', block: 'center' });
+          }
+        }
+      })
+      .finally(() => {
+        setSubmitting(false);
+      });
+  }, [formRef, loading, messageApi, onFinish, reportFinishFailed, submitting, t]);
 
-  useSubmitShortcut(() => triggerFormSubmit(), open);
+  useSubmitShortcut(() => triggerFormSubmit(), open && !submitting && !loading);
 
   return (
     <Modal
@@ -173,10 +229,12 @@ export const FormModalTemplate: React.FC<FormModalTemplateProps> = ({
           </Space>
         ) : (
           <Space wrap>
-            <Button onClick={handleClose}>{t('common.cancel')}</Button>
+            <Button onClick={handleClose}>
+              {t('common.cancel')}
+            </Button>
             {extraFooter}
             {!submitHidden ? (
-              <Button type="primary" loading={loading} onClick={triggerFormSubmit}>
+              <Button type="primary" loading={loading || submitting} onClick={triggerFormSubmit}>
                 {(isEdit
                   ? t('components.layoutTemplates.formModal.submitUpdate')
                   : submitText ?? t('common.save')) + SUBMIT_SHORTCUT_HINT}
@@ -191,15 +249,10 @@ export const FormModalTemplate: React.FC<FormModalTemplateProps> = ({
         <ProForm
           formRef={formRef}
           form={form}
-          loading={loading}
           readonly={readOnly}
-          onFinish={onFinish}
-          onFinishFailed={({ errorFields }) => {
-            const first = errorFields?.[0];
-            const text = first?.errors?.filter(Boolean)[0];
-            messageApi.error(text || t('components.layoutTemplates.formModal.checkFormHint'));
-          }}
-          scrollToFirstError
+          onFinish={handleFinish}
+          onFinishFailed={({ errorFields }) => reportFinishFailed(errorFields)}
+          scrollToFirstError={{ behavior: 'smooth', block: 'center' }}
           onValuesChange={onValuesChange}
           initialValues={initialValues}
           layout={layout}

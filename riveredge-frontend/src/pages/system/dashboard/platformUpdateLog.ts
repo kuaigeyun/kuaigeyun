@@ -5,7 +5,7 @@
  * `pages.dashboard.updateLog.entries.{id}.*`（默认仅简体中文，见 i18n-zh-cn-only）。
  * 同一会话内连续多项修复：每项做完即计入，勿攒到最后或漏记。
  *
- * 不计入：定制应用 HaoliGO（好力 GO）相关变动，仅在该应用内交付，不写本日志。
+ * 不计入：定制应用 HaoliGO（好力 GO）；DocToolkit / `.gen/docgen` 造数工具相关变动。
  */
 
 import type { TFunction } from 'i18next';
@@ -35,6 +35,266 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  * titleKey / descriptionKey 对应 pages.dashboard.updateLog.entries.{id}.*
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
+  {
+    id: 'purchase-return-pull-select-warehouse',
+    date: '2026-09-10',
+    type: 'improvement',
+    titleKey:
+      'pages.dashboard.updateLog.entries.purchase-return-pull-select-warehouse.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.purchase-return-pull-select-warehouse.description',
+  },
+  {
+    id: 'purchase-inquiry-approval-process-ensure',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.purchase-inquiry-approval-process-ensure.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.purchase-inquiry-approval-process-ensure.description',
+  },
+  {
+    id: 'purchase-inquiry-draft-no-simultaneous-submit-audit',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.purchase-inquiry-draft-no-simultaneous-submit-audit.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.purchase-inquiry-draft-no-simultaneous-submit-audit.description',
+  },
+  {
+    id: 'purchase-inquiry-duplicate-submit-action',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.purchase-inquiry-duplicate-submit-action.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.purchase-inquiry-duplicate-submit-action.description',
+  },
+  {
+    id: 'ipqc-no-duplicate-plan-after-inspected',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.ipqc-no-duplicate-plan-after-inspected.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.ipqc-no-duplicate-plan-after-inspected.description',
+  },
+  {
+    id: 'work-order-op-card-inspection-overview-hover',
+    date: '2026-09-10',
+    type: 'improvement',
+    titleKey:
+      'pages.dashboard.updateLog.entries.work-order-op-card-inspection-overview-hover.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.work-order-op-card-inspection-overview-hover.description',
+  },
+  {
+    id: 'quality-inspection-kind-plan-name-not-code-dup',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-kind-plan-name-not-code-dup.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-kind-plan-name-not-code-dup.description',
+  },
+  {
+    id: 'quality-inspection-kind-plan-name-code-stack',
+    date: '2026-09-10',
+    type: 'improvement',
+    titleKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-kind-plan-name-code-stack.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-kind-plan-name-code-stack.description',
+  },
+  {
+    id: 'quality-inspection-list-col-order-material-op-plan',
+    date: '2026-09-10',
+    type: 'improvement',
+    titleKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-list-col-order-material-op-plan.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-list-col-order-material-op-plan.description',
+  },
+  {
+    id: 'quality-inspection-kind-show-plan-name',
+    date: '2026-09-10',
+    type: 'improvement',
+    titleKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-kind-show-plan-name.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-kind-show-plan-name.description',
+  },
+  {
+    id: 'process-inspection-save-db-lock',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.process-inspection-save-db-lock.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.process-inspection-save-db-lock.description',
+  },
+  {
+    id: 'form-modal-save-loading-stuck',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.form-modal-save-loading-stuck.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.form-modal-save-loading-stuck.description',
+  },
+  {
+    id: 'ipqc-multi-plan-create-all-at-once',
+    date: '2026-09-10',
+    type: 'improvement',
+    titleKey:
+      'pages.dashboard.updateLog.entries.ipqc-multi-plan-create-all-at-once.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.ipqc-multi-plan-create-all-at-once.description',
+  },
+  {
+    id: 'disposal-method-system-dictionary',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.disposal-method-system-dictionary.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.disposal-method-system-dictionary.description',
+  },
+  {
+    id: 'process-inspection-conduct-save-no-response',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.process-inspection-conduct-save-no-response.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.process-inspection-conduct-save-no-response.description',
+  },
+  {
+    id: 'wo-op-start-null-inspection-plan-ids',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.wo-op-start-null-inspection-plan-ids.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.wo-op-start-null-inspection-plan-ids.description',
+  },
+  {
+    id: 'uni-push-mark-deleted-downstream',
+    date: '2026-09-10',
+    type: 'improvement',
+    titleKey:
+      'pages.dashboard.updateLog.entries.uni-push-mark-deleted-downstream.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.uni-push-mark-deleted-downstream.description',
+  },
+  {
+    id: 'wo-op-schedule-shift-no-default-hour',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.wo-op-schedule-shift-no-default-hour.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.wo-op-schedule-shift-no-default-hour.description',
+  },
+  {
+    id: 'sidebar-app-group-unique-key',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.sidebar-app-group-unique-key.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sidebar-app-group-unique-key.description',
+  },
+  {
+    id: 'operation-list-show-inspection-plans',
+    date: '2026-09-10',
+    type: 'improvement',
+    titleKey:
+      'pages.dashboard.updateLog.entries.operation-list-show-inspection-plans.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.operation-list-show-inspection-plans.description',
+  },
+  {
+    id: 'process-route-ipqc-reload-override',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.process-route-ipqc-reload-override.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.process-route-ipqc-reload-override.description',
+  },
+  {
+    id: 'operation-inspection-plan-options-unscoped',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.operation-inspection-plan-options-unscoped.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.operation-inspection-plan-options-unscoped.description',
+  },
+  {
+    id: 'operation-ipqc-ordered-multi-plan',
+    date: '2026-09-10',
+    type: 'feature',
+    titleKey:
+      'pages.dashboard.updateLog.entries.operation-ipqc-ordered-multi-plan.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.operation-ipqc-ordered-multi-plan.description',
+  },
+  {
+    id: 'stale-chunk-auto-reload',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.stale-chunk-auto-reload.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.stale-chunk-auto-reload.description',
+  },
+  {
+    id: 'process-route-ipqc-ordered-multi-plan',
+    date: '2026-09-10',
+    type: 'feature',
+    titleKey:
+      'pages.dashboard.updateLog.entries.process-route-ipqc-ordered-multi-plan.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.process-route-ipqc-ordered-multi-plan.description',
+  },
+  {
+    id: 'process-route-step-ipqc-override',
+    date: '2026-09-10',
+    type: 'feature',
+    titleKey:
+      'pages.dashboard.updateLog.entries.process-route-step-ipqc-override.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.process-route-step-ipqc-override.description',
+  },
+  {
+    id: 'process-route-outsource-detail-columns-conditional',
+    date: '2026-09-10',
+    type: 'improvement',
+    titleKey:
+      'pages.dashboard.updateLog.entries.process-route-outsource-detail-columns-conditional.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.process-route-outsource-detail-columns-conditional.description',
+  },
+  {
+    id: 'process-route-detail-single-column',
+    date: '2026-09-10',
+    type: 'improvement',
+    titleKey:
+      'pages.dashboard.updateLog.entries.process-route-detail-single-column.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.process-route-detail-single-column.description',
+  },
+  {
+    id: 'kuaizhizao-reset-include-purchase-inquiry',
+    date: '2026-09-10',
+    type: 'fix',
+    titleKey:
+      'pages.dashboard.updateLog.entries.kuaizhizao-reset-include-purchase-inquiry.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaizhizao-reset-include-purchase-inquiry.description',
+  },
   {
     id: 'dashboard-quick-entry-icons-restore',
     date: '2026-09-09',

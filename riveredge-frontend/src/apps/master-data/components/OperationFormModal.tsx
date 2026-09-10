@@ -6,7 +6,7 @@ import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ProFormInstance, ProFormSelect, ProFormDependency, ProFormField } from '@ant-design/pro-components';
-import { App } from 'antd';
+import { App, Tag } from 'antd';
 import { UniDropdown } from '../../../components/uni-dropdown';
 import { FormModalTemplate } from '../../../components/layout-templates';
 import { MODAL_CONFIG, MODAL_NESTED_ABOVE_PARENT_OFFSET } from '../../../components/layout-templates/constants';
@@ -92,7 +92,7 @@ export const OperationFormModal: React.FC<OperationFormModalProps> = ({
   const [personnelOptions, setPersonnelOptions] = useState<{ label: string; value: string }[]>([]);
   const [resourceOptions, setResourceOptions] = useState<{ label: string; value: string }[]>([]);
   const [equipmentOptions, setEquipmentOptions] = useState<{ label: string; value: number }[]>([]);
-  const [inspectionPlanOptions, setInspectionPlanOptions] = useState<{ label: string; value: number }[]>([]);
+  const [inspectionPlanOptions, setInspectionPlanOptions] = useState<{ label: string; value: number; name?: string }[]>([]);
   const [currentOperationId, setCurrentOperationId] = useState<number | null>(null);
   const [defectQuickAddOpen, setDefectQuickAddOpen] = useState(false);
   const [inspectionPlanQuickAddOpen, setInspectionPlanQuickAddOpen] = useState(false);
@@ -142,7 +142,7 @@ export const OperationFormModal: React.FC<OperationFormModalProps> = ({
   const loadFormOptions = async (
     operationId?: number,
     boundDefectTypes?: DefectTypeMinimal[],
-    fallbackInspectionPlan?: { id: number; label?: string }
+    fallbackInspectionPlans?: Array<{ id: number; label?: string }>
   ) => {
     try {
       const [defectsRes, usersRes, teamsRes, workshopsRes] = await Promise.all([
@@ -192,7 +192,8 @@ export const OperationFormModal: React.FC<OperationFormModalProps> = ({
         workCenterApi.list({ is_active: true, limit: 500 }),
         workstationApi.list({ is_active: true, limit: 500 }),
         equipmentApi.list({ is_active: true, limit: 500 }),
-        inspectionPlanApi.list({ limit: 200, plan_type: 'process', operation_id: operationId, is_active: true }),
+        // 默认质检方案可跨工序复用，勿按适用工序过滤（与工艺路线工序编辑一致）
+        inspectionPlanApi.list({ limit: 500, plan_type: 'process', is_active: true }),
       ]);
 
       const rOpts: { label: string; value: string }[] = [];
@@ -214,21 +215,17 @@ export const OperationFormModal: React.FC<OperationFormModalProps> = ({
         value: e.id,
       }));
       const plans = unwrapInspectionPlanList(plansRes);
-      let planOpts = plans.map((p: any) => ({
-        label: `${p.plan_code || p.planCode || ''} ${p.plan_name || p.planName || ''}`.trim() || String(p.id),
-        value: p.id,
-      }));
-      if (
-        fallbackInspectionPlan?.id != null &&
-        !planOpts.some((o: { value: number }) => o.value === fallbackInspectionPlan.id)
-      ) {
-        planOpts = [
-          ...planOpts,
-          {
-            label: fallbackInspectionPlan.label?.trim() || `质检方案 #${fallbackInspectionPlan.id}`,
-            value: fallbackInspectionPlan.id,
-          },
-        ];
+      let planOpts = plans.map((p: any) => {
+        const code = String(p.plan_code || p.planCode || '').trim();
+        const name = String(p.plan_name || p.planName || '').trim();
+        const label = `${code} ${name}`.trim() || String(p.id);
+        return { label, value: p.id as number, name: name || label };
+      });
+      for (const fb of fallbackInspectionPlans || []) {
+        if (fb?.id == null) continue;
+        if (planOpts.some((o: { value: number }) => o.value === fb.id)) continue;
+        const label = fb.label?.trim() || `质检方案 #${fb.id}`;
+        planOpts = [...planOpts, { label, value: fb.id, name: label }];
       }
 
       flushSync(() => {
@@ -317,12 +314,36 @@ export const OperationFormModal: React.FC<OperationFormModalProps> = ({
         if (cancelled) return;
         const dts = detail.defectTypes ?? detail.defect_types ?? [];
         const boundList = Array.isArray(dts) ? dts : [];
-        const planId = detail.defaultInspectionPlanId ?? (detail as any).default_inspection_plan_id;
+        const stages = (detail as any).inspectionStages ?? (detail as any).inspection_stages;
+        const ipqc = stages && typeof stages === 'object' ? (stages as any).ipqc : null;
+        const fromStages = Array.isArray(ipqc?.plan_ids)
+          ? ipqc.plan_ids
+          : Array.isArray(ipqc?.planIds)
+            ? ipqc.planIds
+            : [];
+        const fromApi = (detail as any).defaultInspectionPlanIds
+          ?? (detail as any).default_inspection_plan_ids
+          ?? [];
+        const legacyId = detail.defaultInspectionPlanId ?? (detail as any).default_inspection_plan_id;
+        const planIdsRaw = (fromStages.length ? fromStages : fromApi.length ? fromApi : legacyId != null ? [legacyId] : []) as unknown[];
+        const planIds = planIdsRaw
+          .map((x) => Number(x))
+          .filter((id) => Number.isFinite(id) && id > 0);
+        const planId = planIds[0];
+        const planNames: string[] = Array.isArray((detail as any).defaultInspectionPlanNames)
+          ? (detail as any).defaultInspectionPlanNames
+          : Array.isArray((detail as any).default_inspection_plan_names)
+            ? (detail as any).default_inspection_plan_names
+            : [];
         const planName = detail.defaultInspectionPlanName ?? (detail as any).default_inspection_plan_name;
+        const fallbackPlans = planIds.map((id, idx) => ({
+          id,
+          label: (planNames[idx] && String(planNames[idx])) || (idx === 0 && planName ? String(planName) : undefined),
+        }));
         const { defectOptions } = await loadFormOptions(
           detail.id,
           boundList,
-          planId != null ? { id: Number(planId), label: planName ? String(planName) : undefined } : undefined
+          fallbackPlans.length ? fallbackPlans : undefined
         );
         if (cancelled) return;
         setCurrentOperationId(detail.id);
@@ -358,7 +379,7 @@ export const OperationFormModal: React.FC<OperationFormModalProps> = ({
           overReportValue: Number(detail.overReportValue ?? dAny.over_report_value ?? 0) || 0,
           isActive: detail.isActive ?? dAny.is_active ?? true,
           inspectionMode,
-          defaultInspectionPlanId: detail.defaultInspectionPlanId ?? dAny.default_inspection_plan_id ?? undefined,
+          defaultInspectionPlanIds: planIds.length ? planIds : undefined,
           defectTypeUuids: defectTypeUuids.length ? defectTypeUuids : undefined,
           defaultPersonnelConfigs: personnelConfigs.length > 0 ? personnelConfigs : undefined,
           defaultResourceConfigs: resourceConfigs.length > 0 ? resourceConfigs : undefined,
@@ -407,11 +428,34 @@ export const OperationFormModal: React.FC<OperationFormModalProps> = ({
       const defaultEquipmentIds = Array.isArray(standardValues.defaultEquipmentIds) ? standardValues.defaultEquipmentIds : [];
       
       const inspectionMode = standardValues.inspectionMode ?? 'none';
-      const defaultInspectionPlanId = standardValues.defaultInspectionPlanId;
+      const planIdsRaw = standardValues.defaultInspectionPlanIds;
+      const defaultInspectionPlanIds = (
+        Array.isArray(planIdsRaw) ? planIdsRaw : planIdsRaw != null ? [planIdsRaw] : []
+      )
+        .map((x: unknown) => Number(x))
+        .filter((id: number) => Number.isFinite(id) && id > 0);
       const inspectionPayload =
         inspectionMode === 'plan'
-          ? { inspectionMode, defaultInspectionPlanId: defaultInspectionPlanId || null }
-          : { inspectionMode, defaultInspectionPlanId: null };
+          ? {
+              inspectionMode,
+              defaultInspectionPlanId: defaultInspectionPlanIds[0] ?? null,
+              defaultInspectionPlanIds,
+              inspectionStages: {
+                ipqc: {
+                  mode: 'plan',
+                  planId: defaultInspectionPlanIds[0] ?? null,
+                  planIds: defaultInspectionPlanIds,
+                },
+              },
+            }
+          : {
+              inspectionMode,
+              defaultInspectionPlanId: null,
+              defaultInspectionPlanIds: [],
+              inspectionStages: {
+                ipqc: { mode: inspectionMode, planId: null, planIds: [] },
+              },
+            };
 
       if (isEdit && editUuid) {
         const updatePayload: OperationUpdate = {
@@ -547,10 +591,13 @@ export const OperationFormModal: React.FC<OperationFormModalProps> = ({
     await loadFormOptions(
       currentOperationId ?? undefined,
       undefined,
-      Number.isFinite(id) && id > 0 ? { id, label } : undefined
+      Number.isFinite(id) && id > 0 ? [{ id, label }] : undefined
     );
     if (Number.isFinite(id) && id > 0) {
-      formRef.current?.setFieldsValue({ defaultInspectionPlanId: id });
+      const selected = (formRef.current?.getFieldValue('defaultInspectionPlanIds') as number[] | undefined) ?? [];
+      formRef.current?.setFieldsValue({
+        defaultInspectionPlanIds: [...new Set([...selected.map(Number).filter((n) => Number.isFinite(n) && n > 0), id])],
+      });
     }
   };
 
@@ -657,17 +704,37 @@ export const OperationFormModal: React.FC<OperationFormModalProps> = ({
                   <>
                     {mode === 'plan' && (
                       <ProFormField
-                        name="defaultInspectionPlanId"
+                        name="defaultInspectionPlanIds"
                         label={t('field.operation.defaultInspectionPlan')}
                         colProps={{ span: 24 }}
                         formItemProps={{ preserve: true }}
                         renderFormItem={(p: any) => (
                           <UniDropdown
                             {...p.fieldProps}
-                            placeholder={t('field.operation.defaultInspectionPlanPlaceholder')}
+                            mode="multiple"
+                            placeholder={t('field.operation.defaultInspectionPlanOrderedPlaceholder')}
                             options={inspectionPlanOptions}
                             allowClear
                             style={{ width: '100%' }}
+                            maxTagCount={2}
+                            maxTagPlaceholder={(omitted: unknown[]) => `+${omitted.length}`}
+                            tagRender={(props) => {
+                              const { value: tagValue, closable, onClose } = props;
+                              const opt = inspectionPlanOptions.find((o) => o.value === Number(tagValue));
+                              const textLabel = opt?.name || String(props.label ?? tagValue);
+                              return (
+                                <Tag
+                                  closable={closable}
+                                  onClose={onClose}
+                                  style={{ marginInlineEnd: 4, maxWidth: 160 }}
+                                  title={textLabel}
+                                >
+                                  <span style={{ display: 'inline-block', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'bottom' }}>
+                                    {textLabel}
+                                  </span>
+                                </Tag>
+                              );
+                            }}
                             quickCreate={{
                               label: t('field.operation.quickAddInspectionPlan'),
                               onClick: () => setInspectionPlanQuickAddOpen(true),
@@ -730,7 +797,7 @@ export const OperationFormModal: React.FC<OperationFormModalProps> = ({
       open
       onClose={() => setInspectionPlanQuickAddOpen(false)}
       editId={null}
-      operationId={currentOperationId}
+      defaultPlanType="process"
       onSuccess={handleInspectionPlanQuickCreated}
       zIndex={nestedModalZIndex}
     />

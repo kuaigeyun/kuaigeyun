@@ -63,7 +63,9 @@ class DocumentRelationResponse(DocumentRelationBase):
     created_by_name: Optional[str] = None
     updated_by: Optional[int] = None
     updated_by_name: Optional[str] = None
-    
+    # 计算字段：对端单据是否已软删除/不存在（列表下推「已下推」与追溯链共用语义）
+    is_deleted: bool = Field(False, description="对端单据是否已软删除或不存在")
+
     class Config:
         from_attributes = True
 

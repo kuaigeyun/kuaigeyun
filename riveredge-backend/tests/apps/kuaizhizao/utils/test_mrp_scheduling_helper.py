@@ -1,6 +1,6 @@
 """MRP 交期锚定倒排 / 正排辅助函数测试。"""
 
-from datetime import date
+from datetime import date, datetime
 
 from apps.kuaizhizao.utils.mrp_scheduling_helper import (
     apply_bom_pegged_production_schedules,
@@ -111,6 +111,28 @@ def test_build_operation_time_slots_backward_from_due_anchor():
 
 def test_operation_total_hours_includes_setup_and_run():
     assert operation_total_hours(1, 0.5, 100) == 51.0
+
+
+def test_operation_total_hours_missing_is_zero_not_one():
+    assert operation_total_hours(None, None, 50) == 0.0
+    assert operation_total_hours(0, 0, 50) == 0.0
+
+
+def test_build_operation_time_slots_all_zero_same_shift_start():
+    """未维护工时：各工序同一时刻，并对齐默认班次 08:00。"""
+    from apps.kuaizhizao.utils.working_time import WorkHoursConfig
+
+    start = datetime(2026, 9, 30, 0, 0, 0)
+    slots = build_operation_time_slots(
+        [0.0, 0.0, 0.0],
+        planned_start=start,
+        work_hours=WorkHoursConfig.defaults(),
+    )
+    assert len(slots) == 3
+    assert all(s[0] == s[1] for s in slots)
+    assert all(s[0] == slots[0][0] for s in slots)
+    assert slots[0][0].hour == 8
+    assert slots[0][0].minute == 0
 
 
 def test_apply_bom_pegged_production_schedules_child_anchors_to_parent_start():

@@ -137,7 +137,7 @@ const ProcessRoutesPage: React.FC = () => {
       {
         title: t('app.master-data.routes.operationSequence'),
         dataIndex: 'operation_sequence',
-        span: 2,
+        span: 1,
         render: (_: unknown, record: ProcessRoute) => {
           const seq = record?.operation_sequence ?? (record as any)?.operationSequence;
           if (!seq) {
@@ -701,6 +701,7 @@ const ProcessRoutesPage: React.FC = () => {
         }}
         detail={processRouteDetail}
         detailColumns={processRouteDetailColumns}
+        basicColumn={1}
         customFields={customFields}
         customFieldValues={customFieldValues}
         extra={buildDetailDrawerEditExtra(t, Boolean(processRouteDetail), () => {

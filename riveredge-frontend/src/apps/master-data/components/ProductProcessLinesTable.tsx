@@ -622,47 +622,53 @@ export const ProductProcessLinesTable: React.FC<ProductProcessLinesTableProps> =
           />
         ),
       },
-      {
-        title: t('app.master-data.operationSequence.outsourceLeadDays'),
-        width: 96,
-        render: (_: unknown, row: ProductProcessLine, index: number) => (
-          <InputNumber
-            size="small"
-            min={0}
-            precision={0}
-            style={{ width: '100%' }}
-            disabled={disabled || !row.isOutsourced}
-            value={row.isOutsourced ? row.outsourceLeadTimeDays ?? 1 : undefined}
-            onChange={(v) => patchLine(index, { outsourceLeadTimeDays: v == null ? 1 : Number(v) })}
-          />
-        ),
-      },
-      {
-        title: t('app.master-data.operationSequence.outsourceSupplier'),
-        width: 168,
-        render: (_: unknown, row: ProductProcessLine, index: number) => (
-          <Select
-            size="small"
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            style={{ width: '100%' }}
-            disabled={disabled || !row.isOutsourced}
-            options={supplierOptions}
-            value={row.outsourceSupplierId}
-            placeholder={t('app.master-data.operationSequence.selectOutsourceSupplier')}
-            onChange={(v, opt) => {
-              const label = Array.isArray(opt)
-                ? undefined
-                : (opt as { label?: string } | undefined)?.label;
-              patchLine(index, {
-                outsourceSupplierId: v == null ? undefined : Number(v),
-                outsourceSupplierName: v == null ? undefined : String(label || ''),
-              });
-            }}
-          />
-        ),
-      },
+      ...(lines.some((row) => Boolean(row.isOutsourced))
+        ? [
+            {
+              title: t('app.master-data.operationSequence.outsourceLeadDays'),
+              width: 96,
+              render: (_: unknown, row: ProductProcessLine, index: number) => (
+                <InputNumber
+                  size="small"
+                  min={0}
+                  precision={0}
+                  style={{ width: '100%' }}
+                  disabled={disabled || !row.isOutsourced}
+                  value={row.isOutsourced ? row.outsourceLeadTimeDays ?? 1 : undefined}
+                  onChange={(v) =>
+                    patchLine(index, { outsourceLeadTimeDays: v == null ? 1 : Number(v) })
+                  }
+                />
+              ),
+            },
+            {
+              title: t('app.master-data.operationSequence.outsourceSupplier'),
+              width: 168,
+              render: (_: unknown, row: ProductProcessLine, index: number) => (
+                <Select
+                  size="small"
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  style={{ width: '100%' }}
+                  disabled={disabled || !row.isOutsourced}
+                  options={supplierOptions}
+                  value={row.outsourceSupplierId}
+                  placeholder={t('app.master-data.operationSequence.selectOutsourceSupplier')}
+                  onChange={(v, opt) => {
+                    const label = Array.isArray(opt)
+                      ? undefined
+                      : (opt as { label?: string } | undefined)?.label;
+                    patchLine(index, {
+                      outsourceSupplierId: v == null ? undefined : Number(v),
+                      outsourceSupplierName: v == null ? undefined : String(label || ''),
+                    });
+                  }}
+                />
+              ),
+            },
+          ]
+        : []),
       {
         title: t('field.operation.overReportMode'),
         key: 'overReport',

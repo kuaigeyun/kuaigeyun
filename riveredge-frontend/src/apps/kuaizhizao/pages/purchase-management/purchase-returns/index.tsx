@@ -392,6 +392,9 @@ const PurchaseReturnsPage: React.FC = () => {
   const [pullSourceOrderId, setPullSourceOrderId] = useState<number | undefined>();
   const [pullSourceOrderOptions, setPullSourceOrderOptions] = useState<Array<{ value: number; label: string }>>([]);
   const [poPullLineBatch, setPoPullLineBatch] = useState<Record<number, string>>({});
+  const [poPullWarehouseOptions, setPoPullWarehouseOptions] = useState<Array<{ label: string; value: number }>>([]);
+  const [poPullLineWh, setPoPullLineWh] = useState<Record<number, number>>({});
+  const [poPullBatchWarehouseId, setPoPullBatchWarehouseId] = useState<number | undefined>();
   const purchaseReturnPerms = useResourcePermissions(PURCHASE_RETURN_RESOURCE);
   const paymentRefundPerms = useResourcePermissions(PAYMENT_REFUND_RESOURCE);
   const invalidateMenuBadgeCounts = useInvalidateMenuBadgeCounts();
@@ -643,6 +646,8 @@ const PurchaseReturnsPage: React.FC = () => {
       pullSourceOrderIdRef.current = undefined;
       setPullSourceOrderId(undefined);
       setPoPullLineBatch({});
+      setPoPullLineWh({});
+      setPoPullBatchWarehouseId(undefined);
       void listPurchaseOrders({ skip: 0, limit: 100 })
         .then((res) => {
           setPullSourceOrderOptions(
@@ -654,6 +659,22 @@ const PurchaseReturnsPage: React.FC = () => {
         .catch((error: unknown) => {
           messageApi.error(getApiErrorMessage(error, t('app.kuaizhizao.purchaseReturn.pull.loadSourceFailed')));
           setPullSourceOrderOptions([]);
+        });
+      void masterWarehouseApi
+        .list({ is_active: true, limit: 500 })
+        .then((whRes) => {
+          const whList = Array.isArray(whRes) ? whRes : (whRes as { items?: unknown[] })?.items ?? [];
+          setPoPullWarehouseOptions(
+            (Array.isArray(whList) ? whList : []).map((w) => {
+              const row = w as { id: number; code?: string; name?: string };
+              const label = `${row.code || ''} ${row.name || ''}`.trim() || String(row.id);
+              return { label, value: row.id };
+            }),
+          );
+        })
+        .catch((error: unknown) => {
+          messageApi.error(getApiErrorMessage(error, t('app.kuaizhizao.purchaseReturn.pull.loadWarehouseFailed')));
+          setPoPullWarehouseOptions([]);
         });
     },
     loadData: async ({ keyword, page, pageSize, scope }) => {
@@ -680,6 +701,7 @@ const PurchaseReturnsPage: React.FC = () => {
         return;
       }
       const lineBatches: Record<number, string> = {};
+      const lineWarehouses: Record<number, number> = {};
       for (const row of selectedRows) {
         const id = Number(row.id);
         if (!(id > 0)) continue;
@@ -694,10 +716,25 @@ const PurchaseReturnsPage: React.FC = () => {
           return;
         }
         if (batch) lineBatches[id] = batch;
+        const wh =
+          poPullLineWh[id] ??
+          (row.warehouse_id != null && Number(row.warehouse_id) > 0
+            ? Number(row.warehouse_id)
+            : undefined);
+        if (wh == null || !(wh > 0)) {
+          messageApi.error(
+            t('app.kuaizhizao.purchaseReturn.pull.selectWarehouseForMaterial', {
+              material: row.material_code || row.material_name || '-',
+            }),
+          );
+          return;
+        }
+        lineWarehouses[id] = wh;
       }
       try {
         const res = await warehouseApi.purchaseReturn.pullFromPurchaseOrderItems(selectedIds, {
           lineBatches,
+          lineWarehouses,
         });
         messageApi.success(
           res.message ||
@@ -708,6 +745,8 @@ const PurchaseReturnsPage: React.FC = () => {
         );
         pullFromPurchaseOrderQuery.closeModal();
         setPoPullLineBatch({});
+        setPoPullLineWh({});
+        setPoPullBatchWarehouseId(undefined);
         invalidatePurchaseReturnStatistics();
         invalidateMenuBadgeCounts();
         actionRef.current?.reload();
@@ -724,6 +763,54 @@ const PurchaseReturnsPage: React.FC = () => {
       }
     },
   });
+
+  useEffect(() => {
+    if (!pullFromPurchaseOrderQuery.open) return;
+    const rows = pullFromPurchaseOrderQuery.dataSource;
+    if (!rows.length) return;
+    setPoPullLineWh((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const row of rows) {
+        const id = Number(row.id);
+        if (!(id > 0) || next[id] != null) continue;
+        const suggested = Number(row.warehouse_id);
+        if (Number.isFinite(suggested) && suggested > 0) {
+          next[id] = suggested;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [pullFromPurchaseOrderQuery.open, pullFromPurchaseOrderQuery.dataSource]);
+
+  const applyPoPullBatchWarehouse = useCallback(
+    (warehouseId: number) => {
+      setPoPullBatchWarehouseId(warehouseId);
+      const targetIds =
+        pullFromPurchaseOrderQuery.selectedRowKeys.length > 0
+          ? pullFromPurchaseOrderQuery.selectedRowKeys.map((k) => Number(k)).filter((id) => id > 0)
+          : pullFromPurchaseOrderQuery.dataSource.map((row) => Number(row.id)).filter((id) => id > 0);
+      if (!targetIds.length) {
+        messageApi.warning(t('app.kuaizhizao.purchaseReturn.pull.batchWarehouseNoLines'));
+        return;
+      }
+      setPoPullLineWh((prev) => {
+        const next = { ...prev };
+        for (const id of targetIds) next[id] = warehouseId;
+        return next;
+      });
+      messageApi.success(
+        t('app.kuaizhizao.purchaseReturn.pull.batchWarehouseApplied', { count: targetIds.length }),
+      );
+    },
+    [
+      messageApi,
+      pullFromPurchaseOrderQuery.dataSource,
+      pullFromPurchaseOrderQuery.selectedRowKeys,
+      t,
+    ],
+  );
 
   useEffect(() => {
     if (!pullFromPurchaseOrderQuery.open) return;
@@ -1732,6 +1819,29 @@ const PurchaseReturnsPage: React.FC = () => {
         ),
       },
       {
+        title: t('app.kuaizhizao.purchaseReturn.pull.warehouseColumn'),
+        key: 'warehouse',
+        width: 150,
+        render: (_: unknown, record: PurchaseReturnPullLine) => (
+          <Select
+            style={{ width: '100%', minWidth: 118 }}
+            size="small"
+            showSearch
+            optionFilterProp="label"
+            placeholder={t('app.kuaizhizao.purchaseReturn.pull.selectWarehouse')}
+            value={poPullLineWh[record.id]}
+            options={poPullWarehouseOptions}
+            status={!poPullLineWh[record.id] && !record.warehouse_id ? 'error' : undefined}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(value) => {
+              const nextId = Number(value);
+              if (!(Number.isFinite(nextId) && nextId > 0)) return;
+              setPoPullLineWh((prev) => ({ ...prev, [record.id]: nextId }));
+            }}
+          />
+        ),
+      },
+      {
         title: t('common.quantity'),
         dataIndex: 'suggested_quantity',
         width: 100,
@@ -1837,7 +1947,7 @@ const PurchaseReturnsPage: React.FC = () => {
           ),
       },
     ],
-    [t, i18n.language, poPullLineBatch],
+    [t, i18n.language, poPullLineBatch, poPullLineWh, poPullWarehouseOptions],
   );
 
   const pullIncomingInspectionColumns = useMemo<ProColumns<PullIncomingInspectionCandidate>[]>(
@@ -2439,23 +2549,44 @@ const PurchaseReturnsPage: React.FC = () => {
         appliedKeyword={pullFromPurchaseOrderQuery.appliedKeyword}
         searchPlaceholder={t('app.kuaizhizao.purchaseReturn.pull.searchPlaceholder')}
         filterExtra={(
-          <Select
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            placeholder={t('app.kuaizhizao.purchaseReturn.pull.sourceDocPlaceholder')}
-            style={{ width: 220, flexShrink: 0 }}
-            value={pullSourceOrderId}
-            options={pullSourceOrderOptions}
-            onChange={(value) => {
-              const nextId = Number(value);
-              const next = Number.isFinite(nextId) && nextId > 0 ? nextId : undefined;
-              pullSourceOrderIdRef.current = next;
-              setPullSourceOrderId(next);
-              pullFromPurchaseOrderQuery.handleSelectedRowKeysChange([], []);
-              pullFromPurchaseOrderQuery.handleSearchApply(pullFromPurchaseOrderQuery.appliedKeyword);
-            }}
-          />
+          <>
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              placeholder={t('app.kuaizhizao.purchaseReturn.pull.sourceDocPlaceholder')}
+              style={{ width: 220, flexShrink: 0 }}
+              value={pullSourceOrderId}
+              options={pullSourceOrderOptions}
+              onChange={(value) => {
+                const nextId = Number(value);
+                const next = Number.isFinite(nextId) && nextId > 0 ? nextId : undefined;
+                pullSourceOrderIdRef.current = next;
+                setPullSourceOrderId(next);
+                pullFromPurchaseOrderQuery.handleSelectedRowKeysChange([], []);
+                pullFromPurchaseOrderQuery.handleSearchApply(pullFromPurchaseOrderQuery.appliedKeyword);
+              }}
+            />
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              placeholder={t('app.kuaizhizao.purchaseReturn.pull.batchWarehousePlaceholder')}
+              style={{ width: 180, flexShrink: 0 }}
+              value={poPullBatchWarehouseId}
+              options={poPullWarehouseOptions}
+              onChange={(value) => {
+                if (value == null) {
+                  setPoPullBatchWarehouseId(undefined);
+                  return;
+                }
+                const nextId = Number(value);
+                if (Number.isFinite(nextId) && nextId > 0) {
+                  applyPoPullBatchWarehouse(nextId);
+                }
+              }}
+            />
+          </>
         )}
         getRowLabel={(row) =>
           [row.order_code, row.material_code].filter(Boolean).join(' ')
@@ -2468,6 +2599,7 @@ const PurchaseReturnsPage: React.FC = () => {
         scope={pullFromPurchaseOrderQuery.scope}
         onScopeChange={pullFromPurchaseOrderQuery.handleScopeChange}
         okText={t('app.kuaizhizao.purchaseReturn.pull.ok')}
+        footerHint={t('app.kuaizhizao.purchaseReturn.pull.warehouseHint')}
       />
 
       <UniPullQueryModal<PullIncomingInspectionCandidate>

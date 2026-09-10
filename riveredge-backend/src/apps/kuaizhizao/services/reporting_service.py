@@ -1442,9 +1442,11 @@ class ReportingService(AppBaseService[ReportingRecord]):
         )
         from apps.kuaizhizao.services.operation_transfer_service import (
             build_operation_policy_cache,
+            resolve_ipqc_for_work_order_operation,
             resolve_operation_transfer_qualified,
             sum_process_inspection_quality_quantities,
         )
+        from apps.kuaizhizao.services.inspection_policy_service import get_quality_effective_config
         from apps.kuaizhizao.services.work_order_service import WORK_ORDER_IN_PROGRESS_STATUS
 
         kw = (keyword or "").strip()
@@ -1497,6 +1499,7 @@ class ReportingService(AppBaseService[ReportingRecord]):
 
         master_op_ids = list(master_op_ids_set)
         policy_cache = await build_operation_policy_cache(tenant_id, master_op_ids)
+        quality_cfg = await get_quality_effective_config(tenant_id)
         # 审核开关同租户内恒定：双重循环外解析一次，否则每工序都会重查审核绑定
         process_inspection_audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "process_inspection"
@@ -1529,8 +1532,12 @@ class ReportingService(AppBaseService[ReportingRecord]):
             for op in wo_ops:
                 master_id = int(op.operation_id) if op.operation_id is not None else 0
                 mode = "none"
-                if master_id > 0 and master_id in policy_cache:
-                    mode = policy_cache[master_id][0]
+                if master_id > 0:
+                    mode, _, _ = resolve_ipqc_for_work_order_operation(
+                        quality_cfg,
+                        op,
+                        policy_cache.get(master_id, ("none", None, "default_none")),
+                    )
 
                 op_inspections = inspections_by_wo_op.get((wo_id, master_id), [])
                 transfer_qualified = await resolve_operation_transfer_qualified(

@@ -69,6 +69,10 @@ class ProcessInspection(BaseModel):
     inspection_standard = fields.TextField(null=True, description="检验标准")
     inspection_method = fields.CharField(max_length=100, null=True, description="检验方法")
     test_equipment = fields.CharField(max_length=200, null=True, description="测试设备")
+    inspection_plan_id = fields.IntField(
+        null=True,
+        description="过程检验方案ID（有序多方案时标识本单步骤）",
+    )
 
     # 详细检验结果
     process_parameters = fields.JSONField(null=True, description="过程参数检查（JSON格式）")

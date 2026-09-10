@@ -39,6 +39,8 @@ import {
   FILE_PREVIEW_OVERLAY_Z_INDEX,
 } from '../../../components/layout-templates/constants';
 import { SequenceIndexCell } from '../../../components/sequence-index-cell';
+import { inspectionPlanApi, unwrapInspectionPlanList } from '../../kuaizhizao/services/quality-execution';
+import { ipqcFromOperation } from '../utils/processRouteSequenceUtils';
 
 const operationPickModalStyles = {
   body: { paddingTop: 8, paddingBottom: 12 },
@@ -264,6 +266,14 @@ export interface OperationItem {
   outsourceLeadTimeDays?: number;
   outsourceSupplierId?: number;
   outsourceSupplierName?: string;
+  /** 过程检验（路线步骤覆盖工序主数据，写入 operation_sequence） */
+  inspectionMode?: 'none' | 'simple' | 'plan';
+  /** @deprecated 兼容首方案；优先用 inspectionPlanIds */
+  inspectionPlanId?: number;
+  inspectionPlanName?: string;
+  /** 有序多方案（先外观后尺寸） */
+  inspectionPlanIds?: number[];
+  inspectionPlanNames?: string[];
 }
 
 export interface OperationSequenceEditorProps {
@@ -304,6 +314,9 @@ export const OperationSequenceEditor: React.FC<OperationSequenceEditorProps> = (
   );
   const [allOperations, setAllOperations] = useState<Operation[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<Array<{ value: number; label: string }>>([]);
+  const [processPlanOptions, setProcessPlanOptions] = useState<
+    Array<{ value: number; label: string; name: string }>
+  >([]);
   const [loading, setLoading] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [selectedOperationUuids, setSelectedOperationUuids] = useState<string[]>([]);
@@ -355,7 +368,48 @@ export const OperationSequenceEditor: React.FC<OperationSequenceEditorProps> = (
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const plans = unwrapInspectionPlanList(
+          await inspectionPlanApi.list({ limit: 500 }),
+        );
+        if (cancelled) return;
+        setProcessPlanOptions(
+          (plans as Array<Record<string, unknown>>)
+            .filter((p) => String(p.plan_type || p.planType || '') === 'process')
+            .map((p) => {
+              const id = Number(p.id);
+              const code = String(p.plan_code || p.planCode || '');
+              const name = String(p.plan_name || p.planName || '');
+              const active = p.is_active ?? p.isActive;
+              const inactiveHint =
+                active === false ? ` (${t('common.disabled', { defaultValue: '停用' })})` : '';
+              return {
+                value: id,
+                name: name || code || String(id),
+                label: `${code ? `${code} ` : ''}${name}${inactiveHint}`.trim(),
+              };
+            })
+            .filter((o) => Number.isFinite(o.value) && o.value > 0),
+        );
+      } catch {
+        if (!cancelled) setProcessPlanOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
+
   const patchOutsource = (uuid: string, patch: Partial<OperationItem>) => {
+    commitOperations(
+      operations.map((op) => (op.uuid === uuid ? { ...op, ...patch } : op)),
+    );
+  };
+
+  const patchInspection = (uuid: string, patch: Partial<OperationItem>) => {
     commitOperations(
       operations.map((op) => (op.uuid === uuid ? { ...op, ...patch } : op)),
     );
@@ -418,16 +472,24 @@ export const OperationSequenceEditor: React.FC<OperationSequenceEditorProps> = (
       message.warning(t('app.master-data.operationSequence.allAddedOrNotFound'));
       return;
     }
-    const newItems: OperationItem[] = newOperations.map((op) => ({
-      uuid: op.uuid,
-      code: op.code,
-      name: op.name,
-      description: op.description,
-      reportingType: (op.reportingType ?? (op as any).reporting_type ?? 'quantity') as 'quantity' | 'status',
-      isNodeOperation: false,
-      overReportMode: (op as any).overReportMode ?? (op as any).over_report_mode ?? 'none',
-      overReportValue: Number((op as any).overReportValue ?? (op as any).over_report_value ?? 0) || 0,
-    }));
+    const newItems: OperationItem[] = newOperations.map((op) => {
+      const ipqc = ipqcFromOperation(op);
+      return {
+        uuid: op.uuid,
+        code: op.code,
+        name: op.name,
+        description: op.description,
+        reportingType: (op.reportingType ?? (op as any).reporting_type ?? 'quantity') as 'quantity' | 'status',
+        isNodeOperation: false,
+        overReportMode: (op as any).overReportMode ?? (op as any).over_report_mode ?? 'none',
+        overReportValue: Number((op as any).overReportValue ?? (op as any).over_report_value ?? 0) || 0,
+        inspectionMode: ipqc.inspectionMode,
+        inspectionPlanId: ipqc.inspectionPlanId,
+        inspectionPlanName: ipqc.inspectionPlanName,
+        inspectionPlanIds: ipqc.inspectionPlanIds ?? [],
+        inspectionPlanNames: ipqc.inspectionPlanNames ?? [],
+      };
+    });
     commitOperations([...operations, ...newItems]);
     setAddModalVisible(false);
     setSelectedOperationUuids([]);
@@ -480,6 +542,7 @@ export const OperationSequenceEditor: React.FC<OperationSequenceEditorProps> = (
       message.error(t('app.master-data.operationSequence.replaceNotFound'));
       return;
     }
+    const ipqc = ipqcFromOperation(replacement);
     const newOperations = [...operations];
     newOperations[replacingIndex] = {
       uuid: replacement.uuid,
@@ -490,6 +553,11 @@ export const OperationSequenceEditor: React.FC<OperationSequenceEditorProps> = (
       isNodeOperation: false,
       overReportMode: (replacement as any).overReportMode ?? (replacement as any).over_report_mode ?? 'none',
       overReportValue: Number((replacement as any).overReportValue ?? (replacement as any).over_report_value ?? 0) || 0,
+      inspectionMode: ipqc.inspectionMode,
+      inspectionPlanId: ipqc.inspectionPlanId,
+      inspectionPlanName: ipqc.inspectionPlanName,
+      inspectionPlanIds: ipqc.inspectionPlanIds ?? [],
+      inspectionPlanNames: ipqc.inspectionPlanNames ?? [],
     };
     commitOperations(newOperations);
     setReplaceModalVisible(false);
@@ -509,13 +577,17 @@ export const OperationSequenceEditor: React.FC<OperationSequenceEditorProps> = (
     return allOperations.filter((op) => op.uuid === excludeUuid || !operations.some((a) => a.uuid === op.uuid));
   };
 
+  /** 任一行开启计划委外时才展示提前期 / 委外供应商列 */
+  const showOutsourceDetailColumns = operations.some((op) => !!op.isOutsourced);
+
   /** 与昨日布局一致：scroll.x ≥ 列宽之和，避免挤列；弹窗加宽后仍按列宽总和滚动 */
   const tableScrollX = useMemo(() => {
-    let w = 100 + 220 + 120 + 88 + 100 + 180 + 320;
+    let w = 100 + 220 + 120 + 88 + 148 + 280 + 320;
+    if (showOutsourceDetailColumns) w += 100 + 180;
     if (showNodeOperationColumn) w += 88;
     if (showTimeColumns) w += 148 + 136;
     return w;
-  }, [showNodeOperationColumn, showTimeColumns]);
+  }, [showNodeOperationColumn, showTimeColumns, showOutsourceDetailColumns]);
 
   const selectPopupProps = useMemo(
     () => ({
@@ -633,6 +705,134 @@ export const OperationSequenceEditor: React.FC<OperationSequenceEditorProps> = (
           ]
         : []),
       {
+        title: t('app.master-data.operationSequence.inspectionMode'),
+        key: 'inspectionMode',
+        width: 148,
+        render: (_: unknown, record: OperationItem) => {
+          const mode = record.inspectionMode ?? 'none';
+          return (
+            <Select
+              size="small"
+              style={{ width: '100%' }}
+              value={mode}
+              options={[
+                { value: 'none', label: t('field.operation.inspectionModeNone') },
+                { value: 'simple', label: t('field.operation.inspectionModeSimple') },
+                { value: 'plan', label: t('field.operation.inspectionModePlan') },
+              ]}
+              {...selectPopupProps}
+              onChange={(v) => {
+                const nextMode = (v || 'none') as OperationItem['inspectionMode'];
+                if (nextMode !== 'plan') {
+                  patchInspection(record.uuid, {
+                    inspectionMode: nextMode,
+                    inspectionPlanId: undefined,
+                    inspectionPlanName: undefined,
+                    inspectionPlanIds: [],
+                    inspectionPlanNames: [],
+                  });
+                  return;
+                }
+                patchInspection(record.uuid, {
+                  inspectionMode: 'plan',
+                  inspectionPlanIds: record.inspectionPlanIds?.length
+                    ? record.inspectionPlanIds
+                    : record.inspectionPlanId
+                      ? [record.inspectionPlanId]
+                      : [],
+                  inspectionPlanId: record.inspectionPlanId,
+                  inspectionPlanName: record.inspectionPlanName,
+                  inspectionPlanNames: record.inspectionPlanNames,
+                });
+              }}
+            />
+          );
+        },
+      },
+      {
+        title: t('app.master-data.operationSequence.inspectionPlan'),
+        key: 'inspectionPlanIds',
+        width: 280,
+        render: (_: unknown, record: OperationItem) => {
+          const mode = record.inspectionMode ?? 'none';
+          const value =
+            mode === 'plan'
+              ? (record.inspectionPlanIds?.length
+                  ? record.inspectionPlanIds
+                  : record.inspectionPlanId != null
+                    ? [record.inspectionPlanId]
+                    : [])
+              : [];
+          return (
+            <Select
+              size="small"
+              mode="multiple"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              style={{ width: '100%' }}
+              disabled={mode !== 'plan'}
+              options={processPlanOptions}
+              value={value}
+              placeholder={t('app.master-data.operationSequence.selectInspectionPlanOrdered')}
+              // 表体内勿用 responsive（易整列收成 +N）；优先展示方案名，超出 2 个再 +N
+              maxTagCount={2}
+              maxTagPlaceholder={(omitted) => `+${omitted.length}`}
+              tagRender={(props) => {
+                const { value: tagValue, closable, onClose } = props;
+                const opt = processPlanOptions.find((p) => p.value === Number(tagValue));
+                const text = opt?.name || String(props.label ?? tagValue);
+                return (
+                  <Tag
+                    closable={closable}
+                    onClose={onClose}
+                    style={{ marginInlineEnd: 4, maxWidth: 120 }}
+                    title={opt?.label || text}
+                  >
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        maxWidth: 96,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        verticalAlign: 'bottom',
+                      }}
+                    >
+                      {text}
+                    </span>
+                  </Tag>
+                );
+              }}
+              {...selectPopupProps}
+              onChange={(ids, opts) => {
+                const nextIds = (Array.isArray(ids) ? ids : [])
+                  .map((v) => Number(v))
+                  .filter((n) => Number.isFinite(n) && n > 0);
+                const optList = Array.isArray(opts) ? opts : opts ? [opts] : [];
+                const labelById = new Map<number, string>();
+                for (const opt of optList) {
+                  const o = opt as { value?: number; label?: string };
+                  if (o?.value != null) labelById.set(Number(o.value), String(o.label || ''));
+                }
+                const names = nextIds.map(
+                  (id) =>
+                    processPlanOptions.find((p) => p.value === id)?.name
+                    || labelById.get(id)
+                    || processPlanOptions.find((p) => p.value === id)?.label
+                    || '',
+                );
+                patchInspection(record.uuid, {
+                  inspectionMode: 'plan',
+                  inspectionPlanIds: nextIds,
+                  inspectionPlanNames: names,
+                  inspectionPlanId: nextIds[0],
+                  inspectionPlanName: names[0] || undefined,
+                });
+              }}
+            />
+          );
+        },
+      },      {
         title: t('app.master-data.operationSequence.plannedOutsource'),
         key: 'isOutsourced',
         width: 88,
@@ -651,54 +851,58 @@ export const OperationSequenceEditor: React.FC<OperationSequenceEditorProps> = (
           />
         ),
       },
-      {
-        title: t('app.master-data.operationSequence.outsourceLeadDays'),
-        key: 'outsourceLeadTimeDays',
-        width: 100,
-        render: (_: unknown, record: OperationItem) => (
-          <InputNumber
-            size="small"
-            min={0}
-            precision={0}
-            style={{ width: '100%' }}
-            disabled={!record.isOutsourced}
-            value={record.isOutsourced ? record.outsourceLeadTimeDays ?? 1 : undefined}
-            onChange={(v) =>
-              patchOutsource(record.uuid, {
-                outsourceLeadTimeDays: v == null ? 1 : Number(v),
-              })
-            }
-          />
-        ),
-      },
-      {
-        title: t('app.master-data.operationSequence.outsourceSupplier'),
-        key: 'outsourceSupplierId',
-        width: 180,
-        render: (_: unknown, record: OperationItem) => (
-          <Select
-            size="small"
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            style={{ width: '100%' }}
-            disabled={!record.isOutsourced}
-            options={supplierOptions}
-            value={record.outsourceSupplierId}
-            placeholder={t('app.master-data.operationSequence.selectOutsourceSupplier')}
-            {...selectPopupProps}
-            onChange={(v, opt) => {
-              const label = Array.isArray(opt)
-                ? undefined
-                : (opt as { label?: string } | undefined)?.label;
-              patchOutsource(record.uuid, {
-                outsourceSupplierId: v == null ? undefined : Number(v),
-                outsourceSupplierName: v == null ? undefined : String(label || ''),
-              });
-            }}
-          />
-        ),
-      },
+      ...(showOutsourceDetailColumns
+        ? [
+            {
+              title: t('app.master-data.operationSequence.outsourceLeadDays'),
+              key: 'outsourceLeadTimeDays',
+              width: 100,
+              render: (_: unknown, record: OperationItem) => (
+                <InputNumber
+                  size="small"
+                  min={0}
+                  precision={0}
+                  style={{ width: '100%' }}
+                  disabled={!record.isOutsourced}
+                  value={record.isOutsourced ? record.outsourceLeadTimeDays ?? 1 : undefined}
+                  onChange={(v) =>
+                    patchOutsource(record.uuid, {
+                      outsourceLeadTimeDays: v == null ? 1 : Number(v),
+                    })
+                  }
+                />
+              ),
+            },
+            {
+              title: t('app.master-data.operationSequence.outsourceSupplier'),
+              key: 'outsourceSupplierId',
+              width: 180,
+              render: (_: unknown, record: OperationItem) => (
+                <Select
+                  size="small"
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  style={{ width: '100%' }}
+                  disabled={!record.isOutsourced}
+                  options={supplierOptions}
+                  value={record.outsourceSupplierId}
+                  placeholder={t('app.master-data.operationSequence.selectOutsourceSupplier')}
+                  {...selectPopupProps}
+                  onChange={(v, opt) => {
+                    const label = Array.isArray(opt)
+                      ? undefined
+                      : (opt as { label?: string } | undefined)?.label;
+                    patchOutsource(record.uuid, {
+                      outsourceSupplierId: v == null ? undefined : Number(v),
+                      outsourceSupplierName: v == null ? undefined : String(label || ''),
+                    });
+                  }}
+                />
+              ),
+            },
+          ]
+        : []),
       {
         title: t('app.master-data.operationSequence.overReportAction'),
         key: 'action',

@@ -143,6 +143,80 @@ export function renderOperationPersonnelMarkers(
   );
 }
 
+const INSPECTION_PLAN_MARKER_COLOR = 'purple';
+
+/** 列表：解析工序默认质检方案名称（有序多方案） */
+export function resolveOperationInspectionPlanLabels(record: {
+  inspectionMode?: string | null;
+  inspection_mode?: string | null;
+  defaultInspectionPlanNames?: string[] | null;
+  default_inspection_plan_names?: string[] | null;
+  defaultInspectionPlanName?: string | null;
+  default_inspection_plan_name?: string | null;
+  defaultInspectionPlanIds?: number[] | null;
+  default_inspection_plan_ids?: number[] | null;
+  defaultInspectionPlanId?: number | null;
+  default_inspection_plan_id?: number | null;
+  inspectionStages?: Record<string, { mode?: string; planIds?: number[]; plan_ids?: number[] }> | null;
+  inspection_stages?: Record<string, { mode?: string; planIds?: number[]; plan_ids?: number[] }> | null;
+}): string[] {
+  const mode = String(record.inspectionMode ?? record.inspection_mode ?? '').trim().toLowerCase();
+  if (mode && mode !== 'plan') return [];
+
+  const namesRaw =
+    record.defaultInspectionPlanNames ?? record.default_inspection_plan_names ?? [];
+  const names = (Array.isArray(namesRaw) ? namesRaw : [])
+    .map((n) => String(n ?? '').trim())
+    .filter(Boolean);
+  if (names.length) return names;
+
+  const single = String(
+    record.defaultInspectionPlanName ?? record.default_inspection_plan_name ?? '',
+  ).trim();
+  if (single) return [single];
+
+  const idsRaw =
+    record.defaultInspectionPlanIds
+    ?? record.default_inspection_plan_ids
+    ?? (record.inspectionStages?.ipqc?.planIds
+      ?? record.inspection_stages?.ipqc?.plan_ids
+      ?? record.inspectionStages?.ipqc?.plan_ids
+      ?? record.inspection_stages?.ipqc?.planIds);
+  const ids = (Array.isArray(idsRaw)
+    ? idsRaw
+    : record.defaultInspectionPlanId != null || record.default_inspection_plan_id != null
+      ? [record.defaultInspectionPlanId ?? record.default_inspection_plan_id]
+      : []
+  )
+    .map((x) => Number(x))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  return ids.map((id) => `#${id}`);
+}
+
+export function renderOperationInspectionPlanMarkers(
+  names?: string[] | null,
+  maxVisible = 2,
+): React.ReactNode {
+  const arr = Array.isArray(names) ? names.filter((n) => Boolean(n && String(n).trim())) : [];
+  if (!arr.length) return '-';
+  const visible = arr.slice(0, maxVisible);
+  const overflow = arr.length - visible.length;
+  return React.createElement(
+    Space,
+    { size: 'small', wrap: true },
+    ...visible.map((name, index) =>
+      React.createElement(
+        MarkerTag,
+        { key: `${name}-${index}`, color: INSPECTION_PLAN_MARKER_COLOR },
+        name,
+      ),
+    ),
+    overflow > 0
+      ? React.createElement(MarkerTag, { color: OVERFLOW_MARKER_COLOR }, `+${overflow}`)
+      : null,
+  );
+}
+
 /** 列表/详情：合并默认人员姓名与工作小组名称（与编辑表单人员/小组配置一致） */
 export function resolveOperationDefaultPersonnelLabels(record: {
   defaultOperatorNames?: string[] | null;

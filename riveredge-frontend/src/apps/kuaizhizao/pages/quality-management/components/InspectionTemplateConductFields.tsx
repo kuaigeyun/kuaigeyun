@@ -199,7 +199,6 @@ const TypedStepFields: React.FC<{
   const typeLabels = Object.fromEntries(valueTypeOptions(t).map((o) => [o.value, o.label]));
   const typeLabel = typeLabels[vt] || t('app.kuaizhizao.quality.plans.stepSpec.typeBoolean');
   const form = Form.useFormInstance();
-  const valueWatch = Form.useWatch([...basePath, 'value']);
 
   const stepTitle = (
     <span>
@@ -255,14 +254,6 @@ const TypedStepFields: React.FC<{
     value: o.value,
     label: o.defect ? `${o.label || o.value} (${t('app.kuaizhizao.quality.plans.stepSpec.defectOption')})` : o.label || o.value,
   }));
-  const booleanSegValue =
-    isNa
-      ? 'na'
-      : valueWatch === true || valueWatch === 'true' || valueWatch === 1
-        ? 'true'
-        : valueWatch === false || valueWatch === 'false' || valueWatch === 0
-          ? 'false'
-          : undefined;
 
   return (
     <Card size="small" type="inner" style={{ marginBottom: 8 }} title={stepTitle} extra={stepExtra}>
@@ -277,21 +268,20 @@ const TypedStepFields: React.FC<{
           name={[...basePath, 'value']}
           initialValue={true}
           rules={[skipValueRule()]}
-          getValueProps={() => ({ value: booleanSegValue })}
-          normalize={(next) => {
-            if (next === 'na') {
-              form.setFieldValue([...basePath, 'judgment'], 'na');
-              return undefined;
-            }
-            form.setFieldValue([...basePath, 'judgment'], undefined);
-            return next === 'true';
-          }}
+          getValueProps={(value) => ({
+            value:
+              value === true || value === 'true' || value === 1
+                ? 'true'
+                : value === false || value === 'false' || value === 0
+                  ? 'false'
+                  : value,
+          })}
+          getValueFromEvent={(next) => next === 'true'}
         >
           <ThemedSegmented
             options={[
               { label: t('common.yes'), value: 'true' },
               { label: t('common.no'), value: 'false' },
-              ...(allowsNa ? [{ label: naLabel, value: 'na' }] : []),
             ]}
           />
         </Form.Item>

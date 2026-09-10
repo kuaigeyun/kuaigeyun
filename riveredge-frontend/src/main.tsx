@@ -9,8 +9,14 @@ import { useGlobalStore } from './stores/globalStore'
 import { queryClient } from './queryClient'
 import { purgeLegacyGlobalStoreUser, seedCurrentUserFromAuthStorage } from './utils/restoredUser'
 import { isRequestCancellation } from './utils/requestCancellation'
+import {
+  clearStaleChunkReloadFlag,
+  installStaleChunkReloadHandlers,
+} from './utils/staleChunkReload'
 import './initSpinIndicator'
 import './config/dayjs'
+
+installStaleChunkReloadHandlers()
 
 // ⚠️ 抑制 Three.js / R3F 已知的不兼容警告 (THREE.Clock 弃用)
 if (typeof console !== 'undefined') {
@@ -94,6 +100,7 @@ async function mountApp() {
   const { prepareInitialLanguageBundle } = await import('./config/i18n')
   await prepareInitialLanguageBundle()
 
+  clearStaleChunkReloadFlag()
   ReactDOM.createRoot(document.getElementById('root')!).render(AppWrapper)
 }
 

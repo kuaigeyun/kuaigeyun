@@ -848,6 +848,8 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
         approved: bool,
         review_remarks: Optional[str] = None,
         approved_by: int = None,
+        *,
+        is_auto_approve: bool = False,
     ) -> PurchaseRequisitionResponse:
         """审核采购申请（通过或驳回）"""
         from apps.kuaizhizao.constants import DocumentStatus, ReviewStatus, normalize_status
@@ -863,36 +865,66 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
         audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "purchase_request"
         )
-        from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+        if not is_auto_approve:
+            from core.services.approval.audit_flow_guard import assert_pending_approval_instance
 
-        await assert_pending_approval_instance(
-            tenant_id=tenant_id,
-            entity_type="purchase_request",
-            entity_id=requisition_id,
-            audit_required=audit_required,
-            doc_label="采购申请",
-            verb="审核" if approved else "驳回",
-        )
+            await assert_pending_approval_instance(
+                tenant_id=tenant_id,
+                entity_type="purchase_request",
+                entity_id=requisition_id,
+                audit_required=audit_required,
+                doc_label="采购申请",
+                verb="审核" if approved else "驳回",
+            )
 
-        user_info = await self.get_user_info(approved_by) if approved_by else None
-        reviewer_name = user_info["name"] if user_info else None
+        from core.services.approval.uni_audit_service import UniAuditService
+
+        async def _do_decide() -> PurchaseRequisitionResponse:
+            row = await PurchaseRequisition.get_or_none(
+                tenant_id=tenant_id, id=requisition_id, deleted_at__isnull=True
+            )
+            if not row:
+                raise NotFoundError(f"采购申请不存在: {requisition_id}")
+            user_info = await self.get_user_info(approved_by) if approved_by else None
+            reviewer_name = user_info["name"] if user_info else None
+            if approved:
+                row.status = "已通过"  # 采购申请业务用语
+                row.review_status = ReviewStatus.APPROVED.value
+            else:
+                row.status = "已驳回"
+                row.review_status = ReviewStatus.REJECTED.value
+
+            row.reviewer_id = approved_by
+            row.reviewer_name = reviewer_name
+            row.review_time = resolve_business_datetime()
+            row.review_remarks = review_remarks
+            if approved_by:
+                row.updated_by = approved_by
+                row.updated_by_name = user_info["name"]
+            await row.save()
+            return await self.get_requisition_by_id(tenant_id, requisition_id)
+
+        if is_auto_approve or not approved_by:
+            return await _do_decide()
+
         if approved:
-            req.status = "已通过"  # 采购申请业务用语
-            req.review_status = ReviewStatus.APPROVED.value
+            result = await UniAuditService.approve_with_flow_fallback(
+                tenant_id=tenant_id,
+                entity_type="purchase_request",
+                entity_id=requisition_id,
+                approver_id=approved_by,
+                flow_approve=_do_decide,
+            )
         else:
-            req.status = "已驳回"
-            req.review_status = ReviewStatus.REJECTED.value
-
-        req.reviewer_id = approved_by
-        req.reviewer_name = reviewer_name
-        req.review_time = resolve_business_datetime()
-        req.review_remarks = review_remarks
-        if approved_by:
-            req.updated_by = approved_by
-            req.updated_by_name = user_info["name"]
-        await req.save()
-
-        return await self.get_requisition_by_id(tenant_id, requisition_id)
+            result = await UniAuditService.reject_with_flow_fallback(
+                tenant_id=tenant_id,
+                entity_type="purchase_request",
+                entity_id=requisition_id,
+                approver_id=approved_by,
+                reason=review_remarks,
+                flow_reject=lambda _reason: _do_decide(),
+            )
+        return result if result is not None else await self.get_requisition_by_id(tenant_id, requisition_id)
 
     async def withdraw_requisition(
         self,

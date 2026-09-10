@@ -463,6 +463,7 @@ class PurchaseInquiryService(AppBaseService[PurchaseInquiry]):
                 inquiry_date=data.inquiry_date or date.today(),
                 quote_deadline=data.quote_deadline,
                 status=PurchaseInquiryStatus.DRAFT.value,
+                review_status=DocumentStatus.DRAFT.value,
                 buyer_id=created_by,
                 buyer_name=buyer_name,
                 source_type=data.source_type,
@@ -1712,7 +1713,7 @@ class PurchaseInquiryService(AppBaseService[PurchaseInquiry]):
             logger.warning("取消询价单审批流程失败或无需取消: {}", e)
 
         await inquiry.update_from_dict({
-            "review_status": ReviewStatus.PENDING.value,
+            "review_status": DocumentStatus.DRAFT.value,
             "reviewer_id": None,
             "reviewer_name": None,
             "review_time": None,
@@ -1723,7 +1724,14 @@ class PurchaseInquiryService(AppBaseService[PurchaseInquiry]):
         return await self.get_inquiry_by_id(tenant_id, inquiry_id)
 
     async def approve_inquiry(
-        self, tenant_id: int, inquiry_id: int, approved: bool, user_id: int, remarks: Optional[str] = None
+        self,
+        tenant_id: int,
+        inquiry_id: int,
+        approved: bool,
+        user_id: int,
+        remarks: Optional[str] = None,
+        *,
+        is_auto_approve: bool = False,
     ) -> PurchaseInquiryResponse:
         inquiry = await PurchaseInquiry.get_or_none(
             tenant_id=tenant_id, id=inquiry_id, deleted_at__isnull=True
@@ -1734,28 +1742,60 @@ class PurchaseInquiryService(AppBaseService[PurchaseInquiry]):
         audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "purchase_inquiry"
         )
-        from core.services.approval.audit_flow_guard import assert_pending_approval_instance
+        if not is_auto_approve:
+            from core.services.approval.audit_flow_guard import assert_pending_approval_instance
 
-        await assert_pending_approval_instance(
-            tenant_id=tenant_id,
-            entity_type="purchase_inquiry",
-            entity_id=inquiry_id,
-            audit_required=audit_required,
-            doc_label="采购询价",
-            verb="审核" if approved else "驳回",
-        )
-        user_info = await self.get_user_info(user_id)
-        reviewer_name = user_info["name"]
-        await inquiry.update_from_dict({
-            "review_status": ReviewStatus.APPROVED.value if approved else ReviewStatus.REJECTED.value,
-            "reviewer_id": user_id,
-            "reviewer_name": reviewer_name,
-            "review_time": resolve_business_datetime(),
-            "review_remarks": remarks,
-            "updated_by": user_id,
-            "updated_by_name": user_info["name"],
-        }).save()
-        return await self.get_inquiry_by_id(tenant_id, inquiry_id)
+            await assert_pending_approval_instance(
+                tenant_id=tenant_id,
+                entity_type="purchase_inquiry",
+                entity_id=inquiry_id,
+                audit_required=audit_required,
+                doc_label="采购询价",
+                verb="审核" if approved else "驳回",
+            )
+
+        from core.services.approval.uni_audit_service import UniAuditService
+
+        async def _do_decide() -> PurchaseInquiryResponse:
+            user_info = await self.get_user_info(user_id)
+            reviewer_name = user_info["name"]
+            row = await PurchaseInquiry.get_or_none(
+                tenant_id=tenant_id, id=inquiry_id, deleted_at__isnull=True
+            )
+            if not row:
+                raise NotFoundError(f"询价单不存在: {inquiry_id}")
+            await row.update_from_dict({
+                "review_status": ReviewStatus.APPROVED.value if approved else ReviewStatus.REJECTED.value,
+                "reviewer_id": user_id,
+                "reviewer_name": reviewer_name,
+                "review_time": resolve_business_datetime(),
+                "review_remarks": remarks,
+                "updated_by": user_id,
+                "updated_by_name": user_info["name"],
+            }).save()
+            return await self.get_inquiry_by_id(tenant_id, inquiry_id)
+
+        if is_auto_approve:
+            return await _do_decide()
+
+        if approved:
+            result = await UniAuditService.approve_with_flow_fallback(
+                tenant_id=tenant_id,
+                entity_type="purchase_inquiry",
+                entity_id=inquiry_id,
+                approver_id=user_id,
+                flow_approve=_do_decide,
+            )
+        else:
+            result = await UniAuditService.reject_with_flow_fallback(
+                tenant_id=tenant_id,
+                entity_type="purchase_inquiry",
+                entity_id=inquiry_id,
+                approver_id=user_id,
+                reason=remarks,
+                flow_reject=lambda _reason: _do_decide(),
+            )
+        return result if result is not None else await self.get_inquiry_by_id(tenant_id, inquiry_id)
 
     async def withdraw_approval(self, tenant_id: int, inquiry_id: int, user_id: int) -> PurchaseInquiryResponse:
         """撤销审核：一律清空审核态（与草稿撤回一致），须重新提交再审。"""

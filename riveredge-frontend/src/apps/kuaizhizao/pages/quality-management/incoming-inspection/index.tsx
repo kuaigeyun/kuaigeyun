@@ -1424,7 +1424,7 @@ const IncomingInspectionPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.incomingInspection)}
         headerTitle={t('app.kuaizhizao.quality.incoming.pageTitle')}
-        columnPersistenceId="apps.kuaizhizao.pages.quality-management.incoming-inspection-width-v2"
+        columnPersistenceId="apps.kuaizhizao.pages.quality-management.incoming-inspection-width-v5"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}

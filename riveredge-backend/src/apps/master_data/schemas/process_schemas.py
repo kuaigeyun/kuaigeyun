@@ -122,7 +122,12 @@ class OperationBase(BaseModel):
     over_report_value: Decimal = Field(Decimal("0"), alias="overReportValue", description="超报值：fixed 为额外数量，percent 为百分数")
     is_active: bool = Field(True, alias="isActive", description="是否启用")
     inspection_mode: str = Field("none", alias="inspectionMode", max_length=20, description="质检模式（legacy，由 inspection_stages 同步）")
-    default_inspection_plan_id: Optional[int] = Field(None, alias="defaultInspectionPlanId", description="默认质检方案ID（legacy）")
+    default_inspection_plan_id: Optional[int] = Field(None, alias="defaultInspectionPlanId", description="默认质检方案ID（legacy，多方案时为首项）")
+    default_inspection_plan_ids: Optional[List[int]] = Field(
+        None,
+        alias="defaultInspectionPlanIds",
+        description="默认质检方案有序 ID 列表（写入 inspection_stages.ipqc.plan_ids）",
+    )
     inspection_stages: Optional[OperationInspectionStagesSchema] = Field(
         None, alias="inspectionStages", description="过程检验策略 JSON（ipqc）"
     )
@@ -209,7 +214,12 @@ class OperationUpdate(BaseModel):
     default_station_ids: Optional[List[int]] = Field(None, alias="defaultStationIds", description="默认工位 ID 列表")
     default_equipment_ids: Optional[List[int]] = Field(None, alias="defaultEquipmentIds", description="默认设备 ID 列表")
     inspection_mode: Optional[str] = Field(None, alias="inspectionMode", max_length=20, description="质检模式（legacy）")
-    default_inspection_plan_id: Optional[int] = Field(None, alias="defaultInspectionPlanId", description="默认质检方案ID（legacy）")
+    default_inspection_plan_id: Optional[int] = Field(None, alias="defaultInspectionPlanId", description="默认质检方案ID（legacy，多方案时为首项）")
+    default_inspection_plan_ids: Optional[List[int]] = Field(
+        None,
+        alias="defaultInspectionPlanIds",
+        description="默认质检方案有序 ID 列表（写入 inspection_stages.ipqc.plan_ids）",
+    )
     inspection_stages: Optional[OperationInspectionStagesSchema] = Field(
         None, alias="inspectionStages", description="过程检验策略"
     )
@@ -272,11 +282,21 @@ class OperationResponse(OperationBase):
     default_station_ids: List[int] = Field(default_factory=list, alias="defaultStationIds", description="默认工位 ID 列表")
     default_equipment_ids: List[int] = Field(default_factory=list, alias="defaultEquipmentIds", description="默认设备 ID 列表")
     inspection_mode: str = Field("none", alias="inspectionMode", description="质检模式（legacy）")
-    default_inspection_plan_id: Optional[int] = Field(None, alias="defaultInspectionPlanId", description="默认质检方案ID（legacy）")
+    default_inspection_plan_id: Optional[int] = Field(None, alias="defaultInspectionPlanId", description="默认质检方案ID（legacy，多方案时为首项）")
+    default_inspection_plan_ids: List[int] = Field(
+        default_factory=list,
+        alias="defaultInspectionPlanIds",
+        description="默认质检方案有序 ID 列表",
+    )
     inspection_stages: Optional[OperationInspectionStagesSchema] = Field(
         None, alias="inspectionStages", description="过程检验策略"
     )
-    default_inspection_plan_name: Optional[str] = Field(None, alias="defaultInspectionPlanName", description="默认质检方案名称（冗余）")
+    default_inspection_plan_name: Optional[str] = Field(None, alias="defaultInspectionPlanName", description="默认质检方案名称（冗余，首项）")
+    default_inspection_plan_names: List[str] = Field(
+        default_factory=list,
+        alias="defaultInspectionPlanNames",
+        description="默认质检方案名称有序列表",
+    )
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, by_alias=True)
 

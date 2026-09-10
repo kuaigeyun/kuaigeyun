@@ -277,6 +277,7 @@ import { getWorkOrderLifecycle, buildWorkOrderLifecycleValueEnum, translateWorkO
 import { commitListPageSearchParams } from '../../../../../utils/listLifecycleStage'
 import { useRegisterAiContext } from '../../../../../hooks/useRegisterAiContext';
 import { WorkOrderEsopSidebar } from './components/WorkOrderEsopSidebar';
+import { OperationInspectionOverviewTooltip } from './components/OperationInspectionOverviewTooltip';
 import { downloadRecordsAsXlsx } from '../../../../../utils/exportRecordsXlsx';
 import { UniLifecycle } from '../../../../../components/uni-lifecycle'
 import {
@@ -4167,17 +4168,21 @@ const WorkOrdersPage: React.FC = () => {
                           <strong style={{ flexShrink: 0 }}>
                             {t('app.kuaizhizao.workOrder.opCard.inspection')}:{' '}
                           </strong>
-                          <span
-                            style={{
-                              minWidth: 0,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                            title={inspectionSummary}
+                          <Tooltip
+                            title={<OperationInspectionOverviewTooltip operation={operation} />}
                           >
-                            {inspectionSummary}
-                          </span>
+                            <span
+                              style={{
+                                minWidth: 0,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                cursor: 'help',
+                              }}
+                            >
+                              {inspectionSummary}
+                            </span>
+                          </Tooltip>
                         </span>
                         {qcStatus ? (
                           <Tag

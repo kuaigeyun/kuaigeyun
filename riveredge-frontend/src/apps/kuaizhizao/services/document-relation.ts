@@ -29,6 +29,7 @@ export async function getDocumentRelations(
       source_name?: string;
       relation_desc?: string;
       created_at?: string;
+      is_deleted?: boolean;
     }>;
     downstream?: Array<{
       target_type: string;
@@ -37,6 +38,7 @@ export async function getDocumentRelations(
       target_name?: string;
       relation_desc?: string;
       created_at?: string;
+      is_deleted?: boolean;
     }>;
   }>(`/apps/kuaizhizao/document-relations/${documentType}/${documentId}`, {
     method: 'GET',
@@ -52,6 +54,7 @@ function transformNewApiResponse(response: {
     source_name?: string;
     relation_desc?: string;
     created_at?: string;
+    is_deleted?: boolean;
   }>;
   downstream?: Array<{
     target_type: string;
@@ -60,6 +63,7 @@ function transformNewApiResponse(response: {
     target_name?: string;
     relation_desc?: string;
     created_at?: string;
+    is_deleted?: boolean;
   }>;
 }): DocumentRelationData {
   // 转换上游单据（当前单据作为target，上游单据是source）
@@ -71,6 +75,7 @@ function transformNewApiResponse(response: {
     document_name: rel.source_name,
     relation_desc: rel.relation_desc,
     created_at: rel.created_at,
+    is_deleted: Boolean(rel.is_deleted),
   }));
 
   // 转换下游单据（当前单据作为source，下游单据是target）
@@ -82,6 +87,7 @@ function transformNewApiResponse(response: {
     document_name: rel.target_name,
     relation_desc: rel.relation_desc,
     created_at: rel.created_at,
+    is_deleted: Boolean(rel.is_deleted),
   }));
 
   return {

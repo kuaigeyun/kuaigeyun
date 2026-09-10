@@ -588,6 +588,20 @@ SYSTEM_DICTIONARIES: List[Dict[str, Any]] = [
         ],
     },
     {
+        "code": "DISPOSAL_METHOD",
+        "name": "不合格处置方式",
+        "description": "来料/过程/成品检验及不良品台账的处置方式（value 为英文码，与质检业务一致）",
+        "items": [
+            {"label": "退货", "value": "return", "description": "退回供应商或客户", "sort_order": 1},
+            {"label": "让步接收", "value": "accept", "description": "让步接收", "sort_order": 2},
+            {"label": "隔离", "value": "quarantine", "description": "隔离待处理", "sort_order": 3},
+            {"label": "返工", "value": "rework", "description": "返工返修", "sort_order": 4},
+            {"label": "报废", "value": "scrap", "description": "报废", "sort_order": 5},
+            {"label": "降级回用", "value": "downgrade", "description": "降级回用", "sort_order": 6},
+            {"label": "其他", "value": "other", "description": "其他处置", "sort_order": 99},
+        ],
+    },
+    {
         "code": "INBOUND_REASON_TYPE",
         "name": "其他入库原因类型",
         "description": "其他入库单原因类型；可在字典项中新增如不良品、不合格品等",

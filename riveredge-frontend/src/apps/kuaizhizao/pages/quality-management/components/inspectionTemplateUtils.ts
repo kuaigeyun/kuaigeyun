@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import { translateWorkOrderLifecycleStatus } from '../../../utils/workOrderLifecycle';
 import {
+  getStepConductKey,
   normalizeValueType,
   type InspectionTemplateStepItem,
   type StepConductEntry,
@@ -12,6 +13,41 @@ export function getInspectionTemplateSource(record: Record<string, unknown> | nu
   const src = record.quality_characteristics ?? record.other_checks;
   if (!src || typeof src !== 'object') return null;
   return src as Record<string, unknown>;
+}
+
+/**
+ * 方案检验列表：名称 / 编码。
+ * 真源顺序：快照 plan_name+plan_code → 建单写入的 inspection_standard「名称 (编码)」。
+ * 禁止在仅有编码时把编码冒充名称（否则叠列两行都是编号）。
+ */
+export function getInspectionPlanNameAndCode(
+  record: Record<string, unknown> | null | undefined,
+): { name: string; code: string } {
+  if (!record) return { name: '', code: '' };
+  const template = getInspectionTemplateSource(record);
+  const codeFromSnap = String(template?.plan_code ?? '').trim();
+  const nameFromSnap = String(template?.plan_name ?? '').trim();
+
+  let nameFromStd = '';
+  let codeFromStd = '';
+  const std = String(record.inspection_standard ?? '').trim();
+  if (std) {
+    const matched = /^(.*)\s+\(([^)]+)\)\s*$/.exec(std);
+    if (matched) {
+      nameFromStd = matched[1].trim();
+      codeFromStd = matched[2].trim();
+    }
+  }
+
+  const code = codeFromSnap || codeFromStd;
+  const name = nameFromSnap || nameFromStd;
+  if (name || code) {
+    return {
+      name: name || '',
+      code,
+    };
+  }
+  return { name: '', code: '' };
 }
 
 export type { InspectionTemplateStepItem };
@@ -30,6 +66,29 @@ export function hasInspectionPlanSteps(template: Record<string, unknown> | null)
 /** 快照项是否含结构化 value_type（新方案）；否则走 legacy 合格/不合格 */
 export function isTypedInspectionStep(step: InspectionTemplateStepItem): boolean {
   return !!step.value_type;
+}
+
+/**
+ * 开展检验弹窗默认值：布尔项默认「是」、缺陷多选默认空（无缺陷）。
+ * 须在 Modal 打开且 ProForm 挂载后写入，避免仅靠 Form.Item initialValue 在 grid/destroy 下未入仓。
+ */
+export function buildConductStepResultDefaults(
+  inspection: Record<string, unknown> | null | undefined,
+): Record<string, StepConductEntry> {
+  const template = getInspectionTemplateSource(inspection);
+  const steps = getTemplateStepItems(template);
+  const out: Record<string, StepConductEntry> = {};
+  steps.forEach((step, idx) => {
+    if (!isTypedInspectionStep(step)) return;
+    const key = getStepConductKey(step, idx);
+    const vt = normalizeValueType(step.value_type);
+    if (vt === 'boolean') {
+      out[key] = { value: true };
+    } else if (vt === 'multi_select') {
+      out[key] = { value: [] };
+    }
+  });
+  return out;
 }
 
 /** 已保存的分项检验结果（conduct 后写入模板 JSON） */

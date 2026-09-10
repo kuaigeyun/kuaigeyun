@@ -5372,6 +5372,17 @@ async def pull_purchase_returns_from_purchase_order_items(
             batch_val = str(v or "").strip()
             if item_key > 0 and batch_val:
                 line_batches[item_key] = batch_val
+    line_warehouses: Dict[int, int] = {}
+    raw_line_wh = request.get("line_warehouses")
+    if isinstance(raw_line_wh, dict):
+        for k, v in raw_line_wh.items():
+            try:
+                item_key = int(k)
+                wh_val = int(v)
+            except (TypeError, ValueError):
+                continue
+            if item_key > 0 and wh_val > 0:
+                line_warehouses[item_key] = wh_val
     from apps.kuaizhizao.models.purchase_order import PurchaseOrderItem
 
     source_items = await PurchaseOrderItem.filter(tenant_id=tenant_id, id__in=selected_ids).only("order_id")
@@ -5387,6 +5398,7 @@ async def pull_purchase_returns_from_purchase_order_items(
             item_ids=selected_ids,
             created_by=current_user.id,
             line_batches=line_batches or None,
+            line_warehouses=line_warehouses or None,
         )
     except NotFoundError as e:
         raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(e))

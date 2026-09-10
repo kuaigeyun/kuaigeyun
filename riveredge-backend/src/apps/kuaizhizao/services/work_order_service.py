@@ -1131,8 +1131,13 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             is_node = bool(is_node) if is_node is not None else False
 
             from apps.kuaizhizao.utils.outsource_operation import parse_route_step_outsource
+            from apps.kuaizhizao.utils.route_step_ipqc import parse_route_step_ipqc
 
             outsource_meta = parse_route_step_outsource(extra_data if isinstance(extra_data, dict) else {})
+            ipqc_meta = parse_route_step_ipqc(
+                extra_data if isinstance(extra_data, dict) else {},
+                operation=operation,
+            )
             # 计划委外不占本厂工位：忽略默认工位派工
             if outsource_meta["outsource_kind"] != "none":
                 assigned_station_id = None
@@ -1189,29 +1194,41 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                 "outsource_lead_time_days": outsource_meta["outsource_lead_time_days"],
                 "default_outsource_supplier_id": outsource_meta["default_outsource_supplier_id"],
                 "default_outsource_supplier_name": outsource_meta["default_outsource_supplier_name"],
+                "inspection_mode": ipqc_meta["inspection_mode"],
+                "inspection_plan_id": ipqc_meta["inspection_plan_id"],
+                "inspection_plan_ids": ipqc_meta.get("inspection_plan_ids") or (
+                    [ipqc_meta["inspection_plan_id"]] if ipqc_meta.get("inspection_plan_id") else []
+                ),
             })
 
         from apps.kuaizhizao.utils.work_order_operation_scheduling import (
             build_operation_time_slots,
             build_operation_time_slots_in_planned_window,
         )
-        if work_order.planned_start_date and work_order.planned_end_date:
+        from apps.kuaizhizao.utils.working_time import load_scheduling_work_context
+
+        _anchor = work_order.planned_start_date or work_order.planned_end_date
+        _around = to_site_date(_anchor) if _anchor else None
+        _holidays, _work_hours, _overtime = await load_scheduling_work_context(
+            tenant_id, around=_around
+        )
+        durations = [row["total_hours"] for row in prepared_ops]
+        wo_start = work_order.planned_start_date
+        wo_end = work_order.planned_end_date
+        if wo_start and wo_end and wo_start != wo_end:
             time_slots = build_operation_time_slots_in_planned_window(
-                [row["total_hours"] for row in prepared_ops],
-                planned_start=work_order.planned_start_date,
-                planned_end=work_order.planned_end_date,
+                durations,
+                planned_start=wo_start,
+                planned_end=wo_end,
+                holidays=_holidays,
+                work_hours=_work_hours,
+                overtime=_overtime,
             )
         else:
-            from apps.kuaizhizao.utils.working_time import load_scheduling_work_context
-            _anchor = work_order.planned_start_date or work_order.planned_end_date
-            _around = to_site_date(_anchor) if _anchor else None
-            _holidays, _work_hours, _overtime = await load_scheduling_work_context(
-                tenant_id, around=_around
-            )
             time_slots = build_operation_time_slots(
-                [row["total_hours"] for row in prepared_ops],
-                planned_start=work_order.planned_start_date,
-                planned_end=work_order.planned_end_date,
+                durations,
+                planned_start=wo_start,
+                planned_end=wo_end if wo_end and wo_start != wo_end else None,
                 holidays=_holidays,
                 work_hours=_work_hours,
                 overtime=_overtime,
@@ -1258,6 +1275,11 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                 outsource_lead_time_days=row.get("outsource_lead_time_days"),
                 default_outsource_supplier_id=row.get("default_outsource_supplier_id"),
                 default_outsource_supplier_name=row.get("default_outsource_supplier_name"),
+                inspection_mode=row.get("inspection_mode") or "none",
+                inspection_plan_id=row.get("inspection_plan_id"),
+                inspection_plan_ids=row.get("inspection_plan_ids") or (
+                    [row.get("inspection_plan_id")] if row.get("inspection_plan_id") else None
+                ),
                 status='pending',
                 created_by=created_by,
                 created_by_name=user_info["name"],
@@ -1265,13 +1287,11 @@ class WorkOrderService(AppBaseService[WorkOrder]):
 
             work_order_operations.append(work_order_op)
         
-        # 更新工单计划时间：双端锚定时保留头表；否则由工序推算
+        # 工单头计划时间与工序槽对齐（含：午夜锚点→班次起点；无工时同刻；有工时拉长结束）
         if work_order_operations and time_slots:
-            if not (work_order.planned_start_date and work_order.planned_end_date):
-                work_order.planned_start_date = resolve_business_datetime(time_slots[0][0])
-                if work_order.planned_end_date is None:
-                    work_order.planned_end_date = resolve_business_datetime(time_slots[-1][1])
-                await work_order.save()
+            work_order.planned_start_date = resolve_business_datetime(time_slots[0][0])
+            work_order.planned_end_date = resolve_business_datetime(time_slots[-1][1])
+            await work_order.save()
         
         logger.info(f"为工单 {work_order.code} 自动生成了 {len(work_order_operations)} 个工序单")
         return work_order_operations
@@ -1305,23 +1325,28 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             operation_total_hours(op.setup_time, op.standard_time, work_order.quantity)
             for op in sorted_ops
         ]
-        if work_order.planned_start_date and work_order.planned_end_date:
+        from apps.kuaizhizao.utils.working_time import load_scheduling_work_context
+        _anchor = work_order.planned_start_date or work_order.planned_end_date
+        _around = to_site_date(_anchor) if _anchor else None
+        _holidays, _work_hours, _overtime = await load_scheduling_work_context(
+            tenant_id, around=_around
+        )
+        wo_start = work_order.planned_start_date
+        wo_end = work_order.planned_end_date
+        if wo_start and wo_end and wo_start != wo_end:
             time_slots = build_operation_time_slots_in_planned_window(
                 durations,
-                planned_start=work_order.planned_start_date,
-                planned_end=work_order.planned_end_date,
+                planned_start=wo_start,
+                planned_end=wo_end,
+                holidays=_holidays,
+                work_hours=_work_hours,
+                overtime=_overtime,
             )
         else:
-            from apps.kuaizhizao.utils.working_time import load_scheduling_work_context
-            _anchor = work_order.planned_start_date or work_order.planned_end_date
-            _around = to_site_date(_anchor) if _anchor else None
-            _holidays, _work_hours, _overtime = await load_scheduling_work_context(
-                tenant_id, around=_around
-            )
             time_slots = build_operation_time_slots(
                 durations,
-                planned_start=work_order.planned_start_date,
-                planned_end=work_order.planned_end_date,
+                planned_start=wo_start,
+                planned_end=wo_end if wo_end and wo_start != wo_end else None,
                 holidays=_holidays,
                 work_hours=_work_hours,
                 overtime=_overtime,
@@ -1342,11 +1367,9 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         if time_slots:
             wo_updates: Dict[str, Any] = {
                 "updated_by": updated_by,
+                "planned_start_date": resolve_business_datetime(time_slots[0][0]),
+                "planned_end_date": resolve_business_datetime(time_slots[-1][1]),
             }
-            if not (work_order.planned_start_date and work_order.planned_end_date):
-                wo_updates["planned_start_date"] = resolve_business_datetime(time_slots[0][0])
-                if work_order.planned_end_date is None:
-                    wo_updates["planned_end_date"] = resolve_business_datetime(time_slots[-1][1])
             await WorkOrder.filter(tenant_id=tenant_id, id=work_order.id).update(**wo_updates)
 
     async def resync_operations_to_work_order_planned_window(
@@ -1774,14 +1797,19 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                         if not planned_end_date and op_data.standard_time:
                             # 根据标准工时计算结束时间
                             from datetime import timedelta
-                            standard_hours = float(op_data.standard_time)
-                            setup_hours = float(op_data.setup_time) if op_data.setup_time else 0
-                            total_hours = setup_hours + (standard_hours * float(work_order.quantity))
-                            planned_end_date = planned_start_date + timedelta(hours=total_hours)
+                            from apps.kuaizhizao.utils.work_order_operation_scheduling import (
+                                operation_total_hours,
+                            )
+                            total_hours = operation_total_hours(
+                                op_data.setup_time, op_data.standard_time, work_order.quantity
+                            )
+                            if total_hours > 0:
+                                planned_end_date = planned_start_date + timedelta(hours=total_hours)
+                            else:
+                                planned_end_date = planned_start_date
                         elif not planned_end_date:
-                            # 如果没有标准工时，默认1小时
-                            from datetime import timedelta
-                            planned_end_date = planned_start_date + timedelta(hours=1)
+                            # 未维护工时：与开始同一时刻，不默认 +1 小时
+                            planned_end_date = planned_start_date
                         
                         # 创建工序单：报工类型可覆盖；跳转由工单级控制；节点仅来自开单传入
                         rt = getattr(op_data, "reporting_type", None)
@@ -4094,6 +4122,8 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         tenant_id: int,
         work_order_id: int,
         approver_id: int,
+        *,
+        is_auto_approve: bool = False,
     ) -> WorkOrderResponse:
         work_order = await self.get_by_id(tenant_id, work_order_id, raise_if_not_found=True)
         status = str(work_order.status or "").strip()
@@ -4105,7 +4135,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "work_order"
         )
-        if audit_required:
+        if audit_required and not is_auto_approve:
             from core.services.approval.approval_instance_service import ApprovalInstanceService
 
             approval_status = await ApprovalInstanceService.get_approval_status(
@@ -4121,15 +4151,31 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                 raise BusinessLogicError(
                     "生产工单审核已开启但无进行中的审批流程，请先提交审批后再审核"
                 )
-        approver_name = await self.get_user_name(approver_id)
-        await WorkOrder.filter(tenant_id=tenant_id, id=work_order_id).update(
-            review_status="已通过",
-            reviewer_id=approver_id,
-            reviewer_name=approver_name,
-            review_time=resolve_business_datetime(),
-            updated_by=approver_id,
+
+        from core.services.approval.uni_audit_service import UniAuditService
+
+        async def _do_approve() -> WorkOrderResponse:
+            approver_name = await self.get_user_name(approver_id)
+            await WorkOrder.filter(tenant_id=tenant_id, id=work_order_id).update(
+                review_status="已通过",
+                reviewer_id=approver_id,
+                reviewer_name=approver_name,
+                review_time=resolve_business_datetime(),
+                updated_by=approver_id,
+            )
+            return await self.get_work_order_by_id(tenant_id, work_order_id)
+
+        if is_auto_approve:
+            return await _do_approve()
+
+        result = await UniAuditService.approve_with_flow_fallback(
+            tenant_id=tenant_id,
+            entity_type="work_order",
+            entity_id=work_order_id,
+            approver_id=approver_id,
+            flow_approve=_do_approve,
         )
-        return await self.get_work_order_by_id(tenant_id, work_order_id)
+        return result if result is not None else await self.get_work_order_by_id(tenant_id, work_order_id)
 
     async def reject_work_order(
         self,
@@ -4138,6 +4184,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         approver_id: int,
         *,
         rejection_reason: Optional[str] = None,
+        is_auto_approve: bool = False,
     ) -> WorkOrderResponse:
         work_order = await self.get_by_id(tenant_id, work_order_id, raise_if_not_found=True)
         status = str(work_order.status or "").strip()
@@ -4149,7 +4196,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "work_order"
         )
-        if audit_required:
+        if audit_required and not is_auto_approve:
             from core.services.approval.approval_instance_service import ApprovalInstanceService
 
             approval_status = await ApprovalInstanceService.get_approval_status(
@@ -4165,12 +4212,29 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                 raise BusinessLogicError(
                     "生产工单审核已开启但无进行中的审批流程，请先提交审批后再驳回"
                 )
-        await WorkOrder.filter(tenant_id=tenant_id, id=work_order_id).update(
-            review_status="已驳回",
-            review_remarks=rejection_reason,
-            updated_by=approver_id,
+
+        from core.services.approval.uni_audit_service import UniAuditService
+
+        async def _do_reject(_reason: Optional[str] = None) -> WorkOrderResponse:
+            await WorkOrder.filter(tenant_id=tenant_id, id=work_order_id).update(
+                review_status="已驳回",
+                review_remarks=_reason if _reason is not None else rejection_reason,
+                updated_by=approver_id,
+            )
+            return await self.get_work_order_by_id(tenant_id, work_order_id)
+
+        if is_auto_approve:
+            return await _do_reject(rejection_reason)
+
+        result = await UniAuditService.reject_with_flow_fallback(
+            tenant_id=tenant_id,
+            entity_type="work_order",
+            entity_id=work_order_id,
+            approver_id=approver_id,
+            reason=rejection_reason,
+            flow_reject=_do_reject,
         )
-        return await self.get_work_order_by_id(tenant_id, work_order_id)
+        return result if result is not None else await self.get_work_order_by_id(tenant_id, work_order_id)
 
     async def withdraw_work_order_submit(
         self,
@@ -4987,6 +5051,9 @@ class WorkOrderService(AppBaseService[WorkOrder]):
                 outsource_lead_time_days=getattr(op, "outsource_lead_time_days", None),
                 default_outsource_supplier_id=getattr(op, "default_outsource_supplier_id", None),
                 default_outsource_supplier_name=getattr(op, "default_outsource_supplier_name", None),
+                inspection_mode=getattr(op, "inspection_mode", None),
+                inspection_plan_id=getattr(op, "inspection_plan_id", None),
+                inspection_plan_ids=getattr(op, "inspection_plan_ids", None),
                 status="pending",
                 completed_quantity=Decimal("0"),
                 qualified_quantity=Decimal("0"),
@@ -5335,11 +5402,13 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             count_pending_process_inspections,
             load_process_inspections_by_operation,
             pending_process_inspection_codes,
+            resolve_ipqc_for_work_order_operation,
             resolve_operation_transfer_qualified,
             resolve_process_inspection_card_status,
             resolve_process_inspection_link_id,
             sum_process_inspection_quality_quantities,
         )
+        from apps.kuaizhizao.services.inspection_policy_service import get_quality_effective_config
 
         # 展开前并行拉辅助数据；完成态 sync / IPQC 补建仍串行（有写依赖）
         pickings_task = ProductionPicking.filter(
@@ -5408,6 +5477,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             policy_cache,
             inspections_by_op,
             process_inspection_audit_required,
+            quality_cfg,
         ) = await asyncio.gather(
             batch_get_operation_defect_types_via_table(master_op_ids),
             _batch_sop_for_master_operations(
@@ -5425,6 +5495,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             load_process_inspections_by_operation(tenant_id, work_order_id),
             # 审核开关同租户内恒定：与其它批量取数一并解析，避免逐工序逐检验单重查
             BusinessConfigService().check_audit_required(tenant_id, "process_inspection"),
+            get_quality_effective_config(tenant_id),
         )
         outsource_by_op_id = {row.work_order_operation_id: row for row in outsource_rows}
 
@@ -5433,6 +5504,11 @@ class WorkOrderService(AppBaseService[WorkOrder]):
             for (_mode, plan_id, _src) in policy_cache.values()
             if plan_id is not None
         }
+        from apps.kuaizhizao.utils.route_step_ipqc import ipqc_plan_ids_from_wo_operation
+
+        for op in operations:
+            for snap_plan in ipqc_plan_ids_from_wo_operation(op):
+                plan_ids.add(int(snap_plan))
         plan_label_by_id: Dict[int, str] = {}
         default_process_plan_label: Optional[str] = None
         if plan_ids:
@@ -5481,7 +5557,11 @@ class WorkOrderService(AppBaseService[WorkOrder]):
 
             qualified = op.qualified_quantity or Decimal("0")
             master_op_id = int(op.operation_id) if op.operation_id is not None else 0
-            mode, plan_id, _ = policy_cache.get(master_op_id, ("none", None, "default_none"))
+            mode, plan_id, _ = resolve_ipqc_for_work_order_operation(
+                quality_cfg,
+                op,
+                policy_cache.get(master_op_id, ("none", None, "default_none")),
+            )
             op_inspections = inspections_by_op.get(master_op_id, [])
 
             transfer_qualified = await resolve_operation_transfer_qualified(
@@ -5498,11 +5578,23 @@ class WorkOrderService(AppBaseService[WorkOrder]):
 
             op_data["inspection_mode"] = mode
             if mode == "plan":
-                if plan_id is not None and int(plan_id) in plan_label_by_id:
-                    op_data["inspection_plan_label"] = plan_label_by_id[int(plan_id)]
-                else:
-                    op_data["inspection_plan_label"] = default_process_plan_label or "检验方案"
+                ordered_ids = ipqc_plan_ids_from_wo_operation(op)
+                if not ordered_ids and plan_id is not None:
+                    ordered_ids = [int(plan_id)]
+                labels = [
+                    plan_label_by_id.get(int(pid))
+                    or default_process_plan_label
+                    or "检验方案"
+                    for pid in ordered_ids
+                ]
+                op_data["inspection_plan_ids"] = ordered_ids
+                op_data["inspection_plan_labels"] = labels
+                op_data["inspection_plan_label"] = "、".join(labels) if labels else (
+                    default_process_plan_label or "检验方案"
+                )
             else:
+                op_data["inspection_plan_ids"] = []
+                op_data["inspection_plan_labels"] = []
                 op_data["inspection_plan_label"] = None
             op_data["transfer_qualified_quantity"] = transfer_qualified
             op_data["qc_pending_quantity"] = qc_pending if mode == "plan" else None

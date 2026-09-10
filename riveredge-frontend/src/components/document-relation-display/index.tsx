@@ -23,6 +23,8 @@ export interface RelatedDocument {
   status?: string;
   created_at?: string;
   relation_desc?: string;
+  /** 对端单据已软删除或不存在 */
+  is_deleted?: boolean;
 }
 
 /**

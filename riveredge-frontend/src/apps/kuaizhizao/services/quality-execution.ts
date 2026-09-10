@@ -246,7 +246,11 @@ export const qualityApi = {
     delete: async (id: string) => apiRequest(`/apps/kuaizhizao/process-inspections/${id}`, { method: 'DELETE' }),
     get: async (id: string) => apiRequest(`/apps/kuaizhizao/process-inspections/${id}`, { method: 'GET' }),
     conduct: async (id: string, data: any) =>
-      apiRequest(`/apps/kuaizhizao/process-inspections/${id}/conduct`, { method: 'POST', data }),
+      apiRequest(`/apps/kuaizhizao/process-inspections/${id}/conduct`, {
+        method: 'POST',
+        data,
+        timeoutMs: 60_000,
+      }),
     revokeConduct: async (id: string) =>
       apiRequest(`/apps/kuaizhizao/process-inspections/${id}/revoke-conduct`, { method: 'POST' }),
     approve: async (id: string, data: any) =>

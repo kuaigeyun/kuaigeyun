@@ -3082,10 +3082,87 @@ class ApprovalInstanceService:
                     )
                 logger.info(f"出货检验 {entity_id} 审批回调完成: {approval_instance.status}")
 
+            async def _handle_purchase_inquiry() -> None:
+                from apps.kuaizhizao.services.purchase_inquiry_service import PurchaseInquiryService
+
+                if not entity_id:
+                    return
+                service = PurchaseInquiryService()
+                if approval_instance.status == "approved":
+                    await service.approve_inquiry(
+                        tenant_id,
+                        int(entity_id),
+                        True,
+                        approver_id,
+                        remarks="审批通过",
+                        is_auto_approve=True,
+                    )
+                elif approval_instance.status == "rejected":
+                    await service.approve_inquiry(
+                        tenant_id,
+                        int(entity_id),
+                        False,
+                        approver_id,
+                        remarks="审批驳回",
+                        is_auto_approve=True,
+                    )
+                logger.info(f"采购询价 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_purchase_request() -> None:
+                from apps.kuaizhizao.services.purchase_requisition_service import (
+                    PurchaseRequisitionService,
+                )
+
+                if not entity_id:
+                    return
+                service = PurchaseRequisitionService()
+                if approval_instance.status == "approved":
+                    await service.approve_requisition(
+                        tenant_id,
+                        int(entity_id),
+                        True,
+                        review_remarks="审批通过",
+                        approved_by=approver_id,
+                        is_auto_approve=True,
+                    )
+                elif approval_instance.status == "rejected":
+                    await service.approve_requisition(
+                        tenant_id,
+                        int(entity_id),
+                        False,
+                        review_remarks="审批驳回",
+                        approved_by=approver_id,
+                        is_auto_approve=True,
+                    )
+                logger.info(f"采购申请 {entity_id} 审批回调完成: {approval_instance.status}")
+
+            async def _handle_work_order() -> None:
+                from apps.kuaizhizao.services.work_order_service import WorkOrderService
+
+                if not entity_id:
+                    return
+                service = WorkOrderService()
+                if approval_instance.status == "approved":
+                    await service.approve_work_order(
+                        tenant_id, int(entity_id), approver_id, is_auto_approve=True
+                    )
+                elif approval_instance.status == "rejected":
+                    await service.reject_work_order(
+                        tenant_id,
+                        int(entity_id),
+                        approver_id,
+                        rejection_reason="审批驳回",
+                        is_auto_approve=True,
+                    )
+                logger.info(f"生产工单 {entity_id} 审批回调完成: {approval_instance.status}")
+
             completion_handlers = {
                 "sales_order": _handle_sales_order,
                 "demand": _handle_demand,
                 "purchase_order": _handle_purchase_order,
+                "purchase_inquiry": _handle_purchase_inquiry,
+                "purchase_request": _handle_purchase_request,
+                "work_order": _handle_work_order,
                 "bom_change": _handle_bom_change,
                 "process_route_change": _handle_process_route_change,
                 "quotation": _handle_quotation,

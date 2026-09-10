@@ -385,9 +385,8 @@ export function useUnifiedMenuData(
             : (groupCode
                 ? resolveAppMenuGroupDisplayName(groupCode, appMenu.name, t)
                 : appMenu.name);
-          // ProLayout 需带 children；占位子项由 CSS 隐藏。
-          // label 带 data-app-menu-group，供 CSS :has / MutationObserver 识别（ProLayout 不透传 group className）。
-          // PRO 徽标走 BasicLayout.menuTextRender。
+          // React 兄弟节点 key 必须唯一：同一 app code 可能出现多个根（自组菜单 / 重复入库）。
+          // 应用 code 仍写在 path / data-app-menu-group，供侧栏样式与短标签解析。
           appMenuItems.push({
             name: appName,
             label: createElement(
@@ -398,7 +397,7 @@ export function useUnifiedMenuData(
               },
               appName,
             ),
-            key: groupCode ? `app-group-code-${groupCode}` : `app-group-${appMenu.uuid}`,
+            key: `app-group-${appMenu.uuid}`,
             path: groupCode ? `#app-group-${groupCode}` : undefined,
             type: 'group',
             className: 'menu-group-title-app app-menu-container-start',

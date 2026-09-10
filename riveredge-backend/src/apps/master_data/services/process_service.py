@@ -250,19 +250,38 @@ async def _operation_to_response_data(op: Operation) -> Dict[str, Any]:
     }
     from apps.kuaizhizao.services.inspection_policy_service import normalize_operation_inspection_stages
 
-    result["inspection_stages"] = normalize_operation_inspection_stages(
+    stages = normalize_operation_inspection_stages(
         getattr(op, "inspection_stages", None),
         legacy_mode=_im_s,
         legacy_plan_id=plan_id,
     )
-    if plan_id:
+    result["inspection_stages"] = stages
+    ipqc = stages.get("ipqc") or {}
+    plan_ids = list(ipqc.get("plan_ids") or [])
+    if not plan_ids and ipqc.get("plan_id"):
+        plan_ids = [int(ipqc["plan_id"])]
+    if not plan_ids and plan_id:
+        plan_ids = [int(plan_id)]
+    result["default_inspection_plan_ids"] = plan_ids
+    if plan_ids and not result.get("default_inspection_plan_id"):
+        result["default_inspection_plan_id"] = plan_ids[0]
+    names: list[str] = []
+    if plan_ids:
         try:
             from apps.kuaizhizao.models.inspection_plan import InspectionPlan
-            plan = await InspectionPlan.filter(id=plan_id, deleted_at__isnull=True).first()
-            if plan:
-                result["default_inspection_plan_name"] = plan.plan_name
+            plans = await InspectionPlan.filter(id__in=plan_ids, deleted_at__isnull=True).all()
+            by_id = {int(x.id): x for x in plans}
+            for pid in plan_ids:
+                plan = by_id.get(int(pid))
+                if plan and getattr(plan, "plan_name", None):
+                    names.append(str(plan.plan_name))
+                else:
+                    names.append("")
+            if names and names[0]:
+                result["default_inspection_plan_name"] = names[0]
         except Exception:
             pass
+    result["default_inspection_plan_names"] = names
     return result
 
 
@@ -783,6 +802,8 @@ class ProcessService:
                 "inspection_mode": getattr(data, "inspection_mode", None) or getattr(data, "inspectionMode", None),
                 "default_inspection_plan_id": getattr(data, "default_inspection_plan_id", None)
                 or getattr(data, "defaultInspectionPlanId", None),
+                "default_inspection_plan_ids": getattr(data, "default_inspection_plan_ids", None)
+                or getattr(data, "defaultInspectionPlanIds", None),
             }
             from apps.kuaizhizao.services.inspection_policy_service import (
                 assert_master_data_inspection_stages_allowed,
@@ -854,12 +875,19 @@ class ProcessService:
             prepare_operation_inspection_for_write,
         )
 
-        if create_data.get("inspection_stages") is not None or create_data.get("inspection_mode") is not None:
+        if (
+            create_data.get("inspection_stages") is not None
+            or create_data.get("inspection_mode") is not None
+            or create_data.get("default_inspection_plan_id") is not None
+            or create_data.get("default_inspection_plan_ids") is not None
+        ):
             prepare_operation_inspection_for_write(create_data)
             await assert_master_data_inspection_stages_allowed(
                 tenant_id,
                 operation_stages=create_data.get("inspection_stages"),
             )
+        create_data.pop("default_inspection_plan_ids", None)
+        create_data.pop("default_inspection_plan_names", None)
 
         apply_create_audit(create_data, current_user)
         try:
@@ -1068,7 +1096,15 @@ class ProcessService:
                 raise ValidationError(f"工序编码 {data.code} 已存在")
         
         update_data = data.model_dump(exclude_unset=True, by_alias=False) if hasattr(data, "model_dump") else data.dict(exclude_unset=True)
-        if "inspection_mode" in update_data or getattr(data, "inspection_mode", None) is not None or getattr(data, "inspection_stages", None) is not None:
+        if (
+            "inspection_mode" in update_data
+            or "default_inspection_plan_id" in update_data
+            or "default_inspection_plan_ids" in update_data
+            or "inspection_stages" in update_data
+            or getattr(data, "inspection_mode", None) is not None
+            or getattr(data, "inspection_stages", None) is not None
+            or getattr(data, "default_inspection_plan_ids", None) is not None
+        ):
             from apps.kuaizhizao.services.inspection_policy_service import (
                 assert_master_data_inspection_stages_allowed,
                 prepare_operation_inspection_for_write,
@@ -1079,6 +1115,10 @@ class ProcessService:
                 patch["inspection_stages"] = getattr(data, "inspection_stages", None) or getattr(
                     data, "inspectionStages", None
                 )
+            if "default_inspection_plan_ids" not in patch and getattr(data, "default_inspection_plan_ids", None) is not None:
+                patch["default_inspection_plan_ids"] = getattr(data, "default_inspection_plan_ids", None) or getattr(
+                    data, "defaultInspectionPlanIds", None
+                )
             prepare_operation_inspection_for_write(patch)
             await assert_master_data_inspection_stages_allowed(
                 tenant_id,
@@ -1087,6 +1127,8 @@ class ProcessService:
             for k in ("inspection_stages", "inspection_mode", "default_inspection_plan_id"):
                 if k in patch:
                     update_data[k] = patch[k]
+        update_data.pop("default_inspection_plan_ids", None)
+        update_data.pop("default_inspection_plan_names", None)
         # 从 update_data 中移除关系字段，避免 setattr 到 ORM 上；并从 data 上取以保证请求里带了的都能同步
         defect_type_uuids = update_data.pop("defect_type_uuids", None)
         if defect_type_uuids is None:

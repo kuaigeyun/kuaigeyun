@@ -2,7 +2,8 @@
 审核单据绑定服务
 
 manifest.audit 声明「哪些单据可审核」；AuditDocumentBinding 为运行时唯一真源（开关 + 流程 FK）。
-ApprovalProcess 在启用审核开关时按需创建，关闭时注销工作流但保留流程定义。
+ApprovalProcess 定义在 ensure 时按 manifest 补齐（默认未激活）；启用审核开关时绑定并激活，
+关闭时注销工作流但保留流程定义。
 """
 
 from __future__ import annotations
@@ -42,13 +43,45 @@ class AuditBindingService:
         )
 
     @staticmethod
+    async def ensure_audit_processes(
+        tenant_id: int,
+        *,
+        only_node_keys: Optional[Set[str]] = None,
+        installed: Optional[Set[str]] = None,
+    ) -> int:
+        """为已安装应用 manifest.audit 补齐审批流程定义（code=node_key，默认未激活）。"""
+        app_codes = installed if installed is not None else await get_installed_application_codes(tenant_id)
+        target_keys = [
+            entry.node_key
+            for entry in all_entries()
+            if entry.app in app_codes
+            and (only_node_keys is None or entry.node_key in only_node_keys)
+        ]
+        if not target_keys:
+            return 0
+        existing_codes = set(
+            await ApprovalProcess.filter(
+                tenant_id=tenant_id,
+                code__in=target_keys,
+                deleted_at__isnull=True,
+            ).values_list("code", flat=True)
+        )
+        created = 0
+        for node_key in target_keys:
+            if node_key in existing_codes:
+                continue
+            await ApprovalProcessService.create_audit_process_for_node(tenant_id, node_key)
+            created += 1
+        return created
+
+    @staticmethod
     async def ensure_binding_rows(
         tenant_id: int,
         *,
         only_node_keys: Optional[Set[str]] = None,
         installed: Optional[Set[str]] = None,
     ) -> int:
-        """为已安装应用 manifest.audit 声明补齐空绑定行（不创建 ApprovalProcess）。"""
+        """为已安装应用 manifest.audit 声明补齐空绑定行，并补齐对应审批流程定义。"""
         app_codes = installed if installed is not None else await get_installed_application_codes(tenant_id)
         target_keys = [
             entry.node_key
@@ -66,18 +99,22 @@ class AuditBindingService:
             ).values_list("node_key", flat=True)
         )
         missing_keys = [key for key in target_keys if key not in existing_keys]
-        if not missing_keys:
-            return 0
-        await AuditDocumentBinding.bulk_create(
-            [
-                AuditDocumentBinding(
-                    tenant_id=tenant_id,
-                    node_key=node_key,
-                    is_enabled=False,
-                    process_id=None,
-                )
-                for node_key in missing_keys
-            ]
+        if missing_keys:
+            await AuditDocumentBinding.bulk_create(
+                [
+                    AuditDocumentBinding(
+                        tenant_id=tenant_id,
+                        node_key=node_key,
+                        is_enabled=False,
+                        process_id=None,
+                    )
+                    for node_key in missing_keys
+                ]
+            )
+        await AuditBindingService.ensure_audit_processes(
+            tenant_id,
+            only_node_keys=set(target_keys),
+            installed=app_codes,
         )
         return len(missing_keys)
 
@@ -225,6 +262,12 @@ class AuditBindingService:
             entry.node_key for entry in all_entries() if entry.app in installed
         ]
 
+        await AuditBindingService.ensure_binding_rows(
+            tenant_id,
+            only_node_keys=set(target_keys) if target_keys else None,
+            installed=installed,
+        )
+
         binding_map, process_options = await asyncio.gather(
             AuditBindingService.get_binding_map(tenant_id),
             ApprovalProcess.filter(
@@ -233,27 +276,6 @@ class AuditBindingService:
                 code__in=list(visible_codes),
             ).order_by("name").all(),
         )
-
-        missing_keys = [key for key in target_keys if key not in binding_map]
-        if missing_keys:
-            await AuditDocumentBinding.bulk_create(
-                [
-                    AuditDocumentBinding(
-                        tenant_id=tenant_id,
-                        node_key=node_key,
-                        is_enabled=False,
-                        process_id=None,
-                    )
-                    for node_key in missing_keys
-                ]
-            )
-            for node_key in missing_keys:
-                binding_map[node_key] = AuditDocumentBinding(
-                    tenant_id=tenant_id,
-                    node_key=node_key,
-                    is_enabled=False,
-                    process_id=None,
-                )
 
         items: List[Dict[str, Any]] = []
         for entry in all_entries():

@@ -335,7 +335,7 @@ const NonconformingLedgerPage: React.FC = () => {
       { title: t('app.kuaizhizao.quality.common.columns.operationName'), dataIndex: 'operation_name', hideInTable: true },
       {
         title: t('app.kuaizhizao.quality.common.columns.material'),
-        key: 'quality_inspection_material',
+        key: 'nc_material_stacked',
         dataIndex: 'product_name',
         width: 200,
         minWidth: 200,
@@ -562,7 +562,7 @@ const NonconformingLedgerPage: React.FC = () => {
           onRowSelectionChange={setSelectedRowKeys}
           permissionResource={NC_RESOURCE}
           columns={columns}
-          columnPersistenceId="apps.kuaizhizao.pages.quality-management.nonconforming-ledger-width-v1"
+          columnPersistenceId="apps.kuaizhizao.pages.quality-management.nonconforming-ledger-width-v2"
           showAdvancedSearch
           pinnedTabsField={NC_LEDGER_PINNED_STATUS_FIELD}
           skipFuzzyPinyinClientFilter

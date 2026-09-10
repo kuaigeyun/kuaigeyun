@@ -4084,8 +4084,17 @@ class SalesOrderService:
         work_orders = []
 
         async def _create_one_work_order(info: Dict[str, Any], qty_dec: Decimal):
+            from apps.kuaizhizao.utils.working_time import WorkHoursConfig
+
             custom_remarks = (info.get("remarks") or "").strip()
             default_remarks = f"由销售订单 {order.order_code} 直推（含半成品）"
+            # 交期锚点对齐内置班次起点（默认 08:00），勿用 00:00
+            shift_start = WorkHoursConfig.defaults().start
+            delivery_anchor = (
+                datetime.combine(info["earliest_delivery"], shift_start)
+                if info.get("earliest_delivery")
+                else None
+            )
             wo_data = WorkOrderCreate(
                 code_rule="WORK_ORDER_CODE",
                 product_id=info["material_id"],
@@ -4098,14 +4107,8 @@ class SalesOrderService:
                 sales_order_name=order.order_code,
                 work_center_id=info.get("work_center_id"),
                 work_center_name=info.get("work_center_name"),
-                planned_start_date=(
-                    datetime.combine(info["earliest_delivery"], datetime.min.time())
-                    if info.get("earliest_delivery") else None
-                ),
-                planned_end_date=(
-                    datetime.combine(info["earliest_delivery"], datetime.min.time())
-                    if info.get("earliest_delivery") else None
-                ),
+                planned_start_date=delivery_anchor,
+                planned_end_date=delivery_anchor,
                 remarks=custom_remarks or default_remarks,
             )
             wo = await work_order_service.create_work_order(

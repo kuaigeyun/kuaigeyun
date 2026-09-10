@@ -9,7 +9,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Dropdown, Tooltip } from 'antd';
+import { Button, Dropdown, Tag, Tooltip } from 'antd';
 import type { ButtonProps, MenuProps } from 'antd';
 import { ArrowDownOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -90,6 +90,7 @@ export const UniPushToolbarButton: React.FC<UniPushToolbarButtonProps> = ({
             documentType: docType,
             documentId: docId,
             documentCode: String(rel.document_code || '').trim() || undefined,
+            isDeleted: Boolean(rel.is_deleted),
           });
         }
         setDownstreamByType(map);
@@ -153,11 +154,41 @@ export const UniPushToolbarButton: React.FC<UniPushToolbarButtonProps> = ({
         label: t('components.uniPush.alreadyPushed'),
         children: docs.map((doc) => {
           const code = doc.documentCode || `#${doc.documentId}`;
-          const canOpen = canOpenLinkedDocumentDetail(doc.documentType);
+          const deleted = Boolean(doc.isDeleted);
+          const canOpen = !deleted && canOpenLinkedDocumentDetail(doc.documentType);
           return {
             key: `${key}__doc-${doc.documentType}-${doc.documentId}`,
-            label: code,
-            title: canOpen ? t('components.uniPush.openPushedDetail') : code,
+            label: (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  maxWidth: 280,
+                }}
+              >
+                <span
+                  style={{
+                    textDecoration: deleted ? 'line-through' : undefined,
+                    opacity: deleted ? 0.65 : 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {code}
+                </span>
+                {deleted ? (
+                  <Tag color="error" style={{ margin: 0, lineHeight: '16px', fontSize: 11 }}>
+                    {t('components.uniPush.pushedDocDeleted')}
+                  </Tag>
+                ) : null}
+              </span>
+            ),
+            title: deleted
+              ? t('components.uniPush.pushedDocDeletedHint')
+              : canOpen
+                ? t('components.uniPush.openPushedDetail')
+                : code,
             disabled: !canOpen,
             onClick: canOpen
               ? () => {

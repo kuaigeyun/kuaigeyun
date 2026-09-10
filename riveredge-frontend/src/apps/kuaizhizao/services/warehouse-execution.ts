@@ -20,6 +20,8 @@ export type PurchaseReturnPullLine = {
   pushed_quantity?: number;
   remaining_quantity?: number;
   required_date?: string | null;
+  warehouse_id?: number | null;
+  warehouse_name?: string | null;
   requires_batch_number?: boolean;
   suggested_batch_number?: string | null;
   available_batches?: Array<{
@@ -722,7 +724,10 @@ export const warehouseApi = {
       }),
     pullFromPurchaseOrderItems: async (
       selectedItemIds: number[],
-      options?: { lineBatches?: Record<number, string> },
+      options?: {
+        lineBatches?: Record<number, string>;
+        lineWarehouses?: Record<number, number>;
+      },
     ): Promise<{
       success: boolean;
       message: string;
@@ -736,6 +741,9 @@ export const warehouseApi = {
           selected_item_ids: selectedItemIds,
           ...(options?.lineBatches && Object.keys(options.lineBatches).length
             ? { line_batches: options.lineBatches }
+            : {}),
+          ...(options?.lineWarehouses && Object.keys(options.lineWarehouses).length > 0
+            ? { line_warehouses: options.lineWarehouses }
             : {}),
         },
       }),

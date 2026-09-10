@@ -1229,7 +1229,7 @@ const FinishedGoodsInspectionPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.finishedGoodsInspection)}
         headerTitle={t('app.kuaizhizao.quality.finished.pageTitle')}
-        columnPersistenceId="apps.kuaizhizao.pages.quality-management.finished-goods-inspection-width-v2"
+        columnPersistenceId="apps.kuaizhizao.pages.quality-management.finished-goods-inspection-width-v5"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}

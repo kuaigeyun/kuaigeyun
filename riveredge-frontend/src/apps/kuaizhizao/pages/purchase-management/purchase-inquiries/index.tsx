@@ -801,7 +801,6 @@ const PurchaseInquiriesPage: React.FC = () => {
         const isDraft = isInquiryDraft(record);
         const canUpdate = record.capabilities?.update?.allowed === true && purchaseInquiryPerms.canUpdate;
         const canDelete = record.capabilities?.delete?.allowed === true && purchaseInquiryPerms.canDelete;
-        const canSubmit = record.capabilities?.submit?.allowed === true && purchaseInquiryPerms.canUpdate;
         const parts: React.ReactNode[] = [
           <Button {...rowActionKind('read')} key="view" onClick={() => openDetail(record)}>
             {t('common.detail')}
@@ -832,21 +831,6 @@ const PurchaseInquiriesPage: React.FC = () => {
               }}
             >
               {t('common.delete')}
-            </Button>,
-          );
-          parts.push(
-            <Button
-              {...rowActionKind('submit')}
-              key="submit"
-              disabled={!canSubmit}
-              onClick={async () => {
-                if (!canSubmit) return;
-                await submitPurchaseInquiry(record.id!);
-                message.success(t('app.kuaizhizao.purchaseInquiry.submitSuccess'));
-    actionRef.current?.reload();
-              }}
-            >
-              {t('common.submit')}
             </Button>,
           );
           parts.push(

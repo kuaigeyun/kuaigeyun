@@ -72,7 +72,10 @@ class QualityAutomationService:
             and master_op_id > 0
         ):
             eff, _, _ = await resolve_inspection_policy(
-                tenant_id, "ipqc", operation_id=master_op_id
+                tenant_id,
+                "ipqc",
+                operation_id=master_op_id,
+                work_order_operation=work_order_operation,
             )
             if eff == "plan":
                 try:
@@ -86,7 +89,7 @@ class QualityAutomationService:
                         reporting_record_id=reporting_record.id,
                     )
                     logger.info(
-                        f"报工 -> 自动创建过程检验: 工单 {work_order.code}, "
+                        f"报工 -> 自动创建过程检验(含多方案一次建齐): 工单 {work_order.code}, "
                         f"工序 {work_order_operation.operation_name}"
                     )
                 except Exception as e:
@@ -99,6 +102,146 @@ class QualityAutomationService:
                         logger.warning(
                             f"报工自动创建过程检验失败 工单 {work_order.code}: {e}"
                         )
+
+    async def maybe_create_next_ordered_ipqc_after_pass(
+        self,
+        tenant_id: int,
+        inspection: Any,
+        created_by: int,
+    ) -> None:
+        """
+        有序多方案：历史「按序只建下一张」的补漏入口。
+
+        正常路径已在报工/下推时一次建齐全部方案；本方法仅在旧数据只建了部分方案时，
+        于当前单放行后补建下一方案。下一方案若已有待检/已检验/已审核单据则不再新建。
+        """
+        from decimal import Decimal
+
+        from apps.kuaizhizao.models.process_inspection import ProcessInspection
+        from apps.kuaizhizao.models.work_order import WorkOrder
+        from apps.kuaizhizao.models.work_order_operation import WorkOrderOperation
+        from apps.kuaizhizao.services.quality_service import (
+            ProcessInspectionService,
+            _resolve_inspection_template_fields,
+            _quality_inspection_initial_review_fields,
+            _resolve_material_base_unit,
+            _work_order_product_fields,
+        )
+        from apps.kuaizhizao.utils.route_step_ipqc import ipqc_plan_ids_from_wo_operation
+        from core.utils.timezone_utils import today_site_str
+        from tortoise.transactions import in_transaction
+
+        work_order_id = getattr(inspection, "work_order_id", None)
+        master_op_id = getattr(inspection, "operation_id", None)
+        if not work_order_id or not master_op_id:
+            return
+
+        woo = await WorkOrderOperation.get_or_none(
+            tenant_id=tenant_id,
+            work_order_id=int(work_order_id),
+            operation_id=int(master_op_id),
+            deleted_at__isnull=True,
+        )
+        if not woo:
+            return
+        plan_ids = ipqc_plan_ids_from_wo_operation(woo)
+        if len(plan_ids) < 2:
+            return
+
+        current_raw = getattr(inspection, "inspection_plan_id", None)
+        try:
+            current = int(current_raw) if current_raw is not None else plan_ids[0]
+        except (TypeError, ValueError):
+            current = plan_ids[0]
+        if current not in plan_ids:
+            return
+        idx = plan_ids.index(current)
+        if idx + 1 >= len(plan_ids):
+            return
+        next_plan_id = plan_ids[idx + 1]
+
+        existing_next = await ProcessInspection.filter(
+            tenant_id=tenant_id,
+            work_order_id=int(work_order_id),
+            operation_id=int(master_op_id),
+            inspection_plan_id=next_plan_id,
+            status__in=["待检验", "已检验", "已审核"],
+            deleted_at__isnull=True,
+        ).first()
+        if existing_next:
+            return
+
+        qty = Decimal(str(getattr(inspection, "qualified_quantity", None) or 0))
+        if qty <= 0:
+            return
+
+        work_order = await WorkOrder.get_or_none(
+            tenant_id=tenant_id, id=int(work_order_id), deleted_at__isnull=True
+        )
+        if not work_order:
+            return
+        wf = _work_order_product_fields(work_order)
+        if not wf.get("material_id"):
+            return
+
+        cfg = await get_quality_effective_config(tenant_id)
+        if not cfg["stage_enabled"]["ipqc"] or not cfg["module_enabled"]["process"]:
+            return
+
+        try:
+            async with in_transaction():
+                svc = ProcessInspectionService()
+                today = today_site_str()
+                code = await svc.generate_code(
+                    tenant_id, "PROCESS_INSPECTION_CODE", prefix=f"PQ{today}"
+                )
+                template = await _resolve_inspection_template_fields(
+                    tenant_id,
+                    wf["material_id"],
+                    "ipqc",
+                    operation_id=int(master_op_id),
+                    work_order_operation=woo,
+                    explicit_plan_id=next_plan_id,
+                    use_quality_characteristics=True,
+                )
+                initial_review_fields = await _quality_inspection_initial_review_fields(
+                    tenant_id, "process_inspection"
+                )
+                material_unit = await _resolve_material_base_unit(tenant_id, wf["material_id"])
+                created = await ProcessInspection.create(
+                    tenant_id=tenant_id,
+                    inspection_code=code,
+                    reporting_record_id=getattr(inspection, "reporting_record_id", None),
+                    work_order_id=int(work_order_id),
+                    work_order_code=work_order.code,
+                    operation_id=int(master_op_id),
+                    operation_code=woo.operation_code,
+                    operation_name=woo.operation_name,
+                    workshop_id=work_order.workshop_id,
+                    workshop_name=work_order.workshop_name,
+                    material_id=wf["material_id"],
+                    material_code=wf["material_code"],
+                    material_name=wf["material_name"],
+                    material_spec=wf["material_spec"],
+                    material_unit=material_unit,
+                    batch_number=wf["batch_number"],
+                    inspection_quantity=qty,
+                    qualified_quantity=0,
+                    unqualified_quantity=0,
+                    inspection_result="待检验",
+                    quality_status="待判定",
+                    status="待检验",
+                    inspection_plan_id=next_plan_id,
+                    created_by=created_by,
+                    **template,
+                    **initial_review_fields,
+                )
+                logger.info(
+                    f"有序过程检验续建: 工单 {work_order.code} 工序 {woo.operation_name} "
+                    f"方案 {current} -> {next_plan_id} 单号 {created.inspection_code}"
+                )
+        except Exception as e:
+            logger.warning(f"有序过程检验续建失败: {e}")
 
     async def maybe_backfill_missing_ipqc_for_work_order(
         self,

@@ -10,7 +10,7 @@ Date: 2026-05-28
 from tortoise import fields
 
 from core.models.base import BaseModel
-from apps.kuaizhizao.constants import DocumentStatus, ReviewStatus
+from apps.kuaizhizao.constants import DocumentStatus
 from apps.kuaizhizao.constants.purchase_inquiry import (
     PurchaseInquiryStatus,
     PurchaseInquiryVendorStatus,
@@ -44,7 +44,11 @@ class PurchaseInquiry(BaseModel):
     reviewer_id = fields.IntField(null=True, description="审核人ID")
     reviewer_name = fields.CharField(max_length=100, null=True, description="审核人姓名")
     review_time = fields.DatetimeField(null=True, description="审核时间")
-    review_status = fields.CharField(max_length=20, default=ReviewStatus.PENDING.value, description="审核状态")
+    review_status = fields.CharField(
+        max_length=20,
+        default=DocumentStatus.DRAFT.value,
+        description="审核状态（未提交为 DRAFT；提交待审为 PENDING_REVIEW）",
+    )
     review_remarks = fields.TextField(null=True, description="审核备注")
 
     total_quantity = fields.DecimalField(max_digits=14, decimal_places=4, default=0, description="总数量")

@@ -168,6 +168,21 @@ class WorkOrderOperation(BaseModel):
         max_length=200, null=True, description="默认委外供应商名称"
     )
 
+    # 过程检验（开单时由路线步骤覆盖或工序主数据落章；空则运行时回落工序主数据）
+    inspection_mode = fields.CharField(
+        max_length=20,
+        null=True,
+        description="过程检验模式落章（none/simple/plan；空=未落章）",
+    )
+    inspection_plan_id = fields.IntField(
+        null=True,
+        description="过程检验方案ID落章（首方案；兼容单方案）",
+    )
+    inspection_plan_ids = fields.JSONField(
+        null=True,
+        description="过程检验方案ID有序列表（多方案按序建单）",
+    )
+
     # 备注
     remarks = fields.TextField(null=True, description="备注")
 

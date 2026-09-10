@@ -14,6 +14,7 @@
 import React from 'react';
 import { Application } from '../services/application';
 import { withRetry } from './errorRecovery';
+import { isStaleChunkError, reloadForStaleChunkOnce } from './staleChunkReload';
 
 /**
  * 插件元数据
@@ -346,11 +347,23 @@ export async function loadPlugin(
       loadTime,
     });
 
-    // 保留原始原因，避免依赖预构建 504 等被误报为「文件不存在」
+    // 生产：发版后旧 chunk 已下线 → 自动硬刷新一次；勿提示 compose/Vite
+    if (import.meta.env.PROD && isStaleChunkError(errorObj)) {
+      if (reloadForStaleChunkOnce()) {
+        return new Promise<PluginRoute[]>(() => {});
+      }
+      throw new Error(
+        `插件 ${pluginCode} 加载失败：前端资源可能已更新。请强制刷新页面（Ctrl+F5）后重试。` +
+          `（${errorObj.message}）`
+      );
+    }
+
+    // 开发：依赖预构建 504 / 未 compose 等，保留可操作提示
     if (
-      errorObj.message.includes('Failed to fetch') ||
-      errorObj.message.includes('404') ||
-      errorObj.message.includes('504')
+      import.meta.env.DEV &&
+      (errorObj.message.includes('Failed to fetch') ||
+        errorObj.message.includes('404') ||
+        errorObj.message.includes('504'))
     ) {
       throw new Error(
         `插件 ${pluginCode} 加载失败（${errorObj.message}）。` +

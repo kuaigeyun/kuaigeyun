@@ -5,8 +5,8 @@
 """
 
 from datetime import datetime
-from typing import Optional, List, TYPE_CHECKING
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, List, TYPE_CHECKING, Any
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from decimal import Decimal
 
 from core.schemas.base import BaseSchema
@@ -790,7 +790,17 @@ class WorkOrderOperationResponse(WorkOrderOperationBase):
     # 质检（工序档案 IPQC 策略，后端按需填充）
     inspection_mode: str = Field("none", alias="inspectionMode", description="质检模式（none/simple/plan）")
     inspection_plan_label: Optional[str] = Field(
-        None, alias="inspectionPlanLabel", description="方案质检时的检验方案名称"
+        None, alias="inspectionPlanLabel", description="方案质检时的检验方案名称（多方案顿号连接）"
+    )
+    inspection_plan_ids: List[int] = Field(
+        default_factory=list,
+        alias="inspectionPlanIds",
+        description="过程检验方案ID有序列表",
+    )
+    inspection_plan_labels: List[str] = Field(
+        default_factory=list,
+        alias="inspectionPlanLabels",
+        description="过程检验方案名称有序列表",
     )
     transfer_qualified_quantity: Optional[Decimal] = Field(
         None,
@@ -831,6 +841,18 @@ class WorkOrderOperationResponse(WorkOrderOperationBase):
     
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
+
+    @field_validator(
+        "inspection_plan_ids",
+        "inspection_plan_labels",
+        "process_inspection_pending_codes",
+        "defect_types",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_null_list_fields(cls, value: Any) -> Any:
+        """存量工序 JSON 列可为 null；响应契约固定为空列表，禁止 None。"""
+        return [] if value is None else value
 
 
 class WorkOrderOperationsUpdateRequest(BaseModel):

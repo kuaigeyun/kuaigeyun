@@ -2043,6 +2043,8 @@ export default {
   'components.uniPush.toolbarSelectedNotInList': '所选记录不在当前列表，请刷新后重新选择',
   'components.uniPush.alreadyPushed': '已下推',
   'components.uniPush.openPushedDetail': '打开已下推单据详情',
+  'components.uniPush.pushedDocDeleted': '已删除',
+  'components.uniPush.pushedDocDeletedHint': '下游单据已删除，无法打开详情',
   'components.uniPush.doPush': '执行下推',
   'components.uniTable.configOnImport': '请配置 onImport 回调函数来处理导入数据',
   'components.uniTable.configOnSync': '请配置 onSync 回调函数',
@@ -2079,6 +2081,8 @@ export default {
   'components.layoutTemplates.documentFormPage.saveDraft': '保存为草稿',
   'components.layoutTemplates.documentFormPage.saveAndSubmit': '保存并提交',
   'components.layoutTemplates.formModal.checkFormHint': '请检查表单填写是否完整',
+  'components.layoutTemplates.formModal.checkFormHintWithCount':
+    '{{message}}（另有 {{count}} 项未通过）',
   'components.layoutTemplates.formModal.formNotReady': '表单未就绪，请稍后再试',
   'components.secureImage.viewOriginal': '查看原图',
   'components.secureImage.loadingOriginal': '加载原图中…',
@@ -10403,6 +10407,17 @@ export default {
   'app.kuaizhizao.workOrder.opCard.inspectionPlanFallback': '检验方案',
   'app.kuaizhizao.workOrder.opCard.inspectionPlanWithName': '方案质检 - {{plan}}',
   'app.kuaizhizao.workOrder.opCard.qcPending': '方案质检 - {{plan}}（待检 {{pending}}）',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.title': '检验情况概览',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.mode': '质检方式',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.plans': '检验方案',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.status': '检验状态',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.pendingCount': '待检单数',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.pendingCodes': '待检单号',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.qcPendingQty': '已报未放行',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.qualified': '合格数量',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.unqualified': '不合格数量',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.transferQualified': '可转下道',
+  'app.kuaizhizao.workOrder.opCard.inspectionOverview.noneHint': '本工序未启用质检',
   'app.kuaizhizao.workOrder.opCard.processInspectionStatus.not_started': '未开始',
   'app.kuaizhizao.workOrder.opCard.processInspectionStatus.pending': '待检验',
   'app.kuaizhizao.workOrder.opCard.processInspectionStatus.inspected': '已检验',
@@ -11992,8 +12007,16 @@ export default {
   'app.kuaizhizao.purchaseReturn.pull.canCreate': '可创建',
   'app.kuaizhizao.purchaseReturn.pull.gateStatus': '可取单状态',
   'app.kuaizhizao.purchaseReturn.pull.loadSourceFailed': '加载来源单据失败',
+  'app.kuaizhizao.purchaseReturn.pull.loadWarehouseFailed': '加载仓库列表失败',
   'app.kuaizhizao.purchaseReturn.pull.selectBatch': '选择批号',
   'app.kuaizhizao.purchaseReturn.pull.batchRequired': '物料 {{material}} 启用了批号管理，请选择批号',
+  'app.kuaizhizao.purchaseReturn.pull.selectWarehouseForMaterial': '请为物料 {{material}} 选择退货仓库',
+  'app.kuaizhizao.purchaseReturn.pull.warehouseColumn': '退货仓库',
+  'app.kuaizhizao.purchaseReturn.pull.batchWarehousePlaceholder': '批量设退货仓',
+  'app.kuaizhizao.purchaseReturn.pull.batchWarehouseNoLines': '请先勾选明细或等待列表加载后再批量设仓',
+  'app.kuaizhizao.purchaseReturn.pull.batchWarehouseApplied': '已将 {{count}} 行退货仓库设置为同一仓库',
+  'app.kuaizhizao.purchaseReturn.pull.warehouseHint': '物料无默认仓库时请在本表选择退货仓；也可上方批量设仓',
+  'app.kuaizhizao.purchaseReturn.pull.selectWarehouse': '请选择退货仓库',
   'app.kuaizhizao.purchaseReturn.pull.ok': '创建采购退货单',
   'app.kuaizhizao.purchaseReturn.pull.searchPlaceholder': '按物料编码/名称搜索',
   'app.kuaizhizao.purchaseReturn.pull.sourceDocPlaceholder': '按来源单据筛选',
@@ -20160,6 +20183,11 @@ export default {
   'app.master-data.operationSequence.outsourceLeadDays': '提前期(天)',
   'app.master-data.operationSequence.outsourceSupplier': '委外供应商',
   'app.master-data.operationSequence.selectOutsourceSupplier': '选择供应商',
+  'app.master-data.operationSequence.processInspection': '过程检验',
+  'app.master-data.operationSequence.inspectionMode': '质检模式',
+  'app.master-data.operationSequence.inspectionPlan': '检验方案',
+  'app.master-data.operationSequence.selectInspectionPlan': '选择检验方案',
+  'app.master-data.operationSequence.selectInspectionPlanOrdered': '按顺序多选检验方案',
   'app.master-data.operationSequence.overReport': '超报',
   'app.master-data.operationSequence.overReportAction': '超报与操作',
   'app.master-data.operationSequence.replace': '替换',
@@ -20634,6 +20662,7 @@ export default {
   'field.operation.inspectionModePlan': '方案质检（与质检模块联动）',
   'field.operation.defaultInspectionPlan': '默认质检方案',
   'field.operation.defaultInspectionPlanPlaceholder': '请选择默认质检方案',
+  'field.operation.defaultInspectionPlanOrderedPlaceholder': '按顺序多选默认质检方案',
   'field.operation.defectTypeUuidsSimpleHint': '选择简易质检时，请配置不良品类型用于报工时记录不合格数量',
   'field.operation.gotoInspectionPlans': '前往新建质检方案',
   'field.operation.defectTypeUuids': '绑定不良品项',
@@ -21904,7 +21933,8 @@ export default {
     'CURRENCY、TIMEZONE 及已安装应用归属的系统字典',
   'pages.system.configCenter.tenantInit.itemDesc.system_parameter': '系统名称、时区、货币等参数（必选）',
   'pages.system.configCenter.tenantInit.itemDesc.code_rule': '工单、物料、销售单等编码规则',
-  'pages.system.configCenter.tenantInit.itemDesc.approval_process_preset': '采购单、销售单等审批流程',
+  'pages.system.configCenter.tenantInit.itemDesc.approval_process_preset':
+    '为可审核单据初始化配置行与审批流程定义（默认未激活，启用开关时绑定并激活）',
   'pages.system.configCenter.tenantInit.itemDesc.message_template_preset': '审批通知、验证码等消息模板',
   'pages.system.configCenter.tenantInit.itemDesc.print_template_preset': '通用标签、收据等打印模板',
   'pages.system.configCenter.tenantInit.itemDesc.menu_sync':
@@ -22176,9 +22206,9 @@ export default {
   'app.kuaizhizao.quality.common.defectType.function': '功能异常',
   'app.kuaizhizao.quality.common.defectType.material': '材质问题',
   'app.kuaizhizao.quality.common.defectType.other': '其他',
-  'app.kuaizhizao.quality.common.columns.inspectionKind': '类型',
-  'app.kuaizhizao.quality.common.inspectionKind.simple': '简易检验',
-  'app.kuaizhizao.quality.common.inspectionKind.plan': '方案检验',
+  'app.kuaizhizao.quality.common.columns.inspectionKind': '检验方案',
+  'app.kuaizhizao.quality.common.inspectionKind.simple': '简易质检',
+  'app.kuaizhizao.quality.common.inspectionKind.plan': '方案质检',
   'app.kuaizhizao.quality.common.columns.inspectionCode': '检验单号',
   'app.kuaizhizao.quality.common.columns.materialCode': '物料编码',
   'app.kuaizhizao.quality.common.columns.materialName': '物料名称',
@@ -28109,6 +28139,122 @@ export default {
     '修复物料编辑保存后仍跳回全部物料',
   'pages.dashboard.updateLog.entries.material-management-keep-group-after-edit-v2.description':
     '物料管理进编辑时列表标签会卸载，返回时整页重建；现将分组筛选写入浏览会话并禁止用「全部」冲掉原分组，保存或取消后仍停留在编辑前所在分组。',
+  'pages.dashboard.updateLog.entries.stale-chunk-auto-reload.title':
+    '发版后旧前端资源自动刷新',
+  'pages.dashboard.updateLog.entries.stale-chunk-auto-reload.description':
+    '发版后若浏览器仍引用已下线的 JS chunk，进入业务应用时会自动硬刷新一次；生产环境不再误提示 compose 或重启 Vite。',
+  'pages.dashboard.updateLog.entries.purchase-return-pull-select-warehouse.title':
+    '采购退货取单可直接选择退货仓库',
+  'pages.dashboard.updateLog.entries.purchase-return-pull-select-warehouse.description':
+    '从采购订单创建退货单时，物料未维护默认仓库不再直接报错；取单弹窗可按行或批量选择退货仓库后生成，逻辑与入库快捷取单一致。',
+  'pages.dashboard.updateLog.entries.purchase-inquiry-approval-process-ensure.title':
+    '采购询价等审核单据补齐审批流程定义',
+  'pages.dashboard.updateLog.entries.purchase-inquiry-approval-process-ensure.description':
+    '询价单等已声明审核但历史租户未生成对应审批流程，配置中心开启后无法提交审批；现按 manifest 自动补齐流程定义，并补上询价/申请/工单的审批完成写回，避免流程通过后单据仍停在待审。',
+  'pages.dashboard.updateLog.entries.purchase-inquiry-draft-no-simultaneous-submit-audit.title':
+    '采购询价草稿不再同时出现提交与审核',
+  'pages.dashboard.updateLog.entries.purchase-inquiry-draft-no-simultaneous-submit-audit.description':
+    '未提交的询价单审核状态误用待审默认值，列表把草稿当成待审核，提交与审核按钮一起显示；现未提交为草稿审核态，提交后才进入待审并出现审核。',
+  'pages.dashboard.updateLog.entries.purchase-inquiry-duplicate-submit-action.title':
+    '采购询价单行操作不再出现两个提交',
+  'pages.dashboard.updateLog.entries.purchase-inquiry-duplicate-submit-action.description':
+    '草稿询价单列表原先自建「提交」按钮，又叠加审核工作流的提交，直出与「更多」里各出现一次；已去掉页面自建提交，只保留工作流统一入口。',
+  'pages.dashboard.updateLog.entries.ipqc-no-duplicate-plan-after-inspected.title':
+    '同方案过程检验检完后不再重复建单',
+  'pages.dashboard.updateLog.entries.ipqc-no-duplicate-plan-after-inspected.description':
+    '多方案工序报工或下推时，若该工单工序下某方案已有待检/已检验/已审核单据则复用，不再新开；有序续建下一方案时同样跳过已存在单据，避免尺寸方案检完又冒出一张同方案待检。',
+  'pages.dashboard.updateLog.entries.work-order-op-card-inspection-overview-hover.title':
+    '工序卡质检行悬停显示检验情况概览',
+  'pages.dashboard.updateLog.entries.work-order-op-card-inspection-overview-hover.description':
+    '工单工序卡「质检」文案悬停不再只重复截断方案名，改为展示检验情况概览（质检方式、方案、状态、待检单、合格/不合格与可转下道等）。',
+  'pages.dashboard.updateLog.entries.quality-inspection-kind-plan-name-not-code-dup.title':
+    '检验方案列不再把编号显示成名称',
+  'pages.dashboard.updateLog.entries.quality-inspection-kind-plan-name-not-code-dup.description':
+    '旧检验单快照可能只有方案编号；列表改为优先用建单时写入的检验标准解析方案名称，叠列上为名称、下为编号，避免两行都是编号。',
+  'pages.dashboard.updateLog.entries.quality-inspection-kind-plan-name-code-stack.title':
+    '检验方案列简易质检与方案名称编号叠列',
+  'pages.dashboard.updateLog.entries.quality-inspection-kind-plan-name-code-stack.description':
+    '简易质检仅显示「简易质检」徽章；方案质检不再套「方案检验」标签，直接按方案名称 / 方案编号堆叠展示，便于多方案工序区分。',
+  'pages.dashboard.updateLog.entries.quality-inspection-list-col-order-material-op-plan.title':
+    '检验列表列序调整为物料工序方案',
+  'pages.dashboard.updateLog.entries.quality-inspection-list-col-order-material-op-plan.description':
+    '检验四单据列表在单号后按「物料 → 工序/来源 → 检验方案」排列；方案列取消左固定以免打乱列序，表头由「类型」改为「检验方案」。',
+  'pages.dashboard.updateLog.entries.quality-inspection-kind-show-plan-name.title':
+    '检验列表类型列显示方案名称',
+  'pages.dashboard.updateLog.entries.quality-inspection-kind-show-plan-name.description':
+    '过程/来料/成品/出货检验列表的「类型」列在「方案检验」徽章下叠行显示方案名称，多方案工序可直接区分各检验单对应方案。',
+  'pages.dashboard.updateLog.entries.process-inspection-save-db-lock.title':
+    '过程检验保存转圈超时已修复',
+  'pages.dashboard.updateLog.entries.process-inspection-save-db-lock.description':
+    '数据库遗留未提交事务锁住过程检验行，保存 UPDATE 一直等待；已清理阻塞连接，并为数据库连接设置空闲事务超时，避免再次长时间锁死。',
+  'pages.dashboard.updateLog.entries.form-modal-save-loading-stuck.title':
+    '表单保存按钮转圈卡死已修复',
+  'pages.dashboard.updateLog.entries.form-modal-save-loading-stuck.description':
+    '保存不再走 ProForm.submit（内部 loading 会跳过 onFinish，只转圈不发请求）；改为校验后直接提交。过程检验开展先落库再跑审批/完工同步，避免接口一直 pending。',
+  'pages.dashboard.updateLog.entries.ipqc-multi-plan-create-all-at-once.title':
+    '多检验方案工序报工一次建齐全部过程检验单',
+  'pages.dashboard.updateLog.entries.ipqc-multi-plan-create-all-at-once.description':
+    '工序绑定多个过程检验方案时，报工或从工单下推会为每个方案各建一张待检单，无需等上一张放行后再建；各方案均放行后仍按最小合格量计入可转下道。',
+  'pages.dashboard.updateLog.entries.disposal-method-system-dictionary.title':
+    '不合格处置方式系统字典已补齐',
+  'pages.dashboard.updateLog.entries.disposal-method-system-dictionary.description':
+    '来料/过程/成品检验等页拉取 DISPOSAL_METHOD 时返回「字典不存在」；现已纳入系统预置字典，打开质检页会按需自动同步退货、让步接收、隔离、返工、报废、降级回用等选项。',
+  'pages.dashboard.updateLog.entries.process-inspection-conduct-save-no-response.title':
+    '过程检验点保存无反应已修复',
+  'pages.dashboard.updateLog.entries.process-inspection-conduct-save-no-response.description':
+    '方案检验弹窗打开后补齐布尔/缺陷多选项默认值，修正是/否控件取值入仓；校验失败时明确提示并滚动到首个问题项，保存按钮显示提交中状态，避免看似无反应。',
+  'pages.dashboard.updateLog.entries.wo-op-start-null-inspection-plan-ids.title':
+    '工序开始时检验方案列表为空报错已修复',
+  'pages.dashboard.updateLog.entries.wo-op-start-null-inspection-plan-ids.description':
+    '存量工单工序未写入 inspection_plan_ids 时库值为 null，开始/派工等接口组装响应会校验失败；现将空值规范为空列表，可正常开工。',
+  'pages.dashboard.updateLog.entries.uni-push-mark-deleted-downstream.title':
+    '下推菜单已删除下游单据加「已删除」标记',
+  'pages.dashboard.updateLog.entries.uni-push-mark-deleted-downstream.description':
+    '列表下推「已下推」子菜单中，下游单据若已软删除或不存在，编号加删除线并显示「已删除」标签，且不可再打开详情；关联接口同步返回 is_deleted，与单据追溯语义一致。',
+  'pages.dashboard.updateLog.entries.wo-op-schedule-shift-no-default-hour.title':
+    '工单工序计划时间：无工时同刻、有工时按班次推算',
+  'pages.dashboard.updateLog.entries.wo-op-schedule-shift-no-default-hour.description':
+    '工艺路线未维护标准/准备工时时，各工序共用同一计划时刻（对齐班次起点，系统默认 08:00–17:00）；仅维护了工时才按净工时推算。订单下推交期锚点改为交期日班次开始，不再从 00:00 起每道默认加一小时。',
+  'pages.dashboard.updateLog.entries.sidebar-app-group-unique-key.title':
+    '侧栏应用分组标题 key 重复警告已消除',
+  'pages.dashboard.updateLog.entries.sidebar-app-group-unique-key.description':
+    '同一应用若出现多个菜单根时，侧栏分组标题改用菜单 uuid 作为 React key，避免 app-group-code 冲突导致控制台告警与菜单异常。',
+  'pages.dashboard.updateLog.entries.operation-list-show-inspection-plans.title':
+    '工序列表展示默认质检方案',
+  'pages.dashboard.updateLog.entries.operation-list-show-inspection-plans.description':
+    '工序管理列表与详情增加「默认质检方案」列，方案质检时按顺序显示已绑定方案名称，超出以 +N 收起。',
+  'pages.dashboard.updateLog.entries.process-route-ipqc-reload-override.title':
+    '工艺路线检验方案保存后回显丢失已修复',
+  'pages.dashboard.updateLog.entries.process-route-ipqc-reload-override.description':
+    '编辑工艺路线时，工序行已保存的有序多检验方案会被工序主数据质检配置盖掉；现优先使用路线行覆盖，保存后重新打开仍显示完整多方案。',
+  'pages.dashboard.updateLog.entries.operation-inspection-plan-options-unscoped.title':
+    '工序默认质检方案下拉不再按适用工序过滤',
+  'pages.dashboard.updateLog.entries.operation-inspection-plan-options-unscoped.description':
+    '编辑工序时默认质检方案列出全部启用的过程检验方案，可跨工序复用；快速新增也不再绑死当前工序。',
+  'pages.dashboard.updateLog.entries.operation-ipqc-ordered-multi-plan.title':
+    '工序支持有序多选默认质检方案',
+  'pages.dashboard.updateLog.entries.operation-ipqc-ordered-multi-plan.description':
+    '工序主数据「默认质检方案」可按顺序多选（如先外观后尺寸）；带入工艺路线时继承该顺序，报工一次为各方案建过程检验。',
+  'pages.dashboard.updateLog.entries.process-route-ipqc-ordered-multi-plan.title':
+    '工艺路线支持工序有序多过程检验方案',
+  'pages.dashboard.updateLog.entries.process-route-ipqc-ordered-multi-plan.description':
+    '工艺路线工序可按顺序多选过程检验方案（如先外观后尺寸）；报工一次为各方案建待检单；各方案均放行后才计入可转下道数量。',
+  'pages.dashboard.updateLog.entries.process-route-step-ipqc-override.title':
+    '工艺路线工序可覆盖过程检验方案',
+  'pages.dashboard.updateLog.entries.process-route-step-ipqc-override.description':
+    '编辑工艺路线时自动带出工序主数据的过程检验配置，可按路线修改；开单后落章到工单工序，报工建过程检验单与工序卡展示优先使用路线覆盖结果。',
+  'pages.dashboard.updateLog.entries.process-route-outsource-detail-columns-conditional.title':
+    '工艺路线未开计划委外时隐藏提前期与供应商列',
+  'pages.dashboard.updateLog.entries.process-route-outsource-detail-columns-conditional.description':
+    '编辑工艺路线或产品工艺工序序列时，全部工序未开启计划委外则不展示提前期、委外供应商列；任一行开启后自动显示，未委外行仍禁用编辑。',
+  'pages.dashboard.updateLog.entries.process-route-detail-single-column.title':
+    '工艺路线详情改为单列展示',
+  'pages.dashboard.updateLog.entries.process-route-detail-single-column.description':
+    '工艺路线详情抽屉基本信息由双列改为单列，便于阅读编号、名称、工序序列与备注等字段。',
+  'pages.dashboard.updateLog.entries.kuaizhizao-reset-include-purchase-inquiry.title':
+    '修复快制造重置后询价单等业务单据仍残留',
+  'pages.dashboard.updateLog.entries.kuaizhizao-reset-include-purchase-inquiry.description':
+    '应用「重置数据」原先未覆盖采购询价/供应商报价、销售合同与变更单、需求运算等业务表；现已纳入重置清单，重置后不再残留询价单等单据。',
   'pages.dashboard.updateLog.entries.dashboard-quick-entry-icons-restore.title':
     '修复工作台快捷入口图标全部变成加号',
   'pages.dashboard.updateLog.entries.dashboard-quick-entry-icons-restore.description':

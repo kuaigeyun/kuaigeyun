@@ -159,12 +159,14 @@ import { buildLoginRedirectPath } from '../utils/tenantDomainAccess';
 import { isPlatformAdminLoginPathname, isPlatformInfraPath } from '../utils/platformScope';
 import { redirectAfterLogout } from '../utils/loginEntry';
 
-/** 侧栏应用分组标题 → 应用 code（任意应用；key / path） */
+/** 侧栏应用分组标题 → 应用 code（任意应用；key / path / data 属性） */
 function resolveSidebarAppGroupCode(item: {
   key?: React.Key;
   path?: string;
+  label?: React.ReactNode;
 }): string | null {
   const keyStr = String(item.key ?? '');
+  // 兼容历史 key：app-group-code-{code}；现行 key 为 app-group-{uuid}
   const fromKey = keyStr.match(/^app-group-code-(.+)$/)?.[1];
   if (fromKey) return fromKey;
 

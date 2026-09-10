@@ -19,7 +19,12 @@ class InspectionStagePolicySchema(BaseModel):
     """单场景质检策略。"""
 
     mode: str = Field("none", description="none|simple|plan")
-    plan_id: Optional[int] = Field(None, alias="planId", description="方案质检时的检验方案 ID")
+    plan_id: Optional[int] = Field(None, alias="planId", description="方案质检时的检验方案 ID（多方案时为首项）")
+    plan_ids: Optional[List[int]] = Field(
+        None,
+        alias="planIds",
+        description="有序多方案 ID（工序 IPQC）；缺省时由 plan_id 推导",
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 

@@ -342,10 +342,48 @@ class DocumentRelationNewService:
                         if not (r.source_type == "demand" and int(r.source_id or 0) in hide_demand_ids)
                     ]
 
+        upstream_responses = await self._enrich_relations_deleted_flags(
+            tenant_id, upstream_responses, side="upstream"
+        )
+        downstream_responses = await self._enrich_relations_deleted_flags(
+            tenant_id, downstream_responses, side="downstream"
+        )
+
         return DocumentRelationListResponse(
             upstream=upstream_responses,
             downstream=downstream_responses,
         )
+
+    async def _enrich_relations_deleted_flags(
+        self,
+        tenant_id: int,
+        rows: List[DocumentRelationResponse],
+        *,
+        side: str,
+    ) -> List[DocumentRelationResponse]:
+        """为关联列表补齐对端 is_deleted（与追溯节点语义一致）。"""
+        if not rows:
+            return rows
+        out: List[DocumentRelationResponse] = []
+        for r in rows:
+            if side == "upstream":
+                deleted = await self._resolve_trace_node_deleted(
+                    tenant_id,
+                    r.source_type,
+                    r.source_id,
+                    r.source_code,
+                    r.created_at,
+                )
+            else:
+                deleted = await self._resolve_trace_node_deleted(
+                    tenant_id,
+                    r.target_type,
+                    r.target_id,
+                    r.target_code,
+                    r.created_at,
+                )
+            out.append(r.model_copy(update={"is_deleted": bool(deleted)}))
+        return out
     
     async def batch_create_relations(
         self,

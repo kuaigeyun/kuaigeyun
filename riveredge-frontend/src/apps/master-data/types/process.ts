@@ -90,7 +90,15 @@ export interface Operation {
   /** 默认质检方案ID（方案质检时使用） */
   defaultInspectionPlanId?: number | null;
   default_inspection_plan_id?: number | null;
+  defaultInspectionPlanIds?: number[];
+  default_inspection_plan_ids?: number[];
   defaultInspectionPlanName?: string;
+  default_inspection_plan_name?: string;
+  defaultInspectionPlanNames?: string[];
+  default_inspection_plan_names?: string[];
+  /** 分场景质检（工序仅 ipqc） */
+  inspectionStages?: Record<string, { mode?: string; planId?: number | null; plan_id?: number | null; planIds?: number[]; plan_ids?: number[] }>;
+  inspection_stages?: Record<string, { mode?: string; planId?: number | null; plan_id?: number | null; planIds?: number[]; plan_ids?: number[] }>;
   defaultOperatorId?: number;
   default_operator_id?: number;
   defaultOperatorUuids?: string[];
@@ -128,6 +136,8 @@ export interface OperationCreate {
   isActive?: boolean;
   inspectionMode?: 'none' | 'simple' | 'plan';
   defaultInspectionPlanId?: number | null;
+  defaultInspectionPlanIds?: number[];
+  inspectionStages?: Record<string, { mode?: string; planId?: number | null; planIds?: number[] }>;
   defectTypeUuids?: string[];
   defaultOperatorUuids?: string[];
   defaultTeamIds?: number[];
@@ -149,6 +159,8 @@ export interface OperationUpdate {
   isActive?: boolean;
   inspectionMode?: 'none' | 'simple' | 'plan';
   defaultInspectionPlanId?: number | null;
+  defaultInspectionPlanIds?: number[];
+  inspectionStages?: Record<string, { mode?: string; planId?: number | null; planIds?: number[] }>;
   defectTypeUuids?: string[];
   defaultOperatorUuids?: string[];
   defaultTeamIds?: number[];

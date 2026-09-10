@@ -153,25 +153,53 @@ def normalize_inspection_mode(raw: Any) -> str:
     return s
 
 
-def normalize_stage_policy(raw: Any) -> Dict[str, Any]:
-    """规范单场景策略 { mode, plan_id }。
+def _normalize_plan_id_list(raw: Any) -> List[int]:
+    """有序去重的方案 ID 列表（保序）。"""
+    if raw is None or raw == "":
+        return []
+    items: List[Any]
+    if isinstance(raw, (list, tuple)):
+        items = list(raw)
+    else:
+        items = [raw]
+    out: List[int] = []
+    seen: set[int] = set()
+    for item in items:
+        try:
+            pid = int(item)
+        except (TypeError, ValueError):
+            continue
+        if pid <= 0 or pid in seen:
+            continue
+        seen.add(pid)
+        out.append(pid)
+    return out
 
-    同时认 plan_id / planId：JSON 主数据、API 别名、历史写入都可能是驼峰。
+
+def normalize_stage_policy(raw: Any) -> Dict[str, Any]:
+    """规范单场景策略 { mode, plan_id, plan_ids }。
+
+    同时认 plan_id / planId、plan_ids / planIds。
+    plan_id 恒为首项（兼容单方案读路径）；IPQC 可存有序多方案。
     """
     if not isinstance(raw, dict):
-        return {"mode": "none", "plan_id": None}
+        return {"mode": "none", "plan_id": None, "plan_ids": []}
     mode = normalize_inspection_mode(raw.get("mode"))
-    plan_id = raw.get("plan_id")
-    if plan_id is None:
-        plan_id = raw.get("planId")
     if mode != "plan":
-        return {"mode": mode, "plan_id": None}
-    if plan_id is None:
-        return {"mode": mode, "plan_id": None}
-    try:
-        return {"mode": mode, "plan_id": int(plan_id)}
-    except (TypeError, ValueError):
-        return {"mode": mode, "plan_id": None}
+        return {"mode": mode, "plan_id": None, "plan_ids": []}
+    plan_ids = _normalize_plan_id_list(
+        raw.get("plan_ids") if raw.get("plan_ids") is not None else raw.get("planIds")
+    )
+    if not plan_ids:
+        plan_id = raw.get("plan_id")
+        if plan_id is None:
+            plan_id = raw.get("planId")
+        plan_ids = _normalize_plan_id_list(plan_id)
+    return {
+        "mode": mode,
+        "plan_id": plan_ids[0] if plan_ids else None,
+        "plan_ids": plan_ids,
+    }
 
 
 def material_stages_from_legacy(
@@ -180,28 +208,33 @@ def material_stages_from_legacy(
 ) -> Dict[str, Dict[str, Any]]:
     """legacy inspection_mode + default_inspection_plan_id → IQC/FQC/OQC 同值 shim。"""
     mode = normalize_inspection_mode(inspection_mode)
-    plan_id: Optional[int] = None
-    if mode == "plan" and default_inspection_plan_id is not None:
-        try:
-            plan_id = int(default_inspection_plan_id)
-        except (TypeError, ValueError):
-            plan_id = None
-    policy = {"mode": mode, "plan_id": plan_id}
+    plan_ids = _normalize_plan_id_list(default_inspection_plan_id) if mode == "plan" else []
+    policy = {
+        "mode": mode,
+        "plan_id": plan_ids[0] if plan_ids else None,
+        "plan_ids": plan_ids,
+    }
     return {k: dict(policy) for k in MATERIAL_INSPECTION_STAGE_KEYS}
 
 
 def operation_stages_from_legacy(
     inspection_mode: Any,
     default_inspection_plan_id: Any,
+    default_inspection_plan_ids: Any = None,
 ) -> Dict[str, Dict[str, Any]]:
     mode = normalize_inspection_mode(inspection_mode)
-    plan_id: Optional[int] = None
-    if mode == "plan" and default_inspection_plan_id is not None:
-        try:
-            plan_id = int(default_inspection_plan_id)
-        except (TypeError, ValueError):
-            plan_id = None
-    return {"ipqc": {"mode": mode, "plan_id": plan_id}}
+    plan_ids: List[int] = []
+    if mode == "plan":
+        plan_ids = _normalize_plan_id_list(default_inspection_plan_ids)
+        if not plan_ids:
+            plan_ids = _normalize_plan_id_list(default_inspection_plan_id)
+    return {
+        "ipqc": {
+            "mode": mode,
+            "plan_id": plan_ids[0] if plan_ids else None,
+            "plan_ids": plan_ids,
+        }
+    }
 
 
 def normalize_material_inspection_stages(raw: Any, *, legacy_mode: Any = None, legacy_plan_id: Any = None) -> Dict[str, Dict[str, Any]]:
@@ -210,11 +243,17 @@ def normalize_material_inspection_stages(raw: Any, *, legacy_mode: Any = None, l
     return material_stages_from_legacy(legacy_mode, legacy_plan_id)
 
 
-def normalize_operation_inspection_stages(raw: Any, *, legacy_mode: Any = None, legacy_plan_id: Any = None) -> Dict[str, Dict[str, Any]]:
+def normalize_operation_inspection_stages(
+    raw: Any,
+    *,
+    legacy_mode: Any = None,
+    legacy_plan_id: Any = None,
+    legacy_plan_ids: Any = None,
+) -> Dict[str, Dict[str, Any]]:
     if isinstance(raw, dict) and raw:
         out = {k: normalize_stage_policy(raw.get(k)) for k in OPERATION_INSPECTION_STAGE_KEYS}
         return out
-    return operation_stages_from_legacy(legacy_mode, legacy_plan_id)
+    return operation_stages_from_legacy(legacy_mode, legacy_plan_id, legacy_plan_ids)
 
 
 def sync_legacy_fields_from_stages(stages: Dict[str, Dict[str, Any]]) -> Tuple[str, Optional[int]]:
@@ -384,8 +423,11 @@ def _collect_stage_plan_ids_from_material(stages: Dict[str, Any]) -> List[Tuple[
     out: List[Tuple[str, int]] = []
     for key in MATERIAL_INSPECTION_STAGE_KEYS:
         pol = normalize_stage_policy(stages.get(key))
-        if pol["mode"] == "plan" and pol.get("plan_id"):
-            out.append((key, int(pol["plan_id"])))
+        if pol["mode"] != "plan":
+            continue
+        ids = pol.get("plan_ids") or ([] if not pol.get("plan_id") else [pol["plan_id"]])
+        for pid in ids:
+            out.append((key, int(pid)))
     return out
 
 
@@ -393,8 +435,11 @@ def _collect_stage_plan_ids_from_operation(stages: Dict[str, Any]) -> List[Tuple
     out: List[Tuple[str, int]] = []
     for key in OPERATION_INSPECTION_STAGE_KEYS:
         pol = normalize_stage_policy(stages.get(key))
-        if pol["mode"] == "plan" and pol.get("plan_id"):
-            out.append((key, int(pol["plan_id"])))
+        if pol["mode"] != "plan":
+            continue
+        ids = pol.get("plan_ids") or ([] if not pol.get("plan_id") else [pol["plan_id"]])
+        for pid in ids:
+            out.append((key, int(pid)))
     return out
 
 
@@ -747,12 +792,28 @@ def resolve_ipqc_policy_from_stages(
     return "none", None, "default_none"
 
 
+def apply_ipqc_stage_gates(
+    cfg: QualityEffectiveConfig,
+    mode: str,
+    plan_id: Optional[int],
+    reason: str,
+) -> Tuple[str, Optional[int], str]:
+    """组织环节/模块关闭时强制 none；否则原样返回。"""
+    if not cfg["stage_enabled"].get("ipqc", True):
+        return "none", None, "stage_disabled"
+    module_key = STAGE_MODULE_KEY.get("ipqc")
+    if module_key and not cfg["module_enabled"].get(module_key, True):
+        return "none", None, "module_disabled"
+    return mode, plan_id, reason
+
+
 async def resolve_inspection_policy(
     tenant_id: int,
     stage: InspectionStage,
     *,
     material_id: Optional[int] = None,
     operation_id: Optional[int] = None,
+    work_order_operation: Any = None,
     work_order_override: Optional[str] = None,
     # legacy kwargs — 禁止新业务使用；仅当未传 material_id/operation_id 时生效
     material_inspection_mode: Optional[str] = None,
@@ -760,6 +821,8 @@ async def resolve_inspection_policy(
 ) -> Tuple[str, Optional[int], str]:
     """
     解析最终生效的 inspection mode 与 plan_id。
+
+    IPQC：工单工序落章（路线覆盖开单写入）> 工序主数据。
 
     Returns:
         (effective_mode, plan_id, reason)
@@ -776,6 +839,12 @@ async def resolve_inspection_policy(
         return wo, None, "work_order_override"
 
     if stage == "ipqc":
+        if work_order_operation is not None:
+            from apps.kuaizhizao.utils.route_step_ipqc import ipqc_policy_from_wo_operation
+
+            snap = ipqc_policy_from_wo_operation(work_order_operation)
+            if snap is not None:
+                return apply_ipqc_stage_gates(cfg, snap[0], snap[1], snap[2])
         if operation_id:
             op_stages = await get_operation_inspection_stages(tenant_id, operation_id)
             return resolve_ipqc_policy_from_stages(cfg, op_stages)
@@ -1473,16 +1542,31 @@ def prepare_material_inspection_for_write(data: Dict[str, Any]) -> Dict[str, Any
 
 def prepare_operation_inspection_for_write(data: Dict[str, Any]) -> Dict[str, Any]:
     """写入工序：以 inspection_stages 为主，同步 legacy 字段。"""
-    if data.get("inspection_stages") is not None:
-        stages = normalize_operation_inspection_stages(data["inspection_stages"])
+    stages_raw = data.get("inspection_stages")
+    if stages_raw is None:
+        stages_raw = data.get("inspectionStages")
+    mode_raw = data.get("inspection_mode")
+    if mode_raw is None:
+        mode_raw = data.get("inspectionMode")
+    plan_id_raw = data.get("default_inspection_plan_id")
+    if plan_id_raw is None:
+        plan_id_raw = data.get("defaultInspectionPlanId")
+    plan_ids_raw = data.get("default_inspection_plan_ids")
+    if plan_ids_raw is None:
+        plan_ids_raw = data.get("defaultInspectionPlanIds")
+
+    if stages_raw is not None:
+        stages = normalize_operation_inspection_stages(stages_raw)
         ipqc = normalize_stage_policy(stages.get("ipqc"))
         data["inspection_stages"] = stages
         data["inspection_mode"] = ipqc["mode"]
         data["default_inspection_plan_id"] = ipqc["plan_id"]
-    elif data.get("inspection_mode") is not None or data.get("default_inspection_plan_id") is not None:
-        stages = operation_stages_from_legacy(
-            data.get("inspection_mode"),
-            data.get("default_inspection_plan_id"),
-        )
+        data["default_inspection_plan_ids"] = list(ipqc.get("plan_ids") or [])
+    elif mode_raw is not None or plan_id_raw is not None or plan_ids_raw is not None:
+        stages = operation_stages_from_legacy(mode_raw, plan_id_raw, plan_ids_raw)
+        ipqc = normalize_stage_policy(stages.get("ipqc"))
         data["inspection_stages"] = stages
+        data["inspection_mode"] = ipqc["mode"]
+        data["default_inspection_plan_id"] = ipqc["plan_id"]
+        data["default_inspection_plan_ids"] = list(ipqc.get("plan_ids") or [])
     return data

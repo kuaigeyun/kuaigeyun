@@ -87,6 +87,7 @@ import {
   buildInspectionQualityExtraButtons,
 } from '../components/InspectionDetailQualityActions';
 import {
+  buildConductStepResultDefaults,
   getInspectionTemplateSource,
   hasInspectionPlanSteps,
   pickInspectionConductExtras,
@@ -451,19 +452,26 @@ const ProcessInspectionPage: React.FC = () => {
   const handleInspect = async (record: ProcessInspection) => {
     setCurrentInspection(record);
     setInspectionModalVisible(true);
-    const baseValues = {
-      qualified_quantity: record.inspection_quantity || 0,
-      unqualified_quantity: 0,
-      notes: '',
-      attachments: mapAttachmentsToUploadList(record.attachments),
-    };
-    if (record.id != null) {
-      const customFormValues = await loadInspectionFormFieldValues(record.id);
-      formRef.current?.setFieldsValue({ ...baseValues, ...customFormValues });
-    } else {
-      formRef.current?.setFieldsValue(baseValues);
-    }
   };
+
+  const fillInspectionConductForm = useCallback(
+    async (record: ProcessInspection) => {
+      const baseValues = {
+        qualified_quantity: record.inspection_quantity || 0,
+        unqualified_quantity: 0,
+        notes: '',
+        attachments: mapAttachmentsToUploadList(record.attachments),
+        conduct_step_results: buildConductStepResultDefaults(record as unknown as Record<string, unknown>),
+      };
+      if (record.id != null) {
+        const customFormValues = await loadInspectionFormFieldValues(record.id);
+        formRef.current?.setFieldsValue({ ...baseValues, ...customFormValues });
+      } else {
+        formRef.current?.setFieldsValue(baseValues);
+      }
+    },
+    [loadInspectionFormFieldValues],
+  );
 
   // 处理检验提交
   const handleInspectionSubmit = async (values: any) => {
@@ -924,7 +932,8 @@ const ProcessInspectionPage: React.FC = () => {
       inspectionQualityStatusValueEnum,
     ),
     buildQualityInspectionListCodeColumn<ProcessInspection>(t),
-    buildQualityInspectionListKindColumn<ProcessInspection>(t),
+    buildQualityInspectionListMaterialColumn<ProcessInspection>(t),
+    ...buildQualityInspectionListMaterialHiddenColumns<ProcessInspection>(t),
     buildQualityInspectionPartnerStackedColumn<ProcessInspection>(
       t('app.kuaizhizao.quality.common.columns.operationWorkOrder'),
       ['operation_name', 'operationName'],
@@ -942,8 +951,7 @@ const ProcessInspectionPage: React.FC = () => {
       hideInTable: true,
       ellipsis: true,
     },
-    buildQualityInspectionListMaterialColumn<ProcessInspection>(t),
-    ...buildQualityInspectionListMaterialHiddenColumns<ProcessInspection>(t),
+    buildQualityInspectionListKindColumn<ProcessInspection>(t),
     buildInspectorNameColumn<ProcessInspection>(t('app.kuaizhizao.quality.common.columns.inspector')),
     ...buildQualityInspectionListQuantityResultColumns<ProcessInspection>(t),
     buildQualityInspectionListNotesColumn<ProcessInspection>(t),
@@ -1014,7 +1022,7 @@ const ProcessInspectionPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildDocumentListHelpViewConfig(DOCUMENT_LIST_HELP_KEYS.processInspection)}
         headerTitle={t('app.kuaizhizao.quality.process.pageTitle')}
-        columnPersistenceId="apps.kuaizhizao.pages.quality-management.process-inspection-width-v2"
+        columnPersistenceId="apps.kuaizhizao.pages.quality-management.process-inspection-width-v5"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -1120,12 +1128,20 @@ const ProcessInspectionPage: React.FC = () => {
           setInspectionModalVisible(false);
           resetInspectionFormFieldValues();
         }}
+        afterOpenChange={(opened) => {
+          if (opened && currentInspection) {
+            void fillInspectionConductForm(currentInspection);
+          }
+        }}
         onFinish={handleInspectionSubmit}
         isEdit={false}
         initialValues={{
           qualified_quantity: currentInspection?.inspection_quantity || 0,
           unqualified_quantity: 0,
           notes: '',
+          conduct_step_results: buildConductStepResultDefaults(
+            currentInspection as unknown as Record<string, unknown>,
+          ),
         }}
         width={
           hasInspectionPlanSteps(getInspectionTemplateSource(currentInspection as Record<string, unknown>))

@@ -63,10 +63,12 @@ import {
   buildOperationReportingTypeValueEnum,
   renderOperationActiveStatusTag,
   renderOperationDefectTypeMarkers,
+  renderOperationInspectionPlanMarkers,
   renderOperationOverReportModeMarker,
   renderOperationPersonnelMarkers,
   renderOperationReportingTypeMarker,
   resolveOperationDefaultPersonnelLabels,
+  resolveOperationInspectionPlanLabels,
 } from '../../../utils/operationMeta';
 
 /**
@@ -211,6 +213,13 @@ const OperationsPage: React.FC = () => {
         title: t('common.enabled'),
         dataIndex: 'isActive',
         render: (_: unknown, record: Operation) => renderOperationActiveStatusTag(t, record.isActive),
+      },
+      {
+        title: t('field.operation.defaultInspectionPlan'),
+        dataIndex: 'defaultInspectionPlanNames',
+        span: 2,
+        render: (_: unknown, record: Operation) =>
+          renderOperationInspectionPlanMarkers(resolveOperationInspectionPlanLabels(record), 99),
       },
       {
         title: t('field.operation.defectTypeUuids'),
@@ -647,6 +656,18 @@ const OperationsPage: React.FC = () => {
         ),
     },
     {
+      title: t('field.operation.defaultInspectionPlan'),
+      dataIndex: 'defaultInspectionPlanNames',
+      width: 220,
+      minWidth: 220,
+      uniTableKeepWidth: true,
+      resizable: false,
+      hideInSearch: true,
+      ellipsis: true,
+      render: (_: unknown, record: Operation) =>
+        renderOperationInspectionPlanMarkers(resolveOperationInspectionPlanLabels(record)),
+    },
+    {
       title: t('field.operation.defectTypeUuids'),
       dataIndex: ['defect_types', 'defectTypes'],
       width: 200,
@@ -718,7 +739,7 @@ const OperationsPage: React.FC = () => {
       <UniTable<Operation>
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('masterData.operations')}
-        columnPersistenceId="apps.master-data.pages.process.operations.list-v3"
+        columnPersistenceId="apps.master-data.pages.process.operations.list-v4"
         actionRef={actionRef}
         columns={alignProColumns(columns, MASTER_DATA_LIST_FIELD_RANK)}
         request={async (params, sort, _filter, searchFormValues, meta?: UniTableRequestMeta) => {

@@ -127,3 +127,18 @@ def test_finance_payable_rejected_full_label_allows_resubmit():
     audit = derive_audit_phase("payable", "未付款", "已驳回", enabled=True)
     assert audit["phase"] == "rejected"
     assert audit["allowed_actions"] == ["submit"]
+
+
+def test_purchase_inquiry_draft_default_pending_is_still_draft_phase():
+    """建单默认 review=PENDING 不得当成已提交待审，否则草稿会同时出现提交+审核。"""
+    audit = derive_audit_phase("purchase_inquiry", "DRAFT", "PENDING", enabled=True)
+    assert audit["phase"] == "draft"
+    assert audit["allowed_actions"] == ["submit"]
+
+
+def test_purchase_inquiry_draft_after_submit_is_pending_phase():
+    audit = derive_audit_phase(
+        "purchase_inquiry", "DRAFT", "PENDING_REVIEW", enabled=True
+    )
+    assert audit["phase"] == "pending"
+    assert set(audit["allowed_actions"]) == {"approve", "reject", "withdraw"}

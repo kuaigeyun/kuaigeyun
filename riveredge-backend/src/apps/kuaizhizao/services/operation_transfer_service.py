@@ -79,9 +79,10 @@ async def resolve_operation_transfer_qualified(
     cache = policy_cache if policy_cache is not None else {}
     if master_op_id not in cache:
         cache[master_op_id] = await resolve_inspection_policy(
-            tenant_id, "ipqc", operation_id=master_op_id
+            tenant_id, "ipqc", operation_id=master_op_id, work_order_operation=woo
         )
-    mode, _, _ = cache[master_op_id]
+    cfg = await get_quality_effective_config(tenant_id)
+    mode, _, _ = resolve_ipqc_for_work_order_operation(cfg, woo, cache[master_op_id])
 
     reported_qualified = Decimal(str(woo.qualified_quantity or 0))
     if mode != "plan":
@@ -100,8 +101,14 @@ async def resolve_operation_transfer_qualified(
     else:
         inspections = inspections_by_op.get(master_op_id, [])
 
-    return await sum_plan_transfer_qualified_from_inspections(
-        tenant_id, inspections, audit_required=audit_required
+    from apps.kuaizhizao.utils.ipqc_ordered_plans import resolve_ordered_plan_transfer_qualified
+    from apps.kuaizhizao.utils.route_step_ipqc import ipqc_plan_ids_from_wo_operation
+
+    return await resolve_ordered_plan_transfer_qualified(
+        tenant_id,
+        inspections,
+        ipqc_plan_ids_from_wo_operation(woo),
+        audit_required=audit_required,
     )
 
 
@@ -121,9 +128,10 @@ async def resolve_operation_display_unqualified(
     cache = policy_cache if policy_cache is not None else {}
     if master_op_id not in cache:
         cache[master_op_id] = await resolve_inspection_policy(
-            tenant_id, "ipqc", operation_id=master_op_id
+            tenant_id, "ipqc", operation_id=master_op_id, work_order_operation=woo
         )
-    mode, _, _ = cache[master_op_id]
+    cfg = await get_quality_effective_config(tenant_id)
+    mode, _, _ = resolve_ipqc_for_work_order_operation(cfg, woo, cache[master_op_id])
 
     if mode == "plan":
         if inspections_by_op is None:
@@ -184,6 +192,21 @@ async def build_operation_policy_cache(
         oid: resolve_ipqc_policy_from_stages(cfg, stages_by_op.get(oid))
         for oid in uniq
     }
+
+
+def resolve_ipqc_for_work_order_operation(
+    cfg: Any,
+    wo_op: Any,
+    master_policy: Tuple[str, Optional[int], str],
+) -> Tuple[str, Optional[int], str]:
+    """工单工序落章优先，否则使用工序主数据策略缓存。"""
+    from apps.kuaizhizao.services.inspection_policy_service import apply_ipqc_stage_gates
+    from apps.kuaizhizao.utils.route_step_ipqc import ipqc_policy_from_wo_operation
+
+    snap = ipqc_policy_from_wo_operation(wo_op)
+    if snap is not None:
+        return apply_ipqc_stage_gates(cfg, snap[0], snap[1], snap[2])
+    return master_policy
 
 
 async def resolve_operation_inspection_plan_label(

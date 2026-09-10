@@ -111,6 +111,7 @@ _SYSTEM_DICTIONARY_REQUIRES_APPS: Dict[str, FrozenSet[str]] = {
     "INBOUND_REASON_TYPE": frozenset({"kuaizhizao"}),
     "OUTBOUND_REASON_TYPE": frozenset({"kuaizhizao"}),
     "WORK_ORDER_PRIORITY": frozenset({"kuaizhizao"}),
+    "DISPOSAL_METHOD": frozenset({"kuaizhizao"}),
     "INSTALL_EXECUTION_STAGE": frozenset({"kuaizhizao"}),
     "EQUIPMENT_TYPE": frozenset({"haoligo"}),
     "EQUIPMENT_NATURE": frozenset({"haoligo"}),

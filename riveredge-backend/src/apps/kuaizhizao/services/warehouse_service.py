@@ -13022,6 +13022,19 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
             deleted_at__isnull=True,
         ).all() if material_ids else []
         material_by_id = {int(m.id): m for m in materials}
+        from apps.master_data.services.material_service import (
+            resolve_primary_default_warehouse_from_material,
+        )
+
+        default_wh_by_material: Dict[int, tuple[Optional[int], Optional[str]]] = {}
+        for mid in material_ids:
+            material_wh = await resolve_primary_default_warehouse_from_material(
+                tenant_id, material_id=mid
+            )
+            if material_wh and material_wh[0]:
+                default_wh_by_material[mid] = (int(material_wh[0]), material_wh[1])
+            else:
+                default_wh_by_material[mid] = (None, None)
         batch_mgmt_enabled = await _warehouse_batch_management_enabled(tenant_id)
         inbound_by_item = await _list_inbound_batches_by_po_item_ids(
             tenant_id,
@@ -13049,6 +13062,8 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                 if str(row.get("batch_number") or "").strip()
             ]
             suggested_batch = batch_options[0]["batch_number"] if batch_options else None
+            mid = int(item.material_id) if item.material_id else 0
+            line_wh_id, line_wh_name = default_wh_by_material.get(mid, (None, None))
             lines.append(
                 {
                     "id": int(item.id),
@@ -13068,6 +13083,8 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                     "requires_batch_number": requires_batch,
                     "suggested_batch_number": suggested_batch,
                     "available_batches": batch_options,
+                    "warehouse_id": line_wh_id,
+                    "warehouse_name": line_wh_name,
                 }
             )
         lines.sort(
@@ -13086,8 +13103,13 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
         created_by: int,
         *,
         line_batches: Optional[Dict[int, str]] = None,
+        line_warehouses: Optional[Dict[int, int]] = None,
     ) -> Dict[str, Any]:
-        """按采购订单行 id 建采购退货单，可跨多张订单；同供应商合并一张。"""
+        """按采购订单行 id 建采购退货单，可跨多张订单；同供应商合并一张。
+
+        line_warehouses: 行级退货仓库 {purchase_order_item_id: warehouse_id}；
+        未传时回落物料默认仓，再回落租户可用仓（与采购入库快捷取单一致）。
+        """
         from apps.kuaizhizao.models.purchase_order import PurchaseOrder, PurchaseOrderItem
         from apps.kuaizhizao.schemas.document_relation import DocumentRelationCreate
         from apps.kuaizhizao.services.document_action_policy.purchase_order import (
@@ -13095,13 +13117,21 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
         )
         from apps.kuaizhizao.services.document_relation_new_service import DocumentRelationNewService
         from apps.master_data.models.material import Material
-        from apps.master_data.services.material_service import (
-            resolve_primary_default_warehouse_from_material,
-        )
+        from apps.kuaizhizao.utils.warehouse_resolver import resolve_inbound_warehouse_for_purchase_push
 
         selected_ids = [int(v) for v in item_ids if v is not None]
         if not selected_ids:
             raise BusinessLogicError("请至少选择一条可退货采购订单明细")
+        line_wh_map: Dict[int, int] = {}
+        if line_warehouses:
+            for k, v in line_warehouses.items():
+                try:
+                    item_key = int(k)
+                    wh_val = int(v)
+                except (TypeError, ValueError):
+                    continue
+                if item_key > 0 and wh_val > 0:
+                    line_wh_map[item_key] = wh_val
         items = await PurchaseOrderItem.filter(tenant_id=tenant_id, id__in=selected_ids).all()
         if not items:
             raise BusinessLogicError("没有可退货的采购订单行")
@@ -13168,23 +13198,25 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                     raise ValidationError(
                         f"物料 {item.material_code or item.material_name or item.id} 的单价无效，无法下推采购退货"
                     )
-                material_wh = await resolve_primary_default_warehouse_from_material(
-                    tenant_id, material_id=int(item.material_id)
-                )
-                if not material_wh:
-                    raise ValidationError(
-                        f"请为物料 {item.material_code or item.material_name or item.id} 维护默认仓库"
+                material_label = str(item.material_code or item.material_name or item.id)
+                explicit_wh = line_wh_map.get(int(item.id))
+                try:
+                    line_wh_id, line_wh_name = await resolve_inbound_warehouse_for_purchase_push(
+                        tenant_id,
+                        material_id=int(item.material_id),
+                        explicit_warehouse_id=explicit_wh,
                     )
-                line_wh_id, line_wh_name = material_wh
-                if line_wh_id is None or int(line_wh_id) <= 0:
-                    raise ValidationError(
-                        f"请为物料 {item.material_code or item.material_name or item.id} 维护默认仓库"
-                    )
+                except ValidationError as err:
+                    if explicit_wh is None:
+                        raise ValidationError(
+                            f"请为物料 {material_label} 选择退货仓库"
+                        ) from err
+                    raise
+                if not line_wh_name:
+                    line_wh_name = await _resolve_warehouse_name_by_id(tenant_id, line_wh_id)
                 if header_wh_id is None:
                     header_wh_id = int(line_wh_id)
-                    header_wh_name = line_wh_name or await _resolve_warehouse_name_by_id(
-                        tenant_id, int(line_wh_id)
-                    )
+                    header_wh_name = line_wh_name
 
                 material = material_by_id.get(int(item.material_id))
                 requires_batch = bool(
@@ -13284,12 +13316,13 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                     )
                 except Exception as rel_err:
                     logger.warning("建立采购订单→采购退货关联失败: %s", rel_err)
-            returns_out.append({
-                "return_id": created.id,
-                "return_code": created.return_code,
-                "order_id": primary.id,
-                "order_code": primary.order_code,
-            })
+            returns_out.append(
+                {
+                    "return_id": created.id,
+                    "return_code": created.return_code,
+                }
+            )
+
         if not returns_out:
             raise BusinessLogicError("所选明细无法生成采购退货单")
         first = returns_out[0]

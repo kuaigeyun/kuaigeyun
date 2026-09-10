@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 from infra.exceptions.exceptions import BusinessLogicError
 
-from apps.kuaizhizao.constants import DocumentStatus, LEGACY_PENDING_VALUES, ReviewStatus, normalize_status
+from apps.kuaizhizao.constants import DocumentStatus
 from apps.kuaizhizao.constants.purchase_inquiry import PurchaseInquiryStatus
 from apps.kuaizhizao.services.document_action_policy.types import (
     ActionCapability,
@@ -32,9 +32,15 @@ def _normalize_review_status(review_status: Any) -> str:
     return REVIEW_STATUS_ALIASES.get(raw, raw.upper())
 
 
-def _is_review_pending(review_status: Any) -> bool:
+def _is_review_awaiting_decision(review_status: Any) -> bool:
+    """已提交待人工审：PENDING_REVIEW / 待审核。建单默认 DRAFT/PENDING 不算待审。"""
     rs = _normalize_review_status(review_status)
-    return rs in LEGACY_PENDING_VALUES or rs == ReviewStatus.PENDING.value or rs == DocumentStatus.PENDING_REVIEW.value
+    return rs in {
+        DocumentStatus.PENDING_REVIEW.value,
+        "待审核",
+        "PENDING_APPROVAL",
+        "已提交",
+    }
 
 
 def derive_purchase_inquiry_capabilities(inquiry: Any) -> PurchaseInquiryCapabilities:
@@ -59,7 +65,7 @@ def derive_purchase_inquiry_capabilities(inquiry: Any) -> PurchaseInquiryCapabil
     )
 
     withdraw_submit_allowed = (
-        st == PurchaseInquiryStatus.DRAFT.value and _is_review_pending(review_status)
+        st == PurchaseInquiryStatus.DRAFT.value and _is_review_awaiting_decision(review_status)
     )
     withdraw_submit_cap = _cap(
         withdraw_submit_allowed,
@@ -67,8 +73,8 @@ def derive_purchase_inquiry_capabilities(inquiry: Any) -> PurchaseInquiryCapabil
     )
 
     approve_cap = _cap(
-        _is_review_pending(review_status),
-        "purchase_inquiry.approve.not_pending" if not _is_review_pending(review_status) else None,
+        _is_review_awaiting_decision(review_status),
+        "purchase_inquiry.approve.not_pending" if not _is_review_awaiting_decision(review_status) else None,
     )
 
     revoke_cap = _cap(True)

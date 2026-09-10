@@ -37,7 +37,7 @@ function sortByRank<T>(
  * 新增/调序：只改本对象；同类字段必须落在同一段位。
  *
  * 段位约定（语义聚类）：
- * - 10–14 单据名称 / 编号 / 主标识叠列；报工：workOrderStacked→operation；返工：product_name_code_stacked→rework_type→original_work_order_code；异常单据：exception_doc_work_order_code→物料/计划结束；检验四单据（同来料）：quality_inspection_kind→inspection_code→第二业务叠列→quality_inspection_material；设备单据：单号→设备/路线/计划名
+ * - 10–14 单据名称 / 编号 / 主标识叠列；报工：workOrderStacked→operation；返工：product_name_code_stacked→rework_type→original_work_order_code；异常单据：exception_doc_work_order_code→物料/计划结束；检验四单据（同来料）：inspection_code→quality_inspection_material→第二业务叠列→quality_inspection_kind；设备单据：单号→设备/路线/计划名
  * - 15–19 伙伴主称谓（客户/供应商等，非叠列时）；销售/项目上下文：project_name
  * - 20–29 类型类（合同类型、预测周期、版本、业务模式、分类等）；工单委外：owo_product_stacked→priority；异常：exception_type/alert_level/severity；设备：fault/repair/plan 类型→级别/结果标识
  * - 30–49 品种数 / 数量 / 金额 / 价税度量；报工：work_hours(32) → worker_name(32.5)；work_start_end_stacked(67.05)→reported_at
@@ -214,20 +214,23 @@ export const GLOBAL_DOC_LIST_FIELD_RANK = {
   node_name: 12,
   /**
    * 检验四单据列表段位（以来料检验为准，四页共用同一 map，勿页面浅覆盖）：
-   * inspection_code → quality_inspection_kind → supplierReceipt / quality_inspection_partner_stacked
-   * → quality_inspection_material → 数量类 → quality_inspection_extra → downstream_push_progress
+   * inspection_code → quality_inspection_material → supplierReceipt / quality_inspection_partner_stacked
+   * → quality_inspection_kind → 数量类 → quality_inspection_extra → downstream_push_progress
    * → inspector_name → notes（余量列）→ lifecycle
    *
-   * 不良处理：code → nc_source_inspection → operation_work_order_stacked → quality_inspection_material
+   * 不良处理：code → nc_source_inspection → operation_work_order_stacked → nc_material_stacked
    * → nc_defect_type → disposition → defect_quantity → defect_reason → 降级/回用关联 → lifecycle → action
    */
-  /** 检验类型（简易 / 方案），不含勾选列时的第二列（紧挨单号后） */
-  quality_inspection_kind: 10.5,
   /** 不良处理：源检验单（紧跟台账编号） */
   nc_source_inspection: 10.6,
+  /** 检验物料叠列（四单据：单号后第一业务列） */
+  quality_inspection_material: 10.5,
   supplierReceipt: 11,
   quality_inspection_partner_stacked: 11,
-  quality_inspection_material: 12,
+  /** 检验方案（简易/方案徽章 + 方案名称） */
+  quality_inspection_kind: 11.5,
+  /** 不良处理：物料叠列（须在工序/工单叠列之后，勿复用 quality_inspection_material） */
+  nc_material_stacked: 12,
   /**
    * 8D 报告：标题/编号叠列 → 严重度 → 阶段节点轴 → 来源 → 负责人 → 验证结果 → 计划完成
    */
@@ -1574,6 +1577,8 @@ export const MASTER_DATA_DETAIL_BASIC_FIELD_RANK = {
   linkedBom: 50.57,
   defectTypes: 50.6,
   defect_types: 50.6,
+  defaultInspectionPlanNames: 50.58,
+  default_inspection_plan_names: 50.58,
   defaultOperatorNames: 50.7,
   default_operator_names: 50.7,
   operation_sequence: 50.8,

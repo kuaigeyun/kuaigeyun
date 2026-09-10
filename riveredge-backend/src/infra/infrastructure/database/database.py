@@ -126,6 +126,8 @@ async def get_dynamic_tortoise_config(
                         "timezone": dynamic_config.get("timezone", "UTC"),
                         # ⚠️ 关键修复：增加更多 server_settings 以保持连接稳定性
                         "tcp_user_timeout": "30000",  # TCP用户超时（毫秒）
+                        # 防止客户端断开后连接池遗留 idle in transaction 锁死业务行
+                        "idle_in_transaction_session_timeout": "60000",
                     }
                 }
             },
@@ -162,7 +164,8 @@ TORTOISE_ORM = {
                 "server_settings": {
                     "application_name": "riveredge_asyncpg",
                     "tcp_user_timeout": "30000",  # TCP用户超时（毫秒）
-                    "timezone": settings.TIMEZONE  # 使用与Tortoise ORM相同的时区
+                    "timezone": settings.TIMEZONE,  # 使用与Tortoise ORM相同的时区
+                    "idle_in_transaction_session_timeout": "60000",
                 }
             }
         },

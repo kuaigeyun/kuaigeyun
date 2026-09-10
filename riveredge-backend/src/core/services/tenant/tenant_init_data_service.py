@@ -37,7 +37,7 @@ class TenantInitDataService:
             "description": "系统名称、时区、货币等参数（必选）",
         },
         {"key": "code_rule", "name": "编码规则", "description": "工单、物料、销售单等编码规则"},
-        {"key": "approval_process_preset", "name": "审核设置绑定行", "description": "为可审核单据初始化配置行（流程在启用开关时按需创建）"},
+        {"key": "approval_process_preset", "name": "审核设置绑定行", "description": "为可审核单据初始化配置行与审批流程定义（默认未激活，启用开关时绑定并激活）"},
         {"key": "message_template_preset", "name": "消息模板预设", "description": "审批通知、验证码等消息模板"},
         {"key": "print_template_preset", "name": "打印模板预设", "description": "通用标签、收据等打印模板"},
         {
