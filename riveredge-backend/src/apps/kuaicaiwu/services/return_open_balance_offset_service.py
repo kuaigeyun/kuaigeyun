@@ -19,6 +19,7 @@ from apps.kuaicaiwu.constants.finance_source_types import (
     PAYABLE_SOURCE_PURCHASE_RECEIPT,
     RECEIVABLE_SOURCE_SALES_DELIVERY,
     RECEIVABLE_SOURCE_SALES_INVOICE,
+    RECEIVABLE_SOURCE_SALES_RETURN,
     is_purchase_return_offset_payable,
     is_sales_return_offset_receivable,
 )
@@ -116,11 +117,59 @@ class ReturnOpenBalanceOffsetService:
             deleted_at__isnull=True,
         ).all()
         if existing:
-            return quantize_money(sum((quantize_money(r.amount) for r in existing), Decimal("0")))
+            applied = quantize_money(
+                sum((quantize_money(r.amount) for r in existing), Decimal("0"))
+            )
+            # 历史可能已冲减蓝字但未生成红字冲减应收行
+            if red_receivable_id is None:
+                ensure_amt = applied if applied > 0 else quantize_money(ret.total_amount)
+                if ensure_amt <= 0:
+                    for it in await SalesReturnItem.filter(
+                        tenant_id=tenant_id, return_id=int(sales_return_id)
+                    ).all():
+                        qty = Decimal(str(it.return_quantity or 0))
+                        price = Decimal(str(it.unit_price or 0))
+                        given = quantize_money(it.total_amount)
+                        computed = quantize_money(qty * price)
+                        chunk = computed if given <= 0 and computed > 0 else (given or computed)
+                        ensure_amt = quantize_money(ensure_amt + chunk)
+                await self._ensure_sales_return_red_receivable(
+                    tenant_id,
+                    ret,
+                    return_amount=ensure_amt,
+                    operator_id=operator_id,
+                )
+            return applied
 
         return_amount = quantize_money(ret.total_amount)
         if return_amount <= 0:
+            # 头表金额未同步时按明细重算，避免确认后既无冲减行也不减蓝字余额
+            line_items = await SalesReturnItem.filter(
+                tenant_id=tenant_id, return_id=int(sales_return_id)
+            ).all()
+            line_sum = Decimal("0.00")
+            for it in line_items:
+                qty = Decimal(str(it.return_quantity or 0))
+                price = Decimal(str(it.unit_price or 0))
+                given = quantize_money(it.total_amount)
+                computed = quantize_money(qty * price)
+                line_sum = quantize_money(line_sum + (computed if given <= 0 and computed > 0 else given or computed))
+            if line_sum > 0:
+                return_amount = line_sum
+                await SalesReturn.filter(tenant_id=tenant_id, id=int(sales_return_id)).update(
+                    total_amount=return_amount,
+                )
+                ret.total_amount = return_amount
+        if return_amount <= 0:
             return Decimal("0.00")
+
+        if red_receivable_id is None:
+            red_receivable_id = await self._ensure_sales_return_red_receivable(
+                tenant_id,
+                ret,
+                return_amount=return_amount,
+                operator_id=operator_id,
+            )
 
         blue_ids = await self._collect_blue_receivable_ids(tenant_id, ret)
         if not blue_ids:
@@ -405,6 +454,88 @@ class ReturnOpenBalanceOffsetService:
                     user_name=user_name,
                 )
         return reversed_total
+
+    async def _ensure_sales_return_red_receivable(
+        self,
+        tenant_id: int,
+        ret: SalesReturn,
+        *,
+        return_amount: Decimal,
+        operator_id: int,
+    ) -> Optional[int]:
+        """确认后若尚无红字冲减应收则补建（幂等）；供冲减写路径与历史补齐共用。"""
+        existing = await Receivable.get_or_none(
+            tenant_id=tenant_id,
+            source_type=RECEIVABLE_SOURCE_SALES_RETURN,
+            source_id=int(ret.id),
+            deleted_at__isnull=True,
+        )
+        if existing:
+            return int(existing.id)
+
+        cust_id = int(ret.customer_id) if ret.customer_id else None
+        if return_amount <= 0 or not cust_id:
+            return None
+
+        from infra.services.business_config_service import BusinessConfigService
+
+        if not await BusinessConfigService().should_auto_generate_receivable_on_sales_return(
+            tenant_id, cust_id
+        ):
+            return None
+
+        from apps.kuaicaiwu.schemas.finance import ReceivableCreate
+        from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
+        from apps.kuaicaiwu.services.finance_service import ReceivableService
+        from core.utils.timezone_utils import to_site_date
+
+        try:
+            receivable_service = ReceivableService()
+            biz_date = to_site_date(resolve_business_datetime())
+            due_date = await resolve_partner_due_date(
+                tenant_id, "customer", cust_id, biz_date
+            )
+            amount = float(return_amount)
+            receivable_data = ReceivableCreate(
+                source_type=RECEIVABLE_SOURCE_SALES_RETURN,
+                source_id=int(ret.id),
+                source_code=ret.return_code,
+                customer_id=ret.customer_id,
+                customer_name=ret.customer_name,
+                total_amount=amount,
+                received_amount=0.0,
+                remaining_amount=0.0,
+                due_date=due_date,
+                business_date=biz_date,
+                status="已冲减",
+                notes=f"销售退货冲减-由销售退货单 {ret.return_code} 自动生成",
+            )
+            try:
+                receivable = await receivable_service.create_receivable(
+                    tenant_id=tenant_id,
+                    receivable_data=receivable_data,
+                    created_by=operator_id,
+                )
+            except Exception:
+                receivable = await receivable_service.create_receivable(
+                    tenant_id=tenant_id,
+                    receivable_data=receivable_data,
+                    created_by=operator_id,
+                    submit_review=False,
+                )
+                await Receivable.filter(tenant_id=tenant_id, id=receivable.id).update(
+                    review_status="已审核",
+                    status="已冲减",
+                    remaining_amount=0,
+                )
+            return int(receivable.id)
+        except Exception as exc:
+            logger.warning(
+                "销售退货 %s 补建红字应收失败: %s",
+                ret.return_code or ret.id,
+                exc,
+            )
+            return None
 
     async def ensure_offsets_for_receivable(
         self,

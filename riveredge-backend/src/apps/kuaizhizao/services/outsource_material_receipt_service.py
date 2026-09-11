@@ -654,6 +654,10 @@ class OutsourceMaterialReceiptService(AppBaseService[OutsourceMaterialReceipt]):
             responses,
             "outsource_receipt",
             item_counts={int(r.id): 1 for r in receipts},
+            quantity_units={
+                int(r.id): (str(getattr(r, "unit", None) or "").strip() or None)
+                for r in receipts
+            },
         )
         return await enrich_outsource_docs_with_supplier(tenant_id, receipts, responses)
 

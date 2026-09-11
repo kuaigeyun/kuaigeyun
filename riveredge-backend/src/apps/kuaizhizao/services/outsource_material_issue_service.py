@@ -378,6 +378,7 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
                     update={
                         "total_quantity": float(issue.quantity or 0),
                         "total_items": 1,
+                        "quantity_unit": str(getattr(issue, "unit", None) or "").strip() or None,
                         "items": [{"material_name": name}] if name else [],
                     }
                 )

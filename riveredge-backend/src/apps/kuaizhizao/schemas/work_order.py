@@ -842,6 +842,15 @@ class WorkOrderOperationResponse(WorkOrderOperationBase):
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
+    @field_validator("inspection_mode", mode="before")
+    @classmethod
+    def _coerce_null_inspection_mode(cls, value: Any) -> Any:
+        """存量工序未落章时为 null；响应契约固定为 none（列表接口另按主数据解析覆盖）。"""
+        if value is None:
+            return "none"
+        s = str(value).strip()
+        return s if s else "none"
+
     @field_validator(
         "inspection_plan_ids",
         "inspection_plan_labels",

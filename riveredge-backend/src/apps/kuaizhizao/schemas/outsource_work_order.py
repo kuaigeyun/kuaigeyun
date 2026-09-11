@@ -173,6 +173,10 @@ class OutsourceMaterialIssueResponse(OutsourceMaterialIssueBase):
     deleted_at: Optional[datetime] = Field(None, alias="deletedAt", description="删除时间")
     total_quantity: Optional[float] = Field(None, description="总发料数量（与 quantity 对齐，供出库 Hub 列表）")
     total_items: Optional[int] = Field(None, description="发料品种数（单行发料单为 1）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[dict]] = Field(None, description="明细物料名预览（列表「明细」列）")
 
 
@@ -332,6 +336,10 @@ class OutsourceMaterialReceiptResponse(OutsourceMaterialReceiptBase):
         None, description="入库 Hub capabilities（document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="入库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[dict]] = Field(None, description="明细物料名预览（列表「明细」列）")
 
 
@@ -469,6 +477,10 @@ class OutsourceMaterialReturnResponse(OutsourceMaterialReturnBase):
         None, description="入库 Hub capabilities（document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="入库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[dict]] = Field(None, description="明细物料名预览（列表「明细」列）")
 
 
@@ -543,6 +555,10 @@ class OutsourceProductReturnResponse(OutsourceProductReturnBase):
         None, description="入库 Hub capabilities（document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="入库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[dict]] = Field(None, description="明细物料名预览（列表「明细」列）")
 
 

@@ -300,6 +300,10 @@ class OutsourceProductReturnService(AppBaseService[OutsourceProductReturn]):
             responses,
             "outsource_product_return",
             item_counts={int(r.id): 1 for r in rows},
+            quantity_units={
+                int(r.id): (str(getattr(r, "unit", None) or "").strip() or None)
+                for r in rows
+            },
         )
         return await enrich_outsource_docs_with_supplier(tenant_id, rows, responses)
 

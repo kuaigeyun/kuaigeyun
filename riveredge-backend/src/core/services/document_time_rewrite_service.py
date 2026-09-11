@@ -886,48 +886,24 @@ class DocumentTimeRewriteService:
         tenant_id: int,
         since: date,
         schedule: WorkScheduleParams,
-        max_rows: int = 5000,
+        max_rows: int = 100,
     ) -> dict[str, Any]:
         """
         将本租户已有操作日志的 created_at 按工作时段均匀摊开到
-        「since ～ 当前」区间（保持 id 升序相对先后），使时间线扩充到指定日起。
+        「since ～ 当前」区间。
+
+        按 created_at、id 升序只改写最远的 max_rows 条；超出部分不动，避免网关超时。
         """
         from core.models.operation_log import OperationLog
 
-        schedule.validate()
-        timezone_name = site_timezone_name()
-        tz = ZoneInfo(timezone_name)
-        now_site = now_utc().astimezone(tz)
-        if since > now_site.date():
-            raise ValueError("起始日期不能晚于今天")
-
-        limit = max(1, min(int(max_rows), 20000))
-        rows = (
-            await OperationLog.filter(tenant_id=tenant_id)
-            .order_by("id")
-            .limit(limit)
-            .all()
+        return await DocumentTimeRewriteService._expand_audit_logs_since(
+            model=OperationLog,
+            tenant_id=tenant_id,
+            since=since,
+            schedule=schedule,
+            max_rows=max_rows,
+            empty_message="该租户暂无操作日志，无法扩充",
         )
-        if not rows:
-            raise ValueError("该租户暂无操作日志，无法扩充")
-
-        times = schedule.issue_times_utc_since(
-            len(rows), timezone_name=timezone_name, since=since
-        )
-        updated = 0
-        for row, issued in zip(rows, times):
-            await OperationLog.filter(id=row.id, tenant_id=tenant_id).update(
-                created_at=issued
-            )
-            updated += 1
-
-        return {
-            "updated": updated,
-            "scanned": len(rows),
-            "since": since.isoformat(),
-            "timezone": timezone_name,
-            "truncated": len(rows) >= limit,
-        }
 
     @staticmethod
     async def expand_login_logs_since(
@@ -935,11 +911,33 @@ class DocumentTimeRewriteService:
         tenant_id: int,
         since: date,
         schedule: WorkScheduleParams,
-        max_rows: int = 5000,
+        max_rows: int = 100,
     ) -> dict[str, Any]:
-        """将本租户已有登录日志的 created_at 按工作时段摊开到 since～当前。"""
+        """将本租户已有登录日志的 created_at 按工作时段摊开到 since～当前。
+
+        按 created_at、id 升序只改写最远的 max_rows 条；超出部分不动。
+        """
         from core.models.login_log import LoginLog
 
+        return await DocumentTimeRewriteService._expand_audit_logs_since(
+            model=LoginLog,
+            tenant_id=tenant_id,
+            since=since,
+            schedule=schedule,
+            max_rows=max_rows,
+            empty_message="该租户暂无登录日志，无法扩充",
+        )
+
+    @staticmethod
+    async def _expand_audit_logs_since(
+        *,
+        model: Any,
+        tenant_id: int,
+        since: date,
+        schedule: WorkScheduleParams,
+        max_rows: int,
+        empty_message: str,
+    ) -> dict[str, Any]:
         schedule.validate()
         timezone_name = site_timezone_name()
         tz = ZoneInfo(timezone_name)
@@ -948,31 +946,32 @@ class DocumentTimeRewriteService:
             raise ValueError("起始日期不能晚于今天")
 
         limit = max(1, min(int(max_rows), 20000))
+        total = await model.filter(tenant_id=tenant_id).count()
         rows = (
-            await LoginLog.filter(tenant_id=tenant_id)
-            .order_by("id")
+            await model.filter(tenant_id=tenant_id)
+            .order_by("created_at", "id")
             .limit(limit)
             .all()
         )
         if not rows:
-            raise ValueError("该租户暂无登录日志，无法扩充")
+            raise ValueError(empty_message)
 
         times = schedule.issue_times_utc_since(
             len(rows), timezone_name=timezone_name, since=since
         )
         updated = 0
         for row, issued in zip(rows, times):
-            await LoginLog.filter(id=row.id, tenant_id=tenant_id).update(
-                created_at=issued
-            )
+            await model.filter(id=row.id, tenant_id=tenant_id).update(created_at=issued)
             updated += 1
 
         return {
             "updated": updated,
+            "clamped": 0,
             "scanned": len(rows),
+            "total": total,
             "since": since.isoformat(),
             "timezone": timezone_name,
-            "truncated": len(rows) >= limit,
+            "truncated": total > len(rows),
         }
 
     @staticmethod
@@ -1107,7 +1106,7 @@ class DocumentTimeRewriteService:
                     tenant_id=tenant_id,
                     since=since,
                     schedule=schedule,
-                    max_rows=max(op_total, min_ops, 1),
+                    max_rows=min(max(op_total, min_ops, 1), 100),
                 )
                 op_expanded = int(op_result.get("updated") or 0)
             login_total = await LoginLog.filter(tenant_id=tenant_id).count()
@@ -1116,7 +1115,7 @@ class DocumentTimeRewriteService:
                     tenant_id=tenant_id,
                     since=since,
                     schedule=schedule,
-                    max_rows=max(login_total, min_logins, 1),
+                    max_rows=min(max(login_total, min_logins, 1), 100),
                 )
                 login_expanded = int(login_result.get("updated") or 0)
 

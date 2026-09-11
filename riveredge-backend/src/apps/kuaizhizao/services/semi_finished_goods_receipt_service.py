@@ -249,6 +249,7 @@ class SemiFinishedGoodsReceiptService(AppBaseService[SemiFinishedGoodsReceipt]):
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
+            batch_document_item_homogeneous_units,
             enrich_inbound_hub_list_capabilities,
         )
         from apps.kuaizhizao.models.semi_finished_goods_receipt_item import SemiFinishedGoodsReceiptItem
@@ -261,12 +262,16 @@ class SemiFinishedGoodsReceiptService(AppBaseService[SemiFinishedGoodsReceipt]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, SemiFinishedGoodsReceiptItem, "receipt_id", receipt_ids
         )
+        quantity_units = await batch_document_item_homogeneous_units(
+            tenant_id, SemiFinishedGoodsReceiptItem, "receipt_id", receipt_ids
+        )
         responses = enrich_inbound_hub_list_capabilities(
             receipts,
             responses,
             "semi_finished_goods",
             item_counts=item_counts,
             item_previews=item_previews,
+            quantity_units=quantity_units,
         )
         from apps.kuaizhizao.services.warehouse_service import enrich_production_receipts_with_customer
 

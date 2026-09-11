@@ -100,6 +100,10 @@ class ProductionPickingListResponse(ProductionPickingResponse):
     picking_score_breakdown: Optional[dict] = Field(None, description="备料打分明细")
     total_quantity: Optional[float] = Field(None, ge=0, description="总数量（明细应领合计）")
     total_items: Optional[int] = Field(None, description="出库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[DocumentLineMaterialPreview]] = Field(
         None, description="明细物料名预览（列表「明细」列）",
     )
@@ -243,6 +247,10 @@ class ProductionReturnResponse(ProductionReturnBase):
         None, description="业务态 capabilities（入库 Hub，document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="入库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     total_quantity: Optional[float] = Field(None, ge=0, description="总退料数量")
     items: Optional[List[DocumentLineMaterialPreview]] = Field(
         None, description="明细物料名预览（列表「明细」列）",
@@ -439,6 +447,10 @@ class FinishedGoodsReceiptResponse(FinishedGoodsReceiptBase):
         None, description="业务态 capabilities（入库 Hub，document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="入库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     inbound_doc_kind: Literal["finished_goods", "semi_finished_goods"] = Field(
         "finished_goods",
         description="生产入库单据形态（成品/半成品），与物理表一致时下推接口可能返回 semi 以兼容旧客户端",
@@ -551,6 +563,10 @@ class SemiFinishedGoodsReceiptResponse(SemiFinishedGoodsReceiptBase):
         None, description="业务态 capabilities（入库 Hub，document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="入库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     inbound_doc_kind: Literal["finished_goods", "semi_finished_goods"] = Field(
         "semi_finished_goods",
         description="固定为半成品入库单",
@@ -699,6 +715,10 @@ class SalesDeliveryResponse(SalesDeliveryBase):
         None, description="业务态 capabilities（出库 Hub，document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="出库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[DocumentLineMaterialPreview]] = Field(
         None, description="明细物料名预览（列表「明细」列）",
     )
@@ -909,6 +929,10 @@ class PurchaseReceiptResponse(PurchaseReceiptBase):
         None, description="业务态 capabilities（入库 Hub，document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="入库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[DocumentLineMaterialPreview]] = Field(
         None, description="明细物料名预览（列表「明细」列）",
     )
@@ -986,6 +1010,10 @@ class SalesReturnResponse(SalesReturnBase):
         description="业务态动作 capabilities（不含 RBAC，与 service 门禁一致）",
     )
     total_items: Optional[int] = Field(None, description="退货品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List["SalesReturnItemResponse"]] = Field(None, description="退货明细列表")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
@@ -1265,6 +1293,10 @@ class OtherInboundResponse(OtherInboundBase):
         None, description="业务态 capabilities（入库 Hub，document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="入库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[DocumentLineMaterialPreview]] = Field(
         None, description="明细物料名预览（列表「明细」列）",
     )
@@ -1392,6 +1424,10 @@ class OtherOutboundResponse(OtherOutboundBase):
         None, description="业务态 capabilities（出库 Hub，document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="出库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[DocumentLineMaterialPreview]] = Field(
         None, description="明细物料名预览（列表「明细」列）",
     )
@@ -1504,6 +1540,10 @@ class MaterialBorrowResponse(MaterialBorrowBase):
         None, description="业务态 capabilities（出库 Hub，document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="出库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[DocumentLineMaterialPreview]] = Field(
         None, description="明细物料名预览（列表「明细」列）",
     )
@@ -1616,6 +1656,10 @@ class MaterialReturnResponse(MaterialReturnBase):
         None, description="业务态 capabilities（入库 Hub，document_action_policy）",
     )
     total_items: Optional[int] = Field(None, description="入库品种数（明细行数）")
+    quantity_unit: Optional[str] = Field(
+        None,
+        description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
+    )
     items: Optional[List[DocumentLineMaterialPreview]] = Field(
         None, description="明细物料名预览（列表「明细」列）",
     )

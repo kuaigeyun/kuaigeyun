@@ -210,6 +210,41 @@ async def batch_document_item_quantity_sums(
     return {int(row[parent_field]): float(row["q"] or 0) for row in rows}
 
 
+async def batch_document_item_homogeneous_units(
+    tenant_id: int,
+    item_model: Any,
+    parent_field: str,
+    parent_ids: List[int],
+    *,
+    unit_field: str = "material_unit",
+) -> Dict[int, Optional[str]]:
+    """
+    明细单位是否一致（出入库 Hub 头表数量展示真源）。
+
+    返回 parent_id → 单位：全部明细单位一致时为该单位（可为空串）；
+    无明细或不一致时为 None（列表展示种类数，禁止混单位加总冒充数量）。
+    """
+    if not parent_ids:
+        return {}
+    rows = await (
+        item_model.filter(tenant_id=tenant_id, **{f"{parent_field}__in": parent_ids})
+        .order_by(parent_field, "id")
+        .values(parent_field, unit_field)
+    )
+    units_by_parent: Dict[int, set[str]] = {}
+    for row in rows:
+        pid = int(row[parent_field])
+        unit = str(row.get(unit_field) or "").strip()
+        units_by_parent.setdefault(pid, set()).add(unit)
+    out: Dict[int, Optional[str]] = {}
+    for pid, units in units_by_parent.items():
+        if len(units) == 1:
+            out[pid] = next(iter(units))
+        else:
+            out[pid] = None
+    return out
+
+
 def enrich_inbound_hub_list_capabilities(
     records: List[Any],
     responses: List[T],
@@ -218,6 +253,7 @@ def enrich_inbound_hub_list_capabilities(
     item_counts: Optional[Dict[int, int]] = None,
     quantity_sums: Optional[Dict[int, float]] = None,
     item_previews: Optional[Dict[int, List[Dict[str, Any]]]] = None,
+    quantity_units: Optional[Dict[int, Optional[str]]] = None,
 ) -> List[T]:
     out: List[T] = []
     for record, resp in zip(records, responses):
@@ -230,6 +266,8 @@ def enrich_inbound_hub_list_capabilities(
             update["total_quantity"] = quantity_sums.get(rid, 0)
         if item_previews is not None:
             update["items"] = item_previews.get(rid, [])
+        if quantity_units is not None:
+            update["quantity_unit"] = quantity_units.get(rid)
         if hasattr(resp, "model_copy"):
             out.append(resp.model_copy(update=update))
         else:
@@ -1388,6 +1426,7 @@ def enrich_outbound_hub_list_capabilities(
     *,
     item_counts: Optional[Dict[int, int]] = None,
     item_previews: Optional[Dict[int, List[Dict[str, Any]]]] = None,
+    quantity_units: Optional[Dict[int, Optional[str]]] = None,
     audit_required: bool = False,
 ) -> List[T]:
     out: List[T] = []
@@ -1402,6 +1441,8 @@ def enrich_outbound_hub_list_capabilities(
             update["total_items"] = item_counts.get(rid, 0)
         if item_previews is not None:
             update["items"] = item_previews.get(rid, [])
+        if quantity_units is not None:
+            update["quantity_unit"] = quantity_units.get(rid)
         if update and hasattr(enriched, "model_copy"):
             enriched = enriched.model_copy(update=update)
         out.append(enriched)

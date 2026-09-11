@@ -1798,6 +1798,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         from tortoise.functions import Count, Sum
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_material_previews,
+            batch_document_item_homogeneous_units,
             enrich_outbound_hub_list_capabilities,
         )
         from apps.kuaizhizao.services.document_lifecycle_service import get_production_picking_lifecycle
@@ -1854,12 +1855,16 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, ProductionPickingItem, "picking_id", picking_ids
         )
+        quantity_units = await batch_document_item_homogeneous_units(
+            tenant_id, ProductionPickingItem, "picking_id", picking_ids
+        )
         rows = enrich_outbound_hub_list_capabilities(
             pickings,
             list_rows,
             "production_picking",
             item_counts={pid: v["total_items"] for pid, v in qty_by_id.items()},
             item_previews=item_previews,
+            quantity_units=quantity_units,
             audit_required=picking_audit_required,
         )
         enriched_qty: List[ProductionPickingListResponse] = []
@@ -1872,7 +1877,15 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                 "total_quantity": 0.0,
             })
             wh = warehouse_by_id.get(pid, {"warehouse_id": None, "warehouse_name": None})
-            enriched_qty.append(row.model_copy(update={**stats, **wh}))
+            enriched_qty.append(
+                row.model_copy(
+                    update={
+                        **stats,
+                        **wh,
+                        "quantity_unit": quantity_units.get(pid),
+                    }
+                )
+            )
         rows = enriched_qty
 
         if rows:
@@ -4221,6 +4234,7 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
+            batch_document_item_homogeneous_units,
             batch_document_item_quantity_sums,
             enrich_inbound_hub_list_capabilities,
         )
@@ -4235,6 +4249,9 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, ProductionReturnItem, "return_id", return_ids
         )
+        quantity_units = await batch_document_item_homogeneous_units(
+            tenant_id, ProductionReturnItem, "return_id", return_ids
+        )
         enriched = enrich_inbound_hub_list_capabilities(
             rets,
             responses,
@@ -4242,6 +4259,7 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
             item_counts=item_counts,
             quantity_sums=quantity_sums,
             item_previews=item_previews,
+            quantity_units=quantity_units,
         )
         return enriched, total
 
@@ -4813,6 +4831,7 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
+            batch_document_item_homogeneous_units,
             enrich_inbound_hub_list_capabilities,
         )
         from apps.kuaizhizao.models.finished_goods_receipt_item import FinishedGoodsReceiptItem
@@ -4825,12 +4844,16 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, FinishedGoodsReceiptItem, "receipt_id", receipt_ids
         )
+        quantity_units = await batch_document_item_homogeneous_units(
+            tenant_id, FinishedGoodsReceiptItem, "receipt_id", receipt_ids
+        )
         responses = enrich_inbound_hub_list_capabilities(
             receipts,
             responses,
             "finished_goods",
             item_counts=item_counts,
             item_previews=item_previews,
+            quantity_units=quantity_units,
         )
         enriched = await enrich_production_receipts_with_customer(tenant_id, receipts, responses)
         return enriched, total
@@ -6198,6 +6221,7 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
+            batch_document_item_homogeneous_units,
             enrich_outbound_hub_list_capabilities,
         )
         from apps.kuaizhizao.services.document_lifecycle_service import get_sales_delivery_lifecycle
@@ -6215,6 +6239,9 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, SalesDeliveryItem, "delivery_id", delivery_ids
         )
+        quantity_units = await batch_document_item_homogeneous_units(
+            tenant_id, SalesDeliveryItem, "delivery_id", delivery_ids
+        )
         from core.services.approval.audit_record_enricher import enrich_items
 
         delivery_audit_required = await self.business_config_service.check_audit_required(
@@ -6226,6 +6253,7 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
             "sales_delivery",
             item_counts=item_counts,
             item_previews=item_previews,
+            quantity_units=quantity_units,
             audit_required=delivery_audit_required,
         ))
         return rows, total
@@ -9507,6 +9535,7 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
+            batch_document_item_homogeneous_units,
             enrich_inbound_hub_list_capabilities,
         )
         receipt_ids = [r.id for r in receipts]
@@ -9516,8 +9545,12 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, PurchaseReceiptItem, "receipt_id", receipt_ids
         )
+        quantity_units = await batch_document_item_homogeneous_units(
+            tenant_id, PurchaseReceiptItem, "receipt_id", receipt_ids
+        )
         enriched = enrich_inbound_hub_list_capabilities(
-            receipts, out, "purchase", item_counts=item_counts, item_previews=item_previews
+            receipts, out, "purchase", item_counts=item_counts, item_previews=item_previews,
+            quantity_units=quantity_units
         )
         return enriched, total
 
@@ -10395,6 +10428,88 @@ class SalesReturnService(AppBaseService[SalesReturn]):
             return_id__in=return_ids,
         ).annotate(cnt=Count("id")).group_by("return_id").values("return_id", "cnt")
         return {int(r["return_id"]): int(r["cnt"] or 0) for r in rows}
+
+    @staticmethod
+    def _sales_return_line_amount(
+        qty: Any,
+        unit_price: Any,
+        total_amount: Any = None,
+    ) -> Decimal:
+        """行金额真源：数量 × 单价；仅当显式总金额与之一致或单价为 0 时保留传入值。"""
+        q = Decimal(str(qty or 0))
+        p = Decimal(str(unit_price or 0))
+        computed = (q * p).quantize(Decimal("0.01"))
+        if total_amount is None:
+            return computed
+        given = Decimal(str(total_amount or 0)).quantize(Decimal("0.01"))
+        if given == 0 and computed != 0:
+            return computed
+        return given
+
+    async def _backfill_sales_return_item_unit_price(
+        self,
+        tenant_id: int,
+        item: SalesReturnItem,
+    ) -> Decimal:
+        """单价缺失时从出库行/订单行回填，避免确认后头表金额为 0 导致不生成红字应收。"""
+        price = Decimal(str(item.unit_price or 0))
+        if price > 0:
+            return price
+        delivery_item_id = getattr(item, "sales_delivery_item_id", None)
+        if delivery_item_id:
+            src = await SalesDeliveryItem.filter(
+                tenant_id=tenant_id,
+                id=int(delivery_item_id),
+                deleted_at__isnull=True,
+            ).first()
+            if src and Decimal(str(src.unit_price or 0)) > 0:
+                return Decimal(str(src.unit_price))
+        order_item_id = getattr(item, "sales_order_item_id", None)
+        if order_item_id:
+            from apps.kuaizhizao.models.sales_order_item import SalesOrderItem
+
+            src = await SalesOrderItem.filter(
+                tenant_id=tenant_id,
+                id=int(order_item_id),
+            ).first()
+            if src and Decimal(str(src.unit_price or 0)) > 0:
+                return Decimal(str(src.unit_price))
+        return price
+
+    async def _sync_sales_return_header_totals(
+        self,
+        tenant_id: int,
+        return_id: int,
+        *,
+        persist: bool = True,
+    ) -> tuple[Decimal, Decimal]:
+        """用明细重算头表总数量/总金额；可选写回库（对齐采购退货确认写路径）。"""
+        items = await SalesReturnItem.filter(tenant_id=tenant_id, return_id=return_id).all()
+        total_quantity = Decimal("0")
+        total_amount = Decimal("0")
+        for item in items:
+            qty = Decimal(str(item.return_quantity or 0))
+            unit_price = await self._backfill_sales_return_item_unit_price(tenant_id, item)
+            line_amt = self._sales_return_line_amount(qty, unit_price, item.total_amount)
+            dirty = False
+            if Decimal(str(item.unit_price or 0)).quantize(Decimal("0.01")) != unit_price.quantize(
+                Decimal("0.01")
+            ):
+                item.unit_price = unit_price
+                dirty = True
+            if Decimal(str(item.total_amount or 0)).quantize(Decimal("0.01")) != line_amt:
+                item.total_amount = line_amt
+                dirty = True
+            if dirty and persist:
+                await item.save(update_fields=["unit_price", "total_amount"])
+            total_quantity += qty
+            total_amount += line_amt
+        if persist:
+            await SalesReturn.filter(tenant_id=tenant_id, id=return_id).update(
+                total_quantity=total_quantity,
+                total_amount=total_amount,
+            )
+        return total_quantity, total_amount
 
     async def _enrich_return_response(
         self,
@@ -12034,7 +12149,13 @@ class SalesReturnService(AppBaseService[SalesReturn]):
                 )
         has_items_by_id = await self._return_has_items_map(tenant_id, return_ids)
         item_counts_by_id = await self._return_item_count_map(tenant_id, return_ids)
-        from apps.kuaizhizao.services.document_action_policy.enricher import enrich_sales_return_list_capabilities
+        from apps.kuaizhizao.services.document_action_policy.enricher import (
+            batch_document_item_homogeneous_units,
+            enrich_sales_return_list_capabilities,
+        )
+        quantity_units = await batch_document_item_homogeneous_units(
+            tenant_id, SalesReturnItem, "return_id", return_ids
+        )
         from apps.kuaizhizao.services.document_lifecycle_service import get_sales_return_lifecycle
         list_responses: List[SalesReturnResponse] = []
         for return_obj in returns:
@@ -12055,7 +12176,12 @@ class SalesReturnService(AppBaseService[SalesReturn]):
         gated: List[SalesReturnResponse] = []
         for return_obj, resp in zip(returns, audited):
             rid = int(return_obj.id)
-            with_items = resp.model_copy(update={"total_items": item_counts_by_id.get(rid, 0)})
+            with_items = resp.model_copy(
+                update={
+                    "total_items": item_counts_by_id.get(rid, 0),
+                    "quantity_unit": quantity_units.get(rid),
+                }
+            )
             gated.append(
                 enrich_sales_return_capabilities_on_response(
                     return_obj,
@@ -12183,6 +12309,9 @@ class SalesReturnService(AppBaseService[SalesReturn]):
                 return_time=receipt_time
             )
 
+            # 确认前用明细重算头表金额（并回填单价），保证红字应收与冲减金额非 0
+            await self._sync_sales_return_header_totals(tenant_id, return_id, persist=True)
+
             # 4. 更新库存（增加）
             try:
                 from apps.kuaizhizao.services.inventory_service import InventoryService
@@ -12230,8 +12359,12 @@ class SalesReturnService(AppBaseService[SalesReturn]):
         # 蓝字冲减与红字创建解耦：创建失败仍须冲减未结余额，避免「只有原应收、无冲减」。
         updated_return = await self.get_sales_return_by_id(tenant_id, return_id)
         red_receivable_id: Optional[int] = None
+        # 事务外再同步一次头表金额，确保红字应收取到最新明细金额
+        _, synced_amount = await self._sync_sales_return_header_totals(
+            tenant_id, return_id, persist=True
+        )
         ret_obj = await SalesReturn.get(tenant_id=tenant_id, id=return_id)
-        total_amount = float(ret_obj.total_amount or 0)
+        total_amount = float(synced_amount if synced_amount > 0 else (ret_obj.total_amount or 0))
         cust_id = int(ret_obj.customer_id) if ret_obj.customer_id else None
         try:
             from apps.kuaicaiwu.services.finance_service import ReceivableService
@@ -12266,11 +12399,34 @@ class SalesReturnService(AppBaseService[SalesReturn]):
                     status="已冲减",
                     notes=f"销售退货冲减-由销售退货单 {ret_obj.return_code} 自动生成",
                 )
-                receivable = await receivable_service.create_receivable(
-                    tenant_id=tenant_id,
-                    receivable_data=receivable_data,
-                    created_by=confirmed_by,
-                )
+                try:
+                    receivable = await receivable_service.create_receivable(
+                        tenant_id=tenant_id,
+                        receivable_data=receivable_data,
+                        created_by=confirmed_by,
+                    )
+                except Exception as create_review_e:
+                    # 审核流失败时仍落冲减台账（status=已冲减），避免列表无退货冲减行
+                    logger.warning(
+                        "销售退货确认-红字应收提交审核失败，改为免审落账: %s",
+                        create_review_e,
+                    )
+                    receivable = await receivable_service.create_receivable(
+                        tenant_id=tenant_id,
+                        receivable_data=receivable_data,
+                        created_by=confirmed_by,
+                        submit_review=False,
+                    )
+                    from apps.kuaicaiwu.models.receivable import Receivable as ReceivableModel
+
+                    await ReceivableModel.filter(tenant_id=tenant_id, id=receivable.id).update(
+                        review_status="已审核",
+                        status="已冲减",
+                        remaining_amount=0,
+                    )
+                    receivable = await receivable_service.get_receivable_by_id(
+                        tenant_id, int(receivable.id)
+                    )
                 try:
                     from apps.kuaicaiwu.services.finance_integration_hooks import (
                         link_finance_document_relation,
@@ -12305,6 +12461,12 @@ class SalesReturnService(AppBaseService[SalesReturn]):
                 except Exception as rel_e:
                     logger.warning("销售退货确认-创建应收单关联/会计事件失败: %s", rel_e)
                 red_receivable_id = int(receivable.id)
+            elif total_amount <= 0:
+                logger.warning(
+                    "销售退货确认-头表金额为 0，跳过红字应收 return_id=%s code=%s",
+                    return_id,
+                    getattr(ret_obj, "return_code", None),
+                )
         except Exception as fin_e:
             logger.warning("销售退货确认-创建红字应收单失败: %s", fin_e)
 
@@ -14353,6 +14515,7 @@ class OtherInboundService(AppBaseService[OtherInbound]):
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
+            batch_document_item_homogeneous_units,
             enrich_inbound_hub_list_capabilities,
         )
         responses = [OtherInboundListResponse.model_validate(r) for r in inbounds]
@@ -14361,6 +14524,9 @@ class OtherInboundService(AppBaseService[OtherInbound]):
             tenant_id, OtherInboundItem, "inbound_id", inbound_ids
         )
         item_previews = await batch_document_item_material_previews(
+            tenant_id, OtherInboundItem, "inbound_id", inbound_ids
+        )
+        quantity_units = await batch_document_item_homogeneous_units(
             tenant_id, OtherInboundItem, "inbound_id", inbound_ids
         )
         from apps.kuaizhizao.services.document_lifecycle_service import get_other_inbound_lifecycle
@@ -14373,6 +14539,7 @@ class OtherInboundService(AppBaseService[OtherInbound]):
             "other_inbound",
             item_counts=item_counts,
             item_previews=item_previews,
+            quantity_units=quantity_units,
         )
         return enriched, total
 
@@ -14912,6 +15079,7 @@ class OtherOutboundService(AppBaseService[OtherOutbound]):
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
+            batch_document_item_homogeneous_units,
             enrich_outbound_hub_list_capabilities,
         )
         from apps.kuaizhizao.services.document_lifecycle_service import get_other_outbound_lifecycle
@@ -14928,6 +15096,9 @@ class OtherOutboundService(AppBaseService[OtherOutbound]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, OtherOutboundItem, "outbound_id", outbound_ids
         )
+        quantity_units = await batch_document_item_homogeneous_units(
+            tenant_id, OtherOutboundItem, "outbound_id", outbound_ids
+        )
         other_audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "other_outbound"
         )
@@ -14937,6 +15108,7 @@ class OtherOutboundService(AppBaseService[OtherOutbound]):
             "other_outbound",
             item_counts=item_counts,
             item_previews=item_previews,
+            quantity_units=quantity_units,
             audit_required=other_audit_required,
         )
         return enriched, total
@@ -15344,6 +15516,7 @@ class MaterialBorrowService(AppBaseService[MaterialBorrow]):
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
+            batch_document_item_homogeneous_units,
             enrich_outbound_hub_list_capabilities,
         )
         from apps.kuaizhizao.services.document_lifecycle_service import get_material_borrow_lifecycle
@@ -15360,6 +15533,9 @@ class MaterialBorrowService(AppBaseService[MaterialBorrow]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, MaterialBorrowItem, "borrow_id", borrow_ids
         )
+        quantity_units = await batch_document_item_homogeneous_units(
+            tenant_id, MaterialBorrowItem, "borrow_id", borrow_ids
+        )
         borrow_audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "material_borrow"
         )
@@ -15369,6 +15545,7 @@ class MaterialBorrowService(AppBaseService[MaterialBorrow]):
             "material_borrow",
             item_counts=item_counts,
             item_previews=item_previews,
+            quantity_units=quantity_units,
             audit_required=borrow_audit_required,
         )
         return enriched, total
@@ -15732,6 +15909,7 @@ class MaterialReturnService(AppBaseService[MaterialReturn]):
         from apps.kuaizhizao.services.document_action_policy.enricher import (
             batch_document_item_counts,
             batch_document_item_material_previews,
+            batch_document_item_homogeneous_units,
             enrich_inbound_hub_list_capabilities,
         )
         from apps.kuaizhizao.models.material_return_item import MaterialReturnItem
@@ -15747,12 +15925,16 @@ class MaterialReturnService(AppBaseService[MaterialReturn]):
         item_previews = await batch_document_item_material_previews(
             tenant_id, MaterialReturnItem, "return_id", return_ids
         )
+        quantity_units = await batch_document_item_homogeneous_units(
+            tenant_id, MaterialReturnItem, "return_id", return_ids
+        )
         enriched = enrich_inbound_hub_list_capabilities(
             returns,
             responses,
             "material_return",
             item_counts=item_counts,
             item_previews=item_previews,
+            quantity_units=quantity_units,
         )
         return enriched, total
 

@@ -143,7 +143,12 @@ async def align_own(
 class ExpandOperationLogsRequest(BaseModel):
     since: date
     work: WorkScheduleBody
-    max_rows: int = Field(default=5000, ge=1, le=20000)
+    max_rows: int = Field(
+        default=100,
+        ge=1,
+        le=20000,
+        description="单次最多改写条数；按 created_at 从早到晚只改最远 N 条，超额不管",
+    )
 
 
 class RewriteMasterDataUpdatedAtRequest(BaseModel):
@@ -164,6 +169,28 @@ async def expand_operation_logs(
     )
     try:
         return await DocumentTimeRewriteService.expand_operation_logs_since(
+            tenant_id=int(auth.tenant_id),
+            since=body.since,
+            schedule=schedule,
+            max_rows=int(body.max_rows),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/expand-login-logs", summary="将登录日志时间摊开到指定日起")
+async def expand_login_logs(
+    body: ExpandOperationLogsRequest,
+    auth: AuthContext = Depends(require_permission_codes("system:document-time-rewrite:execute")),
+) -> dict[str, Any]:
+    schedule = WorkScheduleParams(
+        weekdays=list(body.work.weekdays),
+        start_time=body.work.start_time,
+        end_time=body.work.end_time,
+        lookback_days=int(body.work.lookback_days),
+    )
+    try:
+        return await DocumentTimeRewriteService.expand_login_logs_since(
             tenant_id=int(auth.tenant_id),
             since=body.since,
             schedule=schedule,

@@ -9,6 +9,7 @@ Date: 2025-01-01
 
 import asyncio
 import json
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, Union
@@ -2110,14 +2111,15 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         allocated = sum(Decimal(str(row.quantity)) for row in child_rows)
         return max(Decimal("0"), parent.quantity - allocated)
 
+    # 拆分子工单编码：{父单号}-{三位序号}，与 split_work_order / 序列号自动拆分写入一致
+    _SPLIT_CODE_SUFFIX = re.compile(r"^(.+)-(\d{3})$")
+
     async def _next_split_child_sequence(
         self,
         tenant_id: int,
         parent_work_order_id: int,
         parent_code: str,
     ) -> int:
-        from apps.kuaizhizao.services.work_order_tree_service import _SPLIT_CODE_SUFFIX
-
         rows = await WorkOrder.filter(
             tenant_id=tenant_id,
             parent_work_order_id=parent_work_order_id,
@@ -2125,7 +2127,7 @@ class WorkOrderService(AppBaseService[WorkOrder]):
         ).only("code")
         max_idx = 0
         for row in rows:
-            match = _SPLIT_CODE_SUFFIX.match(row.code or "")
+            match = self._SPLIT_CODE_SUFFIX.match(row.code or "")
             if match and match.group(1) == parent_code:
                 max_idx = max(max_idx, int(match.group(2)))
         return max_idx + 1

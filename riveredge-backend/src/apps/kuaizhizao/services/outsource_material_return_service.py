@@ -285,6 +285,10 @@ class OutsourceMaterialReturnService(AppBaseService[OutsourceMaterialReturn]):
             "outsource_material_return",
             item_counts=item_counts,
             item_previews=item_previews,
+            quantity_units={
+                int(r.id): (str(getattr(r, "unit", None) or "").strip() or None)
+                for r in rows
+            },
         )
         return await enrich_outsource_docs_with_supplier(tenant_id, rows, responses)
 
