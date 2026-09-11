@@ -31,6 +31,7 @@ export interface OutboundHubOrder {
   warehouse_id?: number;
   warehouse_name?: string;
   total_quantity?: number;
+  quantity_unit?: string | null;
   total_amount?: number;
   total_items?: number;
   /** 列表「明细」列预览（仅 material_name） */
@@ -252,6 +253,12 @@ export function mapOutsourceIssueToOutbound(item: Record<string, unknown>): Outb
     warehouse_name: String(item.warehouse_name ?? item.warehouseName ?? ''),
     total_quantity: Number(item.total_quantity ?? item.quantity ?? 0),
     total_items: Number(item.total_items ?? 1),
+    quantity_unit:
+      item.quantity_unit != null
+        ? String(item.quantity_unit)
+        : item.unit != null
+          ? String(item.unit)
+          : null,
     items: previewItems,
     delivered_by: String(
       item.issued_by_name ?? item.issuedByName ?? item.created_by_name ?? item.createdByName ?? '',

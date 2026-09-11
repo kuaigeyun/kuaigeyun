@@ -232,6 +232,11 @@ export async function fetchInboundHubList(
         receipt_type: 'customer_material' as const,
         receipt_code: (item as Record<string, unknown>).registration_code,
         total_quantity: (item as Record<string, unknown>).total_quantity ?? (item as Record<string, unknown>).quantity,
+        quantity_unit:
+          (item as Record<string, unknown>).quantity_unit ??
+          (item as Record<string, unknown>).material_unit ??
+          (item as Record<string, unknown>).unit ??
+          null,
         status:
           (item as Record<string, unknown>).status === 'pending'
             ? '待入库'
@@ -274,6 +279,7 @@ export async function fetchInboundHubList(
       receipt_code: row.code,
       outsource_work_order_code: row.outsource_work_order_code ?? row.outsourceWorkOrderCode,
       total_quantity: row.quantity,
+      quantity_unit: row.quantity_unit ?? row.unit ?? null,
       // 委外收货：业务字段 received_at / received_by_name（received_by 为用户 ID）
       received_at: receivedAt,
       received_by_name: operatorName,
@@ -301,6 +307,7 @@ export async function fetchInboundHubList(
       receipt_code: row.code,
       outsource_work_order_code: row.outsource_work_order_code ?? row.outsourceWorkOrderCode,
       total_quantity: row.quantity,
+      quantity_unit: row.quantity_unit ?? row.unit ?? null,
       returned_at: returnedAt,
       returned_by_name: operatorName,
       receipt_date: returnedAt ?? row.receipt_date,
@@ -327,6 +334,7 @@ export async function fetchInboundHubList(
       receipt_code: row.code,
       outsource_work_order_code: row.outsource_work_order_code ?? row.outsourceWorkOrderCode,
       total_quantity: row.quantity,
+      quantity_unit: row.quantity_unit ?? row.unit ?? null,
       returned_at: returnedAt,
       returned_by_name: operatorName,
       receipt_date: returnedAt ?? row.receipt_date,

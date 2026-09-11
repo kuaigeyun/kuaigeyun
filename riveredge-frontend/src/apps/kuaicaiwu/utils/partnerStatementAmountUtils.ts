@@ -47,8 +47,12 @@ export function recalcPartnerStatementLines(
   };
 }
 
-export function previewLineKey(line: PartnerStatementLine, index: number): string {
-  return `${line.doc_type}-${line.doc_id}-${index}`;
+export function previewLineKey(line: PartnerStatementLine, _index?: number): string {
+  // 勿用数组下标：Ant Design Table 分页时传入的是页内 index，会导致第 2 页勾选键
+  // 与 allPreviewLineKeys（全量下标）不一致，表现为「第二页点不上去」。
+  const docType = String(line.doc_type || '').trim();
+  const docId = line.doc_id != null ? String(line.doc_id) : String(line.doc_code || '');
+  return `${docType}-${docId}`;
 }
 
 export function allPreviewLineKeys(lines: PartnerStatementLine[]): string[] {

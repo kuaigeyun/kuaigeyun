@@ -51,6 +51,7 @@ import OutboundQuickPullModals, {
 import OutboundConfirmPreviewModal from './OutboundConfirmPreviewModal';
 import OutboundHubEditModal from './OutboundHubEditModal';
 import { formatQuantity } from '../../../../../utils/format';
+import { renderWarehouseHeaderQuantity } from '../shared/warehouseListQuantity';
 import { getAntdModal } from '../../../../../utils/antdAppApis';
 import { alignProColumns } from '../../sales-management/shared/documentFieldAlignment';
 import { WAREHOUSE_DOC_LIST_FIELD_RANK } from '../shared/warehouseDocListFieldRank';
@@ -888,7 +889,7 @@ const OutboundPage: React.FC = () => {
       uniTableKeepWidth: true,
       resizable: false,
       sorter: true,
-      render: (_, record) => formatQuantity(record.total_quantity),
+      render: (_, record) => renderWarehouseHeaderQuantity(record, t),
     },
     ...buildWarehouseTotalAmountListColumn<OutboundOrder>(t, showAmount).map((col) => ({
       ...col,

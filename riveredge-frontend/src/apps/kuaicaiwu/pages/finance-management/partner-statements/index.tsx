@@ -460,6 +460,8 @@ const PartnerStatementsPage: React.FC = () => {
   const previewRowSelection = useMemo(
     () => ({
       selectedRowKeys: previewSelectedRowKeys,
+      // 跨页勾选：翻页后仍保留其它页已选键，避免第 2 页操作冲掉第 1 页选中
+      preserveSelectedRowKeys: true,
       onChange: (keys: React.Key[]) => setPreviewSelectedRowKeys(keys),
     }),
     [previewSelectedRowKeys],

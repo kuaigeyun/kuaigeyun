@@ -36,6 +36,54 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'warehouse-hub-quantity-unit-display',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.warehouse-hub-quantity-unit-display.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.warehouse-hub-quantity-unit-display.description',
+  },
+  {
+    id: 'work-order-split-code-suffix-import',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.work-order-split-code-suffix-import.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.work-order-split-code-suffix-import.description',
+  },
+  {
+    id: 'work-order-op-start-inspection-mode',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.work-order-op-start-inspection-mode.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.work-order-op-start-inspection-mode.description',
+  },
+  {
+    id: 'sales-return-confirm-red-receivable',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-return-confirm-red-receivable.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-return-confirm-red-receivable.description',
+  },
+  {
+    id: 'sales-order-push-return-partial-qty',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-order-push-return-partial-qty.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-order-push-return-partial-qty.description',
+  },
+  {
+    id: 'partner-statement-preview-page2-select',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.partner-statement-preview-page2-select.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.partner-statement-preview-page2-select.description',
+  },
+  {
     id: 'receivable-sales-return-offset-refund-display',
     date: '2026-09-11',
     type: 'fix',

@@ -12805,6 +12805,7 @@ export default {
   'app.kuaizhizao.warehouseCommon.colMaterial': '物料',
   'app.kuaizhizao.warehouseCommon.colLifecycle': '执行状态',
   'app.kuaizhizao.warehouseCommon.colSkuCount': '品种',
+  'app.kuaizhizao.warehouseCommon.headerQuantityKinds': '{{count}} 种',
   'app.kuaizhizao.warehouseCommon.colUnitPrice': '单价',
   'app.kuaizhizao.warehouseCommon.colAmount': '金额',
   'app.kuaizhizao.warehouseCommon.queryFailed': '查询失败',
@@ -28197,6 +28198,30 @@ export default {
     '发版后旧前端资源自动刷新',
   'pages.dashboard.updateLog.entries.stale-chunk-auto-reload.description':
     '发版后若浏览器仍引用已下线的 JS chunk，进入业务应用时会自动硬刷新一次；生产环境不再误提示 compose 或重启 Vite。',
+  'pages.dashboard.updateLog.entries.warehouse-hub-quantity-unit-display.title':
+    '出入库列表数量按单位正确展示',
+  'pages.dashboard.updateLog.entries.warehouse-hub-quantity-unit-display.description':
+    '入库管理、出库管理单据列表：明细单位一致时合计数量并显示单位；单位不同时改为显示物料种类数，避免托、千克、个等混加误导。',
+  'pages.dashboard.updateLog.entries.work-order-split-code-suffix-import.title':
+    '工单拆分可正常生成子单号',
+  'pages.dashboard.updateLog.entries.work-order-split-code-suffix-import.description':
+    '拆分子工单序号计算依赖的编码规则已收回工单服务本模块，避免树服务重构后缺失导入导致拆分失败；子单号仍为「父单号-三位序号」。',
+  'pages.dashboard.updateLog.entries.work-order-op-start-inspection-mode.title':
+    '工单工序开始不再因质检模式空值报错',
+  'pages.dashboard.updateLog.entries.work-order-op-start-inspection-mode.description':
+    '工序未落章过程检验模式时，开始/派工等接口响应将空值规范为「无质检」，与列表契约一致，避免 Pydantic 校验失败导致无法开工。',
+  'pages.dashboard.updateLog.entries.sales-return-confirm-red-receivable.title':
+    '销售退货确认后正确生成冲减应收',
+  'pages.dashboard.updateLog.entries.sales-return-confirm-red-receivable.description':
+    '销售退货确认时按明细重算并回填单价与头表金额，随后生成「退货冲减」应收；审核流失败时仍免审落账，并对蓝字应收未结余额冲减，避免只有原应收、无退货冲减行。',
+  'pages.dashboard.updateLog.entries.sales-order-push-return-partial-qty.title':
+    '销售订单下推退货可填写部分退货数量',
+  'pages.dashboard.updateLog.entries.sales-order-push-return-partial-qty.description':
+    '从销售订单创建销售退货单时，「退货数量」输入框紧挨可下推数量展示，可直接改小于可退数量的部分退；未勾选行禁用编辑，确认时校验数量与仓库批号。',
+  'pages.dashboard.updateLog.entries.partner-statement-preview-page2-select.title':
+    '往来对账单预览明细第二页可正常勾选',
+  'pages.dashboard.updateLog.entries.partner-statement-preview-page2-select.description':
+    '新建客户/供应商对账单预览表按单据类型与单据 ID 生成稳定行键，并跨页保留勾选；修复分页后第二页勾选无效、金额编辑键错位的问题。',
   'pages.dashboard.updateLog.entries.receivable-sales-return-offset-refund-display.title':
     '应收账款明确标识销售退货冲减与退款',
   'pages.dashboard.updateLog.entries.receivable-sales-return-offset-refund-display.description':

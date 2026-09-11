@@ -2059,9 +2059,19 @@ const SalesOrdersPage: React.FC = () => {
           const row = rowById.get(id);
           const qty = Number(workOrderPushQuantities[id] ?? 0);
           const maxQty = Number(row?.max_push_quantity ?? row?.quantity ?? 0);
-          if (!Number.isFinite(qty) || qty <= 0) continue;
-          if (qty > maxQty) {
-            messageApi.error(t('app.kuaizhizao.salesOrder.returnQtyExceedsMax', { material: row?.material_code || id, max: maxQty }));
+          if (!Number.isFinite(qty) || qty <= 0) {
+            messageApi.warning(
+              t('app.kuaizhizao.salesOrder.pushQtyInvalid', { code: row?.material_code || id }),
+            );
+            return;
+          }
+          if (Number.isFinite(maxQty) && maxQty > 0 && qty > maxQty) {
+            messageApi.error(
+              t('app.kuaizhizao.salesOrder.returnQtyExceedsMax', {
+                material: row?.material_code || id,
+                max: maxQty,
+              }),
+            );
             return;
           }
           const lineWh = pushShipmentNoticeLineWh[id];
@@ -6361,7 +6371,7 @@ const SalesOrdersPage: React.FC = () => {
               <Table
                 size="small"
                 dataSource={pushPreviewData.items}
-                scroll={{ x: 1320 }}
+                scroll={{ x: 1180 }}
                 columns={[
                   {
                     title: t('common.select'),
@@ -6382,16 +6392,56 @@ const SalesOrdersPage: React.FC = () => {
                             setWorkOrderSelectedItemIds((prev) =>
                               checked ? Array.from(new Set([...prev, itemId])) : prev.filter((id) => id !== itemId),
                             );
+                            if (checked) {
+                              setWorkOrderPushQuantities((prev) => {
+                                const cur = Number(prev[itemId] ?? 0);
+                                if (Number.isFinite(cur) && cur > 0) return prev;
+                                return {
+                                  ...prev,
+                                  [itemId]: Number.isFinite(maxQty) && maxQty > 0 ? maxQty : 0,
+                                };
+                              });
+                            }
                           }}
                         />
                       );
                     },
                   },
-                  { title: t('app.kuaizhizao.salesOrder.materialCode'), dataIndex: 'material_code', key: 'material_code', width: 130, ellipsis: true },
-                  { title: t('app.kuaizhizao.salesOrder.materialName'), dataIndex: 'material_name', key: 'material_name', width: 160, ellipsis: true },
-                  { title: t('common.quantity'), dataIndex: 'quantity', key: 'quantity', width: 90, align: 'right' as const, render: formatQuantity },
-                  { title: t('app.kuaizhizao.salesOrder.colPushedQty'), dataIndex: 'pushed_quantity', key: 'pushed_quantity', width: 90, align: 'right' as const, render: formatQuantity },
-                  { title: t('app.kuaizhizao.salesOrder.colPushableQty'), dataIndex: 'max_push_quantity', key: 'max_push_quantity', width: 90, align: 'right' as const, render: formatQuantity },
+                  { title: t('app.kuaizhizao.salesOrder.materialCode'), dataIndex: 'material_code', key: 'material_code', width: 120, ellipsis: true },
+                  { title: t('app.kuaizhizao.salesOrder.materialName'), dataIndex: 'material_name', key: 'material_name', width: 140, ellipsis: true },
+                  { title: t('common.quantity'), dataIndex: 'quantity', key: 'quantity', width: 80, align: 'right' as const, render: formatQuantity },
+                  { title: t('app.kuaizhizao.salesOrder.colPushedQty'), dataIndex: 'pushed_quantity', key: 'pushed_quantity', width: 80, align: 'right' as const, render: formatQuantity },
+                  { title: t('app.kuaizhizao.salesOrder.colPushableQty'), dataIndex: 'max_push_quantity', key: 'max_push_quantity', width: 80, align: 'right' as const, render: formatQuantity },
+                  {
+                    title: (
+                      <>
+                        {t('app.kuaizhizao.salesOrder.returnQty')}
+                        <Typography.Text type="danger"> *</Typography.Text>
+                      </>
+                    ),
+                    dataIndex: 'push_quantity',
+                    key: 'push_quantity',
+                    width: 130,
+                    render: (_: unknown, row: any) => {
+                      const itemId = Number(row?.item_id);
+                      const maxQty = Number(row?.max_push_quantity ?? row?.quantity ?? 0);
+                      const selected = workOrderSelectedItemIds.includes(itemId);
+                      return (
+                        <InputNumber
+                          min={0}
+                          max={Number.isFinite(maxQty) && maxQty > 0 ? maxQty : undefined}
+                          precision={quantityDecimals}
+                          style={{ width: '100%' }}
+                          disabled={!selected}
+                          value={workOrderPushQuantities[itemId]}
+                          onChange={(val) => {
+                            const next = Number(val ?? 0);
+                            setWorkOrderPushQuantities((prev) => ({ ...prev, [itemId]: next }));
+                          }}
+                        />
+                      );
+                    },
+                  },
                   {
                     title: (
                       <>
@@ -6460,29 +6510,6 @@ const SalesOrdersPage: React.FC = () => {
                           value={pushReturnLineBatch[itemId] ?? ''}
                           onChange={(e) => {
                             setPushReturnLineBatch((prev) => ({ ...prev, [itemId]: e.target.value }));
-                          }}
-                        />
-                      );
-                    },
-                  },
-                  {
-                    title: t('app.kuaizhizao.salesOrder.colPushQty'),
-                    dataIndex: 'push_quantity',
-                    key: 'push_quantity',
-                    width: 130,
-                    render: (_: unknown, row: any) => {
-                      const itemId = Number(row?.item_id);
-                      const maxQty = Number(row?.max_push_quantity ?? row?.quantity ?? 0);
-                      return (
-                        <InputNumber
-                          min={0}
-                          max={Number.isFinite(maxQty) && maxQty > 0 ? maxQty : undefined}
-                          precision={quantityDecimals}
-                          style={{ width: '100%' }}
-                          value={workOrderPushQuantities[itemId]}
-                          onChange={(val) => {
-                            const next = Number(val ?? 0);
-                            setWorkOrderPushQuantities((prev) => ({ ...prev, [itemId]: next }));
                           }}
                         />
                       );

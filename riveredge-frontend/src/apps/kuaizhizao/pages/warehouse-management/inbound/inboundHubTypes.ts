@@ -51,6 +51,8 @@ export interface InboundHubOrder {
   warehouse_id?: number;
   warehouse_name?: string;
   total_quantity?: number;
+  /** 明细单位一致时的单位；不一致为 null */
+  quantity_unit?: string | null;
   unit_price?: number;
   total_amount?: number;
   total_items?: number;

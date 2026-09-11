@@ -31,6 +31,7 @@ import { useResourcePermissions } from '../../../../../hooks/useResourcePermissi
 import {
   buildLineAmountPayload,
   patchLineStatementAmount,
+  previewLineKey,
   recalcPartnerStatementLines,
 } from '../../../utils/partnerStatementAmountUtils';
 import { usePartnerStatementLineColumns } from '../../../utils/partnerStatementLineColumns';
@@ -137,7 +138,7 @@ const PartnerStatementDetailPage: React.FC = () => {
   );
 
   const lineKeyFn = useCallback(
-    (ln: PartnerStatementLine, idx: number) => `${ln.doc_type}-${ln.doc_id}-${idx}`,
+    (ln: PartnerStatementLine, idx?: number) => previewLineKey(ln, idx),
     [],
   );
 
@@ -411,7 +412,7 @@ const PartnerStatementDetailPage: React.FC = () => {
 
           <Table
             size="small"
-            rowKey={(r, i) => `${r.doc_type}-${r.doc_id}-${i}`}
+            rowKey={previewLineKey}
             pagination={false}
             dataSource={lines}
             scroll={{ x: 1400 }}

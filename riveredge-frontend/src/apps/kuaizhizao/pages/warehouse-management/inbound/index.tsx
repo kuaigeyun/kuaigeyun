@@ -70,7 +70,7 @@ import { buildKuaizhizaoPullCreateMenuItems } from '../../../constants/documentA
 import { customerMaterialRegistrationApi } from '../../../services/customer-material-registration';
 import {formatQuantity} from '../../../../../utils/format';
 import { getAntdModal } from '../../../../../utils/antdAppApis';
-import { renderWarehouseLineQuantity } from '../shared/warehouseListQuantity';
+import { renderWarehouseLineQuantity, renderWarehouseHeaderQuantity } from '../shared/warehouseListQuantity';
 import { formatApiErrorDetail } from '../../../../../services/api';
 import { alignProColumns } from '../../sales-management/shared/documentFieldAlignment';
 import {
@@ -1678,7 +1678,7 @@ const InboundPage: React.FC = () => {
       uniTableKeepWidth: true,
       resizable: false,
       sorter: true,
-      render: (_, record) => formatQuantity(record.total_quantity),
+      render: (_, record) => renderWarehouseHeaderQuantity(record, t),
     },
     ...buildWarehouseTotalAmountListColumn<InboundOrder>(t, showAmount).map((col) => ({
       ...col,
