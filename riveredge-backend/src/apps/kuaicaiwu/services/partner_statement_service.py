@@ -30,6 +30,10 @@ from apps.kuaicaiwu.models.payment import Payment
 from apps.kuaicaiwu.models.receivable import Receivable
 from apps.kuaicaiwu.models.receipt import Receipt
 from apps.kuaicaiwu.services.finance_settlement_hierarchy import order_lines_by_settlement_hierarchy
+from apps.kuaicaiwu.services.finance_refund_utils import (
+    SETTLEMENT_CREDIT_PURCHASE_RETURN_OFFSET,
+    SETTLEMENT_CREDIT_SALES_RETURN_OFFSET,
+)
 from apps.master_data.models.customer import Customer
 from apps.master_data.models.supplier import Supplier
 from core.utils.timezone_utils import to_api_isoformat, today_site_str
@@ -369,6 +373,11 @@ class PartnerStatementService(AppBaseService[PartnerStatement]):
                     "credit": float(amt) if is_return else 0.0,
                     "doc_id": r.id,
                     "doc_amount": float(amt),
+                    **(
+                        {"offset_source_id": int(r.source_id)}
+                        if is_return and r.source_id
+                        else {}
+                    ),
                 })
             for r in receipts:
                 amt = _abs_money(r.total_amount)
@@ -418,6 +427,8 @@ class PartnerStatementService(AppBaseService[PartnerStatement]):
                     "doc_id": p.id,
                     "doc_amount": float(amt),
                 }
+                if is_return and p.source_id:
+                    line["offset_source_id"] = int(p.source_id)
                 # 应付 source_type：库内可能是中文常量，也可能是加载 API 的英文码
                 src = str(p.source_type or "").strip()
                 if p.source_id and src in (
@@ -475,6 +486,8 @@ class PartnerStatementService(AppBaseService[PartnerStatement]):
                 rel_target="receipt",
                 debit_doc_type="Receivable",
                 credit_doc_type="Receipt",
+                return_offset_child_doc_types={"销售退货"},
+                return_offset_credit_doc_type=SETTLEMENT_CREDIT_SALES_RETURN_OFFSET,
             )
         return await order_lines_by_settlement_hierarchy(
             tenant_id,
@@ -485,6 +498,8 @@ class PartnerStatementService(AppBaseService[PartnerStatement]):
             rel_target="payment",
             debit_doc_type="Payable",
             credit_doc_type="Payment",
+            return_offset_child_doc_types={"采购退货"},
+            return_offset_credit_doc_type=SETTLEMENT_CREDIT_PURCHASE_RETURN_OFFSET,
         )
 
     async def ensure_statement_line_hierarchy(
@@ -498,12 +513,10 @@ class PartnerStatementService(AppBaseService[PartnerStatement]):
         if not lines:
             return lines
         working = [_normalize_statement_line_amounts(dict(ln)) for ln in lines]
-        if not any(int(ln.get("tree_level") or 0) > 0 for ln in working):
-            ordered = await self._order_lines_by_settlement_hierarchy(
-                tenant_id, partner_type, working
-            )
-        else:
-            ordered = working
+        # 始终按核销真源重排：付款已嵌套时，退货冲减仍需挂到蓝字应付/应收下
+        ordered = await self._order_lines_by_settlement_hierarchy(
+            tenant_id, partner_type, working
+        )
         _, _, _, with_bal = self._apply_running_balance(opening_balance, ordered)
         return with_bal
 
@@ -951,10 +964,9 @@ class PartnerStatementService(AppBaseService[PartnerStatement]):
         if not rebuilt:
             raise BusinessLogicError("对账明细不能为空")
         opening = _q_money(obj.opening_balance)
-        if not any(int(ln.get("tree_level") or 0) > 0 for ln in rebuilt):
-            rebuilt = await self._order_lines_by_settlement_hierarchy(
-                tenant_id, obj.partner_type, rebuilt
-            )
+        rebuilt = await self._order_lines_by_settlement_hierarchy(
+            tenant_id, obj.partner_type, rebuilt
+        )
         debit_total, credit_total, closing, lines = self._apply_running_balance(opening, rebuilt)
         summary = {
             "opening_balance": float(opening),

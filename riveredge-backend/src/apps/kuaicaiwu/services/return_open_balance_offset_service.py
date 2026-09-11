@@ -23,6 +23,7 @@ from apps.kuaicaiwu.constants.finance_source_types import (
     is_sales_return_offset_receivable,
 )
 from apps.kuaicaiwu.models.payable import Payable
+from apps.kuaicaiwu.models.purchase_invoice import PurchaseInvoice
 from apps.kuaicaiwu.models.receivable import Receivable
 from apps.kuaicaiwu.models.settlement import SettlementRecord
 from apps.kuaicaiwu.services.finance_refund_utils import (
@@ -32,9 +33,11 @@ from apps.kuaicaiwu.services.finance_refund_utils import (
     quantize_money,
 )
 from apps.kuaizhizao.models.document_relation import DocumentRelation
+from apps.kuaizhizao.models.purchase_receipt import PurchaseReceipt
 from apps.kuaizhizao.models.purchase_receipt_item import PurchaseReceiptItem
 from apps.kuaizhizao.models.purchase_return import PurchaseReturn
 from apps.kuaizhizao.models.purchase_return_item import PurchaseReturnItem
+from apps.kuaizhizao.models.sales_delivery import SalesDelivery
 from apps.kuaizhizao.models.sales_delivery_item import SalesDeliveryItem
 from apps.kuaizhizao.models.sales_return import SalesReturn
 from apps.kuaizhizao.models.sales_return_item import SalesReturnItem
@@ -476,6 +479,14 @@ class ReturnOpenBalanceOffsetService:
             ).all():
                 _add_positive_ids(delivery_ids, row.delivery_id)
 
+        if order_ids:
+            for did in await SalesDelivery.filter(
+                tenant_id=tenant_id,
+                deleted_at__isnull=True,
+                sales_order_id__in=list(order_ids),
+            ).values_list("id", flat=True):
+                _add_positive_ids(delivery_ids, did)
+
         receivable_ids: Set[int] = set()
         invoice_ids: Set[int] = set()
         source_q = Q()
@@ -500,7 +511,7 @@ class ReturnOpenBalanceOffsetService:
         recv_q = Q()
         if delivery_ids:
             recv_q |= Q(
-                source_type=RECEIVABLE_SOURCE_SALES_DELIVERY,
+                source_type__in=list(_SALES_DELIVERY_REL_TYPES),
                 source_id__in=list(delivery_ids),
             )
         if order_ids:
@@ -562,6 +573,14 @@ class ReturnOpenBalanceOffsetService:
             ).all():
                 _add_positive_ids(receipt_ids, row.receipt_id)
 
+        if order_ids:
+            for rid in await PurchaseReceipt.filter(
+                tenant_id=tenant_id,
+                deleted_at__isnull=True,
+                purchase_order_id__in=list(order_ids),
+            ).values_list("id", flat=True):
+                _add_positive_ids(receipt_ids, rid)
+
         payable_ids: Set[int] = set()
         invoice_ids: Set[int] = set()
         source_q = Q()
@@ -582,6 +601,14 @@ class ReturnOpenBalanceOffsetService:
                     _add_positive_ids(payable_ids, rel.target_id)
                 elif tt in _PURCHASE_INVOICE_REL_TYPES:
                     _add_positive_ids(invoice_ids, rel.target_id)
+
+        if order_ids:
+            for iid in await PurchaseInvoice.filter(
+                tenant_id=tenant_id,
+                deleted_at__isnull=True,
+                purchase_order_id__in=list(order_ids),
+            ).values_list("id", flat=True):
+                _add_positive_ids(invoice_ids, iid)
 
         pay_q = Q()
         if receipt_ids:

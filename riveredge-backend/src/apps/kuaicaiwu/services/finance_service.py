@@ -294,8 +294,12 @@ class PayableService(AppBaseService[Payable]):
 
     async def update_payable(self, tenant_id: int, payable_id: int, payable_data: PayableUpdate, updated_by: int) -> PayableResponse:
         """更新应付单（无付款、无退款时可改）"""
+        from apps.kuaicaiwu.constants.finance_source_types import is_purchase_return_offset_payable
+
         async with in_transaction():
             payable = await self.get_payable_by_id(tenant_id, payable_id)
+            if is_purchase_return_offset_payable(getattr(payable, "source_type", None)):
+                raise BusinessLogicError("采购退货冲减应付不可修改")
             if self._money(payable.paid_amount) > Decimal("0.00"):
                 raise BusinessLogicError("已有付款记录的应付单不能修改")
             if self._money(getattr(payable, "refunded_amount", 0) or 0) > Decimal("0.00"):
@@ -334,9 +338,17 @@ class PayableService(AppBaseService[Payable]):
         核销单号在事务外生成，避免「外层事务 + generate_code 内 SELECT FOR UPDATE」
         嵌套占住连接导致 idle in transaction / 连接池耗尽。
         """
+        from apps.kuaicaiwu.constants.finance_source_types import is_purchase_return_offset_payable
+
         payable = await self.get_payable_by_id(tenant_id, payable_id)
+        if is_purchase_return_offset_payable(getattr(payable, "source_type", None)):
+            raise BusinessLogicError(
+                "采购退货冲减应付不可登记正向付款；请在客商对账中按借方冲减，或走付款退款流程"
+            )
         if payable.status == '已结清':
             raise BusinessLogicError("应付单已结清，无法继续付款")
+        if str(payable.status or "").strip() == "已冲减":
+            raise BusinessLogicError("冲减应付不可登记正向付款")
         payment_amount = self._money(payment_data.payment_amount)
         if payment_amount > payable.remaining_amount:
             raise ValidationError("付款金额不能超过剩余金额")
@@ -543,7 +555,11 @@ class PayableService(AppBaseService[Payable]):
 
     async def delete_payable(self, tenant_id: int, payable_id: int) -> None:
         """删除应付单（无付款、无退款时可删，含已审核）"""
+        from apps.kuaicaiwu.constants.finance_source_types import is_purchase_return_offset_payable
+
         payable = await self.get_payable_by_id(tenant_id, payable_id)
+        if is_purchase_return_offset_payable(getattr(payable, "source_type", None)):
+            raise BusinessLogicError("采购退货冲减应付不可删除")
         if self._money(payable.paid_amount) > Decimal("0.00"):
             raise BusinessLogicError("已有付款记录的应付单不能删除")
         if self._money(getattr(payable, "refunded_amount", 0) or 0) > Decimal("0.00"):
@@ -2305,11 +2321,16 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
         net_received = quantize_money(gross_received - gross_refunded)
         if net_received < Decimal("0.00"):
             net_received = Decimal("0.00")
-        status = resolve_ar_status_after_amounts(
-            total_amount=receivable.total_amount,
-            received_amount=net_received,
-            remaining_amount=new_remaining,
-        )
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
+        if is_sales_return_offset_receivable(getattr(receivable, "source_type", None)):
+            status = "已冲减"
+        else:
+            status = resolve_ar_status_after_amounts(
+                total_amount=receivable.total_amount,
+                received_amount=net_received,
+                remaining_amount=new_remaining,
+            )
         refund_status = compute_refund_execution_status(
             receivable.total_amount,
             gross_refunded,
@@ -2389,11 +2410,16 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
         net_paid = quantize_money(gross_paid - gross_refunded)
         if net_paid < Decimal("0.00"):
             net_paid = Decimal("0.00")
-        status = resolve_ap_status_after_amounts(
-            total_amount=payable.total_amount,
-            paid_amount=net_paid,
-            remaining_amount=new_remaining,
-        )
+        from apps.kuaicaiwu.constants.finance_source_types import is_purchase_return_offset_payable
+
+        if is_purchase_return_offset_payable(getattr(payable, "source_type", None)):
+            status = "已冲减"
+        else:
+            status = resolve_ap_status_after_amounts(
+                total_amount=payable.total_amount,
+                paid_amount=net_paid,
+                remaining_amount=new_remaining,
+            )
         refund_status = compute_refund_execution_status(
             payable.total_amount,
             gross_refunded,

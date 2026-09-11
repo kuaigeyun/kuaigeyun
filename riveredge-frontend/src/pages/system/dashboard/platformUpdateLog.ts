@@ -36,6 +36,60 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'receivable-sales-return-offset-refund-display',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.receivable-sales-return-offset-refund-display.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.receivable-sales-return-offset-refund-display.description',
+  },
+  {
+    id: 'partner-statement-return-offset-hierarchy',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.partner-statement-return-offset-hierarchy.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.partner-statement-return-offset-hierarchy.description',
+  },
+  {
+    id: 'payable-refund-offset-marker-display',
+    date: '2026-09-11',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.payable-refund-offset-marker-display.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.payable-refund-offset-marker-display.description',
+  },
+  {
+    id: 'purchase-order-push-return-warehouse-select',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.purchase-order-push-return-warehouse-select.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.purchase-order-push-return-warehouse-select.description',
+  },
+  {
+    id: 'payable-purchase-return-offset-display',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.payable-purchase-return-offset-display.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.payable-purchase-return-offset-display.description',
+  },
+  {
+    id: 'purchase-return-refund-order-bridge',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.purchase-return-refund-order-bridge.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.purchase-return-refund-order-bridge.description',
+  },
+  {
+    id: 'warehouse-menu-leaf-icons',
+    date: '2026-09-11',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.warehouse-menu-leaf-icons.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.warehouse-menu-leaf-icons.description',
+  },
+  {
     id: 'sidebar-pro-app-badge-restore',
     date: '2026-09-11',
     type: 'fix',

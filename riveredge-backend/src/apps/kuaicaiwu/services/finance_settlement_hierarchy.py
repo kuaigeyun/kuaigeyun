@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 async def order_lines_by_settlement_hierarchy(
@@ -20,25 +20,31 @@ async def order_lines_by_settlement_hierarchy(
     credit_doc_type: str,
     sort_date_key: str = "sort_date",
     date_fallback_key: str = "date",
+    return_offset_child_doc_types: Optional[Set[str]] = None,
+    return_offset_credit_doc_type: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    将收/付款（含退款）挂到对应应收/应付单之下（扁平列表 + tree_level）。
+    将收/付款（含退款）与退货冲减台账挂到对应应收/应付单之下（扁平列表 + tree_level）。
 
     关联顺序：
     1. DocumentRelation 应收/应付 → 收/付款（加载创建）
     2. SettlementRecord 正向核销（应收借 / 收款贷）
     3. SettlementRecord 退款冲回（收款借 / 应收贷）
     4. DocumentRelation 收/付款 → 收/付款（退款从源收款加载）：继承源单父应收，或再查源单核销
+    5. SettlementRecord 退货未结冲减（蓝字应收/应付借 / SalesReturnOffset|PurchaseReturnOffset 贷）
     """
     if not lines:
         return lines
 
+    return_offset_types = set(return_offset_child_doc_types or ())
+    all_child_types = set(child_doc_types) | return_offset_types
+
     parents = [ln for ln in lines if ln.get("doc_type") in parent_doc_types]
-    children = [ln for ln in lines if ln.get("doc_type") in child_doc_types]
+    children = [ln for ln in lines if ln.get("doc_type") in all_child_types]
     others = [
         ln
         for ln in lines
-        if ln.get("doc_type") not in parent_doc_types and ln.get("doc_type") not in child_doc_types
+        if ln.get("doc_type") not in parent_doc_types and ln.get("doc_type") not in all_child_types
     ]
     if not parents or not children:
         for ln in lines:
@@ -123,14 +129,12 @@ async def order_lines_by_settlement_hierarchy(
             target_id__in=unset_ids,
             relation_mode="pull",
         ).all()
-        source_voucher_ids: List[int] = []
         refund_to_source: Dict[int, int] = {}
         for rel in voucher_rels:
             if not rel.source_id or not rel.target_id:
                 continue
             sid, tid = int(rel.source_id), int(rel.target_id)
             refund_to_source[tid] = sid
-            source_voucher_ids.append(sid)
 
         for tid, sid in refund_to_source.items():
             if tid in child_parent:
@@ -167,6 +171,72 @@ async def order_lines_by_settlement_hierarchy(
                 pid = source_parent.get(sid)
                 if pid is not None:
                     child_parent[tid] = pid
+
+    # 退货未结冲减：蓝字应收/应付 借，SalesReturnOffset|PurchaseReturnOffset 贷
+    # 对账行 doc_id 是红字应收/应付；Settlement.credit_doc_id 是退货单 id（= 红字 source_id）
+    if return_offset_types and return_offset_credit_doc_type:
+        return_children = [
+            c
+            for c in children
+            if c.get("doc_type") in return_offset_types
+            and c.get("doc_id") is not None
+            and int(c["doc_id"]) not in child_parent
+        ]
+        if return_children:
+            from apps.kuaicaiwu.models.settlement import SettlementRecord
+
+            child_to_return_id: Dict[int, int] = {}
+            need_lookup: List[int] = []
+            for c in return_children:
+                cid = int(c["doc_id"])
+                raw_oid = c.get("offset_source_id")
+                if raw_oid is not None and str(raw_oid).strip() != "":
+                    child_to_return_id[cid] = int(raw_oid)
+                else:
+                    need_lookup.append(cid)
+
+            if need_lookup:
+                if debit_doc_type == "Payable":
+                    from apps.kuaicaiwu.models.payable import Payable
+
+                    rows = await Payable.filter(
+                        tenant_id=tenant_id, id__in=need_lookup, deleted_at__isnull=True
+                    ).all()
+                    for row in rows:
+                        if row.source_id:
+                            child_to_return_id[int(row.id)] = int(row.source_id)
+                else:
+                    from apps.kuaicaiwu.models.receivable import Receivable
+
+                    rows = await Receivable.filter(
+                        tenant_id=tenant_id, id__in=need_lookup, deleted_at__isnull=True
+                    ).all()
+                    for row in rows:
+                        if row.source_id:
+                            child_to_return_id[int(row.id)] = int(row.source_id)
+
+            return_ids = list({rid for rid in child_to_return_id.values()})
+            if return_ids:
+                offset_settles = await SettlementRecord.filter(
+                    tenant_id=tenant_id,
+                    debit_doc_type=debit_doc_type,
+                    credit_doc_type=return_offset_credit_doc_type,
+                    credit_doc_id__in=return_ids,
+                    is_active=True,
+                    deleted_at__isnull=True,
+                ).all()
+                by_return: Dict[int, List[Any]] = defaultdict(list)
+                for s in offset_settles:
+                    if s.debit_doc_id and int(s.debit_doc_id) in parent_ids:
+                        by_return[int(s.credit_doc_id)].append(s)
+                return_to_parent: Dict[int, int] = {}
+                for rid, lst in by_return.items():
+                    best = max(lst, key=lambda x: abs(float(x.amount or 0)))
+                    return_to_parent[rid] = int(best.debit_doc_id)
+                for cid, rid in child_to_return_id.items():
+                    pid = return_to_parent.get(rid)
+                    if pid is not None:
+                        child_parent[cid] = pid
 
     buckets: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
     orphans: List[Dict[str, Any]] = []

@@ -41,9 +41,11 @@ import {
 } from '../../../../../components/uni-pull-query';
 import { UniWorkflowActions } from '../../../../../components/uni-workflow-actions';
 import { getPayableLifecycle } from '../../../utils/financeLifecycle';
+import { isPurchaseReturnOffsetPayable } from '../../../utils/payableOffset';
 import { buildPayableStatusEnum, buildReviewStatusEnum } from '../../../utils/financeSharedOptions';
 import { buildKuaicaiwuPullCreateMenuItems, getKuaicaiwuDocumentAction } from '../../../constants/documentActionRegistry';
 import { payableCapabilityReasonMessage } from '../../../utils/payableCapabilityMessages';
+import { renderRefundExecutionMarker } from '../../../utils/financeUiLabels';
 import dayjs from 'dayjs';
 import DocumentAttachmentsField from '../../../../kuaizhizao/components/DocumentAttachmentsField';
 import { normalizeDocumentAttachments } from '../../../../kuaizhizao/utils/documentAttachments';
@@ -66,6 +68,7 @@ import { payablePaymentPushPercent, payableInvoicePushPercent } from '../../../.
 import { renderPayableInvoiceStatusTag } from '../../../utils/financeInvoiceStatusUi';
 import { UniTableStackedPrimaryCell } from '../../../../../components/uni-table/stackedPrimaryColumn';
 import { UNI_TABLE_MARKER_BADGE_COLUMN_DEFAULTS } from '../../../../../utils/uniTableLayoutColumns';
+import { MarkerTag } from '../../../../../constants/statusBadges';
 import { fetchAllListItems } from '../../../../../utils/fetchAllListPages';
 import { downloadRecordsAsXlsx } from '../../../../../utils/exportRecordsXlsx';
 import { LinkedDocumentCode } from '../../../../../components/linked-document-code/LinkedDocumentCode';
@@ -86,6 +89,7 @@ const formatPullMoney = (value: number) =>
   formatCurrencyAmount(value || 0);
 
 function canCorrectPayableRow(record: Payable): boolean {
+  if (isPurchaseReturnOffsetPayable(record)) return false;
   if (Number(record.paid_amount ?? 0) > 0) return false;
   if (Number(record.refunded_amount ?? 0) > 0) return false;
   const refundExec = String(record.refund_execution_status || '').trim();
@@ -198,10 +202,12 @@ const PayableList: React.FC = () => {
     const mergePaymentDisabled =
         !paymentPerms.canCreate ||
         selectedRecordsForBatch.length === 0 ||
+        selectedRecordsForBatch.some((r) => isPurchaseReturnOffsetPayable(r)) ||
         new Set(selectedRecordsForBatch.map((r) => Number(r.supplier_id))).size !== 1;
     const mergeInvoiceDisabled =
         !purchaseInvoicePerms.canCreate ||
         selectedRecordsForBatch.length === 0 ||
+        selectedRecordsForBatch.some((r) => isPurchaseReturnOffsetPayable(r)) ||
         new Set(selectedRecordsForBatch.map((r) => Number(r.supplier_id))).size !== 1;
 
     const payableImportTemplate = useMemo(
@@ -608,6 +614,29 @@ const PayableList: React.FC = () => {
                     onSecondaryClick={() =>
                         navigate(`/apps/kuaicaiwu/finance-management/payables/${entity.id}`)
                     }
+                    primaryExtra={
+                        (() => {
+                            const tags: React.ReactNode[] = [];
+                            if (isPurchaseReturnOffsetPayable(entity)) {
+                                tags.push(
+                                    <MarkerTag key="offset" color="geekblue">
+                                        {t(`${P}.offsetMarker`)}
+                                    </MarkerTag>,
+                                );
+                            }
+                            const refundExec = String(entity.refund_execution_status || '').trim();
+                            if (refundExec === '部分退款' || refundExec === '全部退款') {
+                                const { label, color } = renderRefundExecutionMarker(refundExec, t);
+                                tags.push(
+                                    <MarkerTag key="refund" color={color}>
+                                        {label}
+                                    </MarkerTag>,
+                                );
+                            }
+                            if (tags.length === 0) return null;
+                            return <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>{tags}</span>;
+                        })()
+                    }
                 />
             ),
         },
@@ -876,6 +905,7 @@ const PayableList: React.FC = () => {
                     />,
                 ];
                 if (
+                    !isPurchaseReturnOffsetPayable(record) &&
                     record.remaining_amount > 0 &&
                     record.capabilities?.push_payment?.allowed !== false &&
                     paymentPerms.canCreate
@@ -893,6 +923,7 @@ const PayableList: React.FC = () => {
                     );
                 }
                 if (
+                    !isPurchaseReturnOffsetPayable(record) &&
                     record.capabilities?.push_purchase_invoice?.allowed !== false &&
                     Number(record.remaining_invoice_amount ?? record.total_amount ?? 0) > 0 &&
                     purchaseInvoicePerms.canCreate

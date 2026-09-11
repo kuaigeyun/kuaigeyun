@@ -98,6 +98,7 @@ import CodeField from '../../../../../components/code-field';
 import { UniDropdown } from '../../../../../components/uni-dropdown';
 import { UniMaterialSelect } from '../../../../../components/uni-material-select';
 import { UniMaterialBatchPicker } from '../../../../../components/uni-material-batch-picker';
+import { UniWarehouseSelect } from '../../../../../components/uni-warehouse-select';
 import { MaterialUnitSelect } from '../../../../../components/material-unit-select';
 import { DocumentLineUnitSelect } from '../../../../../components/quantity-with-unit';
 import { resolveMaterialScenarioUnit } from '../../../../../utils/materialScenarioUnit';
@@ -1404,6 +1405,8 @@ const PurchaseOrdersPage: React.FC = () => {
       }
       setPushToReturnOrder(detail as PurchaseOrderDetail);
       setPushToReturnQuantities(quantities);
+      setPushToReturnWarehouseId(undefined);
+      setPushToReturnWarehouseName('');
       setPushToReturnVisible(true);
     },
     [messageApi, t],
@@ -4268,24 +4271,29 @@ const PurchaseOrdersPage: React.FC = () => {
             <p style={{ marginBottom: 12 }}>
               {t('app.kuaizhizao.purchaseOrder.pushReturnIntro', { code: pushToReturnOrder.order_code })}
             </p>
-            <Row gutter={12} style={{ marginBottom: 12 }}>
-              <Col span={8}>
-                <InputNumber
-                  min={1}
-                  style={{ width: '100%' }}
-                  value={pushToReturnWarehouseId}
-                  onChange={(v) => setPushToReturnWarehouseId(Number(v) || undefined)}
-                  placeholder={t('app.kuaizhizao.purchaseOrder.returnWarehouseIdPlaceholder')}
-                />
-              </Col>
-              <Col span={16}>
-                <Input
-                  value={pushToReturnWarehouseName}
-                  onChange={(e) => setPushToReturnWarehouseName(e.target.value)}
-                  placeholder={t('app.kuaizhizao.purchaseOrder.returnWarehouseNamePlaceholder')}
-                />
-              </Col>
-            </Row>
+            <ProForm
+              key={pushToReturnOrder.id}
+              submitter={false}
+              layout="vertical"
+              style={{ marginBottom: 12 }}
+            >
+              <UniWarehouseSelect
+                name="warehouse_id"
+                label={t('app.kuaizhizao.purchaseOrder.returnWarehouse')}
+                placeholder={t('app.kuaizhizao.purchaseOrder.selectReturnWarehouse')}
+                required
+                onChange={(value, warehouse) => {
+                  setPushToReturnWarehouseId(value);
+                  setPushToReturnWarehouseName(warehouse?.name ?? '');
+                }}
+                rules={[
+                  {
+                    required: true,
+                    message: t('app.kuaizhizao.purchaseOrder.returnWarehouseRequired'),
+                  },
+                ]}
+              />
+            </ProForm>
             <Table
               size="small"
               dataSource={(pushToReturnOrder.items || []).filter((it: PurchaseOrderItem) => (it.received_quantity ?? 0) > 0)}

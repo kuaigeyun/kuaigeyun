@@ -12227,14 +12227,16 @@ class SalesReturnService(AppBaseService[SalesReturn]):
 
         # 过账事务已提交。红字应收须在外层创建：create_receivable 内部另有 in_transaction()，
         # 嵌套时部分环境会回滚退货状态/库存，但接口仍返回成功体。
+        # 蓝字冲减与红字创建解耦：创建失败仍须冲减未结余额，避免「只有原应收、无冲减」。
         updated_return = await self.get_sales_return_by_id(tenant_id, return_id)
+        red_receivable_id: Optional[int] = None
+        ret_obj = await SalesReturn.get(tenant_id=tenant_id, id=return_id)
+        total_amount = float(ret_obj.total_amount or 0)
+        cust_id = int(ret_obj.customer_id) if ret_obj.customer_id else None
         try:
             from apps.kuaicaiwu.services.finance_service import ReceivableService
             from apps.kuaicaiwu.schemas.finance import ReceivableCreate
 
-            ret_obj = await SalesReturn.get(tenant_id=tenant_id, id=return_id)
-            total_amount = float(ret_obj.total_amount or 0)
-            cust_id = int(ret_obj.customer_id) if ret_obj.customer_id else None
             if (
                 total_amount > 0
                 and cust_id
@@ -12303,24 +12305,23 @@ class SalesReturnService(AppBaseService[SalesReturn]):
                 except Exception as rel_e:
                     logger.warning("销售退货确认-创建应收单关联/会计事件失败: %s", rel_e)
                 red_receivable_id = int(receivable.id)
-            else:
-                red_receivable_id = None
-            if total_amount > 0:
-                try:
-                    from apps.kuaicaiwu.services.return_open_balance_offset_service import (
-                        ReturnOpenBalanceOffsetService,
-                    )
-
-                    await ReturnOpenBalanceOffsetService().apply_sales_return_offset(
-                        tenant_id,
-                        return_id,
-                        operator_id=confirmed_by,
-                        red_receivable_id=red_receivable_id,
-                    )
-                except Exception as offset_e:
-                    logger.warning("销售退货确认-冲减蓝字应收未结余额失败: %s", offset_e)
         except Exception as fin_e:
             logger.warning("销售退货确认-创建红字应收单失败: %s", fin_e)
+
+        if total_amount > 0:
+            try:
+                from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+                    ReturnOpenBalanceOffsetService,
+                )
+
+                await ReturnOpenBalanceOffsetService().apply_sales_return_offset(
+                    tenant_id,
+                    return_id,
+                    operator_id=confirmed_by,
+                    red_receivable_id=red_receivable_id,
+                )
+            except Exception as offset_e:
+                logger.warning("销售退货确认-冲减蓝字应收未结余额失败: %s", offset_e)
 
         return updated_return
 
@@ -13905,14 +13906,16 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
 
         # 过账事务已提交。红字应付须在外层创建：create_payable 内部另有 in_transaction()，
         # 嵌套时部分环境会回滚退货状态/库存，但接口仍返回成功体。
+        # 蓝字冲减与红字创建解耦：创建失败仍须冲减未结余额。
         updated_return = await self.get_purchase_return_by_id(tenant_id, return_id)
+        red_payable_id: Optional[int] = None
+        ret_obj = await PurchaseReturn.get(tenant_id=tenant_id, id=return_id)
+        total_amount = float(ret_obj.total_amount or 0)
+        supplier_id = int(ret_obj.supplier_id) if ret_obj.supplier_id else None
         try:
             from apps.kuaicaiwu.services.finance_service import PayableService
             from apps.kuaicaiwu.schemas.finance import PayableCreate
 
-            ret_obj = await PurchaseReturn.get(tenant_id=tenant_id, id=return_id)
-            total_amount = float(ret_obj.total_amount or 0)
-            supplier_id = int(ret_obj.supplier_id) if ret_obj.supplier_id else None
             if (
                 total_amount > 0
                 and supplier_id
@@ -13981,24 +13984,23 @@ class PurchaseReturnService(AppBaseService[PurchaseReturn]):
                 except Exception as rel_e:
                     logger.warning("采购退货确认-创建应付单关联/会计事件失败: %s", rel_e)
                 red_payable_id = int(payable.id)
-            else:
-                red_payable_id = None
-            if total_amount > 0:
-                try:
-                    from apps.kuaicaiwu.services.return_open_balance_offset_service import (
-                        ReturnOpenBalanceOffsetService,
-                    )
-
-                    await ReturnOpenBalanceOffsetService().apply_purchase_return_offset(
-                        tenant_id,
-                        return_id,
-                        operator_id=confirmed_by,
-                        red_payable_id=red_payable_id,
-                    )
-                except Exception as offset_e:
-                    logger.warning("采购退货确认-冲减蓝字应付未结余额失败: %s", offset_e)
         except Exception as fin_e:
             logger.warning("采购退货确认-创建红字应付单失败: %s", fin_e)
+
+        if total_amount > 0:
+            try:
+                from apps.kuaicaiwu.services.return_open_balance_offset_service import (
+                    ReturnOpenBalanceOffsetService,
+                )
+
+                await ReturnOpenBalanceOffsetService().apply_purchase_return_offset(
+                    tenant_id,
+                    return_id,
+                    operator_id=confirmed_by,
+                    red_payable_id=red_payable_id,
+                )
+            except Exception as offset_e:
+                logger.warning("采购退货确认-冲减蓝字应付未结余额失败: %s", offset_e)
 
         return updated_return
 

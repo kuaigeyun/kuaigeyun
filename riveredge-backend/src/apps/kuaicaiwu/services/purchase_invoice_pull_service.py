@@ -55,7 +55,13 @@ class PurchaseInvoicePullService(AppBaseService[PurchaseInvoice]):
         not_allowed_reason: str,
         no_lines_reason: str,
         already_pulled_reason: str,
+        source_type: Optional[str] = None,
+        status: Optional[str] = None,
     ) -> tuple[bool, Optional[str]]:
+        from apps.kuaicaiwu.constants.finance_source_types import is_purchase_return_offset_payable
+
+        if is_purchase_return_offset_payable(source_type) or str(status or "").strip() == "已冲减":
+            return False, "purchase_invoice.pull_from_payable.purchase_return_offset"
         if not source_allowed:
             return False, not_allowed_reason
         if not preview_items:
@@ -273,8 +279,29 @@ class PurchaseInvoicePullService(AppBaseService[PurchaseInvoice]):
         return result
 
     def _payable_source_allowed(self, payable: Any) -> bool:
-        review = str(getattr(payable, "review_status", "") or "").strip()
-        total = Decimal(str(payable.total_amount or 0))
+        from apps.kuaicaiwu.constants.finance_source_types import is_purchase_return_offset_payable
+
+        source_type = (
+            payable.get("source_type")
+            if isinstance(payable, dict)
+            else getattr(payable, "source_type", None)
+        )
+        status = str(
+            (payable.get("status") if isinstance(payable, dict) else getattr(payable, "status", ""))
+            or ""
+        ).strip()
+        if is_purchase_return_offset_payable(source_type) or status == "已冲减":
+            return False
+        review = str(
+            (payable.get("review_status") if isinstance(payable, dict) else getattr(payable, "review_status", ""))
+            or ""
+        ).strip()
+        total_raw = (
+            payable.get("total_amount")
+            if isinstance(payable, dict)
+            else getattr(payable, "total_amount", 0)
+        )
+        total = Decimal(str(total_raw or 0))
         return review in self._PAYABLE_ELIGIBLE_REVIEW and total > 0
 
     async def _resolve_purchase_orders_from_payables(
@@ -543,6 +570,8 @@ class PurchaseInvoicePullService(AppBaseService[PurchaseInvoice]):
             not_allowed_reason="purchase_invoice.pull_from_payable.not_allowed",
             no_lines_reason="purchase_invoice.pull_from_payable.no_lines",
             already_pulled_reason="purchase_invoice.pull_from_payable.already_pulled",
+            source_type=str(getattr(payable, "source_type", "") or ""),
+            status=str(getattr(payable, "status", "") or ""),
         )
         code = str(payable.payable_code or payable_id)
         pushable = float(preview_items[0]["max_push_quantity"]) if preview_items else 0.0
@@ -560,8 +589,12 @@ class PurchaseInvoicePullService(AppBaseService[PurchaseInvoice]):
             "has_blocking_issues": not allowed,
             "blocking_reason": reason,
             "tip": (
-                "价税合计不可超过可开票金额；删除未审核进项发票后，可开票金额自动回退。"
-                + ("有关联采购订单时将一并挂接。" if po_id else "无采购订单时仅关联应付单。")
+                "采购退货冲减应付不可从应付开进项发票；请对原蓝字业务收票或申请红字发票。"
+                if reason == "purchase_invoice.pull_from_payable.purchase_return_offset"
+                else (
+                    "价税合计不可超过可开票金额；删除未审核进项发票后，可开票金额自动回退。"
+                    + ("有关联采购订单时将一并挂接。" if po_id else "无采购订单时仅关联应付单。")
+                )
             ),
             "supplier_id": payable.supplier_id,
             "supplier_name": payable.supplier_name,
@@ -720,7 +753,7 @@ class PurchaseInvoicePullService(AppBaseService[PurchaseInvoice]):
             tenant_id=tenant_id,
             deleted_at__isnull=True,
             total_amount__gt=0,
-        )
+        ).exclude(source_type="采购退货").exclude(status="已冲减")
         kw = str(keyword or "").strip()
         if kw:
             query = query.filter(
@@ -751,6 +784,8 @@ class PurchaseInvoicePullService(AppBaseService[PurchaseInvoice]):
                 not_allowed_reason="purchase_invoice.pull_from_payable.not_allowed",
                 no_lines_reason="purchase_invoice.pull_from_payable.no_lines",
                 already_pulled_reason="purchase_invoice.pull_from_payable.already_pulled",
+                source_type=str(getattr(payable, "source_type", "") or ""),
+                status=str(getattr(payable, "status", "") or ""),
             )
             code = str(payable.payable_code or pid)
             name = str(getattr(payable, "supplier_name", "") or "").strip()

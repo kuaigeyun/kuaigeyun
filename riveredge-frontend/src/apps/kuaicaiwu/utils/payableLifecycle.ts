@@ -14,6 +14,7 @@ const STAGE_LABEL_KEYS: Record<string, string> = {
   pending_review: `${PL}.pendingReview`,
   approved: `${PL}.approved`,
   settled: `${PL}.settled`,
+  offset: `${PL}.offset`,
   rejected: `${PL}.rejected`,
   refunded_partial: `${PL}.refundedPartial`,
   refunded_full: `${PL}.refundedFull`,
@@ -22,6 +23,7 @@ const STAGE_LABEL_KEYS: Record<string, string> = {
 const NEXT_STEP_KEYS: Record<string, string[]> = {
   pending_review: [`${PL}.suggestionReview`],
   approved: [`${PL}.suggestionRecordPayment`],
+  offset: [`${PL}.suggestionOffsetDone`],
   rejected: [`${PL}.suggestionResubmit`],
 };
 
@@ -33,6 +35,25 @@ function buildFallbackLifecycle(record: Record<string, unknown>): BackendLifecyc
   const status = norm(record?.status as string);
   const reviewStatus = norm(record?.review_status as string);
   const refundStatus = norm(record?.refund_execution_status as string);
+  const sourceType = norm(record?.source_type as string);
+  const notes = norm(record?.notes as string);
+  const isPurchaseReturnOffset =
+    sourceType === '采购退货' || status === '已冲减' || notes.startsWith('采购退货冲减');
+
+  if (isPurchaseReturnOffset) {
+    const reviewDone = reviewStatus === '已审核' || reviewStatus === '通过' || status === '已冲减';
+    return {
+      current_stage_key: 'offset',
+      current_stage_name: '已冲减',
+      status: 'success',
+      main_stages: [
+        { key: 'pending_review', label: '待审核', status: reviewDone ? 'done' : 'active' },
+        { key: 'approved', label: '已审核', status: reviewDone ? 'done' : 'pending' },
+        { key: 'offset', label: '已冲减', status: 'active' },
+      ],
+      next_step_suggestions: reviewDone ? ['已完成往来冲减台账'] : ['审核'],
+    };
+  }
 
   if (refundStatus === '全部退款') {
     return {

@@ -66,7 +66,7 @@ import {
   parseFinanceAgingUrlFilters,
   resolveReceivableListParams,
 } from '../../../utils/financeListCore';
-import { formatAgingBucket } from '../../../utils/financeUiLabels';
+import { formatAgingBucket, renderRefundExecutionMarker } from '../../../utils/financeUiLabels';
 import { fetchAllListItems } from '../../../../../utils/fetchAllListPages';
 import { downloadRecordsAsXlsx } from '../../../../../utils/exportRecordsXlsx';
 import { LinkedDocumentCode } from '../../../../../components/linked-document-code/LinkedDocumentCode';
@@ -613,9 +613,27 @@ const ReceivableList: React.FC = () => {
                         navigate(`/apps/kuaicaiwu/finance-management/receivables/${entity.id}`)
                     }
                     primaryExtra={
-                        isSalesReturnOffsetReceivable(entity) ? (
-                            <MarkerTag color="geekblue">{t(`${P}.offsetMarker`)}</MarkerTag>
-                        ) : null
+                        (() => {
+                            const tags: React.ReactNode[] = [];
+                            if (isSalesReturnOffsetReceivable(entity)) {
+                                tags.push(
+                                    <MarkerTag key="offset" color="geekblue">
+                                        {t(`${P}.offsetMarker`)}
+                                    </MarkerTag>,
+                                );
+                            }
+                            const refundExec = String(entity.refund_execution_status || '').trim();
+                            if (refundExec === '部分退款' || refundExec === '全部退款') {
+                                const { label, color } = renderRefundExecutionMarker(refundExec, t);
+                                tags.push(
+                                    <MarkerTag key="refund" color={color}>
+                                        {label}
+                                    </MarkerTag>,
+                                );
+                            }
+                            if (tags.length === 0) return null;
+                            return <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>{tags}</span>;
+                        })()
                     }
                 />
             ),

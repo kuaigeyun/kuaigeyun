@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 from tortoise.queryset import Q
 
 from apps.common.base_service import AppBaseService
+from apps.kuaicaiwu.constants.finance_source_types import is_purchase_return_offset_payable
 from apps.kuaicaiwu.services.finance_service import derive_invoice_amount_status
 from apps.kuaicaiwu.models.payable import Payable
 from apps.kuaizhizao.models.document_relation import DocumentRelation
@@ -570,6 +571,8 @@ class PayablePullService(AppBaseService[Payable]):
                 not_allowed_reason="purchase_invoice.pull_from_payable.not_allowed",
                 no_lines_reason="purchase_invoice.pull_from_payable.no_lines",
                 already_pulled_reason="purchase_invoice.pull_from_payable.already_pulled",
+                source_type=str(getattr(row, "source_type", "") or ""),
+                status=str(getattr(row, "status", "") or ""),
             )
             payload = row.model_dump() if hasattr(row, "model_dump") else dict(row)
             existing_caps = dict(payload.get("capabilities") or {})
@@ -578,16 +581,23 @@ class PayablePullService(AppBaseService[Payable]):
                 "reason": reason,
             }
             payload["capabilities"] = existing_caps
-            invoiced, remaining_inv, inv_status = derive_invoice_amount_status(
-                pushed_map.get(pid, Decimal("0")),
-                Decimal(str(payload.get("total_amount") or 0)),
-                status_none="未收票",
-                status_partial="部分收票",
-                status_full="已收票",
-            )
-            payload["invoiced_amount"] = invoiced
-            payload["remaining_invoice_amount"] = remaining_inv
-            payload["invoice_status"] = inv_status
+            if is_purchase_return_offset_payable(getattr(row, "source_type", None)) or str(
+                getattr(row, "status", "") or ""
+            ).strip() == "已冲减":
+                payload["invoiced_amount"] = Decimal("0")
+                payload["remaining_invoice_amount"] = Decimal("0")
+                payload["invoice_status"] = "未收票"
+            else:
+                invoiced, remaining_inv, inv_status = derive_invoice_amount_status(
+                    pushed_map.get(pid, Decimal("0")),
+                    Decimal(str(payload.get("total_amount") or 0)),
+                    status_none="未收票",
+                    status_partial="部分收票",
+                    status_full="已收票",
+                )
+                payload["invoiced_amount"] = invoiced
+                payload["remaining_invoice_amount"] = remaining_inv
+                payload["invoice_status"] = inv_status
             enriched.append(payload)
         return enriched
 

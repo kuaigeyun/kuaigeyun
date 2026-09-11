@@ -133,6 +133,7 @@ export function buildPayableStatusEnum(t: TFunction) {
     未付款: { text: t('app.kuaicaiwu.financeStatus.payable.unpaid') },
     部分付款: { text: t('app.kuaicaiwu.financeStatus.payable.partial') },
     已结清: { text: t('app.kuaicaiwu.financeStatus.payable.settled') },
+    已冲减: { text: t('app.kuaicaiwu.financeStatus.payable.offset') },
   };
 }
 

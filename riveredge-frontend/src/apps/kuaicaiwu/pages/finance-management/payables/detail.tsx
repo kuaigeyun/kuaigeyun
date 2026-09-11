@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 import { ProDescriptions } from '@ant-design/pro-components';
 
-import { Button, Statistic, Row, Col, Spin, Empty, Typography, Space } from 'antd';
+import { Alert, Button, Statistic, Row, Col, Spin, Empty, Typography, Space } from 'antd';
 
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
@@ -44,6 +44,7 @@ import {
 } from '../../../../../components/document-tracking-panel';
 
 import { getPayableLifecycle } from '../../../utils/payableLifecycle';
+import { isPurchaseReturnOffsetPayable } from '../../../utils/payableOffset';
 import { FinanceArApInvoiceStatusDetail } from '../../../utils/financeInvoiceStatusUi';
 import { renderRefundExecutionMarker } from '../../../utils/financeUiLabels';
 import { MarkerTag } from '../../../../../constants/statusBadges';
@@ -83,11 +84,13 @@ const PayableDetail: React.FC = () => {
 
   const pageTitle = data?.payable_code
 
-    ? `${t(`${P}.detailTitle`)} - ${data.payable_code}`
+    ? `${
+        isPurchaseReturnOffsetPayable(data) ? t(`${P}.detailTitleOffset`) : t(`${P}.detailTitle`)
+      } - ${data.payable_code}`
 
     : t(`${P}.detailTitle`);
 
-
+  const isOffsetPayable = isPurchaseReturnOffsetPayable(data);
 
   useEffect(() => {
 
@@ -223,13 +226,13 @@ const PayableDetail: React.FC = () => {
 
       />
 
-      {purchaseInvoicePerms.canCreate ? (
+      {!isOffsetPayable && purchaseInvoicePerms.canCreate ? (
 
         <Button onClick={openInvoiceFromPayable}>{t(`${P}.createInvoice`)}</Button>
 
       ) : null}
 
-      {data.status !== '已结清' && paymentPerms.canCreate ? (
+      {!isOffsetPayable && data.status !== '已结清' && data.status !== '已冲减' && paymentPerms.canCreate ? (
 
         <Button type="primary" onClick={openPaymentFromPayable}>
 
@@ -303,6 +306,16 @@ const PayableDetail: React.FC = () => {
 
       <Col flex="70%" style={{ minWidth: 0 }}>
 
+        {isOffsetPayable ? (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            title={t(`${P}.offsetBannerTitle`)}
+            description={t(`${P}.offsetBannerDesc`)}
+          />
+        ) : null}
+
         <DetailDrawerSection title={t('app.uniDetail.sectionBasic')}>
 
           <ProDescriptions column={3} dataSource={data as unknown as Record<string, unknown>} loading={loading}>
@@ -310,6 +323,14 @@ const PayableDetail: React.FC = () => {
             <ProDescriptions.Item label={t(`${P}.col.supplierName`)}>{data.supplier_name}</ProDescriptions.Item>
 
             <ProDescriptions.Item label={t('app.kuaicaiwu.common.systemCode')}>{data.payable_code}</ProDescriptions.Item>
+
+            <ProDescriptions.Item label={t(`${P}.col.nature`)}>
+              {isOffsetPayable ? (
+                <MarkerTag color="geekblue">{t(`${P}.nature.offset`)}</MarkerTag>
+              ) : (
+                t(`${P}.nature.normal`)
+              )}
+            </ProDescriptions.Item>
 
             <ProDescriptions.Item label={t('app.kuaicaiwu.common.businessDate')}>{data.business_date}</ProDescriptions.Item>
 
@@ -358,7 +379,12 @@ const PayableDetail: React.FC = () => {
 
             <Col xs={24} sm={8}>
 
-              <Statistic title={t(`${P}.col.totalAmount`)} value={data.total_amount} precision={amountDecimals} prefix="¥" />
+              <Statistic
+                title={isOffsetPayable ? t(`${P}.col.offsetAmount`) : t(`${P}.col.totalAmount`)}
+                value={data.total_amount}
+                precision={amountDecimals}
+                prefix="¥"
+              />
 
             </Col>
 

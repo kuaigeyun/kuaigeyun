@@ -697,6 +697,8 @@ class ReceivablePullService(AppBaseService[Receivable]):
             return []
 
         sales_invoice_pull = SalesInvoiceService()
+        from apps.kuaicaiwu.constants.finance_source_types import is_sales_return_offset_receivable
+
         receivable_ids = [
             int(rec["id"] if isinstance(rec, dict) else rec.id) for rec in receivables
         ]
@@ -739,15 +741,27 @@ class ReceivablePullService(AppBaseService[Receivable]):
                 "reason": reason,
             }
             payload["capabilities"] = existing_caps
-            invoiced, remaining_inv, inv_status = derive_invoice_amount_status(
-                pushed_map.get(rid, Decimal("0")),
-                Decimal(str(payload.get("total_amount") or 0)),
-                status_none="未开票",
-                status_partial="部分开票",
-                status_full="已开票",
+            source_type = str(
+                (rec.get("source_type") if isinstance(rec, dict) else getattr(rec, "source_type", ""))
+                or ""
             )
-            payload["invoiced_amount"] = invoiced
-            payload["remaining_invoice_amount"] = remaining_inv
-            payload["invoice_status"] = inv_status
+            status = str(
+                (rec.get("status") if isinstance(rec, dict) else getattr(rec, "status", "")) or ""
+            ).strip()
+            if is_sales_return_offset_receivable(source_type) or status == "已冲减":
+                payload["invoiced_amount"] = Decimal("0")
+                payload["remaining_invoice_amount"] = Decimal("0")
+                payload["invoice_status"] = "未开票"
+            else:
+                invoiced, remaining_inv, inv_status = derive_invoice_amount_status(
+                    pushed_map.get(rid, Decimal("0")),
+                    Decimal(str(payload.get("total_amount") or 0)),
+                    status_none="未开票",
+                    status_partial="部分开票",
+                    status_full="已开票",
+                )
+                payload["invoiced_amount"] = invoiced
+                payload["remaining_invoice_amount"] = remaining_inv
+                payload["invoice_status"] = inv_status
             enriched.append(payload)
         return enriched

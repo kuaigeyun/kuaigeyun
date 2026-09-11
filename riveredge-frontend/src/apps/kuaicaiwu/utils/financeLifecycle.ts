@@ -15,6 +15,8 @@ const STAGE_NAME_KEYS: Record<string, string> = {
   未收款: `${FL}.unpaid`,
   部分付款: `${FL}.partialPayment`,
   未付款: `${FL}.payableUnpaid`,
+  部分退款: `${FL}.refundPartial`,
+  全部退款: `${FL}.refundFull`,
   已作废: `${FL}.voided`,
   已红冲: `${FL}.redFlushed`,
   未审核: `${FL}.notReviewed`,
@@ -50,7 +52,10 @@ export function getReceivableLifecycle(
   const { reviewRejected, reviewPending, reviewDone } = reviewSubStages(String(record.review_status ?? ''));
   const status = String(record.status ?? '');
   const sourceType = String(record.source_type ?? '').trim();
-  const isOffset = sourceType === '销售退货' || status === '已冲减';
+  const refundStatus = String(record.refund_execution_status ?? '').trim();
+  const notes = String(record.notes ?? '');
+  const isOffset =
+    sourceType === '销售退货' || status === '已冲减' || notes.startsWith('销售退货冲减');
   const subKeys = isOffset
     ? { rv: `${FL}.review`, col: `${FL}.offset` }
     : { rv: `${FL}.review`, col: `${FL}.collection` };
@@ -81,6 +86,37 @@ export function getReceivableLifecycle(
     subStages[0].status = 'done';
     subStages[1].status = 'done';
     return translateResult({ percent: 100, stageName: '已冲减', status: 'success', subStages }, t, subKeys);
+  }
+
+  if (refundStatus === '全部退款') {
+    return translateResult(
+      {
+        percent: 100,
+        stageName: '全部退款',
+        status: 'success',
+        subStages: [
+          { key: 'rv', label: '审核', status: 'done' },
+          { key: 'col', label: '收款', status: 'done' },
+        ],
+      },
+      t,
+      subKeys,
+    );
+  }
+  if (refundStatus === '部分退款') {
+    return translateResult(
+      {
+        percent: 90,
+        stageName: '部分退款',
+        status: 'normal',
+        subStages: [
+          { key: 'rv', label: '审核', status: 'done' },
+          { key: 'col', label: '收款', status: 'active' },
+        ],
+      },
+      t,
+      subKeys,
+    );
   }
 
   if (reviewRejected) {
@@ -128,14 +164,80 @@ export function getReceivableLifecycle(
   return translateResult({ percent: 55, stageName: '未收款', status: 'normal', subStages }, t, subKeys);
 }
 
-/** 应付单：审核 → 付款进度 */
+/** 应付单：审核 → 付款进度（采购退货冲减为审核 → 冲减） */
 export function getPayableLifecycle(
   record: Record<string, unknown>,
   t?: LifecycleTranslateFn,
 ): LifecycleResult {
   const { reviewRejected, reviewPending, reviewDone } = reviewSubStages(String(record.review_status ?? ''));
   const status = String(record.status ?? '');
-  const subKeys = { rv: `${FL}.review`, pay: `${FL}.payment` };
+  const sourceType = String(record.source_type ?? '').trim();
+  const refundStatus = String(record.refund_execution_status ?? '').trim();
+  const notes = String(record.notes ?? '');
+  const isOffset =
+    sourceType === '采购退货' || status === '已冲减' || notes.startsWith('采购退货冲减');
+  const subKeys = isOffset
+    ? { rv: `${FL}.review`, pay: `${FL}.offset` }
+    : { rv: `${FL}.review`, pay: `${FL}.payment` };
+
+  if (isOffset) {
+    const subStages: SubStage[] = [
+      { key: 'rv', label: '审核', status: reviewPending ? 'active' : 'done' },
+      { key: 'pay', label: '冲减', status: 'pending' },
+    ];
+    if (reviewRejected) {
+      return translateResult(
+        {
+          percent: 0,
+          stageName: '已驳回',
+          status: 'exception',
+          subStages: [
+            { key: 'rv', label: '审核', status: 'active' },
+            { key: 'pay', label: '冲减', status: 'pending' },
+          ],
+        },
+        t,
+        subKeys,
+      );
+    }
+    if (reviewPending) {
+      return translateResult({ percent: 40, stageName: '待审核', status: 'normal', subStages }, t, subKeys);
+    }
+    subStages[0].status = 'done';
+    subStages[1].status = 'done';
+    return translateResult({ percent: 100, stageName: '已冲减', status: 'success', subStages }, t, subKeys);
+  }
+
+  if (refundStatus === '全部退款') {
+    return translateResult(
+      {
+        percent: 100,
+        stageName: '全部退款',
+        status: 'success',
+        subStages: [
+          { key: 'rv', label: '审核', status: 'done' },
+          { key: 'pay', label: '付款', status: 'done' },
+        ],
+      },
+      t,
+      subKeys,
+    );
+  }
+  if (refundStatus === '部分退款') {
+    return translateResult(
+      {
+        percent: 90,
+        stageName: '部分退款',
+        status: 'normal',
+        subStages: [
+          { key: 'rv', label: '审核', status: 'done' },
+          { key: 'pay', label: '付款', status: 'active' },
+        ],
+      },
+      t,
+      subKeys,
+    );
+  }
 
   if (reviewRejected) {
     return translateResult(

@@ -8930,7 +8930,7 @@ export default {
   'app.kuaizhizao.purchaseOrder.pushInvoiceSuccess': '成功生成采购发票：{{code}}，请前往财务管理完善发票号码等信息',
   'app.kuaizhizao.purchaseOrder.pushInvoiceFailed': '下推采购发票失败',
   'app.kuaizhizao.purchaseOrder.noReturnableQty': '采购单暂无可退货数量（已到货数量为 0）',
-  'app.kuaizhizao.purchaseOrder.returnWarehouseRequired': '请先填写退货仓库ID',
+  'app.kuaizhizao.purchaseOrder.returnWarehouseRequired': '请选择退货仓库',
   'app.kuaizhizao.purchaseOrder.pushReturnSuccess': '成功生成采购退货单：{{code}}',
   'app.kuaizhizao.purchaseOrder.pushReturnFailed': '下推采购退货失败',
   'app.kuaizhizao.purchaseOrder.qtyExceedsUnreceived': '物料 {{material}} 的入库数量不能超过未入库数量 {{max}}',
@@ -9226,6 +9226,8 @@ export default {
   'app.kuaizhizao.purchaseOrder.pushNoticeIntro': '从采购订单 {{code}} 下推生成收货通知单，可修改各明细的通知数量（不超过未入库数量）：',
   'app.kuaizhizao.purchaseOrder.pushReturnIntro': '从采购订单 {{code}} 下推生成采购退货单，可修改各明细退货数量（不超过已到货数量）：',
   'app.kuaizhizao.purchaseOrder.loading': '加载中...',
+  'app.kuaizhizao.purchaseOrder.returnWarehouse': '退货仓库',
+  'app.kuaizhizao.purchaseOrder.selectReturnWarehouse': '请选择或搜索仓库',
   'app.kuaizhizao.purchaseOrder.returnWarehouseIdPlaceholder': '退货仓库ID',
   'app.kuaizhizao.purchaseOrder.returnWarehouseNamePlaceholder': '退货仓库名称（可选）',
   'app.kuaizhizao.purchaseDashboard.kpi.pendingRequisitions': '待处理申购',
@@ -16237,6 +16239,8 @@ export default {
   'app.kuaicaiwu.financeLifecycle.collection': '收款',
   'app.kuaicaiwu.financeLifecycle.offset': '冲减',
   'app.kuaicaiwu.financeLifecycle.offsetDone': '已冲减',
+  'app.kuaicaiwu.financeLifecycle.refundPartial': '部分退款',
+  'app.kuaicaiwu.financeLifecycle.refundFull': '全部退款',
   'app.kuaicaiwu.financeLifecycle.payment': '付款',
   'app.kuaicaiwu.financeLifecycle.invoice': '发票',
   'app.kuaicaiwu.financeLifecycle.blueInvoice': '蓝字',
@@ -16261,6 +16265,7 @@ export default {
   'app.kuaicaiwu.financeStatus.payable.unpaid': '未付款',
   'app.kuaicaiwu.financeStatus.payable.partial': '部分付款',
   'app.kuaicaiwu.financeStatus.payable.settled': '已结清',
+  'app.kuaicaiwu.financeStatus.payable.offset': '已冲减',
   'app.kuaicaiwu.financeStatus.review.pending': '待审核',
   'app.kuaicaiwu.financeStatus.review.approved': '已审核',
   'app.kuaicaiwu.financeStatus.review.rejected': '已驳回',
@@ -16306,7 +16311,7 @@ export default {
   'app.kuaicaiwu.receivable.offsetBannerTitle': '销售退货冲减台账',
   'app.kuaicaiwu.receivable.offsetBannerDesc':
     '本单由销售退货自动生成，用于客商往来贷方冲减，不是向客户收款的正向应收。请勿登记收款或从此单开蓝字销项发票；退款请走收款退款。',
-  'app.kuaicaiwu.receivable.offsetMarker': '冲减',
+  'app.kuaicaiwu.receivable.offsetMarker': '退货冲减',
   'app.kuaicaiwu.receivable.col.offsetAmount': '冲减金额',
   'app.kuaicaiwu.receivable.col.nature': '单据性质',
   'app.kuaicaiwu.receivable.nature.offset': '销售退货冲减',
@@ -16422,7 +16427,16 @@ export default {
   'app.kuaicaiwu.payable.importSuccess': '成功导入 {{count}} 条应付单',
   'app.kuaicaiwu.payable.importHeaderError': '导入表头需包含供应商名称和应付金额',
   'app.kuaicaiwu.payable.detailTitle': '应付账款',
+  'app.kuaicaiwu.payable.detailTitleOffset': '冲减应付',
   'app.kuaicaiwu.payable.detailNotFound': '未找到应付单',
+  'app.kuaicaiwu.payable.offsetBannerTitle': '采购退货冲减台账',
+  'app.kuaicaiwu.payable.offsetBannerDesc':
+    '本单由采购退货自动生成，用于客商往来借方冲减，不是向供应商付款的正向应付。请勿登记付款或从此单开蓝字进项发票；退款请走付款退款。',
+  'app.kuaicaiwu.payable.offsetMarker': '退货冲减',
+  'app.kuaicaiwu.payable.col.offsetAmount': '冲减金额',
+  'app.kuaicaiwu.payable.col.nature': '单据性质',
+  'app.kuaicaiwu.payable.nature.offset': '采购退货冲减',
+  'app.kuaicaiwu.payable.nature.normal': '正向应付',
   'app.kuaicaiwu.payable.invoiceStatus.notReceived': '未收票',
   'app.kuaicaiwu.payable.invoiceStatus.partial': '部分收票',
   'app.kuaicaiwu.payable.invoiceStatus.receivedFull': '已收票',
@@ -16437,11 +16451,13 @@ export default {
   'app.kuaicaiwu.payable.lifecycle.pendingReview': '待审核',
   'app.kuaicaiwu.payable.lifecycle.approved': '已审核',
   'app.kuaicaiwu.payable.lifecycle.settled': '已结清',
+  'app.kuaicaiwu.payable.lifecycle.offset': '已冲减',
   'app.kuaicaiwu.payable.lifecycle.rejected': '已驳回',
   'app.kuaicaiwu.payable.lifecycle.refundedPartial': '部分退款',
   'app.kuaicaiwu.payable.lifecycle.refundedFull': '全部退款',
   'app.kuaicaiwu.payable.lifecycle.suggestionReview': '审核',
   'app.kuaicaiwu.payable.lifecycle.suggestionRecordPayment': '登记付款',
+  'app.kuaicaiwu.payable.lifecycle.suggestionOffsetDone': '已完成往来冲减台账',
   'app.kuaicaiwu.payable.lifecycle.suggestionResubmit': '重新提交审核',
   'app.kuaicaiwu.payable.loadSourceFailed': '加载源单失败',
   'app.kuaicaiwu.payable.selectSource': '请选择{{label}}',
@@ -16941,9 +16957,13 @@ export default {
   'app.kuaicaiwu.purchaseInvoice.capability.purchase_invoice.pull_from_purchase_receipt.no_lines': '采购入库单无可开票金额',
   'app.kuaicaiwu.purchaseInvoice.capability.purchase_invoice.pull_from_purchase_receipt.already_pulled': '采购入库单可开票金额已全部开票，删除未审核发票后可再次加载',
   'app.kuaicaiwu.purchaseInvoice.capability.purchase_invoice.pull_from_payable.not_allowed': '当前状态的应付单不可加载进项发票',
+  'app.kuaicaiwu.purchaseInvoice.capability.purchase_invoice.pull_from_payable.purchase_return_offset':
+    '采购退货冲减应付不可开蓝字进项发票',
   'app.kuaicaiwu.purchaseInvoice.capability.purchase_invoice.pull_from_payable.no_lines': '应付单无可开票金额',
   'app.kuaicaiwu.purchaseInvoice.capability.purchase_invoice.pull_from_payable.already_pulled': '应付单可开票金额已全部开票，删除未审核发票后可再次加载',
   'app.kuaicaiwu.payable.capability.purchase_invoice.pull_from_payable.not_allowed': '当前状态的应付单不可加载进项发票',
+  'app.kuaicaiwu.payable.capability.purchase_invoice.pull_from_payable.purchase_return_offset':
+    '采购退货冲减应付不可开蓝字进项发票',
   'app.kuaicaiwu.payable.capability.purchase_invoice.pull_from_payable.no_lines': '应付单无可开票金额',
   'app.kuaicaiwu.payable.capability.purchase_invoice.pull_from_payable.already_pulled': '应付单可开票金额已全部开票，删除未审核发票后可再次加载',
   'app.kuaicaiwu.purchaseInvoice.selectSource': '请选择{{label}}',
@@ -17064,6 +17084,8 @@ export default {
   'app.kuaicaiwu.settlement.capability.settlement.receivable.receipt_not_allowed': '当前状态的收款单不可核销',
   'app.kuaicaiwu.settlement.capability.settlement.receivable.no_balance': '应收待收与收款余额均为零，无可核销金额',
   'app.kuaicaiwu.settlement.capability.settlement.payable.not_allowed': '当前状态的应付单不可核销',
+  'app.kuaicaiwu.settlement.capability.settlement.payable.purchase_return_offset':
+    '采购退货冲减应付不可正向核销付款',
   'app.kuaicaiwu.settlement.capability.settlement.payable.supplier_mismatch': '应付单与付款单供应商不一致，不可核销',
   'app.kuaicaiwu.settlement.capability.settlement.payable.payment_not_allowed': '当前状态的付款单不可核销',
   'app.kuaicaiwu.settlement.capability.settlement.payable.no_balance': '应付待付与付款余额均为零，无可核销金额',
@@ -17180,7 +17202,7 @@ export default {
   'app.kuaicaiwu.partnerStatement.sentChannel.emailManual': '邮件手动发送',
   'app.kuaicaiwu.partnerStatement.sentChannel.other': '其他',
   'app.kuaicaiwu.partnerStatement.detail.exportFilename': '对账单-{{code}}.{{ext}}',
-  'app.kuaicaiwu.partnerStatement.dataSourceNote': '对账单数据来自已审核的应收/应付单，以及已确认的收款/付款单；收款/付款按核销关系挂在对应应收/应付下方。展开单据行可查看关联物料与检验明细。',
+  'app.kuaicaiwu.partnerStatement.dataSourceNote': '对账单数据来自已审核的应收/应付单，以及已确认的收款/付款单；收款/付款与退货冲减按核销关系挂在对应应收/应付下方。展开单据行可查看关联物料与检验明细。',
   'app.kuaicaiwu.partnerStatement.lineDetail.materialCode': '物料编码',
   'app.kuaicaiwu.partnerStatement.lineDetail.materialName': '物料名称',
   'app.kuaicaiwu.partnerStatement.lineDetail.unitPrice': '单价',
@@ -28175,6 +28197,34 @@ export default {
     '发版后旧前端资源自动刷新',
   'pages.dashboard.updateLog.entries.stale-chunk-auto-reload.description':
     '发版后若浏览器仍引用已下线的 JS chunk，进入业务应用时会自动硬刷新一次；生产环境不再误提示 compose 或重启 Vite。',
+  'pages.dashboard.updateLog.entries.receivable-sales-return-offset-refund-display.title':
+    '应收账款明确标识销售退货冲减与退款',
+  'pages.dashboard.updateLog.entries.receivable-sales-return-offset-refund-display.description':
+    '销售退货确认后，即使红字应收创建失败仍会冲减关联蓝字应收未结余额；列表编号旁显示「退货冲减」与部分/全部退款徽章，冲减台账未开票余额归零，与应付账款退货冲减展示一致。',
+  'pages.dashboard.updateLog.entries.partner-statement-return-offset-hierarchy.title':
+    '往来对账退货冲减挂在应收应付下',
+  'pages.dashboard.updateLog.entries.partner-statement-return-offset-hierarchy.description':
+    '新建/打开供应商或客户对账单时，采购退货冲减应付、销售退货冲减应收按未结冲减核销挂到对应蓝字应付/应收下方缩进展示，与付款/收款子行一致；原付款嵌套逻辑不变。',
+  'pages.dashboard.updateLog.entries.payable-refund-offset-marker-display.title':
+    '应付账款列表明确标识退货冲减与退款',
+  'pages.dashboard.updateLog.entries.payable-refund-offset-marker-display.description':
+    '采购退货生成的冲减应付在编号旁显示「退货冲减」徽章、执行状态为已冲减；已发生现金退款的应付显示部分/全部退款徽章与生命周期，避免与普通未付款混淆。',
+  'pages.dashboard.updateLog.entries.purchase-order-push-return-warehouse-select.title':
+    '采购订单下推退货支持仓库下拉选择',
+  'pages.dashboard.updateLog.entries.purchase-order-push-return-warehouse-select.description':
+    '从采购订单创建采购退货单时，退货仓库改为可搜索的仓库下拉，不再手填仓库 ID/名称；与采购退货单新建页选仓方式一致。',
+  'pages.dashboard.updateLog.entries.payable-purchase-return-offset-display.title':
+    '采购退货冲减应付在应付账款中正确显示',
+  'pages.dashboard.updateLog.entries.payable-purchase-return-offset-display.description':
+    '采购退货生成的冲减应付单在列表与详情中标记为冲减台账、执行状态为已冲减；不可再登记付款或开蓝字进项，未收票余额按冲减性质归零，与销售退货冲减应收一致。',
+  'pages.dashboard.updateLog.entries.purchase-return-refund-order-bridge.title':
+    '修复采购退货点退款找不到已付款单',
+  'pages.dashboard.updateLog.entries.purchase-return-refund-order-bridge.description':
+    '退货仅关联采购订单时，按订单展开入库单与进项发票再定位已确认可退付款单；销售退货侧同步按订单展开出库，避免已收/已付后仍提示无可退单据。',
+  'pages.dashboard.updateLog.entries.warehouse-menu-leaf-icons.title':
+    '仓储功能页面补齐菜单图标',
+  'pages.dashboard.updateLog.entries.warehouse-menu-leaf-icons.description':
+    '仓储管理下出入库、盘点、组装拆卸、库存查询与报表等叶子菜单统一声明 icon；菜单管理与侧栏在同步/恢复默认后显示一致。',
   'pages.dashboard.updateLog.entries.sidebar-pro-app-badge-restore.title':
     '侧栏 PRO 应用徽标恢复显示',
   'pages.dashboard.updateLog.entries.sidebar-pro-app-badge-restore.description':

@@ -19,6 +19,7 @@ from apps.kuaicaiwu.constants.finance_source_types import (
 )
 from apps.kuaicaiwu.models.payable import Payable
 from apps.kuaicaiwu.models.payment import Payment
+from apps.kuaicaiwu.models.purchase_invoice import PurchaseInvoice
 from apps.kuaicaiwu.models.receipt import Receipt
 from apps.kuaicaiwu.models.receivable import Receivable
 from apps.kuaicaiwu.models.settlement import SettlementRecord
@@ -26,9 +27,11 @@ from apps.kuaicaiwu.services.finance_refund_utils import quantize_money
 from apps.kuaicaiwu.services.payment_refund_service import PaymentRefundService
 from apps.kuaicaiwu.services.receipt_refund_service import ReceiptRefundService
 from apps.kuaizhizao.models.document_relation import DocumentRelation
+from apps.kuaizhizao.models.purchase_receipt import PurchaseReceipt
 from apps.kuaizhizao.models.purchase_receipt_item import PurchaseReceiptItem
 from apps.kuaizhizao.models.purchase_return import PurchaseReturn
 from apps.kuaizhizao.models.purchase_return_item import PurchaseReturnItem
+from apps.kuaizhizao.models.sales_delivery import SalesDelivery
 from apps.kuaizhizao.models.sales_delivery_item import SalesDeliveryItem
 from apps.kuaizhizao.models.sales_return import SalesReturn
 from apps.kuaizhizao.models.sales_return_item import SalesReturnItem
@@ -65,6 +68,54 @@ def _add_positive_ids(target: Set[int], *raw_ids: Any) -> None:
             continue
         if sid > 0:
             target.add(sid)
+
+
+async def _expand_sales_deliveries_for_orders(
+    tenant_id: int,
+    order_ids: Set[int],
+    delivery_ids: Set[int],
+) -> None:
+    """退货仅挂销售订单时，补齐该订单下出库单，才能定位按出库生成的应收/收款。"""
+    if not order_ids:
+        return
+    rows = await SalesDelivery.filter(
+        tenant_id=tenant_id,
+        deleted_at__isnull=True,
+        sales_order_id__in=list(order_ids),
+    ).values_list("id", flat=True)
+    _add_positive_ids(delivery_ids, *rows)
+
+
+async def _expand_purchase_receipts_for_orders(
+    tenant_id: int,
+    order_ids: Set[int],
+    receipt_ids: Set[int],
+) -> None:
+    """退货仅挂采购订单时，补齐该订单下入库单，才能定位按入库生成的应付/付款。"""
+    if not order_ids:
+        return
+    rows = await PurchaseReceipt.filter(
+        tenant_id=tenant_id,
+        deleted_at__isnull=True,
+        purchase_order_id__in=list(order_ids),
+    ).values_list("id", flat=True)
+    _add_positive_ids(receipt_ids, *rows)
+
+
+async def _expand_purchase_invoice_ids_for_orders(
+    tenant_id: int,
+    order_ids: Set[int],
+    invoice_ids: Set[int],
+) -> None:
+    """应付常由采购发票生成；按订单直查进项发票，避免仅有订单关联时断链。"""
+    if not order_ids:
+        return
+    rows = await PurchaseInvoice.filter(
+        tenant_id=tenant_id,
+        deleted_at__isnull=True,
+        purchase_order_id__in=list(order_ids),
+    ).values_list("id", flat=True)
+    _add_positive_ids(invoice_ids, *rows)
 
 
 class ReturnRefundBridgeService:
@@ -116,6 +167,8 @@ class ReturnRefundBridgeService:
             ).all()
             for row in delivery_rows:
                 _add_positive_ids(delivery_ids, row.delivery_id)
+
+        await _expand_sales_deliveries_for_orders(tenant_id, order_ids, delivery_ids)
 
         if not delivery_ids and not order_ids:
             raise BusinessLogicError("退货单未关联销售出库或销售订单，无法定位对应收款单")
@@ -224,6 +277,8 @@ class ReturnRefundBridgeService:
             ).all()
             for row in receipt_rows:
                 _add_positive_ids(receipt_ids, row.receipt_id)
+
+        await _expand_purchase_receipts_for_orders(tenant_id, order_ids, receipt_ids)
 
         if not receipt_ids and not order_ids:
             raise BusinessLogicError("退货单未关联采购入库或采购订单，无法定位对应付款单")
@@ -398,6 +453,8 @@ class ReturnRefundBridgeService:
                     _add_positive_ids(payable_ids, rel.target_id)
                 elif tt in _PURCHASE_INVOICE_REL_TYPES:
                     _add_positive_ids(invoice_ids, rel.target_id)
+
+        await _expand_purchase_invoice_ids_for_orders(tenant_id, order_ids, invoice_ids)
 
         pay_q = Q()
         if purchase_receipt_ids:

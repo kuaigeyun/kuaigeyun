@@ -60,10 +60,14 @@ class SettlementGateService(AppBaseService[SettlementRecord]):
         return review in self._RECEIVABLE_ELIGIBLE_REVIEW
 
     def _payable_settle_allowed(self, payable: Payable) -> bool:
+        from apps.kuaicaiwu.constants.finance_source_types import is_purchase_return_offset_payable
+
+        if is_purchase_return_offset_payable(getattr(payable, "source_type", None)):
+            return False
         status = str(getattr(payable, "status", "") or "").strip()
         review = str(getattr(payable, "review_status", "") or "").strip()
         remaining = Decimal(str(payable.remaining_amount or 0))
-        if status == "已结清" or remaining <= 0:
+        if status in ("已结清", "已冲减") or remaining <= 0:
             return False
         return review in self._PAYABLE_ELIGIBLE_REVIEW
 
@@ -180,9 +184,13 @@ class SettlementGateService(AppBaseService[SettlementRecord]):
         pmt_unsettled = self._money(Decimal(str(payment.unsettled_amount or 0)))
         max_settle = self._money(min(pay_remaining, pmt_unsettled))
 
+        from apps.kuaicaiwu.constants.finance_source_types import is_purchase_return_offset_payable
+
         blocking_reason: Optional[str] = None
         if payable.supplier_id != payment.supplier_id:
             blocking_reason = "settlement.payable.supplier_mismatch"
+        elif is_purchase_return_offset_payable(getattr(payable, "source_type", None)):
+            blocking_reason = "settlement.payable.purchase_return_offset"
         elif not self._payable_settle_allowed(payable):
             blocking_reason = "settlement.payable.not_allowed"
         elif not self._payment_settle_allowed(payment):

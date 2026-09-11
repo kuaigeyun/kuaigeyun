@@ -36,7 +36,9 @@ function buildFallbackLifecycle(record: Record<string, unknown>): BackendLifecyc
   const reviewStatus = norm(record?.review_status as string);
   const refundStatus = norm(record?.refund_execution_status as string);
   const sourceType = norm(record?.source_type as string);
-  const isSalesReturnOffset = sourceType === '销售退货' || status === '已冲减';
+  const notes = norm(record?.notes as string);
+  const isSalesReturnOffset =
+    sourceType === '销售退货' || status === '已冲减' || notes.startsWith('销售退货冲减');
 
   if (isSalesReturnOffset) {
     const reviewDone = reviewStatus === '已审核' || reviewStatus === '通过' || status === '已冲减';

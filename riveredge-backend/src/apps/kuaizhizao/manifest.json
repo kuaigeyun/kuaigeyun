@@ -687,7 +687,8 @@
               "module": "warehouse",
               "node": "inventory"
             },
-            "permission": "kuaizhizao:inventory:read"
+            "permission": "kuaizhizao:inventory:read",
+            "icon": "dashboard"
           },
           {
             "title": "app.kuaizhizao.menu.warehouse-management.batching-center",
@@ -697,7 +698,8 @@
             "meta": {
               "module": "warehouse",
               "node": "batching_order"
-            }
+            },
+            "icon": "layers"
           },
           {
             "title": "app.kuaizhizao.menu.warehouse-management.inbound-group",
@@ -721,7 +723,8 @@
                 "meta": {
                   "node": "other_inbound",
                   "module": "warehouse"
-                }
+                },
+                "icon": "file-plus"
               },
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.material-returns",
@@ -731,13 +734,15 @@
                 "meta": {
                   "node": "material_return",
                   "module": "warehouse"
-                }
+                },
+                "icon": "rotate-ccw"
               },
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.customer-material-registration",
                 "path": "/apps/kuaizhizao/warehouse-management/customer-material-registration",
                 "permission": "kuaizhizao:warehouse-management-customer-material-registration:read",
-                "sort_order": 4
+                "sort_order": 4,
+                "icon": "package"
               }
             ],
             "sort_order": 2
@@ -764,7 +769,8 @@
                 "meta": {
                   "node": "other_outbound",
                   "module": "warehouse"
-                }
+                },
+                "icon": "file-minus"
               },
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.material-borrows",
@@ -774,7 +780,8 @@
                 "meta": {
                   "node": "material_borrow",
                   "module": "warehouse"
-                }
+                },
+                "icon": "handshake"
               },
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.delivery-notes",
@@ -784,7 +791,8 @@
                 "meta": {
                   "node": "delivery_notice",
                   "module": "warehouse"
-                }
+                },
+                "icon": "truck"
               }
             ],
             "sort_order": 3
@@ -796,7 +804,8 @@
                 "title": "app.kuaizhizao.menu.warehouse-management.stocktaking",
                 "path": "/apps/kuaizhizao/warehouse-management/stocktaking",
                 "permission": "kuaizhizao:warehouse-management-stocktaking:read",
-                "sort_order": 1
+                "sort_order": 1,
+                "icon": "clipboardList"
               },
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.inventory-transfer",
@@ -809,13 +818,15 @@
                 "title": "app.kuaizhizao.menu.warehouse-management.assembly-orders",
                 "path": "/apps/kuaizhizao/warehouse-management/assembly-orders",
                 "permission": "kuaizhizao:warehouse-management-assembly-orders:read",
-                "sort_order": 3
+                "sort_order": 3,
+                "icon": "assembly"
               },
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.disassembly-orders",
                 "path": "/apps/kuaizhizao/warehouse-management/disassembly-orders",
                 "permission": "kuaizhizao:warehouse-management-disassembly-orders:read",
-                "sort_order": 4
+                "sort_order": 4,
+                "icon": "gitBranch"
               }
             ],
             "sort_order": 4
@@ -835,25 +846,29 @@
                 "title": "app.kuaizhizao.menu.warehouse-management.batch-inventory-query",
                 "path": "/apps/kuaizhizao/warehouse-management/batch-inventory-query",
                 "permission": "kuaizhizao:warehouse-management-batch-inventory-query:read",
-                "sort_order": 2
+                "sort_order": 2,
+                "icon": "barcode"
               },
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.line-side-warehouse",
                 "path": "/apps/kuaizhizao/warehouse-management/line-side-warehouse",
                 "permission": "kuaizhizao:warehouse-management-line-side-warehouse:read",
-                "sort_order": 3
+                "sort_order": 3,
+                "icon": "map-pin"
               },
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.backflush-records",
                 "path": "/apps/kuaizhizao/warehouse-management/backflush-records",
                 "permission": "kuaizhizao:warehouse-management-backflush-records:read",
-                "sort_order": 4
+                "sort_order": 4,
+                "icon": "refresh-cw"
               },
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.replenishment-suggestions",
                 "path": "/apps/kuaizhizao/warehouse-management/replenishment-suggestions",
                 "permission": "kuaizhizao:warehouse-management-replenishment-suggestions:read",
-                "sort_order": 5
+                "sort_order": 5,
+                "icon": "trendingUp"
               },
               {
                 "title": "app.kuaizhizao.menu.warehouse-management.inventory-alert",
@@ -866,7 +881,8 @@
                 "title": "app.kuaizhizao.menu.warehouse-management.barcode-mapping-rules",
                 "path": "/apps/kuaizhizao/warehouse-management/barcode-mapping-rules",
                 "permission": "kuaizhizao:warehouse-management-barcode-mapping-rules:read",
-                "sort_order": 7
+                "sort_order": 7,
+                "icon": "scanLine"
               }
             ]
           },
@@ -879,49 +895,57 @@
                 "title": "app.kuaizhizao.menu.reports.inventory-summary",
                 "path": "/apps/kuaizhizao/warehouse-management/reports/inventory-summary",
                 "sort_order": 1,
-                "permission": "kuaizhizao:warehouse-management-reports-inventory-summary:read"
+                "permission": "kuaizhizao:warehouse-management-reports-inventory-summary:read",
+                "icon": "fileSpreadsheet"
               },
               {
                 "title": "app.kuaizhizao.menu.reports.inventory-ledger",
                 "path": "/apps/kuaizhizao/warehouse-management/reports/inventory-ledger",
                 "sort_order": 2,
-                "permission": "kuaizhizao:warehouse-management-reports-inventory-ledger:read"
+                "permission": "kuaizhizao:warehouse-management-reports-inventory-ledger:read",
+                "icon": "list"
               },
               {
                 "title": "app.kuaizhizao.menu.reports.inbound-summary",
                 "path": "/apps/kuaizhizao/warehouse-management/reports/inbound-summary",
                 "sort_order": 3,
-                "permission": "kuaizhizao:warehouse-management-reports-inbound-summary:read"
+                "permission": "kuaizhizao:warehouse-management-reports-inbound-summary:read",
+                "icon": "arrow-down-to-line"
               },
               {
                 "title": "app.kuaizhizao.menu.reports.outbound-summary",
                 "path": "/apps/kuaizhizao/warehouse-management/reports/outbound-summary",
                 "sort_order": 4,
-                "permission": "kuaizhizao:warehouse-management-reports-outbound-summary:read"
+                "permission": "kuaizhizao:warehouse-management-reports-outbound-summary:read",
+                "icon": "arrow-up-from-line"
               },
               {
                 "title": "app.kuaizhizao.menu.reports.slow-moving-inventory",
                 "path": "/apps/kuaizhizao/warehouse-management/reports/slow-moving-inventory",
                 "sort_order": 5,
-                "permission": "kuaizhizao:warehouse-management-reports-slow-moving-inventory:read"
+                "permission": "kuaizhizao:warehouse-management-reports-slow-moving-inventory:read",
+                "icon": "clock"
               },
               {
                 "title": "app.kuaizhizao.menu.reports.fifo-exception-audit",
                 "path": "/apps/kuaizhizao/warehouse-management/reports/fifo-exception-audit",
                 "sort_order": 6,
-                "permission": "kuaizhizao:warehouse-management-reports-fifo-exception-audit:read"
+                "permission": "kuaizhizao:warehouse-management-reports-fifo-exception-audit:read",
+                "icon": "audit"
               },
               {
                 "title": "app.kuaizhizao.menu.reports.stocktaking-history",
                 "path": "/apps/kuaizhizao/warehouse-management/reports/stocktaking-history",
                 "sort_order": 7,
-                "permission": "kuaizhizao:warehouse-management-reports-stocktaking-history:read"
+                "permission": "kuaizhizao:warehouse-management-reports-stocktaking-history:read",
+                "icon": "history"
               },
               {
                 "title": "app.kuaizhizao.menu.reports.transfer-tracking",
                 "path": "/apps/kuaizhizao/warehouse-management/reports/transfer-tracking",
                 "sort_order": 8,
-                "permission": "kuaizhizao:warehouse-management-reports-transfer-tracking:read"
+                "permission": "kuaizhizao:warehouse-management-reports-transfer-tracking:read",
+                "icon": "arrow-left-right"
               }
             ]
           }
