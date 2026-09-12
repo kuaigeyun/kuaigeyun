@@ -2161,6 +2161,8 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         tenant_id: int,
         picking_id: int,
         approver_id: int,
+        *,
+        is_auto_approve: bool = False,
     ) -> ProductionPickingResponse:
         from core.services.approval.uni_audit_service import UniAuditService
 
@@ -2176,7 +2178,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "production_picking"
         )
-        if audit_required:
+        if audit_required and not is_auto_approve:
             from core.services.approval.approval_instance_service import ApprovalInstanceService
 
             approval_status = await ApprovalInstanceService.get_approval_status(
@@ -2205,6 +2207,9 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
             )
             return await self.get_production_picking_by_id(tenant_id, picking_id)
 
+        if is_auto_approve:
+            return await _do_approve()
+
         result = await UniAuditService.approve_with_flow_fallback(
             tenant_id=tenant_id,
             entity_type="production_picking",
@@ -2221,6 +2226,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         approver_id: int,
         *,
         rejection_reason: Optional[str] = None,
+        is_auto_approve: bool = False,
     ) -> ProductionPickingResponse:
         from core.services.approval.uni_audit_service import UniAuditService
 
@@ -2236,7 +2242,7 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
         audit_required = await BusinessConfigService().check_audit_required(
             tenant_id, "production_picking"
         )
-        if audit_required:
+        if audit_required and not is_auto_approve:
             from core.services.approval.approval_instance_service import ApprovalInstanceService
 
             approval_status = await ApprovalInstanceService.get_approval_status(
@@ -2261,6 +2267,9 @@ class ProductionPickingService(AppBaseService[ProductionPicking]):
                 updated_by=approver_id,
             )
             return await self.get_production_picking_by_id(tenant_id, picking_id)
+
+        if is_auto_approve:
+            return await _do_reject(rejection_reason)
 
         result = await UniAuditService.reject_with_flow_fallback(
             tenant_id=tenant_id,
@@ -4178,7 +4187,9 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
         return_id: int
     ) -> ProductionReturnWithItemsResponse:
         """根据ID获取生产退料单（含明细）"""
-        ret = await ProductionReturn.get_or_none(tenant_id=tenant_id, id=return_id)
+        ret = await ProductionReturn.get_or_none(
+            tenant_id=tenant_id, id=return_id, deleted_at__isnull=True
+        )
         if not ret:
             raise NotFoundError(f"生产退料单不存在: {return_id}")
 
@@ -4205,7 +4216,7 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
             apply_warehouse_doc_list_filters,
         )
 
-        query = ProductionReturn.filter(tenant_id=tenant_id)
+        query = ProductionReturn.filter(tenant_id=tenant_id, deleted_at__isnull=True)
         if filters.get("status"):
             query = query.filter(status=filters["status"])
         if filters.get("work_order_id"):
@@ -4284,7 +4295,9 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
 
     async def delete_production_return(self, tenant_id: int, return_id: int) -> bool:
         """删除生产退料单"""
-        ret = await ProductionReturn.get_or_none(tenant_id=tenant_id, id=return_id)
+        ret = await ProductionReturn.get_or_none(
+            tenant_id=tenant_id, id=return_id, deleted_at__isnull=True
+        )
         if not ret:
             raise NotFoundError(f"生产退料单不存在: {return_id}")
         if ret.status not in ("待退料", "已取消"):
@@ -4306,7 +4319,9 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
     ) -> ProductionReturnResponse:
         """确认退料"""
         async with in_transaction():
-            ret = await ProductionReturn.get_or_none(tenant_id=tenant_id, id=return_id)
+            ret = await ProductionReturn.get_or_none(
+                tenant_id=tenant_id, id=return_id, deleted_at__isnull=True
+            )
             if not ret:
                 raise NotFoundError(f"生产退料单不存在: {return_id}")
 
@@ -4379,17 +4394,20 @@ class ProductionReturnService(AppBaseService[ProductionReturn]):
                         await item.save()
 
             confirmer_name = await self.get_user_name(confirmed_by)
-            from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_receiver
+            from apps.kuaizhizao.utils.inbound_confirm_helper import (
+                resolve_inbound_confirm_business_time,
+                resolve_inbound_confirm_receiver,
+            )
 
             returner_id, returner_name = await resolve_inbound_confirm_receiver(
                 confirmed_by=confirmed_by,
                 confirmation_data=confirmation_data,
                 get_user_name=self.get_user_name,
             )
-            receipt_time = resolve_business_datetime(
-                confirmation_data.receipt_time if confirmation_data and confirmation_data.receipt_time else None
+            receipt_time = resolve_inbound_confirm_business_time(
+                confirmation_data,
+                existing_time=getattr(ret, "return_time", None),
             )
-
             await ProductionReturn.filter(tenant_id=tenant_id, id=return_id).update(
                 status="已退料",
                 returner_id=returner_id,
@@ -4963,20 +4981,19 @@ class FinishedGoodsReceiptService(AppBaseService[FinishedGoodsReceipt]):
             # 3. 执行入库确认（更新状态和时间）
             # 确认未传入库时间时保留建单所选业务时刻，禁止一律写成「此刻」
             confirmer_name = await self.get_user_name(confirmed_by)
-            from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_receiver
+            from apps.kuaizhizao.utils.inbound_confirm_helper import (
+                resolve_inbound_confirm_business_time,
+                resolve_inbound_confirm_receiver,
+            )
 
             receiver_id, receiver_name = await resolve_inbound_confirm_receiver(
                 confirmed_by=confirmed_by,
                 confirmation_data=confirmation_data,
                 get_user_name=self.get_user_name,
             )
-            confirm_receipt_time = (
-                confirmation_data.receipt_time
-                if confirmation_data and confirmation_data.receipt_time
-                else None
-            )
-            receipt_time = resolve_business_datetime(
-                confirm_receipt_time or getattr(receipt, "receipt_time", None)
+            receipt_time = resolve_inbound_confirm_business_time(
+                confirmation_data,
+                existing_time=getattr(receipt, "receipt_time", None),
             )
 
             await FinishedGoodsReceipt.filter(tenant_id=tenant_id, id=receipt_id).update(
@@ -5879,8 +5896,8 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
             if audit_required and initial_status in [None, "待审核", "草稿", "待出库"]:
                 initial_status = "待审核"
                 initial_review_status = "待审核"
-            if not audit_required and initial_status in [None, "待审核", "草稿"]:
-                # 如果不需要审核，且未指定状态或指定为草稿/待审核，则直接设为待出库（即已通过审核，等待执行）
+            if not audit_required and initial_status in [None, "待审核", "草稿", "待出库"]:
+                # 如果不需要审核，且未指定状态或指定为草稿/待审核/待出库，则直接设为待出库（即已通过审核，等待执行）
                 initial_status = "待出库"
                 initial_review_status = "已通过"
             
@@ -6512,6 +6529,8 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
         tenant_id: int,
         delivery_id: int,
         approver_id: int,
+        *,
+        is_auto_approve: bool = False,
     ) -> SalesDeliveryResponse:
         from core.services.approval.uni_audit_service import UniAuditService
 
@@ -6529,7 +6548,7 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
         audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "sales_delivery"
         )
-        if audit_required:
+        if audit_required and not is_auto_approve:
             from core.services.approval.approval_instance_service import ApprovalInstanceService
 
             approval_status = await ApprovalInstanceService.get_approval_status(
@@ -6558,6 +6577,9 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
             )
             return await self.get_sales_delivery_by_id(tenant_id, delivery_id)
 
+        if is_auto_approve:
+            return await _do_approve()
+
         result = await UniAuditService.approve_with_flow_fallback(
             tenant_id=tenant_id,
             entity_type="sales_delivery",
@@ -6574,6 +6596,7 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
         approver_id: int,
         *,
         rejection_reason: Optional[str] = None,
+        is_auto_approve: bool = False,
     ) -> SalesDeliveryResponse:
         from core.services.approval.uni_audit_service import UniAuditService
 
@@ -6591,7 +6614,7 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
         audit_required = await self.business_config_service.check_audit_required(
             tenant_id, "sales_delivery"
         )
-        if audit_required:
+        if audit_required and not is_auto_approve:
             from core.services.approval.approval_instance_service import ApprovalInstanceService
 
             approval_status = await ApprovalInstanceService.get_approval_status(
@@ -6616,6 +6639,9 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
                 updated_by=approver_id,
             )
             return await self.get_sales_delivery_by_id(tenant_id, delivery_id)
+
+        if is_auto_approve:
+            return await _do_reject(rejection_reason)
 
         result = await UniAuditService.reject_with_flow_fallback(
             tenant_id=tenant_id,
@@ -7988,11 +8014,6 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
                         it.batch_number = bn
                         await it.save()
 
-            confirmer_name = await self.get_user_name(confirmed_by)
-            confirm_time = resolve_business_datetime(
-                confirm_request.delivery_time if confirm_request and confirm_request.delivery_time else None
-            )
-
             # 使用 ORM save 更新表头，避免部分环境下 QuerySet.update 命中异常或与事务交互问题
             sd_row = await SalesDelivery.get_or_none(
                 tenant_id=tenant_id,
@@ -8001,9 +8022,26 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
             )
             if not sd_row:
                 raise NotFoundError(f"销售出库单不存在或已删除: {delivery_id}")
+
+            from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_outbound_confirm_deliverer
+
+            deliverer_id, deliverer_name = await resolve_outbound_confirm_deliverer(
+                confirmed_by=confirmed_by,
+                confirmation_data=confirm_request,
+                get_user_name=self.get_user_name,
+                existing_deliverer_id=getattr(sd_row, "deliverer_id", None),
+                existing_deliverer_name=getattr(sd_row, "deliverer_name", None),
+            )
+            time_source = (
+                confirm_request.delivery_time
+                if confirm_request and confirm_request.delivery_time
+                else getattr(sd_row, "delivery_time", None)
+            )
+            confirm_time = resolve_business_datetime(time_source)
+
             sd_row.status = "已出库"
-            sd_row.deliverer_id = confirmed_by
-            sd_row.deliverer_name = confirmer_name
+            sd_row.deliverer_id = deliverer_id
+            sd_row.deliverer_name = deliverer_name
             sd_row.delivery_time = confirm_time
             sd_row.updated_by = confirmed_by
             await sd_row.save()
@@ -8073,9 +8111,9 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
                         movement_type="sales_delivery",
                         from_warehouse_id=wh_id,
                         idempotency_key=f"sales_delivery:{delivery_id}:dec:{item.id}",
-                    operator_id=confirmed_by,
-                    operator_name=confirmer_name,
-                )
+                        operator_id=deliverer_id,
+                        operator_name=deliverer_name,
+                    )
             except BusinessLogicError:
                 raise
             except ValueError as inv_e:
@@ -8129,14 +8167,29 @@ class SalesDeliveryService(AppBaseService[SalesDelivery]):
             receivable_service = ReceivableService()
             receivable_pull_service = ReceivablePullService()
             delivery_row = await SalesDelivery.get(tenant_id=tenant_id, id=delivery_id)
+            billing_svc = ContractMilestoneBillingService()
             if delivery_row.sales_order_id:
                 so = await SalesOrder.get_or_none(
                     tenant_id=tenant_id, id=int(delivery_row.sales_order_id), deleted_at__isnull=True
                 )
-                if so and getattr(so, "contract_id", None):
-                    if await ContractMilestoneBillingService().should_skip_shipment_receivable_for_order(
-                        tenant_id, so.customer_id, int(so.contract_id)
+                if so:
+                    contract_id = int(so.contract_id) if getattr(so, "contract_id", None) else None
+                    if await billing_svc.should_skip_shipment_receivable_for_order(
+                        tenant_id,
+                        so.customer_id,
+                        contract_id,
+                        sales_order_id=int(so.id),
                     ):
+                        try:
+                            await billing_svc.auto_generate_delivery_milestone_receivables_on_shipment(
+                                tenant_id, int(so.id), confirmed_by
+                            )
+                        except Exception as milestone_exc:
+                            logger.exception(
+                                "销售出库单 %s 按到货收款节点自动生成应收失败（不影响出库确认）: %s",
+                                delivery_row.delivery_code,
+                                milestone_exc,
+                            )
                         return updated_delivery
             pull_preview = await receivable_pull_service.preview_pull_from_sales_delivery(
                 tenant_id, delivery_id
@@ -9575,80 +9628,93 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
         # 应付确认策略为「以采购发票为准」时不在此处生成应付，避免与进项发票路径重复记账。
         receipt_for_payable = await PurchaseReceipt.get(tenant_id=tenant_id, id=receipt_id)
         _sup_id = getattr(receipt_for_payable, "supplier_id", None)
+        receipt_po_id = int(getattr(receipt_for_payable, "purchase_order_id", 0) or 0)
         if await self.business_config_service.should_auto_generate_payable_on_purchase_receipt(
             tenant_id, int(_sup_id) if _sup_id is not None else None
         ):
             try:
-                from apps.kuaicaiwu.services.finance_service import PayableService
-                from apps.kuaicaiwu.schemas.finance import PayableCreate
+                from apps.kuaizhizao.services.contract_milestone_billing_service import (
+                    ContractMilestoneBillingService,
+                )
 
-                payable_service = PayableService()
-
-                # 创建应付单
-                total_amount = Decimal(str(receipt_for_payable.total_amount or 0))
-                if total_amount > 0:
-                    from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
-
-                    biz_date = to_site_date(resolve_business_datetime())
-                    due_date = await resolve_partner_due_date(
-                        tenant_id, "supplier", int(receipt_for_payable.supplier_id), biz_date
+                billing_svc = ContractMilestoneBillingService()
+                if receipt_po_id > 0 and await billing_svc.should_skip_receipt_payable_for_order(
+                    tenant_id, int(_sup_id) if _sup_id is not None else None, receipt_po_id
+                ):
+                    await billing_svc.auto_generate_delivery_milestone_payables_on_receipt(
+                        tenant_id, receipt_po_id, confirmed_by
                     )
-                    payable_data = PayableCreate(
-                        source_type="采购入库",
-                        source_id=receipt_id,
-                        source_code=receipt_for_payable.receipt_code,
-                        supplier_id=receipt_for_payable.supplier_id,
-                        supplier_name=receipt_for_payable.supplier_name,
-                        total_amount=float(total_amount),
-                        paid_amount=0.0,
-                        remaining_amount=float(total_amount),
-                        due_date=due_date,
-                        business_date=biz_date,
-                        status="未付款",
-                        notes=f"由采购入库单 {receipt_for_payable.receipt_code} 自动生成"
-                    )
+                else:
+                    from apps.kuaicaiwu.services.finance_service import PayableService
+                    from apps.kuaicaiwu.schemas.finance import PayableCreate
 
-                    payable = await payable_service.create_payable(
-                        tenant_id=tenant_id,
-                        payable_data=payable_data,
-                        created_by=confirmed_by
-                    )
-                    try:
-                        from apps.kuaicaiwu.services.finance_integration_hooks import (
-                            link_finance_document_relation,
-                            record_finance_accounting_event,
+                    payable_service = PayableService()
+
+                    # 创建应付单
+                    total_amount = Decimal(str(receipt_for_payable.total_amount or 0))
+                    if total_amount > 0:
+                        from apps.kuaicaiwu.services.finance_due_date import resolve_partner_due_date
+
+                        biz_date = to_site_date(resolve_business_datetime())
+                        due_date = await resolve_partner_due_date(
+                            tenant_id, "supplier", int(receipt_for_payable.supplier_id), biz_date
                         )
-
-                        await link_finance_document_relation(
-                            tenant_id=tenant_id,
-                            source_type="purchase_receipt",
+                        payable_data = PayableCreate(
+                            source_type="采购入库",
                             source_id=receipt_id,
                             source_code=receipt_for_payable.receipt_code,
-                            target_type="payable",
-                            target_id=payable.id,
-                            target_code=getattr(payable, "payable_code", None),
-                            relation_desc="采购入库确认自动生成应付单",
-                            created_by=confirmed_by,
+                            supplier_id=receipt_for_payable.supplier_id,
+                            supplier_name=receipt_for_payable.supplier_name,
+                            total_amount=float(total_amount),
+                            paid_amount=0.0,
+                            remaining_amount=float(total_amount),
+                            due_date=due_date,
+                            business_date=biz_date,
+                            status="未付款",
+                            notes=f"由采购入库单 {receipt_for_payable.receipt_code} 自动生成"
                         )
-                        await record_finance_accounting_event(
+
+                        payable = await payable_service.create_payable(
                             tenant_id=tenant_id,
-                            event_type="PURCHASE_RECEIPT_TO_PAYABLE",
-                            business_type="payable",
-                            source_doc_type="purchase_receipt",
-                            source_doc_id=receipt_id,
-                            source_doc_code=receipt_for_payable.receipt_code,
-                            target_doc_type="Payable",
-                            target_doc_id=payable.id,
-                            target_doc_code=payable.payable_code,
-                            amount=total_amount,
-                            operator_id=confirmed_by,
-                            notes=f"采购入库单 {receipt_for_payable.receipt_code} 自动生成应付单",
+                            payable_data=payable_data,
+                            created_by=confirmed_by
                         )
-                    except Exception as rel_e:
-                        logger.exception(
-                            "创建采购入库→应付单 单据关联/会计事件失败 receipt_code=%s",
-                            receipt_for_payable.receipt_code,
-                        )
+                        try:
+                            from apps.kuaicaiwu.services.finance_integration_hooks import (
+                                link_finance_document_relation,
+                                record_finance_accounting_event,
+                            )
+
+                            await link_finance_document_relation(
+                                tenant_id=tenant_id,
+                                source_type="purchase_receipt",
+                                source_id=receipt_id,
+                                source_code=receipt_for_payable.receipt_code,
+                                target_type="payable",
+                                target_id=payable.id,
+                                target_code=getattr(payable, "payable_code", None),
+                                relation_desc="采购入库确认自动生成应付单",
+                                created_by=confirmed_by,
+                            )
+                            await record_finance_accounting_event(
+                                tenant_id=tenant_id,
+                                event_type="PURCHASE_RECEIPT_TO_PAYABLE",
+                                business_type="payable",
+                                source_doc_type="purchase_receipt",
+                                source_doc_id=receipt_id,
+                                source_doc_code=receipt_for_payable.receipt_code,
+                                target_doc_type="Payable",
+                                target_doc_id=payable.id,
+                                target_doc_code=payable.payable_code,
+                                amount=total_amount,
+                                operator_id=confirmed_by,
+                                notes=f"采购入库单 {receipt_for_payable.receipt_code} 自动生成应付单",
+                            )
+                        except Exception as rel_e:
+                            logger.exception(
+                                "创建采购入库→应付单 单据关联/会计事件失败 receipt_code=%s",
+                                receipt_for_payable.receipt_code,
+                            )
             except Exception as e:
                 logger.exception(
                     "自动生成应付单失败 receipt_code=%s（不影响入库确认结果）",
@@ -9856,15 +9922,19 @@ class PurchaseReceiptService(AppBaseService[PurchaseReceipt]):
 
             # 先过账库存，成功后再改单据状态，避免库存失败时单据已显示「已入库」
             confirmer_name = await self.get_user_name(confirmed_by)
-            from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_receiver
+            from apps.kuaizhizao.utils.inbound_confirm_helper import (
+                resolve_inbound_confirm_business_time,
+                resolve_inbound_confirm_receiver,
+            )
 
             receiver_id, receiver_name = await resolve_inbound_confirm_receiver(
                 confirmed_by=confirmed_by,
                 confirmation_data=confirmation_data,
                 get_user_name=self.get_user_name,
             )
-            receipt_time = resolve_business_datetime(
-                confirmation_data.receipt_time if confirmation_data and confirmation_data.receipt_time else None
+            receipt_time = resolve_inbound_confirm_business_time(
+                confirmation_data,
+                existing_time=getattr(receipt, "receipt_time", None),
             )
             ledger_production_date = to_site_date(receipt_time)
             try:
@@ -12285,17 +12355,20 @@ class SalesReturnService(AppBaseService[SalesReturn]):
                             await item.save()
 
             confirmer_name = await self.get_user_name(confirmed_by)
-            from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_receiver
+            from apps.kuaizhizao.utils.inbound_confirm_helper import (
+                resolve_inbound_confirm_business_time,
+                resolve_inbound_confirm_receiver,
+            )
 
             returner_id, returner_name = await resolve_inbound_confirm_receiver(
                 confirmed_by=confirmed_by,
                 confirmation_data=confirmation_data,
                 get_user_name=self.get_user_name,
             )
-            receipt_time = resolve_business_datetime(
-                confirmation_data.receipt_time if confirmation_data and confirmation_data.receipt_time else None
+            receipt_time = resolve_inbound_confirm_business_time(
+                confirmation_data,
+                existing_time=getattr(return_obj, "return_time", None),
             )
-
             await SalesReturn.filter(tenant_id=tenant_id, id=return_id).update(
                 status='已退货',
                 returner_id=returner_id,
@@ -14744,15 +14817,19 @@ class OtherInboundService(AppBaseService[OtherInbound]):
                         serial_nos_by_item_id[int(item.id)] = serial_nos
 
             confirmer_name = await self.get_user_name(confirmed_by)
-            from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_receiver
+            from apps.kuaizhizao.utils.inbound_confirm_helper import (
+                resolve_inbound_confirm_business_time,
+                resolve_inbound_confirm_receiver,
+            )
 
             receiver_id, receiver_name = await resolve_inbound_confirm_receiver(
                 confirmed_by=confirmed_by,
                 confirmation_data=confirmation_data,
                 get_user_name=self.get_user_name,
             )
-            receipt_time = resolve_business_datetime(
-                confirmation_data.receipt_time if confirmation_data and confirmation_data.receipt_time else None
+            receipt_time = resolve_inbound_confirm_business_time(
+                confirmation_data,
+                existing_time=getattr(inbound, "receipt_time", None),
             )
 
             await OtherInbound.filter(tenant_id=tenant_id, id=inbound_id).update(
@@ -15981,7 +16058,10 @@ class MaterialReturnService(AppBaseService[MaterialReturn]):
         confirmation_data: Optional[InboundConfirmationRequest] = None,
     ) -> MaterialReturnResponse:
         """确认归还"""
-        from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_receiver
+        from apps.kuaizhizao.utils.inbound_confirm_helper import (
+            resolve_inbound_confirm_business_time,
+            resolve_inbound_confirm_receiver,
+        )
 
         async with in_transaction():
             return_obj = await self.get_material_return_by_id(tenant_id, return_id)
@@ -15993,7 +16073,10 @@ class MaterialReturnService(AppBaseService[MaterialReturn]):
             assert_inbound_hub_capability(return_obj, "confirm", receipt_type="material_return")
 
             confirmer_name = await self.get_user_name(confirmed_by)
-            return_time = resolve_business_datetime()
+            return_time = resolve_inbound_confirm_business_time(
+                confirmation_data,
+                existing_time=getattr(return_obj, "return_time", None),
+            )
             if confirmation_data is not None and confirmation_data.receiver_id:
                 returner_id, returner_name = await resolve_inbound_confirm_receiver(
                     confirmed_by=confirmed_by,

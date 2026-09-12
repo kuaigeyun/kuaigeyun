@@ -184,6 +184,20 @@ const MaintenancePlansPage: React.FC = () => {
   >([]);
   const [sparePartLines, setSparePartLines] = useState<Array<{ spare_part_id?: number; quantity?: number; warehouse_location?: string }>>([]);
   const [sparePartOptions, setSparePartOptions] = useState<{ label: string; value: number }[]>([]);
+  const [sparePartInventoryById, setSparePartInventoryById] = useState<
+    Record<number, Array<{ warehouse_location: string; stock_quantity: number }>>
+  >({});
+
+  const resolvePreferredSparePartLocation = useCallback(
+    (sparePartId?: number) => {
+      if (!sparePartId) return '默认库位';
+      const rows = sparePartInventoryById[sparePartId] ?? [];
+      if (!rows.length) return '默认库位';
+      const best = [...rows].sort((a, b) => (b.stock_quantity ?? 0) - (a.stock_quantity ?? 0))[0];
+      return best?.warehouse_location?.trim() || '默认库位';
+    },
+    [sparePartInventoryById],
+  );
 
   /**
    * 处理新建维护计划
@@ -365,7 +379,8 @@ const MaintenancePlansPage: React.FC = () => {
     void Promise.all([
       maintenanceSchemesApi.list({ limit: 1000, is_active: true }),
       sparePartApi.list({ limit: 500 }),
-    ]).then(([schemeRes, partRes]) => {
+      sparePartApi.listInventory(),
+    ]).then(([schemeRes, partRes, inventoryRes]) => {
       setSchemeOptions(
         (schemeRes.items ?? []).map((s: { id: number; code: string; name: string }) => ({
           label: `${s.code} - ${s.name}`,
@@ -378,6 +393,17 @@ const MaintenancePlansPage: React.FC = () => {
           value: p.id,
         })),
       );
+      const inventoryRows = Array.isArray(inventoryRes) ? inventoryRes : [];
+      const inventoryMap: Record<number, Array<{ warehouse_location: string; stock_quantity: number }>> = {};
+      inventoryRows.forEach((row: { spare_part_id?: number; warehouse_location?: string; stock_quantity?: number }) => {
+        const partId = Number(row?.spare_part_id);
+        if (!Number.isFinite(partId) || partId <= 0) return;
+        const location = String(row?.warehouse_location ?? '').trim() || '默认库位';
+        const stockQty = Number(row?.stock_quantity ?? 0);
+        if (!inventoryMap[partId]) inventoryMap[partId] = [];
+        inventoryMap[partId].push({ warehouse_location: location, stock_quantity: stockQty });
+      });
+      setSparePartInventoryById(inventoryMap);
     });
   };
 
@@ -1121,7 +1147,11 @@ const MaintenancePlansPage: React.FC = () => {
                       style={{ width: '100%' }}
                       onChange={(val: number) => {
                         const next = [...sparePartLines];
-                        next[index] = { ...next[index], spare_part_id: val };
+                        next[index] = {
+                          ...next[index],
+                          spare_part_id: val,
+                          warehouse_location: resolvePreferredSparePartLocation(val),
+                        };
                         setSparePartLines(next);
                       }}
                     />
@@ -1144,16 +1174,31 @@ const MaintenancePlansPage: React.FC = () => {
                 },
                 {
                   title: t(`${P}.form.sparePartLocation`),
-                  render: (_, __, index) => (
-                    <Input
-                      value={sparePartLines[index]?.warehouse_location}
-                      onChange={(e) => {
-                        const next = [...sparePartLines];
-                        next[index] = { ...next[index], warehouse_location: e.target.value };
-                        setSparePartLines(next);
-                      }}
-                    />
-                  ),
+                  render: (_, __, index) => {
+                    const partId = sparePartLines[index]?.spare_part_id;
+                    const locationRows = partId ? sparePartInventoryById[partId] ?? [] : [];
+                    const locationOptions = locationRows.length
+                      ? locationRows.map((row) => ({
+                          value: row.warehouse_location,
+                          label: t(`${P}.form.sparePartStockAtLocation`, {
+                            location: row.warehouse_location,
+                            qty: row.stock_quantity ?? 0,
+                          }),
+                        }))
+                      : [{ value: '默认库位', label: '默认库位' }];
+                    return (
+                      <Select
+                        style={{ width: '100%' }}
+                        value={sparePartLines[index]?.warehouse_location ?? '默认库位'}
+                        options={locationOptions}
+                        onChange={(val) => {
+                          const next = [...sparePartLines];
+                          next[index] = { ...next[index], warehouse_location: String(val ?? '默认库位') };
+                          setSparePartLines(next);
+                        }}
+                      />
+                    );
+                  },
                 },
               ]}
             />

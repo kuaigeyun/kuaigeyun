@@ -70,7 +70,7 @@ const GlFinancialStatementsPage: React.FC = () => {
         res = (await glService.statutoryBalanceSheet(params)) as Row;
       }
       setSummary(res);
-      setRows(asRows(res));
+      setRows(kind === 'income' ? ((res.rows as Row[]) ?? []) : asRows(res));
     } catch (error) {
       messageApi.error(getApiErrorMessage(error, t('common.loadFailed', { defaultValue: '加载失败' })));
       setSummary(null);
@@ -114,18 +114,29 @@ const GlFinancialStatementsPage: React.FC = () => {
     }
     if (kind === 'income') {
       return [
-        { title: t(`${NS}.col.accountCode`, { defaultValue: '科目编码' }), dataIndex: 'account_code', width: 120 },
-        { title: t(`${NS}.col.label`, { defaultValue: '项目' }), dataIndex: 'label', ellipsis: true },
         {
-          title: t(`${NS}.col.periodAmount`, { defaultValue: '本期金额' }),
-          dataIndex: 'period_amount',
+          title: t(`${NS}.col.label`, { defaultValue: '项目' }),
+          dataIndex: 'label',
+          ellipsis: true,
+          render: (v: unknown, r: Row) =>
+            r.indent ? `\u3000\u3000${String(v ?? '')}` : String(v ?? ''),
+        },
+        {
+          title: t(`${NS}.print.lineNo`, { defaultValue: '行次' }),
+          dataIndex: 'line_no',
+          width: 72,
+          align: 'center' as const,
+        },
+        {
+          title: t(`${NS}.col.yearAmount`, { defaultValue: '本年累计金额' }),
+          dataIndex: 'year_amount',
           align: 'right' as const,
           width: 140,
           render: (v: unknown) => money(v),
         },
         {
-          title: t(`${NS}.col.yearAmount`, { defaultValue: '本年累计' }),
-          dataIndex: 'year_amount',
+          title: t(`${NS}.col.monthAmount`, { defaultValue: '本月金额' }),
+          dataIndex: 'period_amount',
           align: 'right' as const,
           width: 140,
           render: (v: unknown) => money(v),
@@ -266,7 +277,11 @@ const GlFinancialStatementsPage: React.FC = () => {
           dataSource={rows}
           size="medium"
           pagination={false}
-          rowClassName={(r) => (r.is_total ? 'ant-table-row-selected' : '')}
+          rowClassName={(r) => {
+            if (r.is_total) return 'ant-table-row-selected';
+            if (r.indent) return 'fs-income-indent-row';
+            return '';
+          }}
           scroll={{ x: 720 }}
         />
       </Space>

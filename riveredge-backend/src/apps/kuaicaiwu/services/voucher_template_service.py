@@ -137,7 +137,24 @@ class VoucherTemplateService:
     ) -> List[Dict[str, Any]]:
         raw_key = event.event_type or event.business_type or ""
         template_key = self.EVENT_ALIASES.get(raw_key, raw_key)
-        rows = self.DEFAULT_TEMPLATES.get(template_key, [])
+        payload = event.payload or {}
+        if template_key == "fa_depreciation":
+            expense_code = payload.get("expense_account_code") or "6602"
+            accum_code = payload.get("accumulated_depreciation_account_code") or "1602"
+            summary = event.notes or "计提折旧"
+            rows = [
+                {"side": "debit", "account_code": expense_code, "summary": summary},
+                {"side": "credit", "account_code": accum_code, "summary": summary},
+            ]
+        elif template_key == "fa_disposal":
+            accum_code = payload.get("accumulated_depreciation_account_code") or "1602"
+            asset_code = payload.get("asset_account_code") or "1601"
+            rows = [
+                {"side": "debit", "account_code": accum_code, "summary": "转出累计折旧"},
+                {"side": "credit", "account_code": asset_code, "summary": "转出固定资产原值"},
+            ]
+        else:
+            rows = self.DEFAULT_TEMPLATES.get(template_key, [])
         if not rows:
             return []
 

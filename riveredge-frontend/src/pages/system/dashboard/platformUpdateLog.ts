@@ -36,6 +36,438 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'custom-document-date-off-by-one-backfill',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.custom-document-date-off-by-one-backfill.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.custom-document-date-off-by-one-backfill.description',
+  },
+  {
+    id: 'measuring-instrument-precision-measurement-range',
+    date: '2026-09-12',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.measuring-instrument-precision-measurement-range.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.measuring-instrument-precision-measurement-range.description',
+  },
+  {
+    id: 'equipment-card-batch-print-n-squared-pages',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.equipment-card-batch-print-n-squared-pages.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.equipment-card-batch-print-n-squared-pages.description',
+  },
+  {
+    id: 'spot-check-numeric-range-judgment-enforce',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.spot-check-numeric-range-judgment-enforce.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.spot-check-numeric-range-judgment-enforce.description',
+  },
+  {
+    id: 'spot-check-scan-auto-load-bound-scheme-lines',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.spot-check-scan-auto-load-bound-scheme-lines.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.spot-check-scan-auto-load-bound-scheme-lines.description',
+  },
+  {
+    id: 'equipment-create-modal-code-rule-preview',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.equipment-create-modal-code-rule-preview.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.equipment-create-modal-code-rule-preview.description',
+  },
+  {
+    id: 'tenant-effective-home-redirect-from-default-home',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.tenant-effective-home-redirect-from-default-home.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.tenant-effective-home-redirect-from-default-home.description',
+  },
+  {
+    id: 'equipment-dashboard-fault-link-blank-page',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.equipment-dashboard-fault-link-blank-page.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.equipment-dashboard-fault-link-blank-page.description',
+  },
+  {
+    id: 'spot-check-numeric-value-type-mobile-input',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.spot-check-numeric-value-type-mobile-input.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.spot-check-numeric-value-type-mobile-input.description',
+  },
+  {
+    id: 'inspection-item-boolean-hide-numeric-fields',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.inspection-item-boolean-hide-numeric-fields.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.inspection-item-boolean-hide-numeric-fields.description',
+  },
+  {
+    id: 'equipment-responsible-person-user-picker-full-list',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.equipment-responsible-person-user-picker-full-list.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.equipment-responsible-person-user-picker-full-list.description',
+  },
+  {
+    id: 'equipment-status-update-attachments-persist',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.equipment-status-update-attachments-persist.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.equipment-status-update-attachments-persist.description',
+  },
+  {
+    id: 'equipment-ledger-default-code-sort',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.equipment-ledger-default-code-sort.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.equipment-ledger-default-code-sort.description',
+  },
+  {
+    id: 'equipment-calibration-reminder-advance-days-config',
+    date: '2026-09-12',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.equipment-calibration-reminder-advance-days-config.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.equipment-calibration-reminder-advance-days-config.description',
+  },
+  {
+    id: 'measuring-instrument-calibration-modal-layout',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.measuring-instrument-calibration-modal-layout.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.measuring-instrument-calibration-modal-layout.description',
+  },
+  {
+    id: 'measuring-instrument-calibration-list-layout',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.measuring-instrument-calibration-list-layout.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.measuring-instrument-calibration-list-layout.description',
+  },
+  {
+    id: 'measuring-instruments-ledger-toolbar-layout',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.measuring-instruments-ledger-toolbar-layout.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.measuring-instruments-ledger-toolbar-layout.description',
+  },
+  {
+    id: 'measuring-instruments-ledger-import-fix',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.measuring-instruments-ledger-import-fix.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.measuring-instruments-ledger-import-fix.description',
+  },
+  {
+    id: 'measuring-instrument-calibration-list-ux',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.measuring-instrument-calibration-list-ux.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.measuring-instrument-calibration-list-ux.description',
+  },
+  {
+    id: 'measuring-instruments-menu-docs-reports',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.measuring-instruments-menu-docs-reports.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.measuring-instruments-menu-docs-reports.description',
+  },
+  {
+    id: 'measuring-instruments-ledger',
+    date: '2026-09-12',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.measuring-instruments-ledger.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.measuring-instruments-ledger.description',
+  },
+  {
+    id: 'module-chart-mount-masonry-offset-fix',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.module-chart-mount-masonry-offset-fix.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.module-chart-mount-masonry-offset-fix.description',
+  },
+  {
+    id: 'equipment-ledger-responsible-spot-check-person',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.equipment-ledger-responsible-spot-check-person.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.equipment-ledger-responsible-spot-check-person.description',
+  },
+  {
+    id: 'demand-plan-delete-capability-return-row-select',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.demand-plan-delete-capability-return-row-select.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.demand-plan-delete-capability-return-row-select.description',
+  },
+  {
+    id: 'sales-order-return-delete-gate-batch-v2',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-order-return-delete-gate-batch-v2.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-order-return-delete-gate-batch-v2.description',
+  },
+  {
+    id: 'document-delete-gate-downstream-capabilities',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.document-delete-gate-downstream-capabilities.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.document-delete-gate-downstream-capabilities.description',
+  },
+  {
+    id: 'purchase-requisition-delete-block-when-po-linked',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.purchase-requisition-delete-block-when-po-linked.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.purchase-requisition-delete-block-when-po-linked.description',
+  },
+  {
+    id: 'warehouse-dashboard-stock-value-unified-v2',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.warehouse-dashboard-stock-value-unified-v2.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.warehouse-dashboard-stock-value-unified-v2.description',
+  },
+  {
+    id: 'purchase-order-push-require-supplier',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.purchase-order-push-require-supplier.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.purchase-order-push-require-supplier.description',
+  },
+  {
+    id: 'order-milestone-delivery-billing-merge',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.order-milestone-delivery-billing-merge.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.order-milestone-delivery-billing-merge.description',
+  },
+  {
+    id: 'purchase-order-basic-info-align-sales',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.purchase-order-basic-info-align-sales.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.purchase-order-basic-info-align-sales.description',
+  },
+  {
+    id: 'order-payment-milestones-sync',
+    date: '2026-09-12',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.order-payment-milestones-sync.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.order-payment-milestones-sync.description',
+  },
+  {
+    id: 'sales-review-dept-opinions-tabs',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-review-dept-opinions-tabs.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.sales-review-dept-opinions-tabs.description',
+  },
+  {
+    id: 'gl-income-statement-excel-template',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.gl-income-statement-excel-template.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.gl-income-statement-excel-template.description',
+  },
+  {
+    id: 'gl-voucher-event-update-date',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.gl-voucher-event-update-date.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.gl-voucher-event-update-date.description',
+  },
+  {
+    id: 'gl-voucher-events-source-type-filter',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.gl-voucher-events-source-type-filter.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.gl-voucher-events-source-type-filter.description',
+  },
+  {
+    id: 'gl-voucher-generate-from-events-select',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.gl-voucher-generate-from-events-select.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.gl-voucher-generate-from-events-select.description',
+  },
+  {
+    id: 'sales-order-push-wo-planned-end',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-order-push-wo-planned-end.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-order-push-wo-planned-end.description',
+  },
+  {
+    id: 'quality-inspection-revoke-keep-plan',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.quality-inspection-revoke-keep-plan.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.quality-inspection-revoke-keep-plan.description',
+  },
+  {
+    id: 'quotation-push-sales-order-unit',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.quotation-push-sales-order-unit.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.quotation-push-sales-order-unit.description',
+  },
+  {
+    id: 'maintenance-spare-part-inventory-deduct',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.maintenance-spare-part-inventory-deduct.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.maintenance-spare-part-inventory-deduct.description',
+  },
+  {
+    id: 'work-order-cost-picking-status-fix',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.work-order-cost-picking-status-fix.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.work-order-cost-picking-status-fix.description',
+  },
+  {
+    id: 'sales-order-push-wo-inventory-columns',
+    date: '2026-09-11',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-order-push-wo-inventory-columns.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-order-push-wo-inventory-columns.description',
+  },
+  {
+    id: 'sales-order-push-work-order-inventory',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-order-push-work-order-inventory.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-order-push-work-order-inventory.description',
+  },
+  {
+    id: 'config-center-scheduled-tasks',
+    date: '2026-09-11',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.config-center-scheduled-tasks.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.config-center-scheduled-tasks.description',
+  },
+  {
+    id: 'inventory-alert-auto-schedule',
+    date: '2026-09-11',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.inventory-alert-auto-schedule.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.inventory-alert-auto-schedule.description',
+  },
+  {
+    id: 'sales-delivery-approval-status-sync',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-delivery-approval-status-sync.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-delivery-approval-status-sync.description',
+  },
+  {
+    id: 'inventory-transfer-warehouse-name-list',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.inventory-transfer-warehouse-name-list.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.inventory-transfer-warehouse-name-list.description',
+  },
+  {
+    id: 'kuaicaiwu-remove-management-analysis',
+    date: '2026-09-11',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaicaiwu-remove-management-analysis.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.kuaicaiwu-remove-management-analysis.description',
+  },
+  {
+    id: 'report-menu-order-and-labels',
+    date: '2026-09-11',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.report-menu-order-and-labels.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.report-menu-order-and-labels.description',
+  },
+  {
+    id: 'fa-depr-report-columns',
+    date: '2026-09-11',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.fa-depr-report-columns.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.fa-depr-report-columns.description',
+  },
+  {
+    id: 'report-template-unification',
+    date: '2026-09-11',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.report-template-unification.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.report-template-unification.description',
+  },
+  {
+    id: 'kuaicaiwu-fixed-assets-list-toolbar',
+    date: '2026-09-11',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaicaiwu-fixed-assets-list-toolbar.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.kuaicaiwu-fixed-assets-list-toolbar.description',
+  },
+  {
+    id: 'kuaicaiwu-fixed-assets-module',
+    date: '2026-09-11',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.kuaicaiwu-fixed-assets-module.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.kuaicaiwu-fixed-assets-module.description',
+  },
+  {
+    id: 'production-return-delete-list-filter',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.production-return-delete-list-filter.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.production-return-delete-list-filter.description',
+  },
+  {
+    id: 'inbound-confirm-operator-date',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.inbound-confirm-operator-date.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.inbound-confirm-operator-date.description',
+  },
+  {
+    id: 'sales-delivery-confirm-operator-date',
+    date: '2026-09-11',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-delivery-confirm-operator-date.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-delivery-confirm-operator-date.description',
+  },
+  {
     id: 'warehouse-hub-quantity-unit-display',
     date: '2026-09-11',
     type: 'fix',

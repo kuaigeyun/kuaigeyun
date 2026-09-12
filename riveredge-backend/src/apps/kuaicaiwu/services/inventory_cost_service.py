@@ -295,18 +295,20 @@ class InventoryCostService:
         if not wo:
             return Decimal("0")
 
-        pickings = await ProductionPicking.filter(
-            tenant_id=tenant_id,
-            work_order_id=work_order_id,
-            status__in=("已确认", "已完成"),
-            deleted_at__isnull=True,
-        ).all()
+        from apps.kuaizhizao.utils.picking_posting import (
+            list_work_order_cost_pickings,
+            picking_item_belongs_to_work_order,
+        )
+
+        pickings = await list_work_order_cost_pickings(tenant_id, work_order_id)
         material_cost = Decimal("0")
         for picking in pickings:
             items = await ProductionPickingItem.filter(
                 tenant_id=tenant_id, picking_id=picking.id, deleted_at__isnull=True
             ).all()
             for item in items:
+                if not picking_item_belongs_to_work_order(item, picking, work_order_id):
+                    continue
                 qty = self._decimal(item.picked_quantity)
                 if qty <= 0:
                     continue

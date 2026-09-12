@@ -49,7 +49,7 @@ import { useCurrentUser } from './hooks/useCurrentUser';
 import { useSiteSettingQuery } from './hooks/useSiteSettingQuery';
 import { useUserPreferenceQuery } from './hooks/useUserPreferenceQuery';
 import { NAVIGATION_MENU_TREE_QUERY_KEY } from './hooks/useNavigationMenuTreeQuery';
-import { getDefaultTenantHomePath, useConfigStore } from './stores/configStore';
+import { useConfigStore } from './stores/configStore';
 import { useUserPreferenceStore } from './stores/userPreferenceStore';
 import { getPlatformSettingsPublic } from './services/platformSettings';
 import { applyFavicon } from './utils/favicon';
@@ -570,9 +570,9 @@ const AuthGuard = React.memo<{ children: React.ReactNode }>(({ children }) => {
       if (isInfraLoginPage && currentUser.is_infra_admin) {
         return '/infra/operation';
       }
-      // 普通用户已登录仍访问登录页：立刻落本地默认首页（与 Git 原逻辑一致，不等待 effective-home）
+      // 普通用户已登录仍访问登录页：走 / 由 TenantHomeRedirect 解析有效首页
       if (location.pathname === '/login' && !currentUser.is_infra_admin) {
-        return getDefaultTenantHomePath();
+        return '/';
       }
     }
 

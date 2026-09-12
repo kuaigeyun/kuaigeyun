@@ -26,6 +26,7 @@ import {
   ModuleTodoList,
   ModuleBroadcastList,
   ModuleChartPanel,
+  ModuleChartMount,
   ModuleTrendLine,
   showMasonryCard,
   masonryWeightFromRows,
@@ -459,18 +460,22 @@ const ManufacturingDashboard: React.FC = () => {
           ) : null}
           {showMasonryCard(summaryLoading, hasStatusChartData, masonryEmptyFallback) ? (
             <ModuleChartPanel layout="masonry" title={t('app.kuaizhizao.productionExecutionDashboard.statusDistributionTitle')} loading={summaryLoading} masonryWeight={3}>
-              <Suspense fallback={null}>
-                <MfgStatusPie
-                  data={statusChartData}
-                  angleField="count"
-                  colorField="status"
-                  radius={0.8}
-                  innerRadius={0.6}
-                  height={240}
-                  autoFit
-                  legend={{ color: { position: 'bottom' } }}
-                />
-              </Suspense>
+              <ModuleChartMount height={240}>
+                {({ height: chartHeight }) => (
+                  <Suspense fallback={null}>
+                    <MfgStatusPie
+                      data={statusChartData}
+                      angleField="count"
+                      colorField="status"
+                      radius={0.8}
+                      innerRadius={0.6}
+                      height={chartHeight}
+                      autoFit
+                      legend={{ color: { position: 'bottom' } }}
+                    />
+                  </Suspense>
+                )}
+              </ModuleChartMount>
             </ModuleChartPanel>
           ) : null}
         </ModuleActionMasonry>

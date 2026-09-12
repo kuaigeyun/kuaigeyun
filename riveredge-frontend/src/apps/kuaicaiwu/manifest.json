@@ -223,9 +223,77 @@
         ]
       },
       {
+        "title": "app.kuaicaiwu.menu.group.fixed-assets",
+        "icon": "database",
+        "sort_order": 4,
+        "children": [
+          {
+            "title": "app.kuaicaiwu.menu.fixed-assets.masters",
+            "path": "/apps/kuaicaiwu/fixed-assets/masters",
+            "permission": "kuaicaiwu:fixed-asset:read",
+            "sort_order": 0
+          },
+          {
+            "title": "app.kuaicaiwu.menu.fixed-assets.assets",
+            "path": "/apps/kuaicaiwu/fixed-assets/assets",
+            "permission": "kuaicaiwu:fixed-asset:read",
+            "sort_order": 1
+          },
+          {
+            "title": "app.kuaicaiwu.menu.fixed-assets.changes",
+            "path": "/apps/kuaicaiwu/fixed-assets/changes",
+            "permission": "kuaicaiwu:fixed-asset:read",
+            "sort_order": 2
+          },
+          {
+            "title": "app.kuaicaiwu.menu.fixed-assets.disposals",
+            "path": "/apps/kuaicaiwu/fixed-assets/disposals",
+            "permission": "kuaicaiwu:fixed-asset:read",
+            "sort_order": 3
+          },
+          {
+            "title": "app.kuaicaiwu.menu.fixed-assets.depreciation-runs",
+            "path": "/apps/kuaicaiwu/fixed-assets/depreciation-runs",
+            "permission": "kuaicaiwu:fixed-asset-depreciation:read",
+            "sort_order": 4
+          },
+          {
+            "title": "app.kuaicaiwu.menu.fixed-assets.depreciation-adjustments",
+            "path": "/apps/kuaicaiwu/fixed-assets/depreciation-adjustments",
+            "permission": "kuaicaiwu:fixed-asset-depreciation:read",
+            "sort_order": 5
+          },
+          {
+            "title": "app.kuaicaiwu.menu.fixed-assets.period-close",
+            "path": "/apps/kuaicaiwu/fixed-assets/period-close",
+            "permission": "kuaicaiwu:fixed-asset:read",
+            "sort_order": 6
+          },
+          {
+            "title": "app.kuaicaiwu.menu.fixed-assets.reports",
+            "icon": "fileText",
+            "sort_order": 7,
+            "children": [
+              {
+                "title": "app.kuaicaiwu.menu.fixed-assets.reports.depreciation-detail",
+                "path": "/apps/kuaicaiwu/fixed-assets/reports/depreciation-detail",
+                "permission": "kuaicaiwu:fixed-asset-report:read",
+                "sort_order": 0
+              },
+              {
+                "title": "app.kuaicaiwu.menu.fixed-assets.reports.depreciation-summary",
+                "path": "/apps/kuaicaiwu/fixed-assets/reports/depreciation-summary",
+                "permission": "kuaicaiwu:fixed-asset-report:read",
+                "sort_order": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
         "title": "app.kuaicaiwu.menu.cost-management",
         "icon": "calculator",
-        "sort_order": 4,
+        "sort_order": 5,
         "children": [
           {
             "title": "app.kuaicaiwu.menu.cost-management.cost-calculations",
@@ -240,9 +308,9 @@
             "sort_order": 2
           },
           {
-            "title": "app.kuaicaiwu.menu.cost-management.cost-report",
-            "path": "/apps/kuaicaiwu/cost-management/cost-report",
-            "permission": "kuaicaiwu:cost-report:read",
+            "title": "app.kuaicaiwu.menu.cost-management.standard-costs",
+            "path": "/apps/kuaicaiwu/cost-management/standard-costs",
+            "permission": "kuaicaiwu:standard-cost:read",
             "sort_order": 3
           },
           {
@@ -252,10 +320,17 @@
             "sort_order": 4
           },
           {
-            "title": "app.kuaicaiwu.menu.cost-management.standard-costs",
-            "path": "/apps/kuaicaiwu/cost-management/standard-costs",
-            "permission": "kuaicaiwu:standard-cost:read",
-            "sort_order": 5
+            "title": "app.kuaicaiwu.menu.cost-management.reports",
+            "icon": "fileText",
+            "sort_order": 5,
+            "children": [
+              {
+                "title": "app.kuaicaiwu.menu.cost-management.cost-report",
+                "path": "/apps/kuaicaiwu/cost-management/cost-report",
+                "permission": "kuaicaiwu:cost-report:read",
+                "sort_order": 0
+              }
+            ]
           }
         ]
       }
@@ -349,7 +424,6 @@
     "kuaicaiwu:gl:obsolete",
     "kuaicaiwu:gl:export",
     "kuaicaiwu:management-dashboard:read",
-    "kuaicaiwu:margin-report:read",
     "kuaicaiwu:partner-statement:read",
     "kuaicaiwu:partner-statement:create",
     "kuaicaiwu:partner-statement:delete",
@@ -472,7 +546,20 @@
     "kuaicaiwu:standard-cost:approve",
     "kuaicaiwu:standard-cost:audit",
     "kuaicaiwu:standard-cost:reject",
-    "kuaicaiwu:standard-cost:print"
+    "kuaicaiwu:standard-cost:print",
+    "kuaicaiwu:fixed-asset:read",
+    "kuaicaiwu:fixed-asset:create",
+    "kuaicaiwu:fixed-asset:update",
+    "kuaicaiwu:fixed-asset:delete",
+    "kuaicaiwu:fixed-asset:import",
+    "kuaicaiwu:fixed-asset:export",
+    "kuaicaiwu:fixed-asset-depreciation:read",
+    "kuaicaiwu:fixed-asset-depreciation:create",
+    "kuaicaiwu:fixed-asset-depreciation:update",
+    "kuaicaiwu:fixed-asset-depreciation:execute",
+    "kuaicaiwu:fixed-asset-report:read",
+    "kuaicaiwu:fixed-asset-report:export",
+    "kuaicaiwu:fixed-asset-report:print"
   ],
   "dependencies": {
     "riveredge-backend": ">=1.0.0",

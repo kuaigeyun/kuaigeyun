@@ -29,6 +29,7 @@ class SalesOrderMilestoneCreate(BaseSchema):
     planned_ratio: Optional[Decimal] = None
     billing_trigger: str = "milestone"
     is_prepayment: bool = False
+    auto_generate_receivable: bool = False
     bank_account_id: Optional[int] = None
     notes: Optional[str] = None
 

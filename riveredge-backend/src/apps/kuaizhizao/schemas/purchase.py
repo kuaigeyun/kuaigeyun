@@ -20,6 +20,35 @@ from apps.kuaizhizao.constants import DocumentStatus, ReviewStatus
 from core.schemas.base import BaseSchema
 
 
+# === 采购订单付款里程碑 ===
+
+class PurchaseOrderMilestoneCreate(BaseSchema):
+    milestone_name: str = Field(..., max_length=200)
+    planned_date: date
+    planned_amount: Decimal = Decimal("0")
+    planned_ratio: Optional[Decimal] = None
+    billing_trigger: str = "milestone"
+    is_prepayment: bool = False
+    auto_generate_payable: bool = False
+    bank_account_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class PurchaseOrderMilestoneResponse(PurchaseOrderMilestoneCreate):
+    id: int
+    uuid: str
+    tenant_id: int
+    purchase_order_id: int
+    status: str
+    payable_id: Optional[int] = None
+    payable_code: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # === 采购订单 ===
 class PurchaseOrderBase(BaseSchema):
     """采购订单基础Schema"""
@@ -60,12 +89,16 @@ class PurchaseOrderCreate(PurchaseOrderBase):
     """采购订单创建Schema"""
     order_code: Optional[str] = Field(None, max_length=50, description="订单编码")
     items: List["PurchaseOrderItemCreate"] = Field(..., description="订单明细")
+    payment_milestones: List[PurchaseOrderMilestoneCreate] = Field(
+        default_factory=list, description="付款计划"
+    )
 
 
 class PurchaseOrderUpdate(PurchaseOrderBase):
     """采购订单更新Schema"""
     order_code: Optional[str] = Field(None, max_length=50, description="订单编码")
     items: Optional[List["PurchaseOrderItemUpdate"]] = Field(None, description="订单明细")
+    payment_milestones: Optional[List[PurchaseOrderMilestoneCreate]] = None
     attachments: Optional[List[dict]] = Field(None, description="附件列表")
     fee_details: Optional[List[dict]] = Field(None, description="费用明细 (JSON)")
     total_fee_amount: Optional[Decimal] = Field(None, ge=0, description="总费用金额")
@@ -95,6 +128,9 @@ class PurchaseOrderResponse(PurchaseOrderBase):
     capabilities: Optional[PurchaseOrderCapabilities] = Field(
         None,
         description="业务态动作 capabilities（不含 RBAC，与 service 门禁一致）",
+    )
+    payment_milestones: Optional[List[PurchaseOrderMilestoneResponse]] = Field(
+        None, description="付款计划"
     )
 
 

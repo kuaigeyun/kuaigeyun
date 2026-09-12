@@ -39,14 +39,17 @@ import { uploadMultipleFiles } from '../../../../../services/file';
 import { SecureImage } from '../../../../../components/secure-image';
 import { DictionarySelect } from '../../../../../components/dictionary-select';
 import { EquipmentPersonSelect, resolveUserUuidById } from '../../../components/EquipmentPersonSelect';
+import { searchUserDisplay, type UserDisplayItem } from '../../../../../services/user';
 import { EditOutlined, DeleteOutlined, EyeOutlined, HistoryOutlined, QrcodeOutlined } from '@ant-design/icons';
 import { UniTable, type UniTableRequestMeta} from '../../../../../components/uni-table';
 import CodeField from '../../../../../components/code-field';
+import { fetchEffectivePageCodeRule, testGenerateCode } from '../../../../../services/codeRule';
 import { ListPageTemplate, FormModalTemplate, MODAL_CONFIG } from '../../../../../components/layout-templates';
 import { useNewShortcut } from '../../../../../hooks/useNewShortcut';
 import { withSingleNewShortcutHint } from '../../../../../utils/globalNewShortcut';
 import { equipmentApi } from '../../../services/equipment';
 import { buildEquipmentDetailPath } from './equipmentPaths';
+import { MEASURING_INSTRUMENT_NATURE } from '../measuring-instruments/measuringInstrumentConstants';
 import { useKuaizhizaoPrintModal } from '../../../hooks/useKuaizhizaoPrintModal';
 import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions';
 import EquipmentFactoryBindingFields from '../../../components/EquipmentFactoryBindingFields';
@@ -130,6 +133,8 @@ interface Equipment {
   work_center_name?: string;
   responsible_person_id?: number;
   responsible_person_name?: string;
+  spot_check_person_id?: number;
+  spot_check_person_name?: string;
   status?: string;
   is_active?: boolean;
   description?: string;
@@ -242,6 +247,16 @@ const EquipmentPage: React.FC = () => {
           aliases: ['关联工作中心', '工作中心', 'work_center_code'],
         },
         {
+          field: 'responsible_person_name',
+          labelKey: 'app.kuaizhizao.equipment.import.responsiblePerson',
+          aliases: ['设备负责人', '负责人', 'responsible_person_name'],
+        },
+        {
+          field: 'spot_check_person_name',
+          labelKey: 'app.kuaizhizao.equipment.import.spotCheckPerson',
+          aliases: ['点检人', '点检人员', 'spot_check_person_name'],
+        },
+        {
           field: 'status',
           required: true,
           labelKey: 'app.kuaizhizao.equipment.import.status',
@@ -279,6 +294,8 @@ const EquipmentPage: React.FC = () => {
         t('app.kuaizhizao.equipment.importExample.productionLine'),
         t('app.kuaizhizao.equipment.importExample.workstation'),
         t('app.kuaizhizao.equipment.importExample.workCenter'),
+        t('app.kuaizhizao.equipment.importExample.responsiblePerson'),
+        t('app.kuaizhizao.equipment.importExample.spotCheckPerson'),
         pickExample(importDictOptions.status, t('app.kuaizhizao.equipment.importExample.status')),
         '',
         pickExample(
@@ -303,6 +320,7 @@ const EquipmentPage: React.FC = () => {
   const [isEdit, setIsEdit] = useState(false);
   const [currentEquipment, setCurrentEquipment] = useState<Equipment | null>(null);
   const [formInitialValues, setFormInitialValues] = useState<Record<string, any> | undefined>(undefined);
+  const [createCodeSessionKey, setCreateCodeSessionKey] = useState(0);
   const formRef = useRef<any>(null);
 
   const {
@@ -349,12 +367,53 @@ const EquipmentPage: React.FC = () => {
     };
   }, [ledgerGroupMode]);
 
-  /** 参考销售订单：先打开弹窗，再让 CodeField 自动生成编号 */
+  /** 参考客商/供应商弹窗：打开后 reset 表单并向后端预览下一个可用编号（含重复跳过） */
+  useEffect(() => {
+    if (!modalVisible || isEdit) {
+      return;
+    }
+    let cancelled = false;
+    formRef.current?.resetFields();
+    void (async () => {
+      try {
+        const { ruleCode, autoGenerate } = await fetchEffectivePageCodeRule(
+          'kuaizhizao-equipment-management-equipment',
+        );
+        if (cancelled || !autoGenerate) {
+          return;
+        }
+        const preview = await testGenerateCode({
+          rule_code: ruleCode,
+          check_duplicate: true,
+          entity_type: 'equipment',
+        });
+        if (cancelled) {
+          return;
+        }
+        const code = (preview?.code ?? '').trim();
+        if (!code) {
+          messageApi.warning(t('app.master-data.codeRulePreviewHint'));
+          return;
+        }
+        formRef.current?.setFieldsValue({ code });
+      } catch (error: any) {
+        if (cancelled) {
+          return;
+        }
+        messageApi.error(error?.message || t('app.master-data.codeRuleAutoFailed'));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [modalVisible, isEdit, createCodeSessionKey, messageApi, t]);
+
   const handleCreate = () => {
     setIsEdit(false);
     setCurrentEquipment(null);
     setFormInitialValues(undefined);
     resetEquipmentFormFieldValues();
+    setCreateCodeSessionKey((key) => key + 1);
     setModalVisible(true);
   };
   useNewShortcut(handleCreate);
@@ -375,9 +434,10 @@ const EquipmentPage: React.FC = () => {
       const detail = await equipmentApi.get(record.uuid);
       setIsEdit(true);
       setCurrentEquipment(detail);
-      const [fieldFormValues, responsiblePersonUuid, photoList] = await Promise.all([
+      const [fieldFormValues, responsiblePersonUuid, spotCheckPersonUuid, photoList] = await Promise.all([
         detail.id != null ? loadEquipmentFormFieldValues(detail.id) : Promise.resolve({}),
         resolveUserUuidById(detail.responsible_person_id),
+        resolveUserUuidById(detail.spot_check_person_id),
         photoUuidToUploadList(detail.photo_file_uuid),
       ]);
       setFormInitialValues({
@@ -409,6 +469,9 @@ const EquipmentPage: React.FC = () => {
         responsible_person_uuid: responsiblePersonUuid,
         responsible_person_id: detail.responsible_person_id,
         responsible_person_name: detail.responsible_person_name,
+        spot_check_person_uuid: spotCheckPersonUuid,
+        spot_check_person_id: detail.spot_check_person_id,
+        spot_check_person_name: detail.spot_check_person_name,
         status: detail.status,
         is_active: detail.is_active,
         description: detail.description,
@@ -495,6 +558,7 @@ const EquipmentPage: React.FC = () => {
       const { customData, standardValues } = extractEquipmentFormValues(values);
       const {
         responsible_person_uuid: _responsiblePersonUuid,
+        spot_check_person_uuid: _spotCheckPersonUuid,
         photo: _photo,
         ...standardWithoutPersonUuid
       } = standardValues;
@@ -504,6 +568,8 @@ const EquipmentPage: React.FC = () => {
         installation_date: toApiDateString(standardValues.installation_date) ?? null,
         responsible_person_id: standardValues.responsible_person_id ?? null,
         responsible_person_name: standardValues.responsible_person_name ?? null,
+        spot_check_person_id: standardValues.spot_check_person_id ?? null,
+        spot_check_person_name: standardValues.spot_check_person_name ?? null,
         photo_file_uuid: uploadListToPhotoUuid(standardValues.photo),
         attachments: normalizeDocumentAttachments(standardValues.attachments),
         qr_bind_code:
@@ -521,6 +587,9 @@ const EquipmentPage: React.FC = () => {
           await saveEquipmentCustomFieldValues(updated.id, customData);
         }
       } else {
+        if (!submitData.code || !String(submitData.code).trim()) {
+          delete submitData.code;
+        }
         const created = await equipmentApi.create(submitData);
         if (created?.id != null) {
           await saveEquipmentCustomFieldValues(created.id, customData);
@@ -816,6 +885,14 @@ const EquipmentPage: React.FC = () => {
       ),
       render: (_, r) => r.responsible_person_name ?? '-',
     },
+    {
+      ...buildKeepWidthColumn<Equipment>(
+        t('app.kuaizhizao.equipment.colSpotCheckPerson'),
+        'spot_check_person_name',
+        { width: 110, hideInSearch: true },
+      ),
+      render: (_, r) => r.spot_check_person_name ?? '-',
+    },
     buildKeepWidthColumn<Equipment>(t('app.kuaizhizao.equipment.colBrand'), 'brand', {
       width: 100,
       hideInSearch: true,
@@ -908,7 +985,7 @@ const EquipmentPage: React.FC = () => {
         viewTypes={['table', 'help']}
           helpViewConfig={buildListPageHelpViewConfig('kuaizhizao.equipmentLedger')}
           headerTitle={t('app.kuaizhizao.equipment.title')}
-          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.equipment-qr-bind-r10-v1"
+          columnPersistenceId="apps.kuaizhizao.pages.equipment-management.equipment-spot-check-person-v1"
           actionRef={actionRef}
           formRef={searchFormRef}
           rowKey="uuid"
@@ -925,6 +1002,7 @@ const EquipmentPage: React.FC = () => {
                 skip: ((params.current ?? 1) - 1) * (params.pageSize ?? 20),
                 limit: params.pageSize,
                 ...listParams,
+                exclude_equipment_nature: MEASURING_INSTRUMENT_NATURE,
               });
               const { data, total } = normalizeEquipmentListResponse(response);
               const enriched = meta?.purpose === 'prefetch'
@@ -988,12 +1066,34 @@ const EquipmentPage: React.FC = () => {
               return undefined;
             };
 
-            const [workshops, lines, stations, centers] = await Promise.all([
+            const [workshops, lines, stations, centers, userSearchRes] = await Promise.all([
               workshopApi.list({ limit: 1000, is_active: true }).then(factoryListItems),
               productionLineApi.list({ limit: 1000, is_active: true }).then(factoryListItems),
               workstationApi.list({ limit: 1000, is_active: true }).then(factoryListItems),
               workCenterApi.list({ limit: 1000, is_active: true }).then(factoryListItems),
+              searchUserDisplay({ page: 1, page_size: 200, is_active: true }),
             ]);
+            const importUserDirectory = userSearchRes.items ?? [];
+            const resolveImportPersonRef = (ref: string): Pick<UserDisplayItem, 'id' | 'full_name' | 'username'> | undefined => {
+              const trimmed = ref.trim();
+              if (!trimmed) return undefined;
+              const exact = importUserDirectory.find(
+                (user) =>
+                  user.full_name?.trim() === trimmed ||
+                  user.username?.trim() === trimmed ||
+                  user.label?.trim() === trimmed,
+              );
+              if (exact) return exact;
+              return undefined;
+            };
+            const resolveImportPersonFields = (ref: string) => {
+              const matched = resolveImportPersonRef(ref);
+              if (!matched?.id) return {};
+              return {
+                id: matched.id,
+                name: matched.full_name || matched.username || ref.trim(),
+              };
+            };
             const matchByCodeOrName = <T extends { id: number; code?: string; name?: string }>(
               list: T[],
               ref: string,
@@ -1025,6 +1125,8 @@ const EquipmentPage: React.FC = () => {
               const warrantyParsed = warrantyRaw ? Number(warrantyRaw) : NaN;
               const status = parseEquipmentDict('EQUIPMENT_STATUS', cellAt(row, 'status')) || '正常';
               const isActive = parseActive(cellAt(row, 'is_active'));
+              const responsiblePerson = resolveImportPersonFields(cellAt(row, 'responsible_person_name'));
+              const spotCheckPerson = resolveImportPersonFields(cellAt(row, 'spot_check_person_name'));
 
               items.push({
                 code: cellAt(row, 'code') || undefined,
@@ -1052,6 +1154,18 @@ const EquipmentPage: React.FC = () => {
                 work_center_id: center?.id,
                 work_center_code: center?.code ?? (centerRef || undefined),
                 work_center_name: center?.name,
+                ...(responsiblePerson.id
+                  ? {
+                      responsible_person_id: responsiblePerson.id,
+                      responsible_person_name: responsiblePerson.name,
+                    }
+                  : {}),
+                ...(spotCheckPerson.id
+                  ? {
+                      spot_check_person_id: spotCheckPerson.id,
+                      spot_check_person_name: spotCheckPerson.name,
+                    }
+                  : {}),
                 status,
                 description: cellAt(row, 'description') || undefined,
                 ...(isActive === undefined ? {} : { is_active: isActive }),
@@ -1086,7 +1200,12 @@ const EquipmentPage: React.FC = () => {
               let items: Equipment[] =
                 type === 'currentPage' && pageData?.length
                   ? pageData
-                  : await fetchAllListItems((p) => equipmentApi.list(p));
+                  : await fetchAllListItems((p) =>
+                      equipmentApi.list({
+                        ...p,
+                        exclude_equipment_nature: MEASURING_INSTRUMENT_NATURE,
+                      }),
+                    );
               if (type === 'selected' && keys?.length) {
                 items = items.filter((d) => d.uuid && keys.includes(d.uuid));
               }
@@ -1108,6 +1227,8 @@ const EquipmentPage: React.FC = () => {
                 { key: 'supplier', title: t('app.kuaizhizao.equipment.fieldSupplier') },
                 { key: 'qr_bind_code', title: t('app.kuaizhizao.equipment.colQrBindCode') },
                 { key: 'work_center_name', title: t('app.kuaizhizao.equipment.fieldWorkCenter') },
+                { key: 'responsible_person_name', title: t('app.kuaizhizao.equipment.colResponsiblePerson') },
+                { key: 'spot_check_person_name', title: t('app.kuaizhizao.equipment.colSpotCheckPerson') },
                 { key: 'status', title: t('app.kuaizhizao.equipment.fieldStatus') },
                 { key: 'purchase_date', title: t('app.kuaizhizao.equipment.fieldPurchaseDate') },
                 { key: 'installation_date', title: t('app.kuaizhizao.equipment.fieldInstallationDate') },
@@ -1145,6 +1266,7 @@ const EquipmentPage: React.FC = () => {
         <Row gutter={16}>
           <Col span={12}>
             <CodeField
+              key={isEdit ? `equipment-code-edit-${currentEquipment?.id ?? 'none'}` : `equipment-code-create-${createCodeSessionKey}`}
               pageCode="kuaizhizao-equipment-management-equipment"
               name="code"
               label={t('app.kuaizhizao.equipment.fieldCode')}
@@ -1152,6 +1274,8 @@ const EquipmentPage: React.FC = () => {
               autoGenerateOnCreate={!isEdit}
               showGenerateButton={false}
               documentId={isEdit ? currentEquipment?.id : undefined}
+              formRef={formRef}
+              generateSessionKey={createCodeSessionKey}
             />
           </Col>
           <Col span={12}>
@@ -1259,6 +1383,16 @@ const EquipmentPage: React.FC = () => {
               nameFieldName="responsible_person_name"
               label={t('app.kuaizhizao.equipment.fieldResponsiblePerson')}
               placeholder={t('app.kuaizhizao.equipment.phResponsiblePerson')}
+              formRef={formRef}
+            />
+          </Col>
+          <Col span={12}>
+            <EquipmentPersonSelect
+              uuidFieldName="spot_check_person_uuid"
+              idFieldName="spot_check_person_id"
+              nameFieldName="spot_check_person_name"
+              label={t('app.kuaizhizao.equipment.fieldSpotCheckPerson')}
+              placeholder={t('app.kuaizhizao.equipment.phSpotCheckPerson')}
               formRef={formRef}
             />
           </Col>

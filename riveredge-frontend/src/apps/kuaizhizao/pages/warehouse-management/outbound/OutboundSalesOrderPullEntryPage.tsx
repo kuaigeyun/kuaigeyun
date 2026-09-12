@@ -316,6 +316,7 @@ const OutboundSalesOrderPullEntryPage: React.FC = () => {
         warehouse_id: headerWhId,
         warehouse_name: whOpt?.name,
         delivery_time: toApiDateTimeString(deliveryTime),
+        deliverer_id: operatorHook.receiverId,
         deliverer_name: operatorHook.receiverName.trim() || undefined,
         // 备注已在下推创建时写入，避免 update 覆盖掉来源说明
         attachments: normalizeDocumentAttachments(attachments),

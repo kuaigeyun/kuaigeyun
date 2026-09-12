@@ -5,8 +5,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { Alert, App, Button, Form, Modal, Select, Space, Table, Tag, Typography } from 'antd';
+import { Alert, App, Button, Col, DatePicker, Form, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import dayjs, { type Dayjs } from 'dayjs';
 import { useCurrentUser } from '../../../../../hooks/useCurrentUser';
 import {
   warehouseApi,
@@ -41,6 +42,12 @@ import {
 } from './outboundBatchAllocation';
 import OutboundBatchAllocationField from './OutboundBatchAllocationField';
 import OutboundSerialPickerField from './OutboundSerialPickerField';
+import {
+  OutboundEntryOperatorField,
+  useOutboundOperatorSelect,
+} from './outboundEntryShared';
+import { buildInboundConfirmReceiverPayload } from '../inbound/inboundEntryShared';
+import { toApiDateTimeString } from '../../../../../utils/formDate';
 import { formatQuantity } from '../../../../../utils/format';
 import { useGlobalStore } from '../../../../../stores';
 import { isAdminBypass } from '../../../../../utils/permission';
@@ -150,6 +157,8 @@ const OutboundConfirmPreviewModal: React.FC<OutboundConfirmPreviewModalProps> = 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
+  const [documentDate, setDocumentDate] = useState<Dayjs>(() => dayjs());
+  const operatorHook = useOutboundOperatorSelect();
   const [materialMeta, setMaterialMeta] = useState<Record<number, ConfirmPreviewMaterialMeta>>({});
   const [batchOptionsByMaterialId, setBatchOptionsByMaterialId] = useState<
     Record<number, InventoryPickOption[]>
@@ -231,6 +240,7 @@ const OutboundConfirmPreviewModal: React.FC<OutboundConfirmPreviewModalProps> = 
     if (!open || recordId == null || !outboundType) {
       setDetail(null);
       setOqcEnsure(null);
+      setDocumentDate(dayjs());
       form.resetFields();
       return;
     }
@@ -252,6 +262,22 @@ const OutboundConfirmPreviewModal: React.FC<OutboundConfirmPreviewModalProps> = 
           return;
         }
         setDetail(detailData);
+        if (outboundType === 'sales_delivery') {
+          const rawDate =
+            detailData.delivery_time ?? detailData.delivery_date ?? detailData.created_at;
+          const parsed = rawDate != null ? dayjs(String(rawDate)) : dayjs();
+          setDocumentDate(parsed.isValid() ? parsed : dayjs());
+          const rawDelivererId = detailData.deliverer_id;
+          const delivererId =
+            rawDelivererId != null && Number(rawDelivererId) > 0
+              ? Number(rawDelivererId)
+              : undefined;
+          const delivererName = String(detailData.deliverer_name ?? '').trim();
+          operatorHook.restoreReceiver({
+            id: delivererId,
+            name: delivererName || undefined,
+          });
+        }
         const items = Array.isArray(detailData.items) ? detailData.items as Record<string, unknown>[] : [];
         const meta = await loadConfirmPreviewMaterialMeta(
           items.map((it) => ({
@@ -780,6 +806,17 @@ const OutboundConfirmPreviewModal: React.FC<OutboundConfirmPreviewModalProps> = 
       );
       return;
     }
+    if (record.outbound_type === 'sales_delivery') {
+      const operatorPayload = buildInboundConfirmReceiverPayload(operatorHook);
+      if (!operatorPayload.receiver_id && !operatorPayload.receiver_name) {
+        messageApi.warning(t('app.kuaizhizao.warehouseOutbound.msg.selectOperatorRequired'));
+        return;
+      }
+      if (!documentDate?.isValid()) {
+        messageApi.warning(t('app.kuaizhizao.warehouseOutbound.msg.selectDocumentDateRequired'));
+        return;
+      }
+    }
     const vals = form.getFieldsValue(true);
     const negativeStockWarnings: string[] = [];
 
@@ -936,12 +973,25 @@ const OutboundConfirmPreviewModal: React.FC<OutboundConfirmPreviewModalProps> = 
 
     const executeConfirm = async () => {
       const payloadWhName = String(detail.warehouse_name ?? record.warehouse_name ?? whName);
+      const operatorPayload =
+        record.outbound_type === 'sales_delivery'
+          ? buildInboundConfirmReceiverPayload(operatorHook)
+          : {};
+      const header =
+        record.outbound_type === 'sales_delivery'
+          ? {
+              delivery_time: toApiDateTimeString(documentDate),
+              deliverer_id: operatorPayload.receiver_id,
+              deliverer_name: operatorPayload.receiver_name,
+            }
+          : undefined;
       const payload = buildOutboundConfirmPayloadFromForm(
         record.outbound_type,
         activeLines,
         vals,
         whId > 0 ? whId : undefined,
         payloadWhName,
+        header,
       );
 
       setSubmitting(true);
@@ -1087,6 +1137,25 @@ const OutboundConfirmPreviewModal: React.FC<OutboundConfirmPreviewModalProps> = 
             })}
           </Typography.Text>
         </Typography.Text>
+      ) : null}
+      {outboundType === 'sales_delivery' ? (
+        <Form layout="vertical" style={{ marginBottom: 12 }} requiredMark={false}>
+          <Row gutter={16}>
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item label={t('app.kuaizhizao.warehouseOutbound.field.documentDate')} required>
+                <DatePicker
+                  style={{ width: '100%' }}
+                  value={documentDate}
+                  onChange={(v) => setDocumentDate(v ?? dayjs())}
+                  disabled={loading || submitting}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <OutboundEntryOperatorField hook={operatorHook} />
+            </Col>
+          </Row>
+        </Form>
       ) : null}
       <Form form={form} component={false}>
         <Table

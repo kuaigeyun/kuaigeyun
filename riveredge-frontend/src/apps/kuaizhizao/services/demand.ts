@@ -93,6 +93,7 @@ export interface Demand {
   };
   capabilities?: {
     merge_computation?: { allowed: boolean; reason?: string | null };
+    delete?: { allowed: boolean; reason?: string | null };
   };
 }
 

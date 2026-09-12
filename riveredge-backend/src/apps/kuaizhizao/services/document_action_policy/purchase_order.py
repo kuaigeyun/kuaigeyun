@@ -67,6 +67,16 @@ def _is_rejected_status(status: Any) -> bool:
     return normalized == DocumentStatus.REJECTED.value or raw in ("已驳回", "rejected", "REJECTED")
 
 
+def _has_valid_supplier(order: Any) -> bool:
+    return int(getattr(order, "supplier_id", 0) or 0) > 0
+
+
+def _require_supplier_for_push(cap: ActionCapability, order: Any) -> ActionCapability:
+    if cap.allowed and not _has_valid_supplier(order):
+        return _cap(False, "purchase_order.push.no_supplier")
+    return cap
+
+
 def _derive_outstanding_push_cap(status: Any, *, has_items: bool, has_outstanding: bool) -> ActionCapability:
     push_allowed = False
     push_reason = "purchase_order.push_receipt.not_audited"
@@ -154,12 +164,14 @@ def derive_purchase_order_capabilities(
         "purchase_order.update.not_allowed" if not update_allowed else None,
     )
 
-    delete_cap = _cap(
-        is_draft_status(status or "") or is_pending_review_status(status or ""),
-        "purchase_order.delete.not_allowed"
-        if not (is_draft_status(status or "") or is_pending_review_status(status or ""))
-        else None,
-    )
+    delete_status_ok = is_draft_status(status or "") or is_pending_review_status(status or "")
+    delete_allowed = delete_status_ok and not has_downstream
+    delete_reason = None
+    if has_downstream:
+        delete_reason = "purchase_order.delete.has_downstream"
+    elif not delete_status_ok:
+        delete_reason = "purchase_order.delete.not_allowed"
+    delete_cap = _cap(delete_allowed, delete_reason)
 
     submit_cap = _cap(
         is_draft_status(status or ""),
@@ -184,17 +196,23 @@ def derive_purchase_order_capabilities(
         else None,
     )
 
-    push_receipt_notice_cap = _derive_receipt_notice_push_cap(
-        status,
-        has_items=has_items,
-        has_pushable_notice_outstanding=has_pushable_notice_outstanding,
-        has_raw_outstanding=has_outstanding,
+    push_receipt_notice_cap = _require_supplier_for_push(
+        _derive_receipt_notice_push_cap(
+            status,
+            has_items=has_items,
+            has_pushable_notice_outstanding=has_pushable_notice_outstanding,
+            has_raw_outstanding=has_outstanding,
+        ),
+        order,
     )
-    push_receipt_cap = _derive_purchase_receipt_push_cap(
-        status,
-        has_items=has_items,
-        has_pushable_outstanding=has_pushable_receipt_outstanding,
-        has_raw_outstanding=has_outstanding,
+    push_receipt_cap = _require_supplier_for_push(
+        _derive_purchase_receipt_push_cap(
+            status,
+            has_items=has_items,
+            has_pushable_outstanding=has_pushable_receipt_outstanding,
+            has_raw_outstanding=has_outstanding,
+        ),
+        order,
     )
 
     invoice_allowed = False
@@ -207,7 +225,7 @@ def derive_purchase_order_capabilities(
         else:
             invoice_allowed = True
             invoice_reason = None
-    push_invoice_cap = _cap(invoice_allowed, invoice_reason)
+    push_invoice_cap = _require_supplier_for_push(_cap(invoice_allowed, invoice_reason), order)
 
     return_allowed = False
     return_reason = "purchase_order.push_purchase_return.not_audited"
@@ -219,7 +237,7 @@ def derive_purchase_order_capabilities(
         else:
             return_allowed = True
             return_reason = None
-    push_return_cap = _cap(return_allowed, return_reason)
+    push_return_cap = _require_supplier_for_push(_cap(return_allowed, return_reason), order)
 
     create_change_allowed = False
     create_change_reason = "purchase_order.create_change.not_allowed"

@@ -1325,19 +1325,9 @@ class DemandService(AppBaseService[Demand]):
             if not demand:
                 raise NotFoundError("需求", str(demand_id))
 
-            dt = (getattr(demand, "demand_type", None) or "").strip()
-            if dt in ("sales_forecast", "sales_order"):
-                raise BusinessLogicError(
-                    "由销售预测或销售订单自动同步的需求不可删除，请在对应上游单据中处理。"
-                )
+            from apps.kuaizhizao.services.document_action_policy.demand import assert_demand_capability
 
-            # 只能删除草稿或待审核状态的需求
-            deletable = (
-                demand.status == DemandStatus.DRAFT
-                or demand.status in (DemandStatus.PENDING_REVIEW, "PENDING_REVIEW", "PENDING", "待审核", "已提交")
-            )
-            if not deletable:
-                raise BusinessLogicError(f"只能删除草稿或待审核状态的需求，当前状态: {demand.status}")
+            assert_demand_capability(demand, "delete")
             
             # 删除需求明细
             await DemandItem.filter(tenant_id=tenant_id, demand_id=demand_id).delete()

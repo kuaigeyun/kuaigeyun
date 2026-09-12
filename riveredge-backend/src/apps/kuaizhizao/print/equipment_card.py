@@ -443,11 +443,15 @@ def compile_asset_card_table_schema(schema: dict[str, Any]) -> str:
     layout = resolve_asset_card_layout(page_size, card)
     repeat_collection = str(schema.get("repeatCollection") or "items").strip() or "items"
     repeat_item = str(schema.get("repeatItem") or "item").strip() or "item"
-    body = (
-        f"{{% for {repeat_item} in {repeat_collection} %}}"
-        f'<div class="print-repeat-page">{table_html}</div>'
-        f"{{% endfor %}}"
-    )
+    for_token = f"{{% for {repeat_item} in {repeat_collection} %}}"
+    if for_token in table_html:
+        body = table_html
+    else:
+        body = (
+            f"{for_token}"
+            f'<div class="print-repeat-page">{table_html}</div>'
+            f"{{% endfor %}}"
+        )
 
     # 自定义 mm 尺寸不再拼 orientation，避免 Chromium/PDF 回退 A4
     page_size_css = page_size_val

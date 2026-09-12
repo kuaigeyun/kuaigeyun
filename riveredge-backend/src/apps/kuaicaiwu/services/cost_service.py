@@ -288,10 +288,12 @@ class CostCalculationService(AppBaseService[CostCalculation]):
             status="approved",
             deleted_at__isnull=True,
         ).all()
+        from apps.kuaizhizao.utils.picking_posting import PRODUCTION_PICKING_COST_ELIGIBLE_STATUSES
+
         picking_rows = await ProductionPicking.filter(
             tenant_id=tenant_id,
             picking_time__gte=cutoff,
-            status="已完成",
+            status__in=list(PRODUCTION_PICKING_COST_ELIGIBLE_STATUSES),
             deleted_at__isnull=True,
         ).all()
 
@@ -413,18 +415,21 @@ class CostCalculationService(AppBaseService[CostCalculation]):
     ) -> Optional[int]:
         """
         报工记录本身无工作中心字段。
-        解析顺序：工单工序 → 工序主数据默认工作中心 → 工单头工作中心。
+        解析顺序：工单工序（兼容主数据工序 ID / 工单工序行 ID）
+        → 工序编码/名称 → 工序主数据默认工作中心 → 工单头工作中心。
         """
         from apps.kuaizhizao.models.work_order_operation import WorkOrderOperation
         from apps.master_data.models.process import Operation
+        from apps.kuaizhizao.services.reporting_service import (
+            _resolve_work_order_operation_for_reporting,
+        )
 
         if record.operation_id:
-            woo = await WorkOrderOperation.filter(
-                tenant_id=tenant_id,
-                work_order_id=work_order.id,
-                operation_id=record.operation_id,
-                deleted_at__isnull=True,
-            ).first()
+            woo = await _resolve_work_order_operation_for_reporting(
+                tenant_id,
+                int(work_order.id),
+                int(record.operation_id),
+            )
             if woo and woo.work_center_id:
                 return int(woo.work_center_id)
 
@@ -435,14 +440,46 @@ class CostCalculationService(AppBaseService[CostCalculation]):
                 operation_code=record.operation_code,
                 deleted_at__isnull=True,
                 work_center_id__not_isnull=True,
-            ).first()
+            ).order_by("sequence").first()
             if woo_by_code and woo_by_code.work_center_id:
                 return int(woo_by_code.work_center_id)
 
+        op_name = (record.operation_name or "").strip()
+        if op_name:
+            woo_by_name = await WorkOrderOperation.filter(
+                tenant_id=tenant_id,
+                work_order_id=work_order.id,
+                operation_name=op_name,
+                deleted_at__isnull=True,
+                work_center_id__not_isnull=True,
+            ).order_by("sequence").first()
+            if woo_by_name and woo_by_name.work_center_id:
+                return int(woo_by_name.work_center_id)
+
+        master_operation_id: Optional[int] = None
         if record.operation_id:
+            master_operation_id = int(record.operation_id)
+        elif record.operation_code:
+            operation_by_code = await Operation.filter(
+                tenant_id=tenant_id,
+                code=record.operation_code,
+                deleted_at__isnull=True,
+            ).first()
+            if operation_by_code:
+                master_operation_id = int(operation_by_code.id)
+        elif op_name:
+            operation_by_name = await Operation.filter(
+                tenant_id=tenant_id,
+                name=op_name,
+                deleted_at__isnull=True,
+            ).first()
+            if operation_by_name:
+                master_operation_id = int(operation_by_name.id)
+
+        if master_operation_id:
             operation = await Operation.filter(
                 tenant_id=tenant_id,
-                id=record.operation_id,
+                id=master_operation_id,
                 deleted_at__isnull=True,
             ).first()
             if operation and operation.default_work_center_ids:
@@ -499,20 +536,20 @@ class CostCalculationService(AppBaseService[CostCalculation]):
 
         factors: List[Dict[str, Any]] = []
         cost_svc = InventoryCostService()
-        pickings = await ProductionPicking.filter(
-            tenant_id=tenant_id,
-            work_order_id=work_order.id,
-            status__in=("已确认", "已完成"),
-            deleted_at__isnull=True,
-        ).all()
+        from apps.kuaizhizao.utils.picking_posting import (
+            list_work_order_cost_pickings,
+            picking_item_belongs_to_work_order,
+        )
+
+        pickings = await list_work_order_cost_pickings(tenant_id, int(work_order.id))
         if not pickings:
             self._append_factor(
                 factors,
                 key="material_picking",
                 category="material",
                 status="warning",
-                message="无已确认/已完成的领料单",
-                hint="材料成本将按 0 核算；如需材料成本请先完成领料",
+                message="无已领料/已确认的生产领料单",
+                hint="材料成本将按 0 核算；请先在物料中心完成生产领料确认",
             )
         else:
             self._append_factor(
@@ -527,8 +564,13 @@ class CostCalculationService(AppBaseService[CostCalculation]):
                 items = await ProductionPickingItem.filter(
                     tenant_id=tenant_id,
                     picking_id=picking.id,
+                    deleted_at__isnull=True,
                 ).all()
                 for item in items:
+                    if not picking_item_belongs_to_work_order(
+                        item, picking, int(work_order.id)
+                    ):
+                        continue
                     mid = int(item.material_id)
                     if mid in seen_materials:
                         continue
@@ -625,9 +667,6 @@ class CostCalculationService(AppBaseService[CostCalculation]):
         total_report_hours = sum(
             (Decimal(str(r.work_hours or 0)) for r in reporting_records), Decimal("0")
         )
-        work_center_id = await self._resolve_work_order_work_center_id(
-            tenant_id, work_order, reporting_records
-        )
         if not rules:
             self._append_factor(
                 factors,
@@ -675,34 +714,64 @@ class CostCalculationService(AppBaseService[CostCalculation]):
                             status="warning",
                             message=f"规则「{rule.name}」按工时：无报工工时，费用为 0",
                         )
-                    elif not work_center_id:
-                        self._append_factor(
-                            factors,
-                            key=rule_key,
-                            category="manufacturing",
-                            status="missing",
-                            message=f"规则「{rule.name}」按工时：未解析到工作中心，无法获取 overhead_rate",
-                            hint="请在工单、工单工序或报工记录上指定工作中心",
-                        )
-                    elif await self._has_standard_value(
-                        tenant_id, "work_center", work_center_id, "overhead_rate"
-                    ):
-                        self._append_factor(
-                            factors,
-                            key=rule_key,
-                            category="manufacturing",
-                            status="ready",
-                            message=f"规则「{rule.name}」按工时：工作中心 #{work_center_id} 已维护 overhead_rate",
-                        )
                     else:
-                        self._append_factor(
-                            factors,
-                            key=rule_key,
-                            category="manufacturing",
-                            status="missing",
-                            message=f"规则「{rule.name}」按工时：工作中心 #{work_center_id} 未维护 overhead_rate",
-                            hint="请在标准成本库为该工作中心配置 overhead_rate",
-                        )
+                        seen_overhead_wc: set[int] = set()
+                        rule_ready = True
+                        for record in reporting_records:
+                            hours = Decimal(str(record.work_hours or 0))
+                            if hours <= 0:
+                                continue
+                            op_label = (
+                                record.operation_name
+                                or record.operation_code
+                                or f"报工#{record.id}"
+                            )
+                            wc_id = await self._resolve_reporting_work_center_id(
+                                tenant_id, work_order, record
+                            )
+                            if not wc_id:
+                                rule_ready = False
+                                self._append_factor(
+                                    factors,
+                                    key=f"{rule_key}_wc_{record.id}",
+                                    category="manufacturing",
+                                    status="missing",
+                                    message=f"规则「{rule.name}」：报工「{op_label}」无法解析工作中心",
+                                    hint="请在工单工序或工序主数据中配置工作中心",
+                                )
+                                continue
+                            wc_id = int(wc_id)
+                            if wc_id in seen_overhead_wc:
+                                continue
+                            seen_overhead_wc.add(wc_id)
+                            if await self._has_standard_value(
+                                tenant_id, "work_center", wc_id, "overhead_rate"
+                            ):
+                                self._append_factor(
+                                    factors,
+                                    key=f"{rule_key}_rate_{wc_id}",
+                                    category="manufacturing",
+                                    status="ready",
+                                    message=f"规则「{rule.name}」：工作中心 #{wc_id} 已维护 overhead_rate",
+                                )
+                            else:
+                                rule_ready = False
+                                self._append_factor(
+                                    factors,
+                                    key=f"{rule_key}_rate_{wc_id}",
+                                    category="manufacturing",
+                                    status="missing",
+                                    message=f"规则「{rule.name}」：工作中心 #{wc_id} 未维护 overhead_rate",
+                                    hint="请在标准成本库为该工作中心配置 overhead_rate",
+                                )
+                        if rule_ready and seen_overhead_wc:
+                            self._append_factor(
+                                factors,
+                                key=rule_key,
+                                category="manufacturing",
+                                status="ready",
+                                message=f"规则「{rule.name}」按工时：报工工序工作中心与 overhead_rate 已就绪",
+                            )
 
         blocking_count = sum(1 for f in factors if f["status"] == "missing")
         warning_count = sum(1 for f in factors if f["status"] == "warning")
@@ -1323,12 +1392,12 @@ class CostCalculationService(AppBaseService[CostCalculation]):
         from apps.kuaicaiwu.services.inventory_cost_service import InventoryCostService
 
         cost_svc = InventoryCostService()
-        pickings = await ProductionPicking.filter(
-            tenant_id=tenant_id,
-            work_order_id=work_order.id,
-            status__in=("已确认", "已完成"),
-            deleted_at__isnull=True
-        ).all()
+        from apps.kuaizhizao.utils.picking_posting import (
+            list_work_order_cost_pickings,
+            picking_item_belongs_to_work_order,
+        )
+
+        pickings = await list_work_order_cost_pickings(tenant_id, int(work_order.id))
         total_material_cost = Decimal(0)
         for picking in pickings:
             items = await ProductionPickingItem.filter(
@@ -1337,8 +1406,15 @@ class CostCalculationService(AppBaseService[CostCalculation]):
                 deleted_at__isnull=True
             ).all()
             for item in items:
+                if not picking_item_belongs_to_work_order(
+                    item, picking, int(work_order.id)
+                ):
+                    continue
+                qty = Decimal(str(item.picked_quantity or 0))
+                if qty <= 0:
+                    continue
                 unit_price = await cost_svc.require_material_unit_cost(tenant_id, int(item.material_id))
-                total_material_cost += item.picked_quantity * unit_price
+                total_material_cost += qty * unit_price
         return total_material_cost
 
     async def _calculate_labor_cost(self, tenant_id: int, work_order: WorkOrder) -> Decimal:
@@ -1377,22 +1453,24 @@ class CostCalculationService(AppBaseService[CostCalculation]):
             status="approved",
             deleted_at__isnull=True,
         ).all()
-        total_hours = sum((Decimal(str(r.work_hours or 0)) for r in reporting_records), Decimal("0"))
         for rule in rules:
             if rule.calculation_method == "按工时":
-                if total_hours <= 0:
-                    continue
-                work_center_id = await self._resolve_work_order_work_center_id(
-                    tenant_id, work_order, reporting_records
-                )
-                if not work_center_id:
-                    raise ValidationError(
-                        f"工单 {work_order.code} 未配置工作中心，无法按工时核算制造费用（规则「{rule.name}」）"
+                for record in reporting_records:
+                    hours = Decimal(str(record.work_hours or 0))
+                    if hours <= 0:
+                        continue
+                    wc_id = await self._resolve_reporting_work_center_id(
+                        tenant_id, work_order, record
                     )
-                rate = await self._get_standard_value(
-                    tenant_id, "work_center", work_center_id, "overhead_rate"
-                )
-                total_manufacturing_cost += total_hours * rate
+                    if not wc_id:
+                        raise ValidationError(
+                            f"报工「{record.operation_name or record.operation_code or record.id}」"
+                            f"无法解析工作中心，无法按工时核算制造费用（规则「{rule.name}」）"
+                        )
+                    rate = await self._get_standard_value(
+                        tenant_id, "work_center", int(wc_id), "overhead_rate"
+                    )
+                    total_manufacturing_cost += hours * rate
             elif rule.calculation_method == "按比例":
                 material_cost = await self._calculate_material_cost(tenant_id, work_order)
                 rate = self._rule_overhead_ratio(rule)
@@ -1550,20 +1628,34 @@ class CostCalculationService(AppBaseService[CostCalculation]):
         from apps.kuaicaiwu.services.inventory_cost_service import InventoryCostService
 
         cost_svc = InventoryCostService()
-        pickings = await ProductionPicking.filter(
-            tenant_id=tenant_id, work_order_id=work_order.id, status__in=("已确认", "已完成")
-        ).all()
+        from apps.kuaizhizao.utils.picking_posting import (
+            list_work_order_cost_pickings,
+            picking_item_belongs_to_work_order,
+        )
+
+        pickings = await list_work_order_cost_pickings(tenant_id, int(work_order.id))
         breakdown = []
         for p in pickings:
-            items = await ProductionPickingItem.filter(picking_id=p.id).all()
+            items = await ProductionPickingItem.filter(
+                tenant_id=tenant_id,
+                picking_id=p.id,
+                deleted_at__isnull=True,
+            ).all()
             for item in items:
+                if not picking_item_belongs_to_work_order(
+                    item, p, int(work_order.id)
+                ):
+                    continue
+                qty = Decimal(str(item.picked_quantity or 0))
+                if qty <= 0:
+                    continue
                 unit_price = await cost_svc.require_material_unit_cost(tenant_id, int(item.material_id))
                 breakdown.append({
                     "material_code": item.material_code,
                     "material_name": item.material_name,
-                    "quantity": float(item.picked_quantity),
+                    "quantity": float(qty),
                     "unit_price": float(unit_price),
-                    "total": float(item.picked_quantity * unit_price)
+                    "total": float(qty * unit_price)
                 })
         return breakdown
 

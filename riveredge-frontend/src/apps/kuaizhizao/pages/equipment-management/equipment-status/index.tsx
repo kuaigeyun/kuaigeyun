@@ -16,6 +16,12 @@ import type { ProDescriptionsItemProps } from '@ant-design/pro-components';
 import { ReloadOutlined, HistoryOutlined, EditOutlined, PlayCircleOutlined, PauseCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import { ListPageTemplate, FormModalTemplate, DetailDrawerTemplate, DRAWER_CONFIG } from '../../../../../components/layout-templates';
 import { equipmentStatusApi } from '../../../services/equipment';
+import DocumentAttachmentsField from '../../../components/DocumentAttachmentsField';
+import LineAttachmentsUpload from '../../../components/LineAttachmentsUpload';
+import {
+  normalizeDocumentAttachments,
+  type DocumentAttachmentFile,
+} from '../../../utils/documentAttachments';
 import { ProFormSelect, ProFormTextArea } from '@ant-design/pro-components';
 import dayjs from 'dayjs';
 import { DocumentTrackingTimelineBody, useDocumentTracking } from '../../../../../components/document-tracking-panel';
@@ -66,6 +72,7 @@ interface StatusHistoryItem {
   changed_by_name?: string;
   reason?: string;
   remark?: string;
+  attachments?: Array<{ uid?: string; name?: string; url?: string }>;
 }
 
 function hasMetric(value: number | null | undefined): boolean {
@@ -264,6 +271,9 @@ const EquipmentStatusPage: React.FC = () => {
         is_online: values.is_online,
         reason: values.reason,
         remark: values.remark,
+        attachments: normalizeDocumentAttachments(
+          values.attachments as DocumentAttachmentFile[] | null | undefined,
+        ),
       });
       messageApi.success(t(`${P}.updateSuccess`));
       setUpdateModalVisible(false);
@@ -271,7 +281,11 @@ const EquipmentStatusPage: React.FC = () => {
       await fetchStatusList();
       if (detailVisible && currentEquipment?.equipment?.uuid === targetUuid) {
         try {
-          const data = await equipmentStatusApi.getRealtimeStatus();
+          const [historyData, data] = await Promise.all([
+            equipmentStatusApi.getStatusHistory(targetUuid),
+            equipmentStatusApi.getRealtimeStatus(),
+          ]);
+          setHistoryList(historyData.items || []);
           const found = (data || []).find((s: EquipmentStatus) => s.equipment.uuid === targetUuid);
           if (found) {
             setCurrentEquipment(found);
@@ -650,6 +664,15 @@ const EquipmentStatusPage: React.FC = () => {
                         {t(`${P}.history.remark`, { remark: history.remark })}
                       </div>
                     )}
+                    {history.attachments?.length ? (
+                      <div style={{ marginTop: 8 }}>
+                        <LineAttachmentsUpload
+                          readOnly
+                          category="equipment_status_attachments"
+                          value={history.attachments}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 ),
               }))}
@@ -706,6 +729,7 @@ const EquipmentStatusPage: React.FC = () => {
           label={t(`${P}.form.changeReason`)}
           placeholder={t(`${P}.form.changeReasonPlaceholder`)}
         />
+        <DocumentAttachmentsField category="equipment_status_attachments" />
         <ProFormTextArea
           name="remark"
           label={t('common.remark')}

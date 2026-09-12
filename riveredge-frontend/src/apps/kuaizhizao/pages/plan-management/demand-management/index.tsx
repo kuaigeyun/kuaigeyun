@@ -321,27 +321,28 @@ const DemandManagementPage: React.FC = () => {
       messageApi.warning(t('app.kuaizhizao.demandManagement.selectToDelete'));
       return;
     }
-    const allowedKeys = keys.filter((k) => {
-      const id = Number(k);
-      if (isNaN(id)) return false;
-      const row = tableDemands.find((d) => Number(d.id) === id);
-      if (!row) return true;
-      if (row.demand_type !== 'demand_plan') return false;
-      return isDemandDraft(row) || isDemandPendingReview(row);
-    });
-    const skipped = keys.length - allowedKeys.length;
-    if (skipped > 0) {
-      messageApi.warning(t('app.kuaizhizao.demandManagement.deleteSkipped', { skipped }));
-    }
-    if (allowedKeys.length === 0) {
-      if (skipped === 0) messageApi.warning(t('app.kuaizhizao.demandManagement.noDeletablePlans'));
+    const rows = keys
+      .map((k) => tableDemands.find((d) => Number(d.id) === Number(k)))
+      .filter((row): row is Demand => row != null);
+    const deletable = rows.filter(
+      (row) => row.capabilities?.delete?.allowed === true && demandPerms.canDelete,
+    );
+    if (deletable.length === 0) {
+      const blocked = rows.find((row) => row.capabilities?.delete?.reason);
+      messageApi.warning(
+        demandPushCapabilityReasonMessage(blocked?.capabilities?.delete?.reason, t)
+          || t('app.kuaizhizao.demandManagement.noDeletablePlans'),
+      );
       return;
+    }
+    if (deletable.length < rows.length) {
+      messageApi.warning(t('app.kuaizhizao.demandManagement.deleteSkipped', { skipped: rows.length - deletable.length }));
     }
     let successCount = 0;
     const errors: string[] = [];
-    for (const k of allowedKeys) {
-      const id = Number(k);
-      if (isNaN(id)) continue;
+    for (const row of deletable) {
+      const id = row.id;
+      if (id == null) continue;
       try {
         await deleteDemand(id);
         successCount += 1;
@@ -741,8 +742,7 @@ const DemandManagementPage: React.FC = () => {
       render: (_, record) => {
         const canEdit = isDemandDraft(record) || isDemandPendingReview(record);
         const canDelete =
-          record.demand_type === 'demand_plan' &&
-          (isDemandDraft(record) || isDemandPendingReview(record));
+          demandPerms.canDelete && record.capabilities?.delete?.allowed === true;
         const parts: React.ReactNode[] = [
           <Button {...rowActionKind('read')}
             key="detail"
@@ -822,7 +822,7 @@ const DemandManagementPage: React.FC = () => {
       },
     },
   ], SALES_DOC_LIST_FIELD_RANK),
-    [t, formatDemandTypeLabel, handleDelete, handleDetail, handleEdit, demandCanWithdrawComputation, executeWithdrawFromComputation, demandAuditColumn, demandPlanLifecycleValueEnum, drawerVisible, currentDemand?.id]
+    [t, formatDemandTypeLabel, handleDelete, handleDetail, handleEdit, demandCanWithdrawComputation, executeWithdrawFromComputation, demandAuditColumn, demandPlanLifecycleValueEnum, drawerVisible, currentDemand?.id, demandPerms.canDelete]
   );
 
   const statCards: StatCard[] = useMemo(
@@ -1368,8 +1368,7 @@ const DemandManagementPage: React.FC = () => {
                   {t('common.edit')}
                 </Button>
               ) : null}
-              {currentDemand.demand_type === 'demand_plan' &&
-                (isDemandDraft(currentDemand) || isDemandPendingReview(currentDemand)) && (
+              {demandPerms.canDelete && currentDemand.capabilities?.delete?.allowed === true ? (
                   <Button
                     danger
                     icon={<DeleteOutlined />}
@@ -1380,7 +1379,7 @@ const DemandManagementPage: React.FC = () => {
                   >
                     {t('common.delete')}
                   </Button>
-                )}
+                ) : null}
               <UniWorkflowActions
                 {...rowActionKind('skip')}
                 record={currentDemand}

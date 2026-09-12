@@ -1443,7 +1443,7 @@ const PurchaseRequisitionsPage: React.FC = () => {
   };
 
   const handleDeleteOne = (record: PurchaseRequisition) => {
-    if (record.status !== '草稿') return;
+    if (record.capabilities?.delete?.allowed !== true) return;
     modalApi.confirm({
       title: t('app.kuaizhizao.purchaseRequisition.confirmDelete'),
       content: t('app.kuaizhizao.purchaseRequisition.confirmDeleteContent', { code: record.requisition_code }),
@@ -1664,7 +1664,7 @@ const PurchaseRequisitionsPage: React.FC = () => {
             />
           </span>
         );
-        if (isDraft) {
+        if (record.capabilities?.delete?.allowed === true && purchaseRequisitionPerms.canDelete) {
           parts.push(
             <ActionConfirmPopconfirm title={t('app.kuaizhizao.purchaseRequisition.confirmDelete')} description={t('app.kuaizhizao.purchaseRequisition.confirmDeleteContent', { code: record.requisition_code })} onConfirm={() => executeDeleteOne(record)}>
               <Button {...rowActionKind('delete')} key="del" onClick={(e) => e.stopPropagation()}>
@@ -1676,7 +1676,7 @@ const PurchaseRequisitionsPage: React.FC = () => {
         return parts;
       },
     },
-  ], SALES_DOC_LIST_FIELD_RANK), [t, purchaseRequestAuditEnabled, purchaseRequisitionAuditColumn, lifecycleValueEnum, handleDetail, handleEdit, handleDeleteOne, resolveRequisitionPushPercent, detailVisible, currentReq?.id, invalidateMenuBadgeCounts]);
+  ], SALES_DOC_LIST_FIELD_RANK), [t, purchaseRequestAuditEnabled, purchaseRequisitionAuditColumn, lifecycleValueEnum, handleDetail, handleEdit, handleDeleteOne, resolveRequisitionPushPercent, detailVisible, currentReq?.id, invalidateMenuBadgeCounts, purchaseRequisitionPerms.canDelete]);
 
   const detailTableColumns: ProColumns<PurchaseRequisitionItemRow>[] = useMemo(
     () => [

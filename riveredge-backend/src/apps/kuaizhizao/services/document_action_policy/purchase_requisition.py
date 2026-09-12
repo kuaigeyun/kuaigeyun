@@ -78,12 +78,15 @@ def derive_purchase_requisition_capabilities(
         "purchase_requisition.update.not_allowed" if not update_allowed else None,
     )
 
-    delete_cap = _cap(
-        is_draft_status(status or "") or is_pending_review_status(status or ""),
-        "purchase_requisition.delete.not_allowed"
-        if not (is_draft_status(status or "") or is_pending_review_status(status or ""))
-        else None,
-    )
+    linked_po = bool(has_linked_purchase_order) or _status_implies_linked_purchase_order(status)
+    delete_status_ok = is_draft_status(status or "") or is_pending_review_status(status or "")
+    delete_allowed = delete_status_ok and not linked_po
+    delete_reason = None
+    if linked_po:
+        delete_reason = "purchase_requisition.delete.has_purchase_order"
+    elif not delete_status_ok:
+        delete_reason = "purchase_requisition.delete.not_allowed"
+    delete_cap = _cap(delete_allowed, delete_reason)
 
     submit_cap = _cap(
         is_draft_status(status or ""),
@@ -97,7 +100,6 @@ def derive_purchase_requisition_capabilities(
         else None,
     )
 
-    linked_po = bool(has_linked_purchase_order) or _status_implies_linked_purchase_order(status)
     revoke_allowed = _is_revoke_approval_allowed(status) and not linked_po
     revoke_reason = None
     if linked_po:

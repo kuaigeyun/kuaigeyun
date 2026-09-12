@@ -1,10 +1,8 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { useConfigStore, resolveEffectiveHomePath } from '../stores/configStore';
+import { useConfigStore } from '../stores/configStore';
 import { TENANT_HOME_FALLBACK } from '../stores/configStore';
-import { getEffectiveHome, getTenantBackendHome, EFFECTIVE_HOME_QUERY_KEY, TENANT_BACKEND_HOME_QUERY_KEY } from '../services/menu';
-import { getTenantId, getToken } from '../utils/auth';
+import { useTenantEffectiveHomePath } from './useTenantEffectiveHomePath';
 
 /** 系统级仪表盘关闭时的兜底路径（与 effective-home 一致，不再使用应用中心） */
 export const SYSTEM_DASHBOARD_FALLBACK_PATH = TENANT_HOME_FALLBACK;
@@ -18,27 +16,7 @@ export function useRedirectIfSystemDashboardOff() {
   const initialized = useConfigStore((s) => s.initialized);
   const configs = useConfigStore((s) => s.configs);
   const enabled = configs.enable_system_dashboard !== false;
-  const tenantIdStr = getTenantId()?.toString() ?? null;
-  const { data: tenantBackendHome, isFetched: backendHomeFetched } = useQuery({
-    queryKey: [...TENANT_BACKEND_HOME_QUERY_KEY, tenantIdStr],
-    queryFn: getTenantBackendHome,
-    enabled: !!(getToken() && tenantIdStr),
-    staleTime: 60 * 1000,
-  });
-
-  const { data: effectiveHome, isFetched: effectiveHomeFetched } = useQuery({
-    queryKey: [...EFFECTIVE_HOME_QUERY_KEY, tenantIdStr],
-    queryFn: getEffectiveHome,
-    enabled: !!(getToken() && tenantIdStr),
-    staleTime: 60 * 1000,
-  });
-
-  const redirectPath = useMemo(
-    () => resolveEffectiveHomePath(effectiveHome, tenantBackendHome?.path, configs),
-    [effectiveHome, tenantBackendHome?.path, configs],
-  );
-
-  const homeReady = backendHomeFetched && effectiveHomeFetched;
+  const { path: redirectPath, ready: homeReady } = useTenantEffectiveHomePath();
 
   useEffect(() => {
     if (!initialized || !homeReady) return;

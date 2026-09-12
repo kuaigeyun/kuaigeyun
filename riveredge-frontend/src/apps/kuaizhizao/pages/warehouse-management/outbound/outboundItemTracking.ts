@@ -33,6 +33,9 @@ export type OutboundConfirmationItemPayload = {
 export type OutboundConfirmationPayload = {
   warehouse_id?: number;
   warehouse_name?: string;
+  delivery_time?: string;
+  deliverer_id?: number;
+  deliverer_name?: string;
   items?: OutboundConfirmationItemPayload[];
   item_batches?: { item_id: number; batch_no: string }[];
 };
@@ -43,6 +46,11 @@ export function buildOutboundConfirmPayloadFromForm(
   formValues: Record<string, unknown>,
   warehouseId?: number,
   warehouseName?: string,
+  header?: {
+    delivery_time?: string;
+    deliverer_id?: number;
+    deliverer_name?: string;
+  },
 ): OutboundConfirmationPayload {
   const items: OutboundConfirmationItemPayload[] = lines
     .map((it) => {
@@ -82,8 +90,19 @@ export function buildOutboundConfirmPayloadFromForm(
     })
     .filter(Boolean) as OutboundConfirmationItemPayload[];
 
+  const headerFields: Pick<
+    OutboundConfirmationPayload,
+    'delivery_time' | 'deliverer_id' | 'deliverer_name'
+  > = {};
+  if (header?.delivery_time) headerFields.delivery_time = header.delivery_time;
+  if (header?.deliverer_id != null && header.deliverer_id > 0) {
+    headerFields.deliverer_id = header.deliverer_id;
+  }
+  if (header?.deliverer_name) headerFields.deliverer_name = header.deliverer_name;
+
   if (outboundType === 'sales_delivery') {
     return {
+      ...headerFields,
       item_batches: items.map((it) => ({
         item_id: it.item_id,
         batch_no: String(it.batch_no ?? it.batch_number ?? ''),
@@ -93,6 +112,7 @@ export function buildOutboundConfirmPayloadFromForm(
   }
 
   return {
+    ...headerFields,
     warehouse_id: warehouseId,
     warehouse_name: warehouseName,
     items,

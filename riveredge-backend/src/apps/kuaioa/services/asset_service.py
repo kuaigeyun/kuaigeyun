@@ -322,27 +322,22 @@ class AssetPurchaseService:
         if existing > 0:
             raise BusinessLogicError("该采买申请已建卡")
 
-        asset_service = AssetRegistryService()
-        quantity = max(1, int(purchase.quantity or 1))
-        created: list[dict[str, Any]] = []
-        for index in range(quantity):
-            asset_name = purchase.title if quantity == 1 else f"{purchase.title}-{index + 1}"
-            item = await asset_service.create_asset(
-                tenant_id,
-                AssetCreate(
-                    asset_name=asset_name,
-                    asset_category=purchase.asset_category,
-                    purchase_id=purchase.id,
-                    purchase_amount=purchase.payment_amount or purchase.estimated_amount,
-                    purchase_date=to_site_date(resolve_business_datetime()).isoformat(),
-                    custodian_id=purchase.applicant_id,
-                    custodian_name=purchase.applicant_name,
-                    department_name=purchase.department_name,
-                    attachment_uuids=list(purchase.attachment_uuids or []),
-                ),
-                user_id,
-            )
-            created.append(item)
+        from apps.kuaicaiwu.services.fa_asset_service import FaAssetService
+
+        result = await FaAssetService().create_from_purchase(
+            tenant_id,
+            purchase_id=purchase.id,
+            title=purchase.title,
+            asset_category=purchase.asset_category,
+            quantity=int(purchase.quantity or 1),
+            amount=purchase.payment_amount or purchase.estimated_amount,
+            applicant_id=purchase.applicant_id,
+            applicant_name=purchase.applicant_name,
+            department_name=purchase.department_name,
+            attachment_uuids=list(purchase.attachment_uuids or []),
+            user_id=user_id,
+        )
+        created = list(result.get("assets") or [])
 
         if record_stage:
             purchase.lifecycle_stage = STAGE_CARDED

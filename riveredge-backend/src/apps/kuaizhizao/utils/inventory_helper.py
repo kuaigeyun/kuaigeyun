@@ -104,13 +104,24 @@ def _as_date(value: Any, fallback: Optional[date] = None) -> date:
     return fallback or _site_today()
 
 
+def _material_batch_on_hand_base_q(*, today: date) -> Q:
+    """主仓在库批次过滤（看板 / 即时库存 / MRP 共用）。"""
+    return (
+        Q(deleted_at__isnull=True)
+        & Q(quantity__gt=0)
+        & Q(quality_status=QUALIFIED)
+        & ~Q(status__in=["out_stock", "scrapped", "expired"])
+        & (Q(expiry_date__isnull=True) | Q(expiry_date__gte=today))
+    )
+
+
 async def aggregate_on_hand_qty_by_material(tenant_id: int) -> Dict[int, Decimal]:
     """
-    租户全仓在库数量按物料汇总（运营看板「总库存」、仓储看板 total_quantity / 金额共用）。
+    租户全仓可用库存按物料汇总（运营看板「总库存」、仓储看板 total_quantity / 金额共用）。
 
-    口径与 get_material_inventory_info（不限仓）一致：
+    口径与 get_material_inventory_info（不限仓）的 available_quantity 一致：
     - 主仓：合格、未删除、quantity>0、未过期，排除 out_stock/scrapped/expired
-    - 线边：status=available 的 quantity 合计
+    - 线边：status=available 的 (quantity - reserved_quantity)，下限 0
     """
     from apps.master_data.models.material_batch import MaterialBatch
     from apps.kuaizhizao.models.line_side_inventory import LineSideInventory
@@ -119,14 +130,8 @@ async def aggregate_on_hand_qty_by_material(tenant_id: int) -> Dict[int, Decimal
     today = _site_today()
 
     batch_rows = (
-        await MaterialBatch.filter(
-            tenant_id=tenant_id,
-            deleted_at__isnull=True,
-            quantity__gt=0,
-            quality_status=QUALIFIED,
-        )
-        .filter(~Q(status__in=["out_stock", "scrapped", "expired"]))
-        .filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=today))
+        await MaterialBatch.filter(tenant_id=tenant_id)
+        .filter(_material_batch_on_hand_base_q(today=today))
         .group_by("material_id")
         .annotate(qty=Sum("quantity"))
         .values("material_id", "qty")
@@ -142,14 +147,66 @@ async def aggregate_on_hand_qty_by_material(tenant_id: int) -> Dict[int, Decimal
             status="available",
         )
         .group_by("material_id")
-        .annotate(qty=Sum("quantity"))
-        .values("material_id", "qty")
+        .annotate(qty=Sum("quantity"), reserved_qty=Sum("reserved_quantity"))
+        .values("material_id", "qty", "reserved_qty")
     )
     for row in line_rows:
         mid = int(row["material_id"])
-        out[mid] = out.get(mid, Decimal("0")) + _decimal_or_zero(row.get("qty"))
+        net = _decimal_or_zero(row.get("qty")) - _decimal_or_zero(row.get("reserved_qty"))
+        if net <= 0:
+            continue
+        out[mid] = out.get(mid, Decimal("0")) + net
 
     return {mid: qty for mid, qty in out.items() if qty > 0}
+
+
+async def compute_tenant_inventory_dashboard_metrics(tenant_id: int) -> Dict[str, Any]:
+    """
+    仓储看板 / 运营看板库存 KPI 唯一真源：总 SKU、总数量、在库批次数、总库存金额。
+    """
+    from apps.kuaicaiwu.services.inventory_cost_service import InventoryCostService
+    from apps.master_data.models.material import Material
+
+    qty_by_material = await aggregate_on_hand_qty_by_material(tenant_id)
+    total_quantity = sum(qty_by_material.values(), Decimal("0"))
+    total_sku = len(qty_by_material)
+    batch_count = await count_on_hand_batches(tenant_id)
+
+    total_value = Decimal("0")
+    if qty_by_material:
+        materials = await Material.filter(
+            tenant_id=tenant_id,
+            id__in=list(qty_by_material.keys()),
+            deleted_at__isnull=True,
+        ).only("id", "defaults", "source_config")
+        mid_material = {m.id: m for m in materials}
+        cost_svc = InventoryCostService()
+        for mid, qty in qty_by_material.items():
+            material = mid_material.get(mid)
+            unit_cost = Decimal("0")
+            if material is not None:
+                from_defaults = cost_svc._read_defaults_cost(
+                    material.defaults,
+                    "moving_average_cost",
+                    "standard_cost",
+                    "purchase_price",
+                )
+                if from_defaults is not None:
+                    unit_cost = from_defaults
+                else:
+                    from_source = cost_svc._read_source_config_purchase_price(
+                        getattr(material, "source_config", None)
+                    )
+                    if from_source is not None:
+                        unit_cost = from_source
+            total_value += qty * unit_cost
+
+    return {
+        "total_sku": total_sku,
+        "total_quantity": float(round(total_quantity, 2)),
+        "batch_count": int(batch_count or 0),
+        "total_inventory_value": float(round(total_value, 2)),
+    }
 
 
 async def sum_on_hand_quantity(tenant_id: int) -> Decimal:
@@ -163,13 +220,8 @@ async def count_on_hand_batches(tenant_id: int) -> int:
     from apps.master_data.models.material_batch import MaterialBatch
 
     today = _site_today()
-    return await MaterialBatch.filter(
-        tenant_id=tenant_id,
-        deleted_at__isnull=True,
-        quantity__gt=0,
-        quality_status=QUALIFIED,
-    ).filter(~Q(status__in=["out_stock", "scrapped", "expired"])).filter(
-        Q(expiry_date__isnull=True) | Q(expiry_date__gte=today)
+    return await MaterialBatch.filter(tenant_id=tenant_id).filter(
+        _material_batch_on_hand_base_q(today=today)
     ).count()
 
 

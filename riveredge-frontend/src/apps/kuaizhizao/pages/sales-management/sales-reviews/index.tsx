@@ -50,7 +50,6 @@ import { formatDateTime, formatBusinessDateOnly, todaySiteDateString, formatAmou
 import { extractProTableSort } from '../../../../../utils/tableQueryKey';
 import { getApiErrorMessage } from '../../../../../utils/errorHandler';
 import { ActionConfirmPopconfirm } from '../../../../../components/action-confirm';
-import { DictionaryLabel } from '../../../../../components/dictionary-label';
 import { getAntdModal } from '../../../../../utils/antdAppApis';
 import { fetchAllListItems } from '../../../../../utils/fetchAllListPages';
 import { downloadRecordsAsXlsx } from '../../../../../utils/exportRecordsXlsx';
@@ -71,12 +70,7 @@ import {
 } from '../../../../../components/uni-pull-query';
 import { buildKuaizhizaoPullCreateMenuItems, resolveKuaizhizaoDocumentAction } from '../../../constants/documentActionRegistry';
 import { useKuaizhizaoPrintModal } from '../../../hooks/useKuaizhizaoPrintModal';
-import {
-  alignProColumns,
-  alignDescriptionColumns,
-  GLOBAL_DOC_LIST_FIELD_RANK,
-  GLOBAL_DOC_DETAIL_BASIC_FIELD_RANK,
-} from '../shared/documentFieldAlignment';
+import { alignProColumns, GLOBAL_DOC_LIST_FIELD_RANK } from '../shared/documentFieldAlignment';
 import { buildDocumentAuditColumns } from '../../shared/documentAuditColumns';
 import {
   salesReviewApi,
@@ -96,6 +90,7 @@ import {
   SalesReviewDeptOpinionsPanel,
   validateDeptOpinionForm,
 } from './DeptOpinionsPanel';
+import { buildSalesReviewBasicColumns } from './SalesReviewBasicInfo';
 
 type SalesReviewBatchRecord = SalesReviewListItem & {
   capabilities: {
@@ -934,67 +929,10 @@ const SalesReviewsPage: React.FC = () => {
     perms.canDelete,
   ]);
 
-  const detailBasicColumns: ProDescriptionsItemProps<SalesReview>[] = useMemo(() => {
-    const cols: ProDescriptionsItemProps<SalesReview>[] = [
-          { title: t('app.kuaizhizao.salesReview.colReviewCode'), dataIndex: 'review_code' },
-          { title: t('app.kuaizhizao.salesReview.colCustomer'), dataIndex: 'customer_name' },
-          { title: t('app.kuaizhizao.salesReview.colProjectName'), dataIndex: 'project_name' },
-          { title: t('app.kuaizhizao.salesReview.fieldContact'), dataIndex: 'customer_contact' },
-          { title: t('app.kuaizhizao.salesReview.fieldPhone'), dataIndex: 'customer_phone' },
-          {
-            title: t('app.kuaizhizao.salesReview.fieldReviewDate'),
-            dataIndex: 'review_date',
-            render: (_, row) => (row.review_date ? formatBusinessDateOnly(row.review_date) : '—'),
-          },
-          {
-            title: t('app.kuaizhizao.salesReview.fieldDeliveryDate'),
-            dataIndex: 'delivery_date',
-            render: (_, row) => (row.delivery_date ? formatBusinessDateOnly(row.delivery_date) : '—'),
-          },
-          {
-            title: t('app.kuaizhizao.salesReview.fieldUrgency'),
-            dataIndex: 'urgency',
-            render: (_, row) => renderSalesReviewUrgencyMarkerTag(t, row.urgency),
-          },
-          {
-            title: t('app.kuaizhizao.salesReview.fieldRiskLevel'),
-            dataIndex: 'risk_level',
-            render: (_, row) => renderSalesReviewRiskMarkerTag(t, row.risk_level),
-          },
-          { title: t('app.kuaizhizao.salesReview.fieldSettlement'), dataIndex: 'settlement_method' },
-          {
-            title: t('app.kuaizhizao.salesReview.fieldPaymentCycle'),
-            dataIndex: 'payment_cycle',
-            render: (_, row) =>
-              row.payment_cycle ? (
-                <DictionaryLabel
-                  dictionaryCode="PAYMENT_TERMS"
-                  value={row.payment_cycle}
-                  notFoundPlaceholder={row.payment_cycle}
-                />
-              ) : (
-                '—'
-              ),
-          },
-          {
-            title: t('app.kuaizhizao.salesReview.colTotalAmount'),
-            dataIndex: 'total_amount',
-            render: (_, row) => {
-              const n = Number(row.total_amount);
-              return Number.isFinite(n) ? n.toFixed(2) : '—';
-            },
-          },
-          {
-            title: t('common.status'),
-            dataIndex: 'status',
-            render: (_, row) => renderSalesReviewStatusTag(t, row.status),
-          },
-          { title: t('app.kuaizhizao.salesReview.colSalesman'), dataIndex: 'salesman_name' },
-          { title: t('app.kuaizhizao.salesReview.colSalesOrder'), dataIndex: 'sales_order_code' },
-          { title: t('common.remark'), dataIndex: 'remarks', span: 3 },
-    ];
-    return alignDescriptionColumns(cols as any, GLOBAL_DOC_DETAIL_BASIC_FIELD_RANK) as ProDescriptionsItemProps<SalesReview>[];
-  }, [t]);
+  const detailBasicColumns: ProDescriptionsItemProps<SalesReview>[] = useMemo(
+    () => buildSalesReviewBasicColumns(t, 'drawer'),
+    [t],
+  );
 
   const lineColumns = useMemo(
     () => [

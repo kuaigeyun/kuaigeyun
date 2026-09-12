@@ -169,6 +169,27 @@ def should_prefer_source_document_planned_dates(
     return True
 
 
+def resolve_direct_push_work_order_planned_dates(
+    *,
+    document_start_date: Any,
+    delivery_date: Any,
+    today: Optional[date] = None,
+) -> tuple[Optional[datetime], Optional[datetime]]:
+    """
+    销售订单/合同直推工单：开工取单据日期（缺省 today），完工取明细交期。
+    与 MRP 下推 resolve_work_order_planned_dates_for_push(prefer_source=True) 口径一致。
+    """
+    anchor_today = today or date.today()
+    source_start = normalize_planning_date(document_start_date) or anchor_today
+    return resolve_work_order_planned_dates_for_push(
+        source_start=source_start,
+        source_end=normalize_planning_date(delivery_date),
+        mrp_start=None,
+        mrp_end=None,
+        prefer_source=True,
+    )
+
+
 def resolve_work_order_planned_dates_for_push(
     *,
     source_start: Optional[date],

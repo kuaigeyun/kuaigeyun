@@ -11,7 +11,8 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useInvalidateMenuBadgeCounts } from '../../../../../hooks/useInvalidateMenuBadgeCounts';
 import { useNumericPrecisionPlaces } from '../../../../../hooks/useNumericPrecision';
 import { ActionType, ProColumns, ProForm, ProFormItem, type ProFormInstance } from '@ant-design/pro-components';
-import { App, Button, Form, Tag, Space, Modal, Table, InputNumber, Input, Typography, Select, Spin, Descriptions, Empty, Upload, theme as AntdTheme } from 'antd';
+import { App, Button, Col, DatePicker, Form, Tag, Space, Modal, Row, Table, InputNumber, Input, Typography, Select, Spin, Descriptions, Empty, Upload, theme as AntdTheme } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import { useCurrentUser } from '../../../../../hooks/useCurrentUser';
 import {
   EyeOutlined,
@@ -134,7 +135,9 @@ import {
   inboundConfirmCapabilityReasonMessage,
   inboundSourceDocNo,
   resolveInboundHubOperator,
+  resolveInboundHubDateRaw,
 } from './inboundHubTypes';
+import { toApiDateTimeString } from '../../../../../utils/formDate';
 import { inboundReceiptTypeMarkerValueEnum, renderInboundReceiptTypeMarkerTag } from '../shared/warehouseMarkerTags';
 import {
   normalizeInboundHubDetail,
@@ -626,6 +629,8 @@ const InboundPage: React.FC = () => {
 
   const purchaseConfirmReceiverHook = useInboundReceiverSelect();
   const simpleConfirmReceiverHook = useInboundReceiverSelect();
+  const [purchaseConfirmDocumentDate, setPurchaseConfirmDocumentDate] = useState<Dayjs>(() => dayjs());
+  const [simpleConfirmDocumentDate, setSimpleConfirmDocumentDate] = useState<Dayjs>(() => dayjs());
 
   const inboundDocTrackingType = currentOrder
     ? inboundDocumentTrackingType(currentOrder)
@@ -726,6 +731,7 @@ const InboundPage: React.FC = () => {
     setPurchaseConfirmLineLoc({});
     setPurchaseConfirmLineLocCode({});
     setLocOptionsByWarehouse({});
+    setPurchaseConfirmDocumentDate(dayjs());
     productionReturnConfirmFormRef.current?.resetFields();
     resetProductionReturnFormFieldValues();
     purchaseConfirmReceiverHook.restoreReceiver({});
@@ -852,6 +858,14 @@ const InboundPage: React.FC = () => {
       purchaseConfirmReceiverHook.restoreReceiver(
         resolveInboundConfirmReceiverFromDetail(detailData as Record<string, unknown>),
       );
+      {
+        const rawDate = resolveInboundHubDateRaw({
+          ...(detailData as Record<string, unknown>),
+          receipt_type: record.receipt_type,
+        } as InboundOrder);
+        const parsed = rawDate != null ? dayjs(String(rawDate)) : dayjs();
+        setPurchaseConfirmDocumentDate(parsed.isValid() ? parsed : dayjs());
+      }
       setPurchaseConfirmLineWh(lineWh);
       setPurchaseConfirmLineLoc(lineLoc);
       setPurchaseConfirmLineLocCode(lineLocLb);
@@ -1199,6 +1213,13 @@ const InboundPage: React.FC = () => {
       messageApi.warning(t('app.kuaizhizao.warehouseInbound.msg.selectReceiverRequired'));
       return;
     }
+    if (!purchaseConfirmDocumentDate?.isValid()) {
+      messageApi.warning(t('app.kuaizhizao.warehouseInbound.msg.selectDocumentDateRequired'));
+      return;
+    }
+    const receiptTimePayload = {
+      receipt_time: toApiDateTimeString(purchaseConfirmDocumentDate),
+    };
 
     setPurchaseConfirmPreviewSubmitting(true);
     try {
@@ -1235,6 +1256,7 @@ const InboundPage: React.FC = () => {
           warehouse_name: headerWhName,
           items: confirmItems,
           ...receiverPayload,
+          ...receiptTimePayload,
         });
       } else if (order.receipt_type === 'finished_goods') {
         await warehouseApi.finishedGoodsReceipt.confirm(String(order.id), {
@@ -1242,6 +1264,7 @@ const InboundPage: React.FC = () => {
            warehouse_name: headerWhName,
            items: mappedItems,
            ...receiverPayload,
+           ...receiptTimePayload,
         });
       } else if (order.receipt_type === 'semi_finished_goods') {
         await warehouseApi.semiFinishedGoodsReceipt.confirm(String(order.id), {
@@ -1249,6 +1272,7 @@ const InboundPage: React.FC = () => {
           warehouse_name: headerWhName,
           items: mappedItems,
           ...receiverPayload,
+          ...receiptTimePayload,
         });
       } else if (order.receipt_type === 'production_return') {
         await warehouseApi.productionReturn.confirm(String(order.id), {
@@ -1256,6 +1280,7 @@ const InboundPage: React.FC = () => {
            warehouse_name: headerWhName,
            items: mappedItems,
            ...receiverPayload,
+           ...receiptTimePayload,
         });
         if (Object.keys(productionReturnCustomData).length > 0) {
           await saveProductionReturnCustomFieldValues(order.id, productionReturnCustomData);
@@ -1314,6 +1339,7 @@ const InboundPage: React.FC = () => {
     setSimpleConfirmPreviewDetail(null);
     setSimpleConfirmPreviewLoading(false);
     setSimpleConfirmPreviewSubmitting(false);
+    setSimpleConfirmDocumentDate(dayjs());
     simpleConfirmReceiverHook.restoreReceiver({});
   }, [simpleConfirmReceiverHook]);
 
@@ -1332,6 +1358,12 @@ const InboundPage: React.FC = () => {
         }
         setSimpleConfirmPreviewDetail(detail);
         simpleConfirmReceiverHook.restoreReceiver(resolveInboundConfirmReceiverFromDetail(detail));
+        const rawDate = resolveInboundHubDateRaw({
+          ...detail,
+          receipt_type: record.receipt_type,
+        } as InboundOrder);
+        const parsed = rawDate != null ? dayjs(String(rawDate)) : dayjs();
+        setSimpleConfirmDocumentDate(parsed.isValid() ? parsed : dayjs());
       } catch (error: unknown) {
         const err = error as { message?: string };
         messageApi.error(err?.message || t('app.kuaizhizao.warehouseInbound.msg.loadConfirmPreviewFailed'));
@@ -1351,20 +1383,28 @@ const InboundPage: React.FC = () => {
       messageApi.warning(t('app.kuaizhizao.warehouseInbound.msg.selectReceiverRequired'));
       return;
     }
+    if (!simpleConfirmDocumentDate?.isValid()) {
+      messageApi.warning(t('app.kuaizhizao.warehouseInbound.msg.selectDocumentDateRequired'));
+      return;
+    }
+    const confirmPayload = {
+      ...receiverPayload,
+      receipt_time: toApiDateTimeString(simpleConfirmDocumentDate),
+    };
     setSimpleConfirmPreviewSubmitting(true);
     try {
       const id = String(record.id);
       if (record.receipt_type === 'sales_return') {
-        await warehouseApi.salesReturn.confirm(id, receiverPayload);
+        await warehouseApi.salesReturn.confirm(id, confirmPayload);
         messageApi.success(t('app.kuaizhizao.warehouseInbound.msg.salesReturnConfirmed'));
       } else if (record.receipt_type === 'other_inbound') {
-        await warehouseApi.otherInbound.confirm(id, receiverPayload);
+        await warehouseApi.otherInbound.confirm(id, confirmPayload);
         messageApi.success(t('app.kuaizhizao.warehouseInbound.msg.otherInboundConfirmed'));
       } else if (record.receipt_type === 'material_return') {
-        await warehouseApi.materialReturn.confirm(id, receiverPayload);
+        await warehouseApi.materialReturn.confirm(id, confirmPayload);
         messageApi.success(t('app.kuaizhizao.warehouseInbound.msg.materialReturnConfirmed'));
       } else if (record.receipt_type === 'outsource_receipt') {
-        await outsourceMaterialReceiptApi.complete(id, receiverPayload);
+        await outsourceMaterialReceiptApi.complete(id, confirmPayload);
         messageApi.success(t('app.kuaizhizao.warehouseInbound.msg.outsourceReceiptConfirmed'));
       } else {
         throw new Error(t('app.kuaizhizao.warehouseInbound.msg.unsupportedReceiptType'));
@@ -1393,6 +1433,7 @@ const InboundPage: React.FC = () => {
     invalidateMenuBadgeCounts,
     messageApi,
     resetSimpleConfirmPreview,
+    simpleConfirmDocumentDate,
     simpleConfirmPreviewDetail,
     simpleConfirmPreviewTarget,
     simpleConfirmReceiverHook,
@@ -2518,15 +2559,29 @@ const InboundPage: React.FC = () => {
               trackingFlags,
             )}
           />
-          <Form layout="vertical" style={{ marginTop: 16, marginBottom: 0 }}>
-            <InboundEntryReceiverField
-              hook={purchaseConfirmReceiverHook}
-              label={
-                purchaseConfirmPreviewDetail?.receipt_type === 'production_return'
-                  ? t('app.kuaizhizao.warehouseInbound.field.returner')
-                  : t('app.kuaizhizao.warehouseInbound.field.receiver')
-              }
-            />
+          <Form layout="vertical" style={{ marginTop: 16, marginBottom: 0 }} requiredMark={false}>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8}>
+                <Form.Item label={t('app.kuaizhizao.warehouseInbound.field.documentDate')} required>
+                  <DatePicker
+                    style={{ width: '100%' }}
+                    value={purchaseConfirmDocumentDate}
+                    onChange={(v) => setPurchaseConfirmDocumentDate(v ?? dayjs())}
+                    disabled={purchaseConfirmPreviewLoading || purchaseConfirmPreviewSubmitting}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <InboundEntryReceiverField
+                  hook={purchaseConfirmReceiverHook}
+                  label={
+                    purchaseConfirmPreviewDetail?.receipt_type === 'production_return'
+                      ? t('app.kuaizhizao.warehouseInbound.field.returner')
+                      : t('app.kuaizhizao.warehouseInbound.field.receiver')
+                  }
+                />
+              </Col>
+            </Row>
           </Form>
           {purchaseConfirmPreviewDetail?.receipt_type === 'production_return' ? (
             <ProForm
@@ -2645,16 +2700,30 @@ const InboundPage: React.FC = () => {
               ]}
             />
           )}
-          <Form layout="vertical" style={{ marginTop: 16, marginBottom: 0 }}>
-            <InboundEntryReceiverField
-              hook={simpleConfirmReceiverHook}
-              label={
-                simpleConfirmPreviewTarget?.receipt_type === 'sales_return' ||
-                simpleConfirmPreviewTarget?.receipt_type === 'material_return'
-                  ? t('app.kuaizhizao.warehouseInbound.field.returner')
-                  : t('app.kuaizhizao.warehouseInbound.field.receiver')
-              }
-            />
+          <Form layout="vertical" style={{ marginTop: 16, marginBottom: 0 }} requiredMark={false}>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8}>
+                <Form.Item label={t('app.kuaizhizao.warehouseInbound.field.documentDate')} required>
+                  <DatePicker
+                    style={{ width: '100%' }}
+                    value={simpleConfirmDocumentDate}
+                    onChange={(v) => setSimpleConfirmDocumentDate(v ?? dayjs())}
+                    disabled={simpleConfirmPreviewLoading || simpleConfirmPreviewSubmitting}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <InboundEntryReceiverField
+                  hook={simpleConfirmReceiverHook}
+                  label={
+                    simpleConfirmPreviewTarget?.receipt_type === 'sales_return' ||
+                    simpleConfirmPreviewTarget?.receipt_type === 'material_return'
+                      ? t('app.kuaizhizao.warehouseInbound.field.returner')
+                      : t('app.kuaizhizao.warehouseInbound.field.receiver')
+                  }
+                />
+              </Col>
+            </Row>
           </Form>
         </Spin>
       </Modal>

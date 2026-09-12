@@ -166,56 +166,6 @@ async def scheduled_tasks_minute_tick() -> dict:
     return await run_scheduled_task_scheduler_tick()
 
 
-@task(schedule=[{"cron": "0 * * * *"}])
-async def exception_detection_hourly_tick() -> dict:
-    """每小时投递 exception/detect-all（与原小时级 cron 一致）。"""
-    from apps.kuaizhizao.workflows.functions.exception_detection_workflow import (
-        run_exception_detection_scheduler,
-    )
-
-    return await run_exception_detection_scheduler()
-
-
-@task(schedule=[{"cron": "0 8 * * *"}])
-async def maintenance_reminder_daily_tick() -> dict:
-    """每天 8:00 投递 maintenance-reminder/check。"""
-    from apps.kuaizhizao.workflows.functions.maintenance_reminder_workflow import (
-        run_maintenance_reminder_scheduler,
-    )
-
-    return await run_maintenance_reminder_scheduler()
-
-
-@task(schedule=[{"cron": "30 8 * * *"}])
-async def equipment_supervision_daily_tick() -> dict:
-    """每天 8:30 投递 equipment-supervision/check（点检督促）。"""
-    from apps.kuaizhizao.workflows.functions.equipment_supervision_workflow import (
-        run_equipment_supervision_scheduler,
-    )
-
-    return await run_equipment_supervision_scheduler()
-
-
-@task(schedule=[{"cron": "0 9 * * *"}])
-async def delivery_delay_notification_daily_tick() -> dict:
-    """每天 9:00 投递交期延误提醒检查（销售/采购，仅站内信）。"""
-    from apps.kuaizhizao.workflows.functions.delivery_delay_notification_workflow import (
-        run_delivery_delay_notification_scheduler,
-    )
-
-    return await run_delivery_delay_notification_scheduler()
-
-
-@task(schedule=[{"cron": "*/30 * * * *"}])
-async def work_order_score_recalc_tick() -> dict:
-    """每 30 分钟批量重算 released 工单综合分。"""
-    from apps.kuaizhizao.workflows.functions.work_order_score_workflow import (
-        run_work_order_score_scheduler,
-    )
-
-    return await run_work_order_score_scheduler()
-
-
 @task(schedule=[{"cron": "* * * * *"}])
 async def reminder_event_dispatch_tick() -> dict:
     """每分钟扫描到期提醒事件并派发（INF-03）。"""
@@ -246,14 +196,6 @@ async def kuaiiot_telemetry_pull_tick() -> dict:
     from apps.kuaiiot.workflows.functions.telemetry_sync_workflow import run_kuaiiot_telemetry_pull
 
     return await run_kuaiiot_telemetry_pull()
-
-
-@task(schedule=[{"cron": "*/5 * * * *"}])
-async def external_master_data_sync_tick() -> dict:
-    """每 5 分钟扫描定时同步绑定（单位/分组/物料/客户/销售订单）。"""
-    from core.services.data.external_sync_scheduler import ExternalSyncSchedulerService
-
-    return await ExternalSyncSchedulerService.run_due_syncs()
 
 
 @task(schedule=[{"cron": "*/5 * * * *"}])
@@ -300,14 +242,6 @@ async def permission_governance_daily_tick() -> dict:
         "permission_governance": permission_result,
         "field_governance": field_result,
     }
-
-
-@task(schedule=[{"cron": "30 2 * * *"}])
-async def customer_pool_recycle_daily_tick() -> dict:
-    """每天凌晨执行客户池自动回收。"""
-    from apps.kuaizhizao.services.customer_pool_service import CustomerPoolService
-
-    return await CustomerPoolService.execute_recycle_job()
 
 
 # 数据备份/恢复仍通过 register_event_handler 注册

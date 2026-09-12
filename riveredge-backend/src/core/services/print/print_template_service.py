@@ -42,6 +42,66 @@ _PRINT_TEMPLATE_BODY_FONT_STACK = (
     "'Helvetica Neue', Helvetica, Arial, sans-serif"
 )
 
+
+def _repeat_collection_for_token(repeat_item: str, repeat_collection: str) -> str:
+    item = str(repeat_item or "item").strip() or "item"
+    collection = str(repeat_collection or "").strip()
+    return f"{{% for {item} in {collection} %}}"
+
+
+def _count_repeat_collection_loops(
+    content: str,
+    repeat_item: str,
+    repeat_collection: str,
+) -> int:
+    if not content or not str(repeat_collection or "").strip():
+        return 0
+    return content.count(_repeat_collection_for_token(repeat_item, repeat_collection))
+
+
+def _unwrap_duplicate_collection_loops(
+    content: str,
+    repeat_item: str,
+    repeat_collection: str,
+) -> str:
+    """去掉 compile 重复包裹导致的多层 {% for item in items %}（N 台设备打出 N² 张）。"""
+    for_token = _repeat_collection_for_token(repeat_item, repeat_collection)
+    if _count_repeat_collection_loops(content, repeat_item, repeat_collection) <= 1:
+        return content
+    prefix = f'{for_token}<div class="print-repeat-page">'
+    suffix = "</div>{% endfor %}"
+    trimmed = content.strip()
+    while _count_repeat_collection_loops(trimmed, repeat_item, repeat_collection) > 1:
+        if not (trimmed.startswith(prefix) and trimmed.endswith(suffix)):
+            break
+        inner = trimmed[len(prefix) : -len(suffix)]
+        if not inner.lstrip().startswith(for_token):
+            break
+        trimmed = inner.strip()
+    return trimmed
+
+
+def _wrap_repeat_collection_body(
+    compiled_body: str,
+    repeat_item: str,
+    repeat_collection: str,
+) -> str:
+    collection = str(repeat_collection or "").strip()
+    if not compiled_body or not collection:
+        return compiled_body
+    item = str(repeat_item or "item").strip() or "item"
+    for_token = _repeat_collection_for_token(item, collection)
+    if for_token in compiled_body:
+        return compiled_body
+    return (
+        f"{for_token}"
+        f'<div class="print-repeat-page">'
+        f"{compiled_body}"
+        f"</div>"
+        f"{{% endfor %}}"
+    )
+
+
 def _build_core_sme_visual_presets() -> list[dict]:
     """核心通用标签/收据：可视化 designer_json（字段块，非纯代码）。"""
     from core.schemas.print_template import PrintTemplateCompileRequest
@@ -1501,12 +1561,10 @@ class PrintTemplateService:
         repeat_collection = str(schema.get("repeatCollection") or "").strip()
         repeat_item = str(schema.get("repeatItem") or "item").strip() or "item"
         if compiled_body and repeat_collection:
-            compiled_body = (
-                f"{{% for {repeat_item} in {repeat_collection} %}}"
-                f'<div class="print-repeat-page">'
-                f"{compiled_body}"
-                f"</div>"
-                f"{{% endfor %}}"
+            compiled_body = _wrap_repeat_collection_body(
+                compiled_body,
+                repeat_item,
+                repeat_collection,
             )
         if compiled_body:
             parts.append(compiled_body)
@@ -1602,10 +1660,16 @@ class PrintTemplateService:
         if schema:
             repeat_collection = str(schema.get("repeatCollection") or "").strip()
             repeat_item = str(schema.get("repeatItem") or "item").strip() or "item"
-            for_token = f"{{% for {repeat_item} in {repeat_collection} %}}"
+            loop_count = _count_repeat_collection_loops(
+                template_content,
+                repeat_item,
+                repeat_collection,
+            )
             compile_mode = str(schema.get("compileMode") or "").strip()
             need_rebuild = False
-            if repeat_collection and for_token not in template_content:
+            if repeat_collection and loop_count == 0:
+                need_rebuild = True
+            elif repeat_collection and loop_count > 1:
                 need_rebuild = True
             if compile_mode == "asset_card_table" and "eq-asset-card" not in template_content:
                 need_rebuild = True
@@ -1631,6 +1695,12 @@ class PrintTemplateService:
                 rebuilt_content = str(rebuilt.get("compiled_template") or "").strip()
                 if rebuilt_content:
                     template_content = rebuilt_content
+            elif repeat_collection and loop_count > 1:
+                template_content = _unwrap_duplicate_collection_loops(
+                    template_content,
+                    repeat_item,
+                    repeat_collection,
+                )
         if data.output_format == "html" and not is_pdfme_template(template_content):
             rendered_content = render_template_to_html(
                 template_content,

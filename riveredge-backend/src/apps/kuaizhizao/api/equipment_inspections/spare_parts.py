@@ -33,7 +33,7 @@ async def list_inventory(
     tenant_id: int = Depends(get_current_tenant),
 ):
     """获取全库位库存"""
-    inv = await SparePartInventory.filter(tenant_id=tenant_id).all()
+    inv = await SparePartInventory.filter(tenant_id=tenant_id, deleted_at__isnull=True).all()
     res = []
     for i in inv:
         part = await SparePart.filter(id=i.spare_part_id, tenant_id=tenant_id).first()
@@ -41,10 +41,11 @@ async def list_inventory(
             continue
         res.append({
             "id": i.id,
+            "spare_part_id": i.spare_part_id,
             "part_no": part.part_no,
             "part_name": part.part_name,
             "stock_quantity": i.stock_quantity,
-            "warehouse_location": i.warehouse_location
+            "warehouse_location": i.warehouse_location,
         })
     return res
 

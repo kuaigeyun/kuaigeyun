@@ -56,7 +56,8 @@ SPARE_PART_MASTER_SORTABLE_FIELDS = frozenset({
 })
 EQUIPMENT_LEDGER_SORTABLE_FIELDS = frozenset({
     "code", "name", "type", "category", "equipment_nature", "status", "is_active",
-    "workshop_name", "production_line_name", "responsible_person_name", "supplier",
+    "workshop_name", "production_line_name", "responsible_person_name", "spot_check_person_name", "supplier",
+    "last_calibration_date", "next_calibration_date", "calibration_period",
     "qr_bind_code",
     "created_at", "updated_at",
 })

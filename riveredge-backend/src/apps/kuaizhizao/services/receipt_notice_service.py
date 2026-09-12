@@ -197,6 +197,8 @@ class ReceiptNoticeService(AppBaseService[ReceiptNotice]):
         )
         if not source_order:
             raise BusinessLogicError("采购订单不存在或已删除，无法创建收货通知单")
+        if int(source_order.supplier_id or 0) <= 0:
+            raise BusinessLogicError("采购订单未指定供应商，无法创建收货通知单")
         async with in_transaction():
             today = today_site_str()
             code = await self.generate_code(tenant_id, "RECEIPT_NOTICE_CODE", prefix=f"RN{today}")

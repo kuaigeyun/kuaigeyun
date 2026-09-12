@@ -187,6 +187,7 @@ import {
   GLOBAL_DOC_DETAIL_TABLE_FIELD_RANK,
   SALES_DOC_LIST_FIELD_RANK,
 } from '../../sales-management/shared/documentFieldAlignment';
+import { OrderPaymentMilestonesFields } from '../../sales-management/shared/orderPaymentMilestonesFields';
 import {
   DocumentPushProgressBar,
   DOCUMENT_PROGRESS_COLUMN_DEFAULTS,
@@ -359,33 +360,6 @@ function purchaseOrderTaxRateToDecimal(percent: unknown): number {
   const n = Number(percent);
   if (!Number.isFinite(n) || n <= 0) return 0;
   return n / 100;
-}
-
-function computePurchaseOrderHeaderTaxPreview(
-  items: any[],
-  headerTaxRatePercent: number,
-  priceType: string,
-): { goodsExcl: number; taxAmount: number; netAmount: number } {
-  const isInclusive = priceType === 'tax_inclusive';
-  let goodsExcl = 0;
-  let taxAmount = 0;
-  for (const row of items) {
-    const qty = Number(row?.ordered_quantity) || 0;
-    const price = Number(row?.unit_price) || 0;
-    const lineTaxRate = Number(row?.tax_rate ?? headerTaxRatePercent) || 0;
-    const rate = lineTaxRate / 100;
-    if (isInclusive && price > 0 && rate >= 0) {
-      const excl = (qty * price) / (1 + rate);
-      goodsExcl += excl;
-      taxAmount += excl * rate;
-    } else {
-      goodsExcl += qty * price;
-    }
-  }
-  if (!isInclusive) {
-    taxAmount = goodsExcl * ((Number(headerTaxRatePercent) || 0) / 100);
-  }
-  return { goodsExcl, taxAmount, netAmount: goodsExcl + taxAmount };
 }
 
 const ORDER_TYPE_FALLBACK_ITEMS: Pick<DictionaryItem, 'value' | 'label' | 'is_system_managed' | 'sort_order'>[] = [
@@ -2075,11 +2049,15 @@ const PurchaseOrdersPage: React.FC = () => {
           supplier_phone: detail.supplier_phone,
           order_date: detail.order_date,
           delivery_date: deliveryDate,
-          prepayment_amount: detail.prepayment_amount,
-          prepayment_bank_account_id: detail.prepayment_bank_account_id,
+          payment_milestones: ((detail as any).payment_milestones ?? []).map((ms: any) => ({
+            ...ms,
+            id: ms.id && ms.id > 0 ? ms.id : undefined,
+            is_prepayment: Boolean(ms.is_prepayment),
+            auto_generate_payable: Boolean(ms.auto_generate_payable),
+            planned_date: ms.planned_date ? dayjs(ms.planned_date) : undefined,
+          })),
           order_type: detail.order_type || '标准采购',
           price_type: priceType,
-          header_tax_rate: headerTaxRatePercent,
           buyer_id: detail.buyer_id,
           buyer_name: detail.buyer_name,
           notes: detail.notes,
@@ -2105,7 +2083,7 @@ const PurchaseOrdersPage: React.FC = () => {
     resetPurchaseOrderFormFieldValues();
     formRef.current?.resetFields();
     window.setTimeout(() => {
-      formRef.current?.setFieldsValue({ items: [defaultOrderItem], price_type: 'tax_exclusive', header_tax_rate: 0 });
+      formRef.current?.setFieldsValue({ items: [defaultOrderItem], price_type: 'tax_exclusive' });
     }, 0);
   }
 
@@ -2549,16 +2527,11 @@ const PurchaseOrdersPage: React.FC = () => {
       });
 
       const totalAmount = itemsPayload.reduce((s: number, it: any) => s + Number(it.total_price), 0);
-      const headerTaxPercent = Number(data.header_tax_rate) || 0;
-      const lineTaxPercent = validItems[0] ? Number(validItems[0].tax_rate) || headerTaxPercent : headerTaxPercent;
-      const taxRateDecimal =
-        priceType === 'tax_inclusive'
-          ? purchaseOrderTaxRateToDecimal(lineTaxPercent)
-          : purchaseOrderTaxRateToDecimal(headerTaxPercent);
+      const lineTaxPercent = validItems[0] ? Number(validItems[0].tax_rate) || 0 : 0;
+      const taxRateDecimal = purchaseOrderTaxRateToDecimal(lineTaxPercent);
       data.tax_rate = taxRateDecimal;
       data.tax_amount = totalAmount * taxRateDecimal;
       data.net_amount = totalAmount + data.tax_amount;
-      delete data.header_tax_rate;
 
       // 计算费用总额
       const feeDetails = normalizeFormListItems<any>(values.fee_details);
@@ -2567,6 +2540,36 @@ const PurchaseOrdersPage: React.FC = () => {
       }, 0);
       data.total_fee_amount = totalFeeAmount;
       data.fee_details = feeDetails;
+
+      const milestoneRows = normalizeFormListItems<any>(values.payment_milestones).filter(
+        (ms: any) =>
+          ms?.milestone_name?.trim() ||
+          ms?.planned_date ||
+          ms?.planned_amount != null ||
+          ms?.planned_ratio != null ||
+          ms?.is_prepayment,
+      );
+      const prepayCount = milestoneRows.filter((ms: any) => Boolean(ms?.is_prepayment)).length;
+      if (prepayCount > 1) {
+        messageApi.error(t('app.kuaizhizao.purchaseOrder.prepaymentOnlyOne'));
+        throw new Error('purchase_order_prepayment_only_one');
+      }
+      data.payment_milestones = milestoneRows
+        .filter((ms: any) => ms?.milestone_name?.trim() && toApiDateString(ms.planned_date))
+        .map((ms: any) => ({
+          milestone_name: String(ms.milestone_name).trim(),
+          planned_date: toApiDateString(ms.planned_date)!,
+          planned_amount: ms.planned_amount != null ? Number(ms.planned_amount) : 0,
+          planned_ratio: ms.planned_ratio != null ? Number(ms.planned_ratio) : undefined,
+          billing_trigger: ms.billing_trigger || 'milestone',
+          is_prepayment: Boolean(ms.is_prepayment),
+          auto_generate_payable: ms.is_prepayment ? false : Boolean(ms.auto_generate_payable),
+          bank_account_id: ms.is_prepayment ? ms.bank_account_id ?? undefined : undefined,
+          notes: ms.notes,
+        }));
+      const prepayMs = data.payment_milestones.find((ms: any) => ms.is_prepayment);
+      data.prepayment_amount = prepayMs ? prepayMs.planned_amount : null;
+      data.prepayment_bank_account_id = prepayMs?.bank_account_id ?? null;
 
       let orderId: number | undefined;
       if (isEdit && currentOrder?.id) {
@@ -2769,7 +2772,7 @@ const PurchaseOrdersPage: React.FC = () => {
         <div className="document-form-untitled-groups">
           <div className="document-form-untitled-group">
             <Row gutter={16}>
-              <Col span={8}>
+              <Col span={6}>
                 <CodeField
                   pageCode="kuaizhizao-purchase-order"
                   name="order_code"
@@ -2781,7 +2784,7 @@ const PurchaseOrdersPage: React.FC = () => {
                   context={{}}
                 />
               </Col>
-              <Col span={8}>
+              <Col span={6}>
                 <ProForm.Item
                   name="supplier_id"
                   label={t('app.kuaizhizao.purchaseOrder.form.supplier')}
@@ -2836,13 +2839,9 @@ const PurchaseOrdersPage: React.FC = () => {
                   />
                 </ProForm.Item>
               </Col>
-              <Col span={8}>
+              <Col span={6}>
                 <PurchaseOrderBuyerField userList={users} loading={usersLoading} />
               </Col>
-            </Row>
-          </div>
-          <div className="document-form-untitled-group">
-            <Row gutter={16}>
               <Col span={6}>
                 <ProFormDatePicker
                   name="order_date"
@@ -2852,6 +2851,10 @@ const PurchaseOrdersPage: React.FC = () => {
                   fieldProps={{ style: { width: '100%' } }}
                 />
               </Col>
+            </Row>
+          </div>
+          <div className="document-form-untitled-group">
+            <Row gutter={16}>
               <Col span={6}>
                 <ProFormDatePicker
                   name="delivery_date"
@@ -2876,33 +2879,6 @@ const PurchaseOrdersPage: React.FC = () => {
                 />
               </Col>
               <Col span={6}>
-                <ProForm.Item
-                  name="prepayment_amount"
-                  label={t('app.kuaizhizao.purchaseOrder.form.prepaymentAmount')}
-                >
-                  <InputNumber
-                    min={0}
-                    precision={amountDecimals}
-                    style={{ width: '100%' }}
-                    placeholder={t('app.kuaizhizao.purchaseOrder.form.prepaymentAmountPlaceholder')}
-                  />
-                </ProForm.Item>
-              </Col>
-              <Col span={6}>
-                <ProFormSelect
-                  name="prepayment_bank_account_id"
-                  label={t('app.kuaizhizao.purchaseOrder.form.prepaymentBankAccount')}
-                  options={bankAccountOptions}
-                  showSearch
-                  allowClear
-                  placeholder={t('app.kuaizhizao.purchaseOrder.form.prepaymentBankAccountPlaceholder')}
-                />
-              </Col>
-            </Row>
-          </div>
-          <div className="document-form-untitled-group">
-            <Row gutter={16}>
-              <Col span={6}>
                 <ProForm.Item name="order_type" label={t('app.kuaizhizao.purchaseOrder.form.orderType')} initialValue="标准采购">
                   <UniDropdown
                     placeholder={t('app.kuaizhizao.purchaseOrder.form.orderTypePlaceholder')}
@@ -2910,20 +2886,6 @@ const PurchaseOrdersPage: React.FC = () => {
                     loading={orderTypeLoading}
                   />
                 </ProForm.Item>
-              </Col>
-              <Col span={6}>
-                <ProFormText
-                  name="supplier_contact"
-                  label={t('app.kuaizhizao.purchaseOrder.form.contact')}
-                  placeholder={t('app.kuaizhizao.purchaseOrder.form.contactPlaceholder')}
-                />
-              </Col>
-              <Col span={6}>
-                <ProFormText
-                  name="supplier_phone"
-                  label={t('app.kuaizhizao.purchaseOrder.form.phone')}
-                  placeholder={t('app.kuaizhizao.purchaseOrder.form.phonePlaceholder')}
-                />
               </Col>
               <Col span={6}>
                 <ProForm.Item name="currency" label={t('app.kuaizhizao.purchaseOrder.form.currency')} initialValue="CNY">
@@ -2934,72 +2896,21 @@ const PurchaseOrdersPage: React.FC = () => {
                   />
                 </ProForm.Item>
               </Col>
+              <Col span={6}>
+                <ProFormText
+                  name="supplier_contact"
+                  label={t('app.kuaizhizao.purchaseOrder.form.contact')}
+                  placeholder={t('app.kuaizhizao.purchaseOrder.form.contactPlaceholder')}
+                />
+              </Col>
             </Row>
-          </div>
-          <div className="document-form-untitled-group">
             <Row gutter={16}>
               <Col span={6}>
-                <ProForm.Item
-                  name="header_tax_rate"
-                  label={t('app.kuaizhizao.purchaseOrder.form.taxRatePercent')}
-                  initialValue={0}
-                >
-                  <InputNumber
-                    min={0}
-                    max={100}
-                    precision={2}
-                    style={{ width: '100%' }}
-                    suffix="%"
-                    placeholder={t('app.kuaizhizao.purchaseOrder.form.taxRatePercent')}
-                    onChange={(val) => {
-                      const num = Number(val) || 0;
-                      const items = normalizeFormListItems<any>(formRef.current?.getFieldValue('items'));
-                      if (items.length === 0) return;
-                      formRef.current?.setFieldsValue({
-                        items: items.map((it: any) => ({ ...it, tax_rate: num })),
-                        ...(num > 0 ? { price_type: 'tax_inclusive' as PriceTypeValue } : {}),
-                      });
-                    }}
-                  />
-                </ProForm.Item>
-              </Col>
-              <Col span={6}>
-                <AntForm.Item
-                  label={t('app.kuaizhizao.purchaseOrder.col.taxAmount')}
-                  shouldUpdate={(prev: any, curr: any) =>
-                    prev?.items !== curr?.items ||
-                    prev?.header_tax_rate !== curr?.header_tax_rate ||
-                    prev?.price_type !== curr?.price_type
-                  }
-                >
-                  {({ getFieldValue }: any) => {
-                    const preview = computePurchaseOrderHeaderTaxPreview(
-                      normalizeFormListItems<any>(getFieldValue('items')),
-                      Number(getFieldValue('header_tax_rate')) || 0,
-                      getFieldValue('price_type') ?? 'tax_exclusive',
-                    );
-                    return <Typography.Text>¥{formatAmount(preview.taxAmount)}</Typography.Text>;
-                  }}
-                </AntForm.Item>
-              </Col>
-              <Col span={6}>
-                <AntForm.Item
-                  label={t('app.kuaizhizao.purchaseOrder.col.inclAmount')}
-                  shouldUpdate={(prev: any, curr: any) =>
-                    prev?.items !== curr?.items ||
-                    prev?.header_tax_rate !== curr?.header_tax_rate ||
-                    prev?.price_type !== curr?.price_type
-                  }
-                >
-                  {({ getFieldValue }: any) => {
-                    const preview = computePurchaseOrderHeaderTaxPreview(
-                      normalizeFormListItems<any>(getFieldValue('items')),
-                      Number(getFieldValue('header_tax_rate')) || 0,
-                      getFieldValue('price_type') ?? 'tax_exclusive',
-                    );
-                    return <Typography.Text>¥{formatAmount(preview.netAmount)}</Typography.Text>;
-                  }}
-                </AntForm.Item>
+                <ProFormText
+                  name="supplier_phone"
+                  label={t('app.kuaizhizao.purchaseOrder.form.phone')}
+                  placeholder={t('app.kuaizhizao.purchaseOrder.form.phonePlaceholder')}
+                />
               </Col>
             </Row>
           </div>
@@ -3359,6 +3270,16 @@ const PurchaseOrdersPage: React.FC = () => {
         />
       </DetailDrawerSection>
 
+      <DetailDrawerSection titleAccent title={t('app.kuaizhizao.purchaseOrder.paymentPlan')}>
+        <OrderPaymentMilestonesFields
+          variant="purchase"
+          formRef={formRef}
+          t={t}
+          amountDecimals={amountDecimals}
+          bankAccountOptions={bankAccountOptions}
+        />
+      </DetailDrawerSection>
+
       <DetailDrawerSection titleAccent title={t('app.uniDetail.sectionAttachments')} marginBottom={0}>
         <DocumentAttachmentsField
           category="purchase_order_attachments"
@@ -3440,7 +3361,7 @@ const PurchaseOrdersPage: React.FC = () => {
                 }}
                 initialValues={
                   isCreatePage
-                    ? { items: [defaultOrderItem], price_type: 'tax_exclusive', header_tax_rate: 0 }
+                    ? { items: [defaultOrderItem], price_type: 'tax_exclusive' }
                     : undefined
                 }
               >

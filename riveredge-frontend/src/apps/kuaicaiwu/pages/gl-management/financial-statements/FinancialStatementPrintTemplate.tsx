@@ -156,17 +156,20 @@ const FinancialStatementPrintTemplate: React.FC<FinancialStatementPrintTemplateP
             <tr>
               <th className="col-item">{t(`${NS}.col.label`, { defaultValue: '项目' })}</th>
               <th className="col-line">{t(`${NS}.print.lineNo`, { defaultValue: '行次' })}</th>
-              <th className="col-amt">{t(`${NS}.col.periodAmount`, { defaultValue: '本期金额' })}</th>
-              <th className="col-amt">{t(`${NS}.col.yearAmount`, { defaultValue: '本年累计' })}</th>
+              <th className="col-amt">{t(`${NS}.col.yearAmount`, { defaultValue: '本年累计金额' })}</th>
+              <th className="col-amt">{t(`${NS}.col.monthAmount`, { defaultValue: '本月金额' })}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row, idx) => (
-              <tr key={String(row.line_key ?? idx)} className={isTotal(row) ? 'is-total' : isHeader(row) ? 'is-header' : ''}>
-                <td>{String(row.label || '')}</td>
-                <td className="col-line">{nextLine(row)}</td>
-                <td className="col-amt">{isHeader(row) ? '' : formatStatementMoney(row.period_amount)}</td>
-                <td className="col-amt">{isHeader(row) ? '' : formatStatementMoney(row.year_amount)}</td>
+              <tr
+                key={String(row.line_key ?? idx)}
+                className={isTotal(row) ? 'is-total' : row.indent ? 'is-indent' : ''}
+              >
+                <td>{row.indent ? `\u3000\u3000${String(row.label || '')}` : String(row.label || '')}</td>
+                <td className="col-line">{row.line_no != null ? String(row.line_no) : ''}</td>
+                <td className="col-amt">{formatStatementMoney(row.year_amount)}</td>
+                <td className="col-amt">{formatStatementMoney(row.period_amount)}</td>
               </tr>
             ))}
           </tbody>

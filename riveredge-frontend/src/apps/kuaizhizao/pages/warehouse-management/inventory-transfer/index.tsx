@@ -878,13 +878,14 @@ const InventoryTransferPage: React.FC = () => {
               label={t('app.kuaizhizao.warehouseReports.colFromWarehouse')}
               placeholder={t('app.kuaizhizao.inventoryTransfer.formFromWarehousePlaceholder')}
               required
-              onChange={(value, option) => {
-                formRef.current?.setFieldsValue({ _from_warehouse_name: option?.name });
+              onChange={(value, warehouse) => {
+                const warehouseName = String(warehouse?.name ?? '').trim();
+                formRef.current?.setFieldsValue({ _from_warehouse_name: warehouseName });
                 setSelectedCreateWarehouseId(typeof value === 'number' ? value : Number(value));
                 if (createTransferMode === 'bin_relocation') {
                   formRef.current?.setFieldsValue({
                     to_warehouse_id: value,
-                    _to_warehouse_name: option?.name,
+                    _to_warehouse_name: warehouseName,
                   });
                 }
               }}
@@ -897,7 +898,11 @@ const InventoryTransferPage: React.FC = () => {
               placeholder={createTransferMode === 'bin_relocation' ? t('app.kuaizhizao.inventoryTransfer.formToWarehouseSamePlaceholder') : t('app.kuaizhizao.inventoryTransfer.formToWarehousePlaceholder')}
               required
               disabled={createTransferMode === 'bin_relocation'}
-              onChange={(_, option) => formRef.current?.setFieldsValue({ _to_warehouse_name: option?.name })}
+              onChange={(_, warehouse) =>
+                formRef.current?.setFieldsValue({
+                  _to_warehouse_name: String(warehouse?.name ?? '').trim(),
+                })
+              }
             />
           </Col>
         </Row>

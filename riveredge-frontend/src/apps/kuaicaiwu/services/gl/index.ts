@@ -55,6 +55,29 @@ export type GlVoucher = {
   lines?: GlVoucherLine[];
 };
 
+export type GlPendingAccountingEvent = {
+  id: number;
+  event_code: string;
+  event_type: string;
+  business_type: string;
+  business_type_label: string;
+  source_doc_type?: string | null;
+  source_doc_type_label?: string | null;
+  source_doc_id?: number | null;
+  source_doc_code?: string | null;
+  target_doc_type?: string | null;
+  target_doc_id?: number | null;
+  target_doc_code?: string | null;
+  amount: number;
+  currency?: string;
+  event_date?: string | null;
+  notes?: string | null;
+  has_voucher: boolean;
+  voucher_id?: number | null;
+  voucher_code?: string | null;
+  voucher_status?: string | null;
+};
+
 export type GlVoucherLine = {
   id?: number;
   line_no?: number;
@@ -139,11 +162,34 @@ export const glService = {
     apiRequest<GlVoucher>(`${BASE}/vouchers/${id}/unpost`, { method: 'POST' }),
   obsoleteVoucher: (id: number) =>
     apiRequest<GlVoucher>(`${BASE}/vouchers/${id}/obsolete`, { method: 'POST' }),
-  generateFromEvents: (limit = 50) =>
-    apiRequest<Record<string, unknown>>(`${BASE}/vouchers/generate-from-events`, {
+  listPendingVoucherEvents: (params?: {
+    business_type?: string;
+    source_doc_type?: string;
+    voucher_status?: 'pending' | 'generated';
+    skip?: number;
+    limit?: number;
+  }) =>
+    apiRequest<{
+      items: GlPendingAccountingEvent[];
+      total: number;
+      business_types: string[];
+      source_doc_types: Array<{ value: string; label: string }>;
+    }>(`${BASE}/vouchers/pending-events`, { method: 'GET', params }),
+  generateFromEvents: (eventIds?: number[]) =>
+    apiRequest<{
+      created_count?: number;
+      skipped?: number;
+      vouchers?: GlVoucher[];
+      errors?: string[];
+    }>(`${BASE}/vouchers/generate-from-events`, {
       method: 'POST',
-      params: { limit },
+      data: eventIds?.length ? { event_ids: eventIds } : undefined,
     }),
+  obsoleteVouchersFromEvents: (eventIds: number[]) =>
+    apiRequest<{ obsoleted_count: number; skipped: number }>(
+      `${BASE}/vouchers/obsolete-from-events`,
+      { method: 'POST', data: { event_ids: eventIds } },
+    ),
   exportVouchersCsv: (status?: string) =>
     apiRequest<string>(`${BASE}/vouchers/export/csv`, {
       method: 'GET',

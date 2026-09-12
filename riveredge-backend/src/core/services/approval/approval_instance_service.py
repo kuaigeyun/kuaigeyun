@@ -2764,13 +2764,16 @@ class ApprovalInstanceService:
 
                 service = SalesDeliveryService()
                 if approval_instance.status == "approved":
-                    await service.approve_sales_delivery(tenant_id, int(entity_id), approver_id)
+                    await service.approve_sales_delivery(
+                        tenant_id, int(entity_id), approver_id, is_auto_approve=True
+                    )
                 elif approval_instance.status == "rejected":
                     await service.reject_sales_delivery(
                         tenant_id,
                         int(entity_id),
                         approver_id,
                         rejection_reason="审批驳回",
+                        is_auto_approve=True,
                     )
                 logger.info(f"销售出库 {entity_id} 审批回调完成: {approval_instance.status}")
 
@@ -2779,13 +2782,16 @@ class ApprovalInstanceService:
 
                 service = ProductionPickingService()
                 if approval_instance.status == "approved":
-                    await service.approve_production_picking(tenant_id, int(entity_id), approver_id)
+                    await service.approve_production_picking(
+                        tenant_id, int(entity_id), approver_id, is_auto_approve=True
+                    )
                 elif approval_instance.status == "rejected":
                     await service.reject_production_picking(
                         tenant_id,
                         int(entity_id),
                         approver_id,
                         rejection_reason="审批驳回",
+                        is_auto_approve=True,
                     )
                 logger.info(f"生产领料 {entity_id} 审批回调完成: {approval_instance.status}")
 

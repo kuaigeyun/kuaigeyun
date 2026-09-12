@@ -49,6 +49,11 @@ import {
 import type { ModuleKpiDef, ModuleShortcutDef } from '../../../components/module-center';
 import type { ModuleFeedItem } from '../../../components/module-center';
 import { StatusTag, MarkerTag } from '../../../../../constants/statusBadges';
+import {
+  ROUTES,
+  buildEquipmentFaultDetailPath,
+  resolveEquipmentBoardAlertLink,
+} from '../../../constants/routes';
 
 const { Text } = Typography;
 
@@ -256,8 +261,7 @@ const EquipmentDashboard: React.FC = () => {
         subtitle: t('app.kuaizhizao.equipmentDashboard.kpi.failureSubtitle'),
         icon: <ToolOutlined style={{ fontSize: 24, color: '#fff' }} />,
         gradient: 'linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%)',
-        onClick: () =>
-          navigate('/apps/kuaizhizao/equipment-management/equipment-faults?status=处理中'),
+        onClick: () => navigate(`${ROUTES.EQUIPMENT_FAULTS}?status=处理中`),
         sideMetrics: [
           {
             label: t('app.kuaizhizao.equipmentDashboard.kpi.spotCheckReviewPending'),
@@ -310,7 +314,7 @@ const EquipmentDashboard: React.FC = () => {
         key: 'fault',
         title: t('app.kuaizhizao.equipmentDashboard.shortcut.fault'),
         icon: <AlertOutlined style={{ fontSize: 22, color: '#ff4d4f' }} />,
-        path: '/apps/kuaizhizao/equipment-management/equipment-faults',
+        path: ROUTES.EQUIPMENT_FAULTS,
       },
       {
         key: 'spotCheck',
@@ -359,9 +363,10 @@ const EquipmentDashboard: React.FC = () => {
             label: kindLabel,
             color: ALERT_KIND_COLOR[row.kind] || 'default',
           },
-          onClick: row.link_path
-            ? () => navigate(row.link_path as string)
-            : undefined,
+          onClick: (() => {
+            const target = resolveEquipmentBoardAlertLink(row);
+            return target ? () => navigate(target) : undefined;
+          })(),
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- t via alertKindLabel
@@ -380,7 +385,7 @@ const EquipmentDashboard: React.FC = () => {
         kindLabel,
         primary,
         secondary,
-        linkPath: a.link_path as string | undefined,
+        linkPath: resolveEquipmentBoardAlertLink(a),
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- t via alertKindLabel
@@ -393,18 +398,8 @@ const EquipmentDashboard: React.FC = () => {
       {
         title: t('app.kuaizhizao.equipmentDashboard.colFaultNo'),
         dataIndex: 'fault_no',
-        render: (text: string, record: { id?: number }) => (
-          <a
-            onClick={() =>
-              navigate(
-                record.id
-                  ? `/apps/kuaizhizao/equipment-management/equipment-faults/${record.id}`
-                  : '/apps/kuaizhizao/equipment-management/equipment-faults',
-              )
-            }
-          >
-            {text}
-          </a>
+        render: (text: string, record: { uuid?: string }) => (
+          <a onClick={() => navigate(buildEquipmentFaultDetailPath(record.uuid))}>{text}</a>
         ),
       },
       {
@@ -725,7 +720,7 @@ const EquipmentDashboard: React.FC = () => {
               loading={faultsLoading}
               masonryWeight={masonryWeightFromRows(pendingFaults.length, TABLE_DISPLAY_ROWS)}
               extra={
-                <a onClick={() => navigate('/apps/kuaizhizao/equipment-management/equipment-faults')}>
+                <a onClick={() => navigate(ROUTES.EQUIPMENT_FAULTS)}>
                   {t('app.kuaizhizao.equipmentDashboard.all')}
                 </a>
               }
@@ -814,15 +809,14 @@ const EquipmentDashboard: React.FC = () => {
               masonryWeight={MASONRY_CHART_WEIGHT}
             >
               <ModuleChartMount height={240}>
-                {({ width, height }) => (
+                {({ height: chartHeight }) => (
                   <Suspense fallback={null}>
                     <EquipmentTrendColumn
                       data={trendData?.items || []}
                       xField="date"
                       yField="count"
-                      width={width}
-                      height={height}
-                      autoFit={false}
+                      height={chartHeight}
+                      autoFit
                       animation={false}
                     />
                   </Suspense>
@@ -834,10 +828,11 @@ const EquipmentDashboard: React.FC = () => {
             <ModuleChartPanel
               layout="masonry"
               title={t('app.kuaizhizao.equipmentDashboard.statusDistributionTitle')}
+              loading={boardLoading}
               masonryWeight={MASONRY_CHART_WEIGHT}
             >
               <ModuleChartMount height={240}>
-                {({ width, height }) => (
+                {({ height: chartHeight }) => (
                   <Suspense fallback={null}>
                     <EquipmentStatusPie
                       data={statusPieData}
@@ -845,9 +840,8 @@ const EquipmentDashboard: React.FC = () => {
                       colorField="type"
                       radius={0.75}
                       innerRadius={0.55}
-                      width={width}
-                      height={height}
-                      autoFit={false}
+                      height={chartHeight}
+                      autoFit
                       animation={false}
                       legend={{ color: { position: 'bottom' } }}
                     />

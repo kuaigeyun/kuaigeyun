@@ -61,6 +61,7 @@ class SalesOrderTermsService:
         ).delete()
         for ms in milestones:
             is_prepay = bool(ms.is_prepayment)
+            auto_receivable = bool(ms.auto_generate_receivable) if not is_prepay else False
             await SalesOrderMilestone.create(
                 tenant_id=tenant_id,
                 sales_order_id=sales_order_id,
@@ -70,6 +71,7 @@ class SalesOrderTermsService:
                 planned_ratio=ms.planned_ratio,
                 billing_trigger=ms.billing_trigger or "milestone",
                 is_prepayment=is_prepay,
+                auto_generate_receivable=auto_receivable,
                 bank_account_id=ms.bank_account_id if is_prepay else None,
                 notes=ms.notes,
             )
@@ -135,6 +137,7 @@ class SalesOrderTermsService:
                 planned_ratio=None,
                 billing_trigger="milestone",
                 is_prepayment=True,
+                auto_generate_receivable=False,
                 bank_account_id=order.prepayment_bank_account_id,
                 status="pending",
                 receivable_id=None,

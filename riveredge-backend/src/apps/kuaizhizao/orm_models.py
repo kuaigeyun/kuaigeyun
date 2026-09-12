@@ -140,6 +140,7 @@ ORM_MODEL_MODULES: list[str] = [
     "apps.kuaizhizao.models.sales_order_change_order",
     "apps.kuaizhizao.models.sales_order_item",
     "apps.kuaizhizao.models.sales_order_milestone",
+    "apps.kuaizhizao.models.purchase_order_milestone",
     "apps.kuaizhizao.models.sales_order_sync_binding",
     "apps.kuaizhizao.models.sales_return",
     "apps.kuaizhizao.models.sales_return_item",

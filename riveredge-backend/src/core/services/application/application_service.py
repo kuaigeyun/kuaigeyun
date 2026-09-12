@@ -866,7 +866,13 @@ class ApplicationService:
             from core.services.application.industry_pack_menu_service import IndustryPackMenuService
 
             await IndustryPackMenuService.rebuild_pack_menus(tenant_id)
-        elif application.get('is_installed') and application.get('menu_config'):
+        elif app_code == "kuaizhizao":
+            from core.services.scheduling.scheduled_job_preset_service import (
+                ScheduledJobPresetService,
+            )
+
+            await ScheduledJobPresetService.sync_presets_for_tenant(tenant_id)
+        if application.get('is_installed') and application.get('menu_config') and not is_industry_module_app_code(app_code) and not is_industry_pack_shell_code(app_code):
             from core.services.system.menu_service import MenuService
             # 重新同步菜单，确保菜单状态与应用状态一致
             await MenuService.sync_menus_from_application_config(

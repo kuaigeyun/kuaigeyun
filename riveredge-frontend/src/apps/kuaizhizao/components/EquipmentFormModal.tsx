@@ -11,6 +11,7 @@ import { MODAL_CONFIG } from '../../../components/layout-templates/constants';
 import CodeField from '../../../components/code-field';
 import { DictionarySelect } from '../../../components/dictionary-select';
 import { equipmentApi } from '../services/equipment';
+import { fetchEffectivePageCodeRule, testGenerateCode } from '../../../services/codeRule';
 
 export interface EquipmentRecord {
   id?: number;
@@ -38,12 +39,47 @@ export const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
   const { message: messageApi } = App.useApp();
   const formRef = useRef<ProFormInstance>();
   const [formLoading, setFormLoading] = useState(false);
+  const [createCodeSessionKey, setCreateCodeSessionKey] = useState(0);
 
   useEffect(() => {
     if (!open) return;
+    setCreateCodeSessionKey((key) => key + 1);
     formRef.current?.resetFields();
     formRef.current?.setFieldsValue({ is_active: true });
-  }, [open]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { ruleCode, autoGenerate } = await fetchEffectivePageCodeRule(
+          'kuaizhizao-equipment-management-equipment',
+        );
+        if (cancelled || !autoGenerate) {
+          return;
+        }
+        const preview = await testGenerateCode({
+          rule_code: ruleCode,
+          check_duplicate: true,
+          entity_type: 'equipment',
+        });
+        if (cancelled) {
+          return;
+        }
+        const code = (preview?.code ?? '').trim();
+        if (!code) {
+          messageApi.warning(t('app.master-data.codeRulePreviewHint'));
+          return;
+        }
+        formRef.current?.setFieldsValue({ code, is_active: true });
+      } catch (error: any) {
+        if (cancelled) {
+          return;
+        }
+        messageApi.error(error?.message || t('app.master-data.codeRuleAutoFailed'));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, messageApi, t]);
 
   const handleClose = () => {
     onClose();
@@ -53,7 +89,11 @@ export const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
   const handleSubmit = async (values: Record<string, unknown>): Promise<void> => {
     try {
       setFormLoading(true);
-      const created = await equipmentApi.create(values);
+      const payload = { ...values };
+      if (!payload.code || !String(payload.code).trim()) {
+        delete payload.code;
+      }
+      const created = await equipmentApi.create(payload);
       messageApi.success(t('app.kuaizhizao.equipment.createSuccess'));
       onSuccess(created);
       handleClose();
@@ -82,12 +122,15 @@ export const EquipmentFormModal: React.FC<EquipmentFormModalProps> = ({
       <Row gutter={16}>
         <Col span={12}>
           <CodeField
+            key={`equipment-quick-create-code-${createCodeSessionKey}`}
             pageCode="kuaizhizao-equipment-management-equipment"
             name="code"
             label={t('app.kuaizhizao.equipment.fieldCode')}
             required={false}
             autoGenerateOnCreate
             showGenerateButton={false}
+            formRef={formRef}
+            generateSessionKey={createCodeSessionKey}
           />
         </Col>
         <Col span={12}>

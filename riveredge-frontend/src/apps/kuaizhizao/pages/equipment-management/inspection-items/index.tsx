@@ -4,6 +4,7 @@ import {
   ActionType,
   ProColumns,
   ProDescriptionsItemProps,
+  ProFormDependency,
   ProFormDigit,
   ProFormSelect,
   ProFormSwitch,
@@ -38,6 +39,19 @@ import { UNI_TABLE_MARKER_BADGE_COLUMN_DEFAULTS } from '../../../../../utils/uni
 
 const P = 'app.kuaizhizao.equipmentOps.inspectionItem';
 const RESOURCE = 'kuaizhizao:equipment-inspection-item';
+
+function normalizeInspectionItemSubmitValues(values: Record<string, unknown>): Record<string, unknown> {
+  const valueType = String(values.value_type || 'boolean').toLowerCase();
+  if (valueType === 'numeric') {
+    return values;
+  }
+  return {
+    ...values,
+    unit: null,
+    numeric_min: null,
+    numeric_max: null,
+  };
+}
 
 interface InspectionItem {
   id?: number;
@@ -121,11 +135,12 @@ const InspectionItemsPage: React.FC = () => {
   };
 
   const handleSubmit = async (values: Record<string, unknown>) => {
+    const payload = normalizeInspectionItemSubmitValues(values);
     if (isEdit && current?.id) {
-      await inspectionItemsApi.update(current.id, values);
+      await inspectionItemsApi.update(current.id, payload);
       messageApi.success(t('common.updateSuccess'));
     } else {
-      await inspectionItemsApi.create(values);
+      await inspectionItemsApi.create(payload);
       messageApi.success(t('common.createSuccess'));
     }
     setModalVisible(false);
@@ -358,17 +373,41 @@ const InspectionItemsPage: React.FC = () => {
                 { label: t(`${P}.valueType.numeric`), value: 'numeric' },
                 { label: t(`${P}.valueType.text`), value: 'text' },
               ]}
+              fieldProps={{
+                onChange: (nextType: string) => {
+                  if (nextType !== 'numeric') {
+                    formRef.current?.setFieldsValue({
+                      unit: undefined,
+                      numeric_min: undefined,
+                      numeric_max: undefined,
+                    });
+                  }
+                },
+              }}
             />
           </Col>
-          <Col span={12}>
-            <ProFormText name="unit" label={t('common.unit')} />
-          </Col>
-          <Col span={12}>
-            <ProFormDigit name="numeric_min" label={t(`${P}.col.numericMin`)} />
-          </Col>
-          <Col span={12}>
-            <ProFormDigit name="numeric_max" label={t(`${P}.col.numericMax`)} />
-          </Col>
+        </Row>
+        <ProFormDependency name={['value_type']}>
+          {({ value_type: valueType }) => {
+            if (String(valueType || 'boolean').toLowerCase() !== 'numeric') {
+              return null;
+            }
+            return (
+              <Row gutter={16}>
+                <Col span={12}>
+                  <ProFormText name="unit" label={t('common.unit')} />
+                </Col>
+                <Col span={12}>
+                  <ProFormDigit name="numeric_min" label={t(`${P}.col.numericMin`)} />
+                </Col>
+                <Col span={12}>
+                  <ProFormDigit name="numeric_max" label={t(`${P}.col.numericMax`)} />
+                </Col>
+              </Row>
+            );
+          }}
+        </ProFormDependency>
+        <Row gutter={16}>
           <Col span={24}>
             <ProFormTextArea name="method" label={t(`${P}.col.method`)} fieldProps={{ rows: 2 }} />
           </Col>

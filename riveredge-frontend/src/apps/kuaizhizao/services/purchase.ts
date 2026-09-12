@@ -74,6 +74,22 @@ export interface PushToReceiptNoticeRequest {
 /**
  * 采购订单接口定义
  */
+export interface PurchaseOrderPaymentMilestone {
+  id?: number;
+  milestone_name: string;
+  planned_date: string;
+  planned_amount?: number;
+  planned_ratio?: number;
+  billing_trigger?: string;
+  is_prepayment?: boolean;
+  auto_generate_payable?: boolean;
+  bank_account_id?: number | null;
+  status?: string;
+  payable_id?: number;
+  payable_code?: string;
+  notes?: string;
+}
+
 export interface PurchaseOrder {
   id?: number;
   tenant_id?: number;
@@ -121,6 +137,9 @@ export interface PurchaseOrder {
   /** 单据头附件（上传字段 attachments） */
   attachments?: import('../utils/documentAttachments').DocumentAttachmentFile[];
   capabilities?: PurchaseOrderCapabilities;
+  prepayment_amount?: number | null;
+  prepayment_bank_account_id?: number | null;
+  payment_milestones?: PurchaseOrderPaymentMilestone[];
 }
 
 export interface PurchaseOrderItem {

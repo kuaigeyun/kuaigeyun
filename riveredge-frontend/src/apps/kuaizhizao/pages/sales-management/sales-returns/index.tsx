@@ -22,6 +22,7 @@ import { useResourcePermissions } from '../../../../../hooks/useResourcePermissi
 import {
   salesReturnBatchConfirmAllowed,
   salesReturnBatchWithdrawAllowed,
+  salesReturnCapabilityReasonMessage,
 } from '../../../../../hooks/useDocumentCapabilities';
 import { useTranslation } from 'react-i18next';
 import { ActionType, ProColumns, ProDescriptionsItemProps, ProForm, ProFormText, ProFormDatePicker, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormInstance } from '@ant-design/pro-components';
@@ -159,6 +160,20 @@ const SR_WORKFLOW_DRAFT_STATUSES = ['草稿', 'draft'];
 const SR_WORKFLOW_PENDING_STATUSES = ['待审核', 'pending_review', 'pending_approval', 'PENDING'];
 const SR_WORKFLOW_APPROVED_STATUSES = ['审核通过', '已通过', 'approved', 'APPROVED'];
 const SR_WORKFLOW_REJECTED_STATUSES = ['审核驳回', '已驳回', 'rejected', 'REJECTED'];
+
+function isSalesReturnRowSelectable(record: SalesReturn): boolean {
+  if (record.capabilities?.delete?.allowed === true) return true;
+  if (record.capabilities?.confirm?.allowed === true) return true;
+  if (record.capabilities?.withdraw?.allowed === true) return true;
+  const st = record.status ?? '';
+  const rs = record.review_status ?? '';
+  if (SR_WORKFLOW_DRAFT_STATUSES.includes(st)) return true;
+  if (SR_WORKFLOW_PENDING_STATUSES.includes(st) || SR_WORKFLOW_PENDING_STATUSES.includes(rs)) {
+    return true;
+  }
+  if (SR_WORKFLOW_REJECTED_STATUSES.includes(rs)) return true;
+  return false;
+}
 
 interface SalesReturnDetail extends SalesReturn {
   items?: SalesReturnItem[];
@@ -1213,11 +1228,26 @@ const SalesReturnsPage: React.FC = () => {
   // 处理批量删除
   const handleDelete = async (keys: React.Key[]) => {
     if (!keys || keys.length === 0) return;
+    const rows = keys
+      .map((key) => tableRowsRef.current.find((row) => String(row.id) === String(key)))
+      .filter((row): row is SalesReturn => row != null);
+    const deletable = rows.filter((row) => row.capabilities?.delete?.allowed === true);
+    if (deletable.length === 0) {
+      const blocked = rows.find((row) => row.capabilities?.delete?.reason);
+      messageApi.warning(
+        salesReturnCapabilityReasonMessage(blocked?.capabilities?.delete?.reason, t)
+          || t('common.deleteFailed'),
+      );
+      return;
+    }
+    if (deletable.length < rows.length) {
+      messageApi.warning(t('app.kuaizhizao.salesReturn.batchDeletePartialSkipped'));
+    }
     try {
-      for (const id of keys) {
-        await warehouseApi.salesReturn.delete(String(id));
+      for (const row of deletable) {
+        await warehouseApi.salesReturn.delete(String(row.id));
       }
-      messageApi.success(t('app.kuaizhizao.salesReturn.batchDeleteSuccess', { count: keys.length }));
+      messageApi.success(t('app.kuaizhizao.salesReturn.batchDeleteSuccess', { count: deletable.length }));
       invalidateMenuBadgeCounts();
       actionRef.current?.reload();
     } catch (error: any) {
@@ -1948,6 +1978,9 @@ const SalesReturnsPage: React.FC = () => {
             }
           }}
           enableRowSelection={viewTypeState !== 'detailTable'}
+          rowSelectionGetCheckboxProps={(record) => ({
+            disabled: !isSalesReturnRowSelectable(record),
+          })}
           showDeleteButton={viewTypeState !== 'detailTable'}
           onDelete={handleDelete}
           deleteConfirmTitle={(count) => t('app.kuaizhizao.salesReturn.confirmBatchDelete', { count })}

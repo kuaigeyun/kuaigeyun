@@ -355,6 +355,7 @@ TORTOISE_ORM = {
                 "apps.kuaicaiwu.models.tax_period_record",  # 税务属期
                 "apps.kuaicaiwu.models.price_settlement_batch",  # 月结定价单
                 "apps.kuaicaiwu.models.price_settlement_line",  # 月结定价单行
+                "apps.kuaicaiwu.models.fixed_asset",  # 固定资产
                 # 快研发 kuaiplm
                 "apps.kuaiplm.models.rd_project",
                 "apps.kuaiplm.models.gate_template",

@@ -4,7 +4,8 @@
 提供定时任务的 CRUD 操作和启动/停止功能。
 """
 
-from typing import Optional, List
+from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
 from core.schemas.scheduled_task import (
@@ -12,6 +13,7 @@ from core.schemas.scheduled_task import (
     ScheduledTaskUpdate,
     ScheduledTaskResponse,
 )
+from core.services.scheduling.scheduled_job_preset_service import ScheduledJobPresetService
 from core.services.scheduling.scheduled_task_service import ScheduledTaskService
 from core.api.deps.deps import get_current_tenant
 from infra.api.deps.deps import get_current_user as soil_get_current_user
@@ -47,12 +49,30 @@ async def create_scheduled_task(
             tenant_id=tenant_id,
             data=data
         )
-        return ScheduledTaskResponse.model_validate(scheduled_task)
+        return ScheduledTaskService.to_response(scheduled_task)
     except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(e)
         )
+
+
+@router.post("/sync-presets", summary="Sync builtin scheduled task presets")
+async def sync_scheduled_task_presets(
+    tenant_id: int = Depends(get_current_tenant),
+) -> Dict[str, Any]:
+    """为当前组织补齐系统内置定时任务（已存在则跳过）。"""
+    return await ScheduledJobPresetService.sync_presets_for_tenant(tenant_id)
+
+
+@router.get("/preset-catalog", summary="List builtin scheduled task catalog")
+async def list_scheduled_task_preset_catalog(
+    tenant_id: int = Depends(get_current_tenant),
+) -> List[Dict[str, Any]]:
+    from core.services.system.installed_feature_scope import get_installed_application_codes
+
+    installed = await get_installed_application_codes(tenant_id)
+    return await ScheduledJobPresetService.list_catalog(installed_apps=installed)
 
 
 @router.get("", response_model=List[ScheduledTaskResponse])
@@ -88,7 +108,7 @@ async def list_scheduled_tasks(
         trigger_type=trigger_type,
         is_active=is_active
     )
-    return [ScheduledTaskResponse.model_validate(st) for st in scheduled_tasks]
+    return [ScheduledTaskService.to_response(st) for st in scheduled_tasks]
 
 
 @router.get("/{uuid}", response_model=ScheduledTaskResponse)
@@ -116,7 +136,7 @@ async def get_scheduled_task(
             tenant_id=tenant_id,
             uuid=uuid
         )
-        return ScheduledTaskResponse.model_validate(scheduled_task)
+        return ScheduledTaskService.to_response(scheduled_task)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -152,11 +172,16 @@ async def update_scheduled_task(
             uuid=uuid,
             data=data
         )
-        return ScheduledTaskResponse.model_validate(scheduled_task)
+        return ScheduledTaskService.to_response(scheduled_task)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
+        )
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
         )
 
 
@@ -186,6 +211,11 @@ async def delete_scheduled_task(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
+        )
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
         )
 
 

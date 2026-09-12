@@ -24,42 +24,6 @@ def _is_sales_order_draft(order: SalesOrder) -> bool:
     return normalize_status(str(order.status or "")) == DemandStatus.DRAFT.value
 
 
-async def sales_order_has_downstream_documents(tenant_id: int, sales_order_id: int) -> bool:
-    from apps.kuaizhizao.services.document_relation_new_service import DocumentRelationNewService
-
-    trace = await DocumentRelationNewService().trace_document_chain(
-        tenant_id=tenant_id,
-        document_type="sales_order",
-        document_id=sales_order_id,
-        direction="downstream",
-        max_depth=10,
-    )
-    collected = DocumentRelationNewService()._flatten_downstream_nodes(trace.downstream_chain)
-    if collected:
-        return True
-
-    fk_specs: List[Tuple[Any, str]] = [
-        (_lazy_work_order_model, "sales_order_id"),
-        (_lazy_sales_delivery_model, "sales_order_id"),
-        (_lazy_shipment_notice_model, "sales_order_id"),
-        (_lazy_sales_return_model, "sales_order_id"),
-    ]
-    for loader, field in fk_specs:
-        model = loader()
-        fields_map = getattr(getattr(model, "_meta", None), "fields_map", {}) or {}
-        if field not in fields_map:
-            continue
-        filters: Dict[str, Any] = {
-            "tenant_id": tenant_id,
-            field: sales_order_id,
-        }
-        if "deleted_at" in fields_map:
-            filters["deleted_at__isnull"] = True
-        if await model.filter(**filters).exists():
-            return True
-    return False
-
-
 def _lazy_work_order_model():
     from apps.kuaizhizao.models.work_order import WorkOrder
 
@@ -82,6 +46,61 @@ def _lazy_sales_return_model():
     from apps.kuaizhizao.models.sales_return import SalesReturn
 
     return SalesReturn
+
+
+_SALES_ORDER_DOWNSTREAM_FK_SPECS: List[Tuple[Any, str]] = [
+    (_lazy_work_order_model, "sales_order_id"),
+    (_lazy_sales_delivery_model, "sales_order_id"),
+    (_lazy_shipment_notice_model, "sales_order_id"),
+    (_lazy_sales_return_model, "sales_order_id"),
+]
+
+
+async def sales_order_downstream_by_ids(
+    tenant_id: int, sales_order_ids: List[int]
+) -> dict[int, bool]:
+    """列表 capabilities 批量检测：工单/出库/发货通知/销售退货等 FK 下游。"""
+    if not sales_order_ids:
+        return {}
+    result: dict[int, bool] = {int(i): False for i in sales_order_ids}
+
+    def _mark(order_id: int) -> None:
+        result[int(order_id)] = True
+
+    for loader, field in _SALES_ORDER_DOWNSTREAM_FK_SPECS:
+        model = loader()
+        fields_map = getattr(getattr(model, "_meta", None), "fields_map", {}) or {}
+        if field not in fields_map:
+            continue
+        filters: Dict[str, Any] = {
+            "tenant_id": tenant_id,
+            f"{field}__in": sales_order_ids,
+        }
+        if "deleted_at" in fields_map:
+            filters["deleted_at__isnull"] = True
+        related_ids = await model.filter(**filters).values_list(field, flat=True)
+        for oid in related_ids:
+            if oid is not None:
+                _mark(int(oid))
+    return result
+
+
+async def sales_order_has_downstream_documents(tenant_id: int, sales_order_id: int) -> bool:
+    from apps.kuaizhizao.services.document_relation_new_service import DocumentRelationNewService
+
+    trace = await DocumentRelationNewService().trace_document_chain(
+        tenant_id=tenant_id,
+        document_type="sales_order",
+        document_id=sales_order_id,
+        direction="downstream",
+        max_depth=10,
+    )
+    collected = DocumentRelationNewService()._flatten_downstream_nodes(trace.downstream_chain)
+    if collected:
+        return True
+
+    downstream_map = await sales_order_downstream_by_ids(tenant_id, [sales_order_id])
+    return downstream_map.get(sales_order_id, False)
 
 
 async def resolve_sales_order_code_editable(

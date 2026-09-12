@@ -1,7 +1,7 @@
 /**
  * 统一配置中心
  *
- * 提供「参数设置」「审核设置」「流程设置」「业务自动化」「消息提醒」五个功能 Tab。
+ * 提供「参数设置」「审核设置」「业务自动化」「消息提醒」「定时任务」等功能 Tab。
  * 每个 Tab 内部按业务模块（销售、计划、采购、生产、质量、设备、仓储）组织。
  */
 
@@ -9,10 +9,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Form, Card, Button, Space, Layout, Menu, InputNumber, ColorPicker, Typography, Spin, Switch, Select, theme, Modal } from 'antd';
-import { SaveOutlined, ReloadOutlined, SettingOutlined, AuditOutlined, ControlOutlined, BellOutlined } from '@ant-design/icons';
+import { SaveOutlined, ReloadOutlined, SettingOutlined, AuditOutlined, ControlOutlined, BellOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
 import { MultiTabListPageTemplate } from '../../../components/layout-templates';
 import { NotificationRulesPanel } from '../../../components/business-notification-rules/NotificationRulesPanel';
+import { ScheduledTasksPanel } from '../../../components/scheduled-tasks/ScheduledTasksPanel';
 import {
   getBusinessConfig,
   getBusinessConfigSchema,
@@ -210,7 +211,10 @@ const ConfigCenterPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
-  const validTabs = useMemo(() => ['parameters', 'audit', 'automation', 'notification'], []);
+  const validTabs = useMemo(
+    () => ['parameters', 'audit', 'automation', 'notification', 'scheduledTasks'],
+    [],
+  );
   // 兼容历史链接：tab=flow 归并到 parameters
   const normalizedInitialTab = tabFromUrl === 'flow' ? 'parameters' : tabFromUrl;
   const initialTab = validTabs.includes(normalizedInitialTab || '') ? normalizedInitialTab! : 'parameters';
@@ -546,6 +550,8 @@ const ConfigCenterPage: React.FC = () => {
 
   const renderNotificationTab = () => <NotificationRulesPanel showPageHeader={false} />;
 
+  const renderScheduledTasksTab = () => <ScheduledTasksPanel showPageHeader={false} />;
+
   return (
     <MultiTabListPageTemplate
       className="config-center-page"
@@ -556,6 +562,7 @@ const ConfigCenterPage: React.FC = () => {
         { key: 'audit', label: <Space><AuditOutlined />{t('pages.system.configCenter.tabAudit')}</Space>, children: <AuditSettingsPanel selectedCatId={selectedAuditCat} onSelectCat={setSelectedAuditCat} /> },
         { key: 'automation', label: <Space><ControlOutlined />{t('pages.system.configCenter.tabAutomation')}</Space>, children: renderTabContent(AUTOMATION_CATEGORIES, selectedAutoCat, setSelectedAutoCat, <ControlOutlined />) },
         { key: 'notification', label: <Space><BellOutlined />{t('pages.system.configCenter.notification.title')}</Space>, children: renderNotificationTab() },
+        { key: 'scheduledTasks', label: <Space><ClockCircleOutlined />{t('pages.system.configCenter.scheduledTasks.title')}</Space>, children: renderScheduledTasksTab() },
       ]}
       padding={24}
     />

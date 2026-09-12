@@ -1247,6 +1247,7 @@ const SalesOrdersPage: React.FC = () => {
           ...ms,
           id: ms.id && ms.id > 0 ? ms.id : undefined,
           is_prepayment: Boolean(ms.is_prepayment),
+          auto_generate_receivable: Boolean(ms.auto_generate_receivable),
           planned_date: ms.planned_date ? dayjs(ms.planned_date) : undefined,
         })),
         term_group_id: (data as any).term_group_id,
@@ -1580,6 +1581,7 @@ const SalesOrdersPage: React.FC = () => {
           planned_ratio: ms.planned_ratio != null ? Number(ms.planned_ratio) : undefined,
           billing_trigger: ms.billing_trigger || 'milestone',
           is_prepayment: Boolean(ms.is_prepayment),
+          auto_generate_receivable: ms.is_prepayment ? false : Boolean(ms.auto_generate_receivable),
           bank_account_id: ms.is_prepayment ? ms.bank_account_id ?? undefined : undefined,
           notes: ms.notes,
         }));
@@ -5950,7 +5952,7 @@ const SalesOrdersPage: React.FC = () => {
               <Table
                 size="small"
                 dataSource={pushPreviewData.items}
-                scroll={{ x: 1280 }}
+                scroll={{ x: 1480 }}
                 columns={[
                   {
                     title: t('common.select'),
@@ -5979,6 +5981,54 @@ const SalesOrdersPage: React.FC = () => {
                   { title: t('app.kuaizhizao.salesOrder.materialCode'), dataIndex: 'material_code', key: 'material_code', width: 130, ellipsis: true },
                   { title: t('app.kuaizhizao.salesOrder.materialName'), dataIndex: 'material_name', key: 'material_name', width: 140, ellipsis: true },
                   { title: t('common.quantity'), dataIndex: 'quantity', key: 'quantity', width: 90, align: 'right' as const, render: formatQuantity },
+                  {
+                    title: (
+                      <Tooltip title={t('app.kuaizhizao.salesOrder.colOnHandQtyTip')}>
+                        {t('app.kuaizhizao.salesOrder.colOnHandQty')}
+                      </Tooltip>
+                    ),
+                    dataIndex: 'on_hand_quantity',
+                    key: 'on_hand_quantity',
+                    width: 96,
+                    align: 'right' as const,
+                    render: (val: unknown) => formatQuantity(val),
+                  },
+                  {
+                    title: (
+                      <Tooltip title={t('app.kuaizhizao.salesOrder.colAvailableQtyTip')}>
+                        {t('app.kuaizhizao.salesOrder.colAvailableQty')}
+                      </Tooltip>
+                    ),
+                    dataIndex: 'available_quantity',
+                    key: 'available_quantity',
+                    width: 96,
+                    align: 'right' as const,
+                    render: (val: unknown) => formatQuantity(val),
+                  },
+                  {
+                    title: (
+                      <Tooltip title={t('app.kuaizhizao.salesOrder.colOtherSalesCommittedTip')}>
+                        {t('app.kuaizhizao.salesOrder.colOtherSalesCommitted')}
+                      </Tooltip>
+                    ),
+                    dataIndex: 'other_sales_committed_quantity',
+                    key: 'other_sales_committed_quantity',
+                    width: 108,
+                    align: 'right' as const,
+                    render: (val: unknown) => formatQuantity(val),
+                  },
+                  {
+                    title: (
+                      <Tooltip title={t('app.kuaizhizao.salesOrder.colSuggestedMakeQtyTip')}>
+                        {t('app.kuaizhizao.salesOrder.colSuggestedMakeQty')}
+                      </Tooltip>
+                    ),
+                    dataIndex: 'suggested_make_quantity',
+                    key: 'suggested_make_quantity',
+                    width: 96,
+                    align: 'right' as const,
+                    render: (val: unknown) => formatQuantity(val),
+                  },
                   { title: t('app.kuaizhizao.salesOrder.colPushedQty'), dataIndex: 'pushed_quantity', key: 'pushed_quantity', width: 90, align: 'right' as const, render: formatQuantity },
                   { title: t('app.kuaizhizao.salesOrder.colPushableQty'), dataIndex: 'max_push_quantity', key: 'max_push_quantity', width: 90, align: 'right' as const, render: formatQuantity },
                   {

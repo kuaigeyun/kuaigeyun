@@ -139,6 +139,7 @@ def derive_sales_order_capabilities(
     has_pushable_qty: bool = False,
     has_remaining_work_order_qty: bool = True,
     has_existing_delivery_project: bool = False,
+    has_downstream_documents: bool = False,
     require_audit_before_print: bool = False,
 ) -> SalesOrderCapabilities:
     status = getattr(order, "status", None)
@@ -153,16 +154,19 @@ def derive_sales_order_capabilities(
         update_allowed = True
     update_cap = _cap(update_allowed, update_reason if not update_allowed else None)
 
-    # delete — 草稿、待审核或已提交
-    delete_allowed = (
+    # delete — 草稿、待审核或已提交，且尚无下游单据
+    delete_status_ok = (
         _is_draft(status)
         or _is_pending_review_status(status)
         or _norm_status(status) == "已提交"
     )
-    delete_cap = _cap(
-        delete_allowed,
-        "sales_order.delete.not_allowed" if not delete_allowed else None,
-    )
+    delete_allowed = delete_status_ok and not has_downstream_documents
+    delete_reason = None
+    if has_downstream_documents:
+        delete_reason = "sales_order.delete.has_downstream"
+    elif not delete_status_ok:
+        delete_reason = "sales_order.delete.not_allowed"
+    delete_cap = _cap(delete_allowed, delete_reason)
 
     # submit — 草稿（已审核时 submit 接口直接返回，不报错）
     submit_allowed = _is_draft(status)
@@ -416,6 +420,7 @@ def assert_sales_order_capability(
     has_pushable_qty: bool = False,
     has_remaining_work_order_qty: bool = True,
     has_existing_delivery_project: bool = False,
+    has_downstream_documents: bool = False,
     require_audit_before_print: bool = False,
 ) -> None:
     caps = derive_sales_order_capabilities(
@@ -428,6 +433,7 @@ def assert_sales_order_capability(
         has_pushable_qty=has_pushable_qty,
         has_remaining_work_order_qty=has_remaining_work_order_qty,
         has_existing_delivery_project=has_existing_delivery_project,
+        has_downstream_documents=has_downstream_documents,
         require_audit_before_print=require_audit_before_print,
     )
     cap_map = {

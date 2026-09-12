@@ -371,20 +371,19 @@ class SemiFinishedGoodsReceiptService(AppBaseService[SemiFinishedGoodsReceipt]):
             )
 
             # 确认未传入库时间时保留建单所选业务时刻，禁止一律写成「此刻」
-            from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_receiver
+            from apps.kuaizhizao.utils.inbound_confirm_helper import (
+                resolve_inbound_confirm_business_time,
+                resolve_inbound_confirm_receiver,
+            )
 
             receiver_id, receiver_name = await resolve_inbound_confirm_receiver(
                 confirmed_by=confirmed_by,
                 confirmation_data=confirmation_data,
                 get_user_name=self.get_user_name,
             )
-            confirm_receipt_time = (
-                confirmation_data.receipt_time
-                if confirmation_data and confirmation_data.receipt_time
-                else None
-            )
-            receipt_time = resolve_business_datetime(
-                confirm_receipt_time or getattr(receipt, "receipt_time", None)
+            receipt_time = resolve_inbound_confirm_business_time(
+                confirmation_data,
+                existing_time=getattr(receipt, "receipt_time", None),
             )
             await SemiFinishedGoodsReceipt.filter(tenant_id=tenant_id, id=receipt_id).update(
                 status="已入库",

@@ -112,9 +112,10 @@ class EquipmentStatusHistory(BaseModel):
         status_changed_at: 状态变更时间
         changed_by: 变更人ID
         changed_by_name: 变更人姓名
-        reason: 变更原因
-        remark: 备注
-        created_at: 创建时间
+    reason: 变更原因
+    remark: 备注
+    attachments: 附件列表
+    created_at: 创建时间
         updated_at: 更新时间
     """
 
@@ -151,6 +152,7 @@ class EquipmentStatusHistory(BaseModel):
     # 变更原因
     reason = fields.CharField(max_length=200, null=True, description="变更原因")
     remark = fields.TextField(null=True, description="备注")
+    attachments = fields.JSONField(null=True, description="附件列表")
 
     # 软删除字段
     deleted_at = fields.DatetimeField(null=True, description="删除时间（软删除）")

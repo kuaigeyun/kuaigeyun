@@ -52,6 +52,19 @@ def _is_audited_for_computation(demand: Any) -> bool:
     return demand_allows_computation_merge(demand)
 
 
+def _is_deletable_demand_status(demand: Any) -> bool:
+    status = str(getattr(demand, "status", None) or "").strip()
+    if status in (DemandStatus.DRAFT.value, "草稿", "draft"):
+        return True
+    return status in (
+        DemandStatus.PENDING_REVIEW.value,
+        "PENDING_REVIEW",
+        "PENDING",
+        "待审核",
+        "已提交",
+    )
+
+
 def derive_demand_capabilities(demand: Any) -> DemandCapabilities:
     merge_allowed = _is_audited_for_computation(demand)
     merge_reason = "demand.merge_computation.not_audited" if not merge_allowed else None
@@ -59,13 +72,25 @@ def derive_demand_capabilities(demand: Any) -> DemandCapabilities:
         merge_allowed = False
         merge_reason = "demand.push_computation.already_pushed"
     merge_cap = _cap(merge_allowed, merge_reason if not merge_allowed else None)
-    return DemandCapabilities(merge_computation=merge_cap)
+
+    demand_type = str(getattr(demand, "demand_type", None) or "").strip()
+    delete_allowed = False
+    delete_reason = "demand.delete.not_allowed"
+    if demand_type in ("sales_forecast", "sales_order"):
+        delete_reason = "demand.delete.synced_upstream"
+    elif demand_type == "demand_plan" and _is_deletable_demand_status(demand):
+        delete_allowed = True
+        delete_reason = None
+    delete_cap = _cap(delete_allowed, delete_reason)
+
+    return DemandCapabilities(merge_computation=merge_cap, delete=delete_cap)
 
 
 def assert_demand_capability(demand: Any, action: str) -> None:
     caps = derive_demand_capabilities(demand)
     cap_map = {
         "merge_computation": caps.merge_computation,
+        "delete": caps.delete,
     }
     cap = cap_map.get(action)
     if cap is None:

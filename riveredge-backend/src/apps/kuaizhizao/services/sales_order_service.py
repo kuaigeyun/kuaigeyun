@@ -1162,6 +1162,14 @@ class SalesOrderService:
             has_existing_delivery_project=has_existing_delivery_project,
             has_remaining_work_order_qty=remaining_wo > 0,
         )
+        if action == "delete":
+            from apps.kuaizhizao.services.sales_order_code_sync import (
+                sales_order_has_downstream_documents,
+            )
+
+            ctx["has_downstream_documents"] = await sales_order_has_downstream_documents(
+                tenant_id, int(order.id)
+            )
         require_audit_before_print = (
             await self.business_config_service.get_sales_require_audit_before_print(tenant_id)
         )
@@ -1920,6 +1928,13 @@ class SalesOrderService:
         payment_milestones = await SalesOrderTermsService.load_payment_milestones(
             tenant_id, sales_order_id
         )
+        from apps.kuaizhizao.services.sales_order_code_sync import (
+            sales_order_has_downstream_documents,
+        )
+
+        has_downstream_documents = await sales_order_has_downstream_documents(
+            tenant_id, sales_order_id
+        )
         resp = enrich_sales_order_capabilities_on_response(
             order,
             self._order_to_response(
@@ -1939,6 +1954,7 @@ class SalesOrderService:
                 audit_enabled=audit_enabled,
             ),
             require_audit_before_print=require_audit_before_print,
+            has_downstream_documents=has_downstream_documents,
             **self._sales_order_capability_context(
                 order, items, demand, pushable_by_item=pushable_by_item,
                 has_existing_delivery_project=has_existing_delivery_project,
@@ -2507,6 +2523,9 @@ class SalesOrderService:
         delivery_project_by_order = await self._batch_has_delivery_project_by_order(
             tenant_id, order_ids
         )
+        from apps.kuaizhizao.services.sales_order_code_sync import sales_order_downstream_by_ids
+
+        downstream_by_order = await sales_order_downstream_by_ids(tenant_id, order_ids)
 
         # 6. 组装响应
         sales_orders = []
@@ -2557,6 +2576,7 @@ class SalesOrderService:
                         audit_enabled=audit_enabled,
                     ),
                     require_audit_before_print=require_audit_before_print,
+                    has_downstream_documents=downstream_by_order.get(order.id, False),
                     **self._sales_order_capability_context(
                         order,
                         items,
@@ -3003,6 +3023,13 @@ class SalesOrderService:
                 prepayment_bank_account_id=order_row.prepayment_bank_account_id,
                 operator_id=submitted_by,
             )
+            from apps.kuaizhizao.services.contract_milestone_billing_service import (
+                ContractMilestoneBillingService,
+            )
+
+            await ContractMilestoneBillingService().auto_generate_receivables_for_sales_order(
+                tenant_id, sales_order_id, submitted_by
+            )
             return await self.get_sales_order_by_id(tenant_id, sales_order_id)
 
         from core.services.approval.approval_instance_service import ApprovalInstanceService
@@ -3140,6 +3167,13 @@ class SalesOrderService:
                 prepayment_amount=order_row.prepayment_amount,
                 prepayment_bank_account_id=order_row.prepayment_bank_account_id,
                 operator_id=approved_by,
+            )
+            from apps.kuaizhizao.services.contract_milestone_billing_service import (
+                ContractMilestoneBillingService,
+            )
+
+            await ContractMilestoneBillingService().auto_generate_receivables_for_sales_order(
+                tenant_id, sales_order_id, approved_by
             )
             auto_push_result = await self._try_auto_push_order_to_computation(
                 tenant_id=tenant_id,
@@ -3405,20 +3439,29 @@ class SalesOrderService:
         item_data: Any,
         material_map: Dict[int, Material],
     ) -> tuple[str, str, Optional[str], str]:
+        from apps.kuaizhizao.utils.material_unit_utils import resolve_material_scenario_unit
+
         mid = int(getattr(item_data, "material_id", None) or 0)
+        payload_unit = str(getattr(item_data, "material_unit", None) or "").strip()
         if mid > 0 and mid in material_map:
             m = material_map[mid]
+            if payload_unit:
+                mat_unit = payload_unit[:20]
+            else:
+                mat_unit = (
+                    resolve_material_scenario_unit(m, "sale") or m.base_unit or ""
+                )[:20]
             return (
                 (m.main_code or getattr(m, "code", None) or "")[:50],
                 (m.name or "")[:200],
                 (getattr(m, "specification", None) or "")[:200] or None,
-                (m.base_unit or "")[:20],
+                mat_unit,
             )
         return (
             (getattr(item_data, "material_code", None) or "")[:50],
             (getattr(item_data, "material_name", None) or "")[:200],
             (getattr(item_data, "material_spec", None) or "")[:200] or None,
-            (getattr(item_data, "material_unit", None) or "")[:20],
+            payload_unit[:20],
         )
 
     @staticmethod
@@ -3922,7 +3965,6 @@ class SalesOrderService:
             SOURCE_TYPE_CONFIGURE,
             resolve_mrp_supply_source_type,
         )
-        from apps.kuaizhizao.utils.inventory_helper import get_material_inventory_info
         from apps.master_data.models.material import Material
 
         # 汇总待生成工单的物料：material_id -> {qty, material_code, material_name, delivery_date}
@@ -3969,6 +4011,8 @@ class SalesOrderService:
         work_order_service = WorkOrderService()
         relation_service = DocumentRelationNewService()
         selected_by_material: Dict[int, Decimal] = {}
+        has_positive_push_qty = False
+        skipped_non_make_products: List[str] = []
 
         for it in items:
             item_id = int(getattr(it, "id", 0) or 0)
@@ -3984,6 +4028,7 @@ class SalesOrderService:
             use_qty = qty_override.get(item_id, max_qty)
             if use_qty <= 0:
                 continue
+            has_positive_push_qty = True
             if use_qty > order_qty:
                 raise BusinessLogicError(
                     f"物料 {it.material_code or it.material_name or item_id} 本次下推数量 {use_qty} "
@@ -4016,11 +4061,10 @@ class SalesOrderService:
             if material_row:
                 if resolve_mrp_supply_source_type(material_row) != SOURCE_TYPE_MAKE:
                     skip_root_wo = True
-                else:
-                    inv = await get_material_inventory_info(tenant_id, material_id)
-                    avail = float(inv.get("available_quantity") or 0)
-                    if avail >= qty:
-                        skip_root_wo = True
+                    label = f"{it.material_code or ''} {it.material_name or ''}".strip() or str(
+                        material_id
+                    )
+                    skipped_non_make_products.append(label)
             if bom and bom.bom_code:
                 # 有BOM：展开，成品+半成品（Make/Outsource/Configure）生成工单
                 if not skip_root_wo:
@@ -4084,16 +4128,17 @@ class SalesOrderService:
         work_orders = []
 
         async def _create_one_work_order(info: Dict[str, Any], qty_dec: Decimal):
-            from apps.kuaizhizao.utils.working_time import WorkHoursConfig
+            from apps.kuaizhizao.utils.mrp_scheduling_helper import (
+                resolve_direct_push_work_order_planned_dates,
+            )
+            from core.utils.timezone_utils import resolve_business_datetime, to_site_date
 
             custom_remarks = (info.get("remarks") or "").strip()
             default_remarks = f"由销售订单 {order.order_code} 直推（含半成品）"
-            # 交期锚点对齐内置班次起点（默认 08:00），勿用 00:00
-            shift_start = WorkHoursConfig.defaults().start
-            delivery_anchor = (
-                datetime.combine(info["earliest_delivery"], shift_start)
-                if info.get("earliest_delivery")
-                else None
+            planned_start_date, planned_end_date = resolve_direct_push_work_order_planned_dates(
+                document_start_date=order.order_date,
+                delivery_date=info.get("earliest_delivery"),
+                today=to_site_date(resolve_business_datetime()),
             )
             wo_data = WorkOrderCreate(
                 code_rule="WORK_ORDER_CODE",
@@ -4107,8 +4152,8 @@ class SalesOrderService:
                 sales_order_name=order.order_code,
                 work_center_id=info.get("work_center_id"),
                 work_center_name=info.get("work_center_name"),
-                planned_start_date=delivery_anchor,
-                planned_end_date=delivery_anchor,
+                planned_start_date=planned_start_date,
+                planned_end_date=planned_end_date,
                 remarks=custom_remarks or default_remarks,
             )
             wo = await work_order_service.create_work_order(
@@ -4156,7 +4201,19 @@ class SalesOrderService:
             await _create_one_work_order(info, total_qty_dec)
 
         if not work_orders:
-            raise BusinessLogicError("所选明细的本次下推数量均为 0，无法生成工单")
+            if not has_positive_push_qty:
+                raise BusinessLogicError("所选明细的本次下推数量均为 0，无法生成工单")
+            if skipped_non_make_products:
+                names = "、".join(skipped_non_make_products[:5])
+                suffix = " 等" if len(skipped_non_make_products) > 5 else ""
+                raise BusinessLogicError(
+                    f"无法生成工单：所选产品 {names}{suffix} 供应方式非自制，"
+                    f"且 BOM 展开后无半成品或外协工单。采购件请走采购流程；"
+                    f"若确需生产请先在物料主数据中将供应方式设为自制"
+                )
+            raise BusinessLogicError(
+                "无法生成工单：所选明细经 BOM 展开后无自制或外协工单需求"
+            )
 
         work_order_group: Optional[Dict[str, Any]] = None
         if raw_granularity == "peer_group":
@@ -4248,8 +4305,17 @@ class SalesOrderService:
             get_material_source_type,
             validate_material_source_config,
         )
+        from apps.kuaizhizao.utils.inventory_helper import batch_get_material_inventory
+        from apps.kuaizhizao.utils.sales_order_push_qty import batch_sales_committed_by_material
 
         material_fallback = await self._load_material_fallback_for_items(tenant_id, items)
+        material_ids_for_inv = [int(getattr(it, "material_id", 0) or 0) for it in items]
+        inventory_by_material = await batch_get_material_inventory(tenant_id, material_ids_for_inv)
+        other_committed_by_material = await batch_sales_committed_by_material(
+            tenant_id,
+            material_ids_for_inv,
+            exclude_sales_order_id=sales_order_id,
+        )
         preview_items: List[Dict[str, Any]] = []
         has_blocking_issues = False
         material_ids = [int(getattr(it, "material_id", 0) or 0) for it in items]
@@ -4290,6 +4356,12 @@ class SalesOrderService:
             if errors:
                 has_blocking_issues = True
             material_code, material_name = self._resolve_item_material_display(it, material_fallback)
+            inv_row = inventory_by_material.get(mid) or {}
+            on_hand_qty = float(inv_row.get("on_hand") or 0)
+            available_qty = float(inv_row.get("available_quantity") or 0)
+            other_committed = float(other_committed_by_material.get(mid, Decimal("0")))
+            net_available = max(Decimal("0"), Decimal(str(available_qty)) - Decimal(str(other_committed)))
+            suggested_make = max(Decimal("0"), max_qty - Decimal(str(on_hand_qty)))
             preview_items.append(
                 {
                     "item_id": item_id,
@@ -4298,6 +4370,11 @@ class SalesOrderService:
                     "quantity": float(qty),
                     "pushed_quantity": float(pushed_by_material.get(mid, Decimal("0"))),
                     "max_push_quantity": float(max_qty),
+                    "on_hand_quantity": on_hand_qty,
+                    "available_quantity": available_qty,
+                    "other_sales_committed_quantity": other_committed,
+                    "net_available_quantity": float(net_available),
+                    "suggested_make_quantity": float(suggested_make),
                     "delivery_date": str(it.delivery_date) if it.delivery_date else None,
                     "item_notes": (getattr(it, "notes", None) or "").strip() or None,
                     "suggested_action": "生产",
@@ -4315,7 +4392,13 @@ class SalesOrderService:
             "items": preview_items,
             "has_blocking_issues": has_blocking_issues,
             "push_mode_default": await self.business_config_service.get_push_default_mode(tenant_id),
-            "tip": "确认后将按所选数量下推工单；系统会按 BOM 展开成品/半成品工单。若缺少主数据可先草稿下推，后续补齐再下达。",
+            "tip": (
+                "确认后将按所选数量下推工单；系统会按 BOM 展开成品/半成品工单。"
+                "仓库现存量供参考；「其他销售占用」为除本单外有效销售订单未交付量（锁单口径），"
+                "新单可用库存约等于可用库存减其他销售占用。"
+                "现有库存不会阻止下推，建议生产量仅供参考。"
+                "若缺少主数据可先草稿下推，后续补齐再下达。"
+            ),
         }
 
     async def create_sales_order_reminder(

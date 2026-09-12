@@ -202,6 +202,24 @@ class ExternalSyncSchedulerService:
 
         return stats
 
+    @classmethod
+    async def run_due_syncs_for_tenant(cls, tenant_id: int) -> dict[str, int]:
+        stats = {
+            "tenants": 1,
+            "unit": 0,
+            "group": 0,
+            "material": 0,
+            "customer": 0,
+            "supplier": 0,
+            "warehouse": 0,
+            "sales_order": 0,
+            "purchase_order": 0,
+            "work_order": 0,
+            "errors": 0,
+        }
+        await cls._run_tenant(int(tenant_id), stats)
+        return stats
+
 
 
     @classmethod

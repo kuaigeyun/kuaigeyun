@@ -29,7 +29,7 @@ import {
   useEquipmentDetailDrawer,
 } from '../shared/equipmentMasterDataDetail';
 import { equipmentApi } from '../../../services/equipment';
-import { inspectionSchemesApi, spotChecksApi } from '../../../services/equipmentOps';
+import { inspectionSchemesApi, schemeBindingsApi, spotChecksApi } from '../../../services/equipmentOps';
 import { formDateRangeFormItemProps } from '../../../../../utils/formDate';
 import { alignProColumns, SALES_DOC_LIST_FIELD_RANK } from '../../sales-management/shared/documentFieldAlignment';
 import { buildDocumentAuditColumns } from '../../shared/documentAuditColumns';
@@ -134,6 +134,15 @@ const SpotChecksPage: React.FC = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [equipmentOptions, setEquipmentOptions] = useState<{ label: string; value: number }[]>([]);
   const [equipmentUuidById, setEquipmentUuidById] = useState<Record<number, string>>({});
+  const [equipmentById, setEquipmentById] = useState<
+    Record<
+      number,
+      {
+        spot_check_person_id?: number;
+        spot_check_person_name?: string;
+      }
+    >
+  >({});
   const [schemeOptions, setSchemeOptions] = useState<{ label: string; value: number }[]>([]);
   const { open: detailVisible, loading: detailLoading, detail, openDetail, closeDetail } =
     useEquipmentDetailDrawer<SpotCheck>();
@@ -182,17 +191,37 @@ const SpotChecksPage: React.FC = () => {
         ...(schemeDomain ? { domain: schemeDomain } : { domain: 'equipment' }),
       }),
     ]);
+    const equipmentItems = eqRes.items ?? [];
     setEquipmentOptions(
-      (eqRes.items ?? []).map((eq: { id: number; code: string; name: string }) => ({
+      equipmentItems.map((eq: { id: number; code: string; name: string }) => ({
         label: `${eq.code} - ${eq.name}`,
         value: eq.id,
       })),
     );
     setEquipmentUuidById(
       Object.fromEntries(
-        (eqRes.items ?? [])
+        equipmentItems
           .filter((eq: { id: number; uuid?: string }) => eq.id && eq.uuid)
           .map((eq: { id: number; uuid: string }) => [eq.id, eq.uuid]),
+      ),
+    );
+    setEquipmentById(
+      Object.fromEntries(
+        equipmentItems
+          .filter((eq: { id: number }) => eq.id)
+          .map(
+            (eq: {
+              id: number;
+              spot_check_person_id?: number;
+              spot_check_person_name?: string;
+            }) => [
+              eq.id,
+              {
+                spot_check_person_id: eq.spot_check_person_id,
+                spot_check_person_name: eq.spot_check_person_name,
+              },
+            ],
+          ),
       ),
     );
     setSchemeOptions(
@@ -946,8 +975,36 @@ const SpotChecksPage: React.FC = () => {
               showSearch
               fieldProps={{
                 onChange: (val: number) => {
-                  const schemeId = formRef.current?.getFieldValue('scheme_id');
-                  void handlePreview(val, schemeId);
+                  void (async () => {
+                    let schemeId = formRef.current?.getFieldValue('scheme_id') as number | undefined;
+                    if (!isEdit && val) {
+                      try {
+                        const bindings = await schemeBindingsApi.list({
+                          equipment_id: val,
+                          scheme_type: 'spot_check',
+                        });
+                        if (bindings.length === 1) {
+                          schemeId = bindings[0].scheme_id;
+                          formRef.current?.setFieldsValue({ scheme_id: schemeId });
+                        }
+                      } catch (error: unknown) {
+                        messageApi.error(getApiErrorMessage(error, t(`${P}.previewFailed`)));
+                      }
+                    }
+                    void handlePreview(val, schemeId);
+                    if (!isEdit && val) {
+                      const equipment = equipmentById[val];
+                      if (equipment?.spot_check_person_id) {
+                        formRef.current?.setFieldsValue({
+                          inspector_id: equipment.spot_check_person_id,
+                          inspector_name: equipment.spot_check_person_name,
+                        });
+                        void resolveUserUuidById(equipment.spot_check_person_id).then((uuid) => {
+                          formRef.current?.setFieldsValue({ inspector_uuid: uuid });
+                        });
+                      }
+                    }
+                  })();
                 },
               }}
             />

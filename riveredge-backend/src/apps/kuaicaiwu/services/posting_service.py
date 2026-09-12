@@ -253,10 +253,14 @@ class PostingService:
         if voucher.status != "draft":
             raise ValidationError("仅草稿凭证可修改")
         settings = await self.settings_service.get_or_create(tenant_id)
+        # 业务事件生成的凭证创建时允许受控科目；更新日期/摘要等须保持同一口径
+        allow_controlled = bool(settings.allow_gl_entry_on_controlled) or bool(
+            voucher.source_event_id
+        )
         lines = await self._validate_lines(
             tenant_id,
             data.get("lines") or [],
-            allow_controlled=bool(settings.allow_gl_entry_on_controlled),
+            allow_controlled=allow_controlled,
         )
         if data.get("voucher_date"):
             vd = data["voucher_date"]

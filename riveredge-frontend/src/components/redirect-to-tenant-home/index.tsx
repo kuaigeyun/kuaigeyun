@@ -1,7 +1,6 @@
-import { Navigate } from 'react-router-dom';
-import { getDefaultTenantHomePath } from '../../stores/configStore';
+import TenantHomeRedirect from '../tenant-home-redirect';
 
-/** 已登录访问 /login：立刻跳到本地默认首页（自定义首页由 refinePostLoginHomeInBackground 后台修正） */
+/** 已登录访问 /login：解析有效首页后跳转（角色 > 菜单主页 > 工作台 > 兜底页） */
 export default function RedirectToTenantHome() {
-  return <Navigate to={getDefaultTenantHomePath()} replace />;
+  return <TenantHomeRedirect />;
 }

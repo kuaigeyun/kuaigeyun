@@ -59,18 +59,9 @@ class EquipmentStatusMonitorService:
         # 验证设备是否存在
         equipment = await EquipmentService.get_equipment_by_uuid(tenant_id, data.equipment_uuid)
 
-        # 创建监控记录
-        monitor = EquipmentStatusMonitor(
-            tenant_id=tenant_id,
-            equipment_id=equipment.id,
-            equipment_uuid=equipment.uuid,
-            equipment_code=equipment.code,
-            equipment_name=equipment.name,
-            **data.model_dump(exclude={"equipment_uuid"}, exclude_none=True)
-        )
-        await monitor.save()
+        monitor = await self._save_status_monitor(tenant_id, equipment, data)
 
-        # 如果状态发生变化，记录状态历史
+        # SCADA/传感器等自动采集：仅状态变化时写历史并回写台账
         if equipment.status != data.status:
             await self._create_status_history(
                 tenant_id=tenant_id,
@@ -80,12 +71,28 @@ class EquipmentStatusMonitorService:
                 to_status=data.status,
                 changed_by=created_by,
                 reason="状态监控更新",
+                attachments=data.attachments,
             )
-
-            # 更新设备状态
             equipment.status = data.status
             await equipment.save()
 
+        return monitor
+
+    @staticmethod
+    async def _save_status_monitor(
+        tenant_id: int,
+        equipment: Equipment,
+        data: EquipmentStatusMonitorCreate,
+    ) -> EquipmentStatusMonitor:
+        monitor = EquipmentStatusMonitor(
+            tenant_id=tenant_id,
+            equipment_id=equipment.id,
+            equipment_uuid=equipment.uuid,
+            equipment_code=equipment.code,
+            equipment_name=equipment.name,
+            **data.model_dump(exclude={"equipment_uuid"}, exclude_none=True),
+        )
+        await monitor.save()
         return monitor
 
     async def get_latest_status(
@@ -240,37 +247,34 @@ class EquipmentStatusMonitorService:
         # 验证设备是否存在
         equipment = await EquipmentService.get_equipment_by_uuid(tenant_id, data.equipment_uuid)
 
-        # 获取当前状态
         from_status = equipment.status
 
-        # 如果状态发生变化，记录状态历史
+        user_name = None
+        if updated_by:
+            try:
+                user_info = await self.work_order_service.get_user_info(updated_by)
+                user_name = user_info.get("name") if user_info else None
+            except Exception:
+                pass
+
+        # 手动更新：始终写历史（含仅上传附件/备注的场景）
+        await self._create_status_history(
+            tenant_id=tenant_id,
+            equipment_id=equipment.id,
+            equipment_uuid=equipment.uuid,
+            from_status=from_status,
+            to_status=data.status,
+            changed_by=updated_by,
+            changed_by_name=user_name,
+            reason=data.reason,
+            remark=data.remark,
+            attachments=data.attachments,
+        )
+
         if from_status != data.status:
-            # 获取用户信息
-            user_name = None
-            if updated_by:
-                try:
-                    user_info = await self.work_order_service.get_user_info(updated_by)
-                    user_name = user_info.get("name") if user_info else None
-                except:
-                    pass
-
-            await self._create_status_history(
-                tenant_id=tenant_id,
-                equipment_id=equipment.id,
-                equipment_uuid=equipment.uuid,
-                from_status=from_status,
-                to_status=data.status,
-                changed_by=updated_by,
-                changed_by_name=user_name,
-                reason=data.reason,
-                remark=data.remark,
-            )
-
-            # 更新设备状态
             equipment.status = data.status
             await equipment.save()
 
-        # 创建新的监控记录
         monitor_data = EquipmentStatusMonitorCreate(
             equipment_uuid=data.equipment_uuid,
             status=data.status,
@@ -279,12 +283,7 @@ class EquipmentStatusMonitorService:
             data_source="manual",
             attachments=data.attachments,
         )
-
-        return await self.create_status_monitor(
-            tenant_id=tenant_id,
-            data=monitor_data,
-            created_by=updated_by
-        )
+        return await self._save_status_monitor(tenant_id, equipment, monitor_data)
 
     async def get_status_history(
         self,
@@ -327,6 +326,7 @@ class EquipmentStatusMonitorService:
         changed_by_name: Optional[str] = None,
         reason: Optional[str] = None,
         remark: Optional[str] = None,
+        attachments: Optional[List[dict]] = None,
     ) -> EquipmentStatusHistory:
         """
         创建状态历史记录（内部方法）
@@ -356,6 +356,7 @@ class EquipmentStatusMonitorService:
             changed_by_name=changed_by_name,
             reason=reason,
             remark=remark,
+            attachments=attachments,
         )
         await history.save()
         return history

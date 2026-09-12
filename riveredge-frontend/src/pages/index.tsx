@@ -7,11 +7,11 @@
  * 这样可避免首屏依赖生产环境对 /login 的反代/静态路由配置，降低白屏风险。
  */
 
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { getToken } from '../utils/auth';
-import { getDefaultTenantHomePath } from '../stores/configStore';
 import { buildLoginRedirectPath } from '../utils/tenantDomainAccess';
+import TenantHomeRedirect from '../components/tenant-home-redirect';
 
 export default function IndexPage() {
   const navigate = useNavigate();
@@ -26,5 +26,5 @@ export default function IndexPage() {
     return null;
   }
 
-  return <Navigate to={getDefaultTenantHomePath()} replace />;
+  return <TenantHomeRedirect />;
 }

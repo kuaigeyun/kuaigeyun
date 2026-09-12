@@ -145,6 +145,7 @@ class DemandComputationCapabilities(BaseModel):
 
 class DemandCapabilities(BaseModel):
     merge_computation: ActionCapability
+    delete: ActionCapability
 
 
 class PurchaseRequisitionCapabilities(BaseModel):
@@ -394,6 +395,7 @@ CAPABILITY_REASON_MESSAGES: dict[str, str] = {
     "sales_order.update.not_allowed": "只能更新草稿或待审核的销售订单",
     "sales_order.update.locked": "销售订单已生效或执行中，禁止直接修改，请通过销售变更单变更",
     "sales_order.delete.not_allowed": "只能删除草稿或待审核状态的订单",
+    "sales_order.delete.has_downstream": "该销售订单已有下游单据，不能删除",
     "sales_order.submit.not_draft": "只能提交草稿状态的订单",
     "sales_order.close.not_allowed": "当前状态不可关闭订单",
     "sales_order.close.already_closed": "订单已关闭",
@@ -508,9 +510,12 @@ CAPABILITY_REASON_MESSAGES: dict[str, str] = {
     "demand_computation.recompute.not_allowed": "只能对已完成或失败的计算执行重新计算",
     "demand_computation.compare.not_completed": "只能对比已完成的需求计算",
     "demand.merge_computation.not_audited": "只能对已审核或已确认的需求合并计算",
+    "demand.delete.not_allowed": "只能删除草稿或待审核状态的需求计划",
+    "demand.delete.synced_upstream": "由销售预测或销售订单同步的需求不可删除，请在对应上游单据中处理",
     "demand.push_computation.already_pushed": "需求已下推需求计算，不可重复合并",
     "purchase_requisition.update.not_allowed": "当前状态不可编辑采购申请",
     "purchase_requisition.delete.not_allowed": "当前状态不可删除采购申请",
+    "purchase_requisition.delete.has_purchase_order": "采购申请已有明细转采购订单，不能删除",
     "purchase_requisition.submit.not_draft": "只有草稿状态可提交",
     "purchase_requisition.approve.not_pending": "只有待审核状态的采购申请可审核",
     "purchase_requisition.revoke_approval.not_allowed": "只有已通过且未转采购订单的采购申请可撤回审核",
@@ -533,11 +538,13 @@ CAPABILITY_REASON_MESSAGES: dict[str, str] = {
     "purchase_inquiry.push_purchase_order.no_lines": "没有可下推的已定标询价明细",
     "purchase_order.update.not_allowed": "只能更新草稿或待审核的采购订单",
     "purchase_order.delete.not_allowed": "只能删除草稿或待审核的采购订单",
+    "purchase_order.delete.has_downstream": "该采购订单已有下游单据或收货记录，不能删除",
     "purchase_order.submit.not_draft": "只能提交草稿状态的订单",
     "purchase_order.withdraw_submit.not_pending": "只有待审核状态的采购订单可撤回提交",
     "purchase_order.approve.not_pending": "只有待审核状态的采购订单可审核",
     "purchase_order.revoke_approval.not_allowed": "只能撤销审核已确认或已驳回的采购订单",
     "purchase_order.revoke_approval.has_downstream": "该采购订单已有下游单据或收货记录，不能撤销审核",
+    "purchase_order.push.no_supplier": "采购订单未指定供应商，无法下推",
     "purchase_order.push_receipt.not_audited": "只有已审核或已确认的采购单才能下推收货/入库",
     "purchase_order.push_receipt.no_items": "采购单没有明细，无法下推收货/入库",
     "purchase_order.push_receipt.no_outstanding": "采购单已全部入库，无法下推收货/入库",

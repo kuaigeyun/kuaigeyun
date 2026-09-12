@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import PlainTextResponse
@@ -123,6 +123,14 @@ class OpeningBalanceBody(BaseSchema):
     period_year: int
     period_month: int
     items: List[OpeningBalanceItem]
+
+
+class GenerateFromEventsBody(BaseSchema):
+    event_ids: Optional[List[int]] = None
+
+
+class ObsoleteEventVouchersBody(BaseSchema):
+    event_ids: List[int] = Field(..., min_length=1)
 
 
 # ---------- settings / periods ----------
@@ -394,14 +402,52 @@ async def create_draft_voucher_from_event(
         raise _err(exc)
 
 
-@router.post("/vouchers/generate-from-events")
-async def generate_from_events(
+@router.get("/vouchers/pending-events")
+async def list_pending_voucher_events(
+    business_type: Optional[str] = None,
+    source_doc_type: Optional[str] = None,
+    voucher_status: Optional[Literal["pending", "generated"]] = None,
+    skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     current_user: Any = Depends(get_current_user),
 ):
-    return await integration_service.generate_vouchers_from_pending_events(
-        current_user.tenant_id, current_user.id, limit=limit
+    return await integration_service.list_accounting_events_for_voucher(
+        current_user.tenant_id,
+        business_type=business_type,
+        source_doc_type=source_doc_type,
+        voucher_status=voucher_status,
+        skip=skip,
+        limit=limit,
     )
+
+
+@router.post("/vouchers/generate-from-events")
+async def generate_from_events(
+    body: Optional[GenerateFromEventsBody] = None,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: Any = Depends(get_current_user),
+):
+    event_ids = body.event_ids if body and body.event_ids else None
+    return await integration_service.generate_vouchers_from_pending_events(
+        current_user.tenant_id,
+        current_user.id,
+        event_ids=event_ids,
+        limit=limit,
+    )
+
+
+@router.post("/vouchers/obsolete-from-events")
+async def obsolete_vouchers_from_events(
+    body: ObsoleteEventVouchersBody,
+    current_user: Any = Depends(get_current_user),
+):
+    try:
+        return await integration_service.obsolete_vouchers_from_events(
+            current_user.tenant_id,
+            event_ids=body.event_ids,
+        )
+    except ValidationError as exc:
+        raise _err(exc)
 
 
 @router.get("/vouchers/{voucher_id}")

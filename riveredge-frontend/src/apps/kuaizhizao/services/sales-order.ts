@@ -24,6 +24,8 @@ export interface SalesOrderPaymentMilestone {
   billing_trigger?: string;
   /** 预收节点：审单自动生成预收收款单 */
   is_prepayment?: boolean;
+  /** 普通节点是否在审单后自动生成应收 */
+  auto_generate_receivable?: boolean;
   bank_account_id?: number | null;
   status?: string;
   receivable_id?: number;
@@ -475,6 +477,11 @@ export interface PushPreviewResponse {
     quantity: number;
     pushed_quantity?: number;
     max_push_quantity?: number;
+    on_hand_quantity?: number;
+    available_quantity?: number;
+    other_sales_committed_quantity?: number;
+    net_available_quantity?: number;
+    suggested_make_quantity?: number;
     delivery_date?: string;
     suggested_action?: string;
     warehouse_id?: number;

@@ -13,7 +13,7 @@ export interface ScheduledTask {
   name: string;
   code: string;
   description?: string;
-  type: 'python_script' | 'api_call';
+  type: 'python_script' | 'api_call' | 'backup' | 'kuaireport_report_subscription' | 'builtin';
   trigger_type: 'cron' | 'interval' | 'date';
   trigger_config: Record<string, any>;
   task_config: Record<string, any>;
@@ -25,6 +25,8 @@ export interface ScheduledTask {
   last_error?: string;
   created_at: string;
   updated_at: string;
+  is_preset?: boolean;
+  preset_module?: string;
 }
 
 export interface ScheduledTaskListParams {
@@ -61,6 +63,18 @@ export interface UpdateScheduledTaskData {
 export async function getScheduledTaskList(params?: ScheduledTaskListParams): Promise<ScheduledTask[]> {
   return apiRequest<ScheduledTask[]>('/core/scheduled-tasks', {
     params,
+  });
+}
+
+/** 补齐系统内置定时任务预设 */
+export async function syncScheduledTaskPresets(): Promise<{
+  tenant_id: number;
+  created: number;
+  skipped: number;
+  total_presets: number;
+}> {
+  return apiRequest('/core/scheduled-tasks/sync-presets', {
+    method: 'POST',
   });
 }
 

@@ -1717,6 +1717,7 @@ class IncomingInspectionService(AppBaseService[IncomingInspection]):
                     entity_type="incoming_inspection",
                     updated_by=user_id,
                     updated_by_name=updater_name,
+                    inspection=inspection,
                 )
             )
             return await self.get_incoming_inspection_by_id(tenant_id, inspection_id)
@@ -3514,6 +3515,7 @@ class ProcessInspectionService(AppBaseService[ProcessInspection]):
                     entity_type="process_inspection",
                     updated_by=user_id,
                     updated_by_name=updater_name,
+                    inspection=inspection,
                 )
             )
             if inspection.work_order_id:
@@ -5094,6 +5096,7 @@ class FinishedGoodsInspectionService(AppBaseService[FinishedGoodsInspection]):
                     entity_type="finished_goods_inspection",
                     updated_by=user_id,
                     updated_by_name=updater_name,
+                    inspection=inspection,
                 )
             )
             return await self.get_finished_goods_inspection_by_id(tenant_id, inspection_id)

@@ -6,13 +6,27 @@
  */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { ProFormText } from '@ant-design/pro-components';
+import { ProFormText, type ProFormInstance } from '@ant-design/pro-components';
 import { Button, Form, Space } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { App } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { getCodeRulePageConfig, generateCode, testGenerateCode, getDocumentCodeEditability } from '../../services/codeRule';
 import type { CodeRulePageConfig } from '../../services/codeRule';
+
+/** 编号重复校验时传给后端的实体类型（与 CodeGenerationService._check_code_exists 对齐） */
+const ENTITY_TYPE_BY_PAGE_CODE: Record<string, string> = {
+  'master-data-material': 'material',
+  'master-data-process-route': 'process_route',
+  'master-data-engineering-bom': 'bom',
+  'master-data-factory-work-center': 'work_center',
+  'kuaizhizao-sales-order': 'sales_order',
+  'kuaizhizao-production-work-order': 'work_order',
+  'kuaizhizao-equipment-management-equipment': 'equipment',
+  'kuaizhizao-equipment-management-measuring-instruments': 'equipment',
+  'kuaizhizao-equipment-management-mold': 'mold',
+  'kuaizhizao-equipment-management-tool': 'tool',
+};
 
 interface CodeFieldProps {
   /** 页面代码（如：kuaizhizao-sales-order） */
@@ -45,6 +59,10 @@ interface CodeFieldProps {
   colProps?: { span?: number };
   /** 字段属性 */
   fieldProps?: Record<string, any>;
+  /** 父级 FormModal 的 formRef；弹窗内自动生成时优先使用，避免 useFormInstance 尚未就绪写值失败 */
+  formRef?: React.RefObject<ProFormInstance | undefined | null>;
+  /** 新建会话令牌（每次打开新建弹窗递增），触发重新拉取规则并预览下一个编号 */
+  generateSessionKey?: string | number;
 }
 
 const CodeField: React.FC<CodeFieldProps> = ({
@@ -63,6 +81,8 @@ const CodeField: React.FC<CodeFieldProps> = ({
   showGenerateButton = false,
   colProps,
   fieldProps = {},
+  formRef: externalFormRef,
+  generateSessionKey,
 }) => {
   const { t } = useTranslation();
   const { message } = App.useApp();
@@ -73,15 +93,47 @@ const CodeField: React.FC<CodeFieldProps> = ({
     editable: boolean;
     lockedReason: string | null;
   } | null>(null);
-  const hasGeneratedRef = useRef(false);
+  const pendingCodeRef = useRef<string | null>(null);
+  const contextRef = useRef(context);
+  contextRef.current = context;
+
+  const resolveFormInstance = React.useCallback((): ProFormInstance | undefined => {
+    // 弹窗 destroyOnHidden 后父级 formRef 可能仍指向已销毁实例；ProForm 子树内优先用 useFormInstance
+    if (form && typeof form.setFieldsValue === 'function') {
+      return form as ProFormInstance;
+    }
+    const external = externalFormRef?.current;
+    if (external && typeof external.setFieldsValue === 'function') {
+      return external as ProFormInstance;
+    }
+    return undefined;
+  }, [externalFormRef, form]);
 
   const updateFormValue = React.useCallback((code: string) => {
     if (onChange) {
       onChange(code);
-    } else if (form) {
-      form.setFieldsValue({ [name]: code });
+      return;
     }
-  }, [form, name, onChange]);
+    const inst = resolveFormInstance();
+    if (inst) {
+      inst.setFieldsValue({ [name]: code });
+      pendingCodeRef.current = null;
+      return;
+    }
+    pendingCodeRef.current = code;
+  }, [name, onChange, resolveFormInstance]);
+
+  useEffect(() => {
+    if (pendingCodeRef.current == null) {
+      return;
+    }
+    const inst = resolveFormInstance();
+    if (!inst) {
+      return;
+    }
+    inst.setFieldsValue({ [name]: pendingCodeRef.current });
+    pendingCodeRef.current = null;
+  }, [form, name, pageConfig, generateSessionKey, resolveFormInstance]);
 
   useEffect(() => {
     if (!documentId) {
@@ -129,20 +181,9 @@ const CodeField: React.FC<CodeFieldProps> = ({
 
     try {
       setLoading(true);
-      
-      const entityTypeMap: Record<string, string> = {
-        'master-data-material': 'material',
-        'master-data-process-route': 'process_route',
-        'master-data-engineering-bom': 'bom',
-        'master-data-factory-work-center': 'work_center',
-        'kuaizhizao-sales-order': 'sales_order',
-        'kuaizhizao-production-work-order': 'work_order',
-        'kuaizhizao-equipment-management-equipment': 'equipment',
-        'kuaizhizao-equipment-management-mold': 'mold',
-        'kuaizhizao-equipment-management-tool': 'tool',
-      };
-      const entityType = entityTypeMap[pageCode];
-      
+
+      const entityType = ENTITY_TYPE_BY_PAGE_CODE[pageCode];
+
       const response = isTest
         ? await testGenerateCode({
             rule_code: config.ruleCode,
@@ -171,60 +212,64 @@ const CodeField: React.FC<CodeFieldProps> = ({
       return;
     }
 
-    const entityTypeMap: Record<string, string> = {
-      'master-data-material': 'material',
-      'master-data-process-route': 'process_route',
-      'master-data-engineering-bom': 'bom',
-      'master-data-factory-work-center': 'work_center',
-      'kuaizhizao-sales-order': 'sales_order',
-      'kuaizhizao-production-work-order': 'work_order',
-      'kuaizhizao-equipment-management-equipment': 'equipment',
-      'kuaizhizao-equipment-management-mold': 'mold',
-      'kuaizhizao-equipment-management-tool': 'tool',
-    };
-    const entityType = entityTypeMap[pageCode];
-    
+    const entityType = ENTITY_TYPE_BY_PAGE_CODE[pageCode];
+
     try {
+      const inst = resolveFormInstance();
+      if (inst && !value) {
+        inst.setFieldsValue({ [name]: undefined });
+      }
       const response = await testGenerateCode({
         rule_code: config.ruleCode,
         context: currentContext,
         check_duplicate: true,
         entity_type: entityType,
       });
-      if (response.code) {
-        updateFormValue(response.code);
+      const code = (response.code ?? '').trim();
+      if (code) {
+        updateFormValue(code);
       } else {
-        console.info(`编号规则 ${config.ruleCode} 不存在或未启用，跳过自动生成`);
+        message.warning(t('components.codeField.ruleNotConfigured'));
       }
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.detail || error?.message || error;
-      console.warn('自动生成编号失败:', errorMessage);
+      const errorMessage = error?.response?.data?.detail || error?.message || String(error);
+      console.error('自动生成编号失败:', errorMessage);
+      message.error(errorMessage || t('components.codeField.generateFailed'));
     }
-  }, [pageCode, updateFormValue]);
+  }, [message, name, pageCode, resolveFormInstance, t, updateFormValue, value]);
 
   useEffect(() => {
-    hasGeneratedRef.current = false;
-    
+    if (!autoGenerateOnCreate) {
+      return;
+    }
+
+    let cancelled = false;
+
     const loadConfig = async () => {
       try {
         const config = await getCodeRulePageConfig(pageCode);
-        setPageConfig(config);
-        
-        if (autoGenerateOnCreate && config?.autoGenerate && config?.ruleCode && !hasGeneratedRef.current) {
-          if (value) {
-            return;
-          }
-          
-          hasGeneratedRef.current = true;
-          await generateCodeWithContext(config, context);
+        if (cancelled) {
+          return;
         }
+        setPageConfig(config);
+
+        if (!config?.autoGenerate || !config?.ruleCode || value) {
+          return;
+        }
+        await generateCodeWithContext(config, contextRef.current);
       } catch (error) {
+        if (cancelled) {
+          return;
+        }
         console.error('加载编号规则配置失败:', error);
       }
     };
-    loadConfig();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageCode, autoGenerateOnCreate]);
+    void loadConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pageCode, autoGenerateOnCreate, generateSessionKey, value, generateCodeWithContext]);
 
   useEffect(() => {
     if (!autoGenerateOnCreate || !pageConfig?.autoGenerate || !pageConfig?.ruleCode) {

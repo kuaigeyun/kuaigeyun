@@ -1275,6 +1275,7 @@ class OQCInspectionService(AppBaseService[OQCInspection]):
             entity_type="oqc_inspection",
             updated_by=user_id,
             updated_by_name=user_info.get("name", ""),
+            inspection=row,
         )
         for key, value in update_fields.items():
             setattr(row, key, value)

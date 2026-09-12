@@ -805,7 +805,9 @@ class SalesDeliveryConfirmRequest(BaseSchema):
     )
     warehouse_id: Optional[int] = Field(None, description="出库仓库ID（若提供则覆盖表头未指定者）")
     warehouse_name: Optional[str] = Field(None, description="出库仓库名称")
-    delivery_time: Optional[datetime] = Field(None, description="出库时间")
+    delivery_time: Optional[datetime] = Field(None, description="出库时间/制单日期")
+    deliverer_id: Optional[int] = Field(None, description="出库人用户ID（确认时可二次选择）")
+    deliverer_name: Optional[str] = Field(None, max_length=100, description="出库人姓名")
     notes: Optional[str] = Field(None, description="确认备注")
     items: Optional[List["OutboundConfirmationItem"]] = Field(
         None,

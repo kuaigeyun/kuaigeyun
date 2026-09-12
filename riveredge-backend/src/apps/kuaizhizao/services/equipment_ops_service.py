@@ -109,6 +109,24 @@ def _reject_scrapped_equipment(equipment: Equipment) -> None:
         raise ValidationError("设备已报废，不能执行点检或巡检")
 
 
+def _compute_numeric_is_pass(
+    measured_value: Optional[str],
+    numeric_min: Optional[Decimal],
+    numeric_max: Optional[Decimal],
+) -> bool:
+    if not measured_value or not str(measured_value).strip():
+        return True
+    try:
+        val = Decimal(str(measured_value).strip().replace(",", ""))
+    except Exception:
+        return False
+    if numeric_min is not None and val < numeric_min:
+        return False
+    if numeric_max is not None and val > numeric_max:
+        return False
+    return True
+
+
 def _line_is_pass(
     value_type: Optional[str],
     measured_value: Optional[str],
@@ -116,24 +134,20 @@ def _line_is_pass(
     numeric_max: Optional[Decimal],
     explicit_is_pass: Optional[bool] = None,
 ) -> bool:
+    vt = (value_type or "boolean").strip().lower()
+    if vt == "numeric":
+        has_limits = numeric_min is not None or numeric_max is not None
+        measured = (measured_value or "").strip()
+        if has_limits and measured:
+            return _compute_numeric_is_pass(measured_value, numeric_min, numeric_max)
+        if explicit_is_pass is not None:
+            return explicit_is_pass
+        return _compute_numeric_is_pass(measured_value, numeric_min, numeric_max)
     if explicit_is_pass is not None:
         return explicit_is_pass
-    vt = (value_type or "boolean").strip().lower()
     if vt == "boolean":
         mv = (measured_value or "").strip().lower()
         if mv in ("false", "0", "否", "不合格", "no"):
-            return False
-        return True
-    if vt == "numeric":
-        if not measured_value or not str(measured_value).strip():
-            return True
-        try:
-            val = Decimal(str(measured_value).strip().replace(",", ""))
-        except Exception:
-            return False
-        if numeric_min is not None and val < numeric_min:
-            return False
-        if numeric_max is not None and val > numeric_max:
             return False
         return True
     return True
@@ -248,6 +262,45 @@ async def _snapshot_inspection_item(tenant_id: int, item_id: int) -> Dict[str, A
         "unit": item.unit,
         "numeric_min": item.numeric_min,
         "numeric_max": item.numeric_max,
+    }
+
+
+async def _load_inspection_item_map(
+    tenant_id: int,
+    item_ids: List[Optional[int]],
+) -> Dict[int, EquipmentInspectionItem]:
+    ids = sorted({int(i) for i in item_ids if i})
+    if not ids:
+        return {}
+    rows = await EquipmentInspectionItem.filter(
+        tenant_id=tenant_id,
+        id__in=ids,
+        deleted_at__isnull=True,
+    ).all()
+    return {int(row.id): row for row in rows}
+
+
+def _resolve_inspection_item_value_spec(
+    item: Optional[EquipmentInspectionItem],
+    *,
+    fallback_value_type: Optional[str] = None,
+    fallback_unit: Optional[str] = None,
+    fallback_numeric_min: Optional[Decimal] = None,
+    fallback_numeric_max: Optional[Decimal] = None,
+) -> Dict[str, Any]:
+    """点检项主数据为 value_type / 单位 / 上下限真源；方案行快照可能过期。"""
+    if item is not None:
+        return {
+            "value_type": (item.value_type or "boolean").strip().lower(),
+            "unit": item.unit or fallback_unit,
+            "numeric_min": item.numeric_min if item.numeric_min is not None else fallback_numeric_min,
+            "numeric_max": item.numeric_max if item.numeric_max is not None else fallback_numeric_max,
+        }
+    return {
+        "value_type": (fallback_value_type or "boolean").strip().lower(),
+        "unit": fallback_unit,
+        "numeric_min": fallback_numeric_min,
+        "numeric_max": fallback_numeric_max,
     }
 
 
@@ -867,9 +920,17 @@ class EquipmentSpotCheckService:
         resolved_scheme_id = await self._resolve_scheme_id(tenant_id, equipment_id, scheme_id)
         scheme, lines = await self.scheme_service.get_with_lines(tenant_id, resolved_scheme_id)
         capture_mode = _normalize_capture_mode(getattr(scheme, "capture_mode", None))
+        item_map = await _load_inspection_item_map(tenant_id, [line.item_id for line in lines])
         preview_lines: List[SpotCheckPreviewLine] = []
         if capture_mode != "B":
             for idx, line in enumerate(lines):
+                spec = _resolve_inspection_item_value_spec(
+                    item_map.get(int(line.item_id)) if line.item_id else None,
+                    fallback_value_type=line.value_type,
+                    fallback_unit=line.unit,
+                    fallback_numeric_min=line.numeric_min,
+                    fallback_numeric_max=line.numeric_max,
+                )
                 preview_lines.append(
                     SpotCheckPreviewLine(
                         line_no=idx + 1,
@@ -879,10 +940,10 @@ class EquipmentSpotCheckService:
                         requirement=line.requirement,
                         method=getattr(line, "method", None),
                         judgment_standard=getattr(line, "judgment_standard", None),
-                        value_type=line.value_type,
-                        unit=line.unit,
-                        numeric_min=line.numeric_min,
-                        numeric_max=line.numeric_max,
+                        value_type=spec["value_type"],
+                        unit=spec["unit"],
+                        numeric_min=spec["numeric_min"],
+                        numeric_max=spec["numeric_max"],
                         is_critical=bool(getattr(line, "is_critical", False)),
                         photo_required=bool(getattr(line, "photo_required", False)),
                         is_pass=True,
@@ -937,8 +998,16 @@ class EquipmentSpotCheckService:
                 scheme_id=scheme.id,
                 capture_mode=capture_mode,
                 check_date=data.check_date or date.today(),
-                inspector_id=data.inspector_id or operator_id,
-                inspector_name=data.inspector_name or operator_name,
+                inspector_id=(
+                    data.inspector_id
+                    or getattr(equipment, "spot_check_person_id", None)
+                    or operator_id
+                ),
+                inspector_name=(
+                    data.inspector_name
+                    or getattr(equipment, "spot_check_person_name", None)
+                    or operator_name
+                ),
                 reviewer_user_id=getattr(scheme, "reviewer_user_id", None),
                 reviewer_user_name=getattr(scheme, "reviewer_user_name", None),
                 attachments=data.attachments,
@@ -980,13 +1049,28 @@ class EquipmentSpotCheckService:
                 lines=line_inputs,
             )
 
+            item_map = await _load_inspection_item_map(
+                tenant_id,
+                [line_input.item_id for line_input in line_inputs],
+            )
             failed_descriptions: List[str] = []
             for line_input in line_inputs:
+                spec = _resolve_inspection_item_value_spec(
+                    item_map.get(int(line_input.item_id)) if line_input.item_id else None,
+                    fallback_value_type=line_input.value_type,
+                    fallback_unit=line_input.unit,
+                    fallback_numeric_min=line_input.numeric_min,
+                    fallback_numeric_max=line_input.numeric_max,
+                )
+                value_type = spec["value_type"]
+                unit = spec["unit"]
+                numeric_min = spec["numeric_min"]
+                numeric_max = spec["numeric_max"]
                 is_pass = _line_is_pass(
-                    line_input.value_type,
+                    value_type,
                     line_input.measured_value,
-                    line_input.numeric_min,
-                    line_input.numeric_max,
+                    numeric_min,
+                    numeric_max,
                     line_input.is_pass,
                 )
                 await EquipmentSpotCheckLine.create(
@@ -999,8 +1083,8 @@ class EquipmentSpotCheckService:
                     requirement=line_input.requirement,
                     method=line_input.method,
                     judgment_standard=line_input.judgment_standard,
-                    value_type=line_input.value_type,
-                    unit=line_input.unit,
+                    value_type=value_type,
+                    unit=unit,
                     measured_value=line_input.measured_value,
                     is_pass=is_pass,
                     photo_required=bool(line_input.photo_required),
@@ -1345,9 +1429,25 @@ class EquipmentRoutePatrolService:
 
     async def preview_lines(self, tenant_id: int, route_id: int) -> RoutePatrolPreviewResponse:
         route, steps = await self.route_service.get_with_steps(tenant_id, route_id)
+        expanded_steps: List[
+            tuple[Any, Optional[EquipmentInspectionScheme], List[EquipmentInspectionSchemeLine], str]
+        ] = []
+        for step in steps:
+            if not step.scheme_id:
+                expanded_steps.append((step, None, [], "A"))
+                continue
+            scheme, scheme_lines = await self.scheme_service.get_with_lines(tenant_id, step.scheme_id)
+            capture_mode = _normalize_capture_mode(getattr(scheme, "capture_mode", None) or "A")
+            expanded_steps.append((step, scheme, scheme_lines, capture_mode))
+
+        item_map = await _load_inspection_item_map(
+            tenant_id,
+            [sl.item_id for _, _, scheme_lines, _ in expanded_steps for sl in scheme_lines],
+        )
+
         preview_lines: List[RoutePatrolPreviewLine] = []
         line_counter = 0
-        for step in steps:
+        for step, _scheme, scheme_lines, capture_mode in expanded_steps:
             equipment = await _get_equipment_or_raise(tenant_id, step.equipment_id)
             eq_code = step.equipment_code or equipment.code
             eq_name = step.equipment_name or equipment.name
@@ -1366,8 +1466,6 @@ class EquipmentRoutePatrolService:
                     )
                 )
                 continue
-            scheme, scheme_lines = await self.scheme_service.get_with_lines(tenant_id, step.scheme_id)
-            capture_mode = _normalize_capture_mode(getattr(scheme, "capture_mode", None) or "A")
             if capture_mode == "B":
                 line_counter += 1
                 preview_lines.append(
@@ -1385,6 +1483,13 @@ class EquipmentRoutePatrolService:
                 )
                 continue
             for sl in scheme_lines:
+                spec = _resolve_inspection_item_value_spec(
+                    item_map.get(int(sl.item_id)) if sl.item_id else None,
+                    fallback_value_type=sl.value_type,
+                    fallback_unit=sl.unit,
+                    fallback_numeric_min=sl.numeric_min,
+                    fallback_numeric_max=sl.numeric_max,
+                )
                 line_counter += 1
                 preview_lines.append(
                     RoutePatrolPreviewLine(
@@ -1400,8 +1505,8 @@ class EquipmentRoutePatrolService:
                         requirement=sl.requirement,
                         method=getattr(sl, "method", None),
                         judgment_standard=getattr(sl, "judgment_standard", None),
-                        value_type=sl.value_type,
-                        unit=sl.unit,
+                        value_type=spec["value_type"],
+                        unit=spec["unit"],
                         photo_required=bool(getattr(sl, "photo_required", False)),
                         is_pass=True,
                     )
@@ -1431,11 +1536,27 @@ class EquipmentRoutePatrolService:
         equipment = await _get_equipment_or_raise(tenant_id, line_input.equipment_id)
         _reject_scrapped_equipment(equipment)
         capture_mode = _normalize_capture_mode(getattr(line_input, "capture_mode", None) or "A")
+        item = None
+        if line_input.item_id:
+            item = await EquipmentInspectionItem.filter(
+                tenant_id=tenant_id,
+                id=line_input.item_id,
+                deleted_at__isnull=True,
+            ).first()
+        spec = _resolve_inspection_item_value_spec(
+            item,
+            fallback_value_type=line_input.value_type,
+            fallback_unit=line_input.unit,
+        )
+        value_type = spec["value_type"]
+        unit = spec["unit"]
+        numeric_min = spec["numeric_min"]
+        numeric_max = spec["numeric_max"]
         is_pass = _line_is_pass(
-            line_input.value_type,
+            value_type,
             line_input.measured_value,
-            None,
-            None,
+            numeric_min,
+            numeric_max,
             line_input.is_pass,
         )
         fault_uuid: Optional[str] = None
@@ -1472,8 +1593,8 @@ class EquipmentRoutePatrolService:
             requirement=line_input.requirement,
             method=line_input.method,
             judgment_standard=line_input.judgment_standard,
-            value_type=line_input.value_type,
-            unit=line_input.unit,
+            value_type=value_type,
+            unit=unit,
             measured_value=line_input.measured_value,
             is_pass=is_pass,
             photo_required=bool(line_input.photo_required) or capture_mode == "B",

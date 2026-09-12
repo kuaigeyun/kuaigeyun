@@ -124,6 +124,7 @@ import {
   Receipt,
   RefreshCw,
   RotateCcw,
+  Ruler,
   ScanLine,
   Search,
   Server,
@@ -281,6 +282,7 @@ const LUCIDE_BY_NAME: Record<string, React.ComponentType<any>> = {
   Receipt,
   RefreshCw,
   RotateCcw,
+  Ruler,
   ScanLine,
   Search,
   Server,
@@ -370,6 +372,8 @@ export const ManufacturingIcons = {
   hammer: getLucideIcon('Hammer'),
   maintenance: getLucideIcon('Wrench'),
   repair: getLucideIcon('Hammer'),
+  ruler: getLucideIcon('Ruler'),
+  measuringInstrument: getLucideIcon('Ruler'),
   
   // 生产线和装配
   productionLine: getLucideIcon('Settings'), // Lucide 没有 Cogs，使用 Settings 替代
@@ -471,6 +475,7 @@ export const ManufacturingIcons = {
   mdPrecisionManufacturing: getLucideIcon('Cog'),
   
   // 通用图标映射（用于替代 Ant Design Icons）
+  gauge: getLucideIcon('Gauge'),
   dashboard: getLucideIcon('Gauge'), // 使用工业仪表盘图标，更符合制造业
   user: getLucideIcon('User'),
   users: getLucideIcon('Users'),

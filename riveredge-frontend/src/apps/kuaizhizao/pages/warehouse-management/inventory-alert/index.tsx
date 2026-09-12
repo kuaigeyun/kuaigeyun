@@ -11,7 +11,7 @@ import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next';
 import { useInvalidateMenuBadgeCounts } from '../../../../../hooks/useInvalidateMenuBadgeCounts';
 import { ActionType, ProColumns, ProDescriptionsItemProps, ProFormText, ProFormDigit, ProFormTextArea, ProFormSelect, ProFormSwitch, ProFormDependency } from '@ant-design/pro-components';
-import { App, Button, Space, Popconfirm, Typography, Row, Col, Descriptions } from 'antd';
+import { App, Button, Space, Popconfirm, Typography, Row, Col, Descriptions, Tooltip } from 'antd';
 import { CheckOutlined, WarningOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { UniTable } from '../../../../../components/uni-table';
@@ -900,14 +900,18 @@ const InventoryAlertPage: React.FC = () => {
                 toolBarRender={() =>
                   alertPerms.canAction?.('execute')
                     ? [
-                        <Button
+                        <Tooltip
                           key="run-check"
-                          type="primary"
-                          icon={<ReloadOutlined />}
-                          onClick={() => void handleRunCheck()}
+                          title={t('app.kuaizhizao.inventoryAlert.autoCheckHint')}
                         >
-                          {t('app.kuaizhizao.inventoryAlert.runCheckButton')}
-                        </Button>,
+                          <Button
+                            type="primary"
+                            icon={<ReloadOutlined />}
+                            onClick={() => void handleRunCheck()}
+                          >
+                            {t('app.kuaizhizao.inventoryAlert.runCheckButton')}
+                          </Button>
+                        </Tooltip>,
                       ]
                     : []
                 }

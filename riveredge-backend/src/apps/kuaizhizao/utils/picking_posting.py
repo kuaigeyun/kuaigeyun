@@ -15,6 +15,11 @@ from apps.kuaizhizao.utils.mrp_quantity import MRP_QTY_STEP, mrp_qty
 # 防超发容差：允许在 BOM 上限基础上略超 1%（与历史口径一致，但用 Decimal 计算）
 OVERPICK_TOLERANCE_RATIO = Decimal("1.01")
 
+# 正式发料完成态（生产领料确认、退料选取、成本核算、报表等唯一口径）
+PRODUCTION_PICKING_COST_ELIGIBLE_STATUSES = frozenset(
+    {"已领料", "已确认", "picked", "confirmed", "已完成"}
+)
+
 # 历史叫料完成自动生成领料单的备注特征（主仓→线边转移，非正式发料）
 _STAGING_PICKING_NOTE_MARKERS = (
     "主仓→线边",
@@ -95,3 +100,53 @@ def format_pick_limit_qty(value: Decimal) -> str:
     if "." in text:
         text = text.rstrip("0").rstrip(".")
     return text or "0"
+
+
+def picking_item_belongs_to_work_order(
+    item: object,
+    picking: object,
+    work_order_id: int,
+) -> bool:
+    item_wo = getattr(item, "work_order_id", None)
+    if item_wo is not None and int(item_wo or 0) > 0:
+        return int(item_wo) == int(work_order_id)
+    return int(getattr(picking, "work_order_id", 0) or 0) == int(work_order_id)
+
+
+async def list_work_order_cost_pickings(tenant_id: int, work_order_id: int) -> List[object]:
+    """工单已正式发料的领料单（头表或明细挂工单，排除备料转移型）。"""
+    from apps.kuaizhizao.models.production_picking import ProductionPicking
+    from apps.kuaizhizao.models.production_picking_item import ProductionPickingItem
+
+    statuses = list(PRODUCTION_PICKING_COST_ELIGIBLE_STATUSES)
+    by_id: dict[int, object] = {}
+
+    header_rows = await ProductionPicking.filter(
+        tenant_id=tenant_id,
+        work_order_id=work_order_id,
+        status__in=statuses,
+        deleted_at__isnull=True,
+    ).all()
+    for row in header_rows:
+        by_id[int(row.id)] = row
+
+    item_picking_ids = await ProductionPickingItem.filter(
+        tenant_id=tenant_id,
+        work_order_id=work_order_id,
+        deleted_at__isnull=True,
+    ).values_list("picking_id", flat=True)
+    extra_ids = sorted({int(pid) for pid in item_picking_ids if pid})
+    if extra_ids:
+        extra_rows = await ProductionPicking.filter(
+            tenant_id=tenant_id,
+            id__in=extra_ids,
+            status__in=statuses,
+            deleted_at__isnull=True,
+        ).all()
+        for row in extra_rows:
+            by_id[int(row.id)] = row
+
+    if not by_id:
+        return []
+    gi_ids = set(filter_gi_picking_ids(list(by_id.values())))
+    return [p for p in by_id.values() if int(getattr(p, "id")) in gi_ids]

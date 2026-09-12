@@ -152,12 +152,6 @@
             "path": "/apps/kuaioa/assets/purchases",
             "permission": "kuaioa:asset-purchase:read",
             "sort_order": 2
-          },
-          {
-            "title": "app.kuaioa.menu.assets",
-            "path": "/apps/kuaioa/assets/registry",
-            "permission": "kuaioa:asset:read",
-            "sort_order": 3
           }
         ]
       }

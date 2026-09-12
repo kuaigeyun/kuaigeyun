@@ -148,6 +148,7 @@ import { useCustomFieldsForList } from '../../../../../hooks/useCustomFieldsForL
 import { useResourcePermissions } from '../../../../../hooks/useResourcePermissions'
 import {
   demandComputationCapabilityReasonMessage,
+  qualityInspectionCapabilityReasonMessage,
   salesOrderCapabilityReasonMessage,
   workOrderBatchCancelAllowed,
   workOrderBatchFreezeAllowed,
@@ -155,6 +156,7 @@ import {
   workOrderBatchReleaseAllowed,
   workOrderBatchSetPriorityAllowed,
   workOrderBatchPushProductionPickingAllowed,
+  workOrderCapabilityReasonMessage,
 } from '../../../../../hooks/useDocumentCapabilities'
 
 const WORK_ORDER_RESOURCE = 'kuaizhizao:work-order'
@@ -218,10 +220,6 @@ import { outboundWorkOrderEntryPath } from '../../warehouse-management/outbound/
 import { navigateToOutboundHubAfterBatchPicking } from '../../warehouse-management/outbound/outboundHubNavigation'
 import { WorkOrderBatchPickingModal } from './WorkOrderBatchPickingModal'
 import { buildDocumentCreateDraftKey, setDocumentFormDraft } from '../../../../../utils/documentFormDraftCache'
-import {
-  qualityInspectionCapabilityReasonMessage,
-  workOrderCapabilityReasonMessage,
-} from '../../../../../hooks/useDocumentCapabilities'
 import { qualityApi } from '../../../services/production'
 import type { PushPreviewResponse } from '../../../services/sales-order'
 import { mapOutsourceOptionsToPullPreview } from '../../../utils/outsourceOrderPullPreview'
@@ -7432,12 +7430,13 @@ const WorkOrdersPage: React.FC = () => {
           record.capabilities?.withdraw_manual_complete?.allowed === true &&
           (workOrderPerms.canAction?.('revoke') ?? false)
 
-        // 删除条件：草稿；已下达且未开工；拆分子工单同上；无子单的已拆分主工单
-        const canDelete =
-          isDraft ||
-          (isReleased && !record.actual_start_date && !hasWork) ||
+        // 删除：优先后端 capabilities；拆分子单/无子主单仍走服务端特例
+        const splitDeleteAllowed =
           (isSplitChild && isSplitChildRevocable(record)) ||
           (isSplit && splitChildren.length === 0)
+        const canDelete =
+          workOrderPerms.canDelete &&
+          (record.capabilities?.delete?.allowed === true || splitDeleteAllowed)
 
         const canUnsplit =
           isSplit &&
@@ -7463,7 +7462,13 @@ const WorkOrdersPage: React.FC = () => {
         };
 
         const handleDeleteClick = () => {
-          if (!canDelete) return;
+          if (!canDelete) {
+            const reason = record.capabilities?.delete?.reason;
+            if (reason && !splitDeleteAllowed) {
+              messageApi.warning(workOrderCapabilityReasonMessage(reason, t));
+            }
+            return;
+          }
           getAntdModal().confirm({
             title: t('app.kuaizhizao.workOrder.modalConfirmDelete'),
             content: t('app.kuaizhizao.workOrder.modalDeleteContent'),
@@ -8572,7 +8577,7 @@ const WorkOrdersPage: React.FC = () => {
                 dataSource={soPullPreviewData.items}
                 rowKey={(row: any) => String(row.item_id)}
                 pagination={false}
-                scroll={{ x: 1020 }}
+                scroll={{ x: 1380 }}
                 columns={[
                   {
                     title: t('common.select'),
@@ -8598,6 +8603,50 @@ const WorkOrdersPage: React.FC = () => {
                   { title: t('app.kuaizhizao.salesOrder.materialCode'), dataIndex: 'material_code', width: 130, ellipsis: true },
                   { title: t('app.kuaizhizao.salesOrder.materialName'), dataIndex: 'material_name', width: 140, ellipsis: true },
                   { title: t('common.quantity'), dataIndex: 'quantity', width: 90, align: 'right', render: formatQuantity },
+                  {
+                    title: (
+                      <Tooltip title={t('app.kuaizhizao.salesOrder.colOnHandQtyTip')}>
+                        {t('app.kuaizhizao.salesOrder.colOnHandQty')}
+                      </Tooltip>
+                    ),
+                    dataIndex: 'on_hand_quantity',
+                    width: 96,
+                    align: 'right',
+                    render: (val: unknown) => formatQuantity(val),
+                  },
+                  {
+                    title: (
+                      <Tooltip title={t('app.kuaizhizao.salesOrder.colAvailableQtyTip')}>
+                        {t('app.kuaizhizao.salesOrder.colAvailableQty')}
+                      </Tooltip>
+                    ),
+                    dataIndex: 'available_quantity',
+                    width: 96,
+                    align: 'right',
+                    render: (val: unknown) => formatQuantity(val),
+                  },
+                  {
+                    title: (
+                      <Tooltip title={t('app.kuaizhizao.salesOrder.colOtherSalesCommittedTip')}>
+                        {t('app.kuaizhizao.salesOrder.colOtherSalesCommitted')}
+                      </Tooltip>
+                    ),
+                    dataIndex: 'other_sales_committed_quantity',
+                    width: 108,
+                    align: 'right',
+                    render: (val: unknown) => formatQuantity(val),
+                  },
+                  {
+                    title: (
+                      <Tooltip title={t('app.kuaizhizao.salesOrder.colSuggestedMakeQtyTip')}>
+                        {t('app.kuaizhizao.salesOrder.colSuggestedMakeQty')}
+                      </Tooltip>
+                    ),
+                    dataIndex: 'suggested_make_quantity',
+                    width: 96,
+                    align: 'right',
+                    render: (val: unknown) => formatQuantity(val),
+                  },
                   { title: t('app.kuaizhizao.salesOrder.colPushedQty'), dataIndex: 'pushed_quantity', width: 90, align: 'right', render: formatQuantity },
                   { title: t('app.kuaizhizao.salesOrder.colPushableQty'), dataIndex: 'max_push_quantity', width: 90, align: 'right', render: formatQuantity },
                   {
@@ -8655,6 +8704,11 @@ const WorkOrdersPage: React.FC = () => {
             ) : (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('app.kuaizhizao.workOrder.soPullPreviewNoLines')} />
             )}
+            {soPullPreviewData.tip ? (
+              <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
+                {soPullPreviewData.tip}
+              </Typography.Paragraph>
+            ) : null}
           </div>
         ) : null}
       </Modal>

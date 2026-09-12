@@ -7,24 +7,16 @@ export type ModuleChartMountDims = {
 
 export type ModuleChartMountProps = {
   height: number;
-  /** 宽度变化超过该像素才触发 remount，避免侧栏动画时频繁重建 */
-  remountThreshold?: number;
   children: (dims: ModuleChartMountDims) => React.ReactNode;
 };
 
 /**
  * 模块中心图表挂载器：等容器有稳定宽度后再渲染。
- * 瀑布流（CSS columns）下 Pie/Column 易在首帧量到错误宽度导致圆心错位。
+ * 瀑布流（flex 双列）下 Pie/Column 易在首帧量到错误宽度导致圆心错位。
  */
-export function ModuleChartMount({
-  height,
-  remountThreshold = 24,
-  children,
-}: ModuleChartMountProps) {
+export function ModuleChartMount({ height, children }: ModuleChartMountProps) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const lastWidthRef = useRef(0);
   const [dims, setDims] = useState<ModuleChartMountDims | null>(null);
-  const [mountKey, setMountKey] = useState(0);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -34,18 +26,15 @@ export function ModuleChartMount({
     const measure = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const width = Math.floor(host.getBoundingClientRect().width);
-        if (width <= 0) return;
+        // 双帧后再量宽，避免 Masonry / 侧栏动画首帧 flex 未完成
+        requestAnimationFrame(() => {
+          const width = Math.floor(host.clientWidth);
+          if (width <= 0) return;
 
-        const prevWidth = lastWidthRef.current;
-        const shouldRemount = prevWidth === 0 || Math.abs(prevWidth - width) >= remountThreshold;
-        lastWidthRef.current = width;
-        setDims((prev) =>
-          prev && prev.width === width && prev.height === height ? prev : { width, height },
-        );
-        if (shouldRemount) {
-          setMountKey((prev) => (prev === width ? prev : width));
-        }
+          setDims((prev) =>
+            prev && prev.width === width && prev.height === height ? prev : { width, height },
+          );
+        });
       });
     };
 
@@ -58,7 +47,7 @@ export function ModuleChartMount({
       ro?.disconnect();
       window.removeEventListener('resize', measure);
     };
-  }, [height, remountThreshold]);
+  }, [height]);
 
   return (
     <div
@@ -67,12 +56,24 @@ export function ModuleChartMount({
         width: '100%',
         height,
         minWidth: 0,
+        maxWidth: '100%',
         overflow: 'hidden',
         position: 'relative',
+        contain: 'layout',
       }}
     >
       {dims ? (
-        <React.Fragment key={mountKey}>{children(dims)}</React.Fragment>
+        <div
+          key={`${dims.width}x${dims.height}`}
+          style={{
+            width: dims.width,
+            height: dims.height,
+            maxWidth: '100%',
+            overflow: 'hidden',
+          }}
+        >
+          {children(dims)}
+        </div>
       ) : null}
     </div>
   );

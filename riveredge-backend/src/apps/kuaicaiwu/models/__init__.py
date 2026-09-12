@@ -34,6 +34,16 @@ from .gl_tax_settings import GlTaxSettings
 from .tax_period_record import TaxPeriodRecord
 from .price_settlement_batch import PriceSettlementBatch
 from .price_settlement_line import PriceSettlementLine
+from .fixed_asset import (
+    FaCategory,
+    FaAsset,
+    FaChange,
+    FaDisposal,
+    FaDepreciationRun,
+    FaDepreciationRunLine,
+    FaDepreciationAdjustment,
+    FaPeriodClose,
+)
 
 __all__ = [
     "Receivable",
@@ -69,4 +79,12 @@ __all__ = [
     "TaxPeriodRecord",
     "PriceSettlementBatch",
     "PriceSettlementLine",
+    "FaCategory",
+    "FaAsset",
+    "FaChange",
+    "FaDisposal",
+    "FaDepreciationRun",
+    "FaDepreciationRunLine",
+    "FaDepreciationAdjustment",
+    "FaPeriodClose",
 ]

@@ -38,6 +38,7 @@ import { canOpenLinkedDocumentDetail } from '../../../../kuaizhizao/utils/linked
 import { glService, type GlAccount, type GlVoucher, type GlVoucherLine } from '../../../services/gl';
 import { apiRequest } from '../../../../../services/api';
 import { buildDocumentListHelpViewConfig, DOCUMENT_LIST_HELP_KEYS } from '../../../../../components/page-help-wiki';
+import GenerateFromEventsModal from './GenerateFromEventsModal';
 
 const NS = 'app.kuaicaiwu.gl.vouchers';
 
@@ -84,7 +85,7 @@ const GlVouchersPage: React.FC = () => {
   const [editing, setEditing] = useState<GlVoucher | null>(null);
   const [accounts, setAccounts] = useState<GlAccount[]>([]);
   const [lines, setLines] = useState<DraftLine[]>([emptyLine(), emptyLine()]);
-  const [genLoading, setGenLoading] = useState(false);
+  const [genModalOpen, setGenModalOpen] = useState(false);
   const [customerOptions, setCustomerOptions] = useState<{ label: string; value: number }[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<{ label: string; value: number }[]>([]);
   const [departmentOptions, setDepartmentOptions] = useState<{ label: string; value: number }[]>([]);
@@ -540,26 +541,6 @@ const GlVouchersPage: React.FC = () => {
     }
   };
 
-  const handleGenerate = async () => {
-    setGenLoading(true);
-    try {
-      const res = (await glService.generateFromEvents(50)) as { created?: number; count?: number };
-      messageApi.success(
-        t(`${NS}.generateSuccess`, {
-          defaultValue: '已从业务事件生成凭证',
-          count: res.created ?? res.count ?? 0,
-        }),
-      );
-      reload();
-    } catch (error) {
-      messageApi.error(
-        getApiErrorMessage(error, t(`${NS}.generateFailed`, { defaultValue: '生成失败' })),
-      );
-    } finally {
-      setGenLoading(false);
-    }
-  };
-
   const lineColumns = [
     {
       title: t(`${NS}.line.account`, { defaultValue: '科目' }),
@@ -890,8 +871,7 @@ const GlVouchersPage: React.FC = () => {
           <Button
             key="gen"
             icon={<ThunderboltOutlined />}
-            loading={genLoading}
-            onClick={() => void handleGenerate()}
+            onClick={() => setGenModalOpen(true)}
           >
             {t(`${NS}.generateFromEvents`, { defaultValue: '从业务事件生成' })}
           </Button>,
@@ -1020,6 +1000,12 @@ const GlVouchersPage: React.FC = () => {
           )}
         />
       </FormModalTemplate>
+
+      <GenerateFromEventsModal
+        open={genModalOpen}
+        onClose={() => setGenModalOpen(false)}
+        onSuccess={() => reload()}
+      />
     </ListPageTemplate>
   );
 };

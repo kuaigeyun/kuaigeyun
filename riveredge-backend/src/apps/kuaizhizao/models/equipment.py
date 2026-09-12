@@ -122,6 +122,10 @@ class Equipment(BaseModel):
     # 设备负责人（可选）
     responsible_person_id = fields.IntField(null=True, description="设备负责人ID")
     responsible_person_name = fields.CharField(max_length=100, null=True, description="设备负责人姓名")
+
+    # 点检人（可选，台账默认点检执行人）
+    spot_check_person_id = fields.IntField(null=True, description="点检人ID")
+    spot_check_person_name = fields.CharField(max_length=100, null=True, description="点检人姓名")
     
     # 状态信息
     status = fields.CharField(
@@ -138,7 +142,9 @@ class Equipment(BaseModel):
     calibration_period = fields.IntField(null=True, description="校验周期（天）")
     last_calibration_date = fields.DateField(null=True, description="上次校验日期")
     next_calibration_date = fields.DateField(null=True, description="下次校验日期")
-    
+    measuring_precision = fields.CharField(max_length=100, null=True, description="精度（计量器具）")
+    measurement_range = fields.CharField(max_length=200, null=True, description="测量范围（计量器具）")
+
     description = fields.TextField(null=True, description="描述")
     photo_file_uuid = fields.CharField(
         max_length=36,

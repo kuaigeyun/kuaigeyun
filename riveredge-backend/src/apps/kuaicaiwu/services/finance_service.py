@@ -2183,6 +2183,14 @@ class AccountSettlementService(AppBaseService[SettlementRecord]):
             updated_by=operator_id,
             updated_by_name=user_name,
         )
+        if new_rem_payable <= Decimal("0.00"):
+            from apps.kuaizhizao.services.contract_milestone_billing_service import (
+                ContractMilestoneBillingService,
+            )
+
+            await ContractMilestoneBillingService().sync_milestone_on_payable_settled(
+                tenant_id, payable_id
+            )
         await self._log_settlement_amount_audit(
             tenant_id=tenant_id,
             operator_id=operator_id,

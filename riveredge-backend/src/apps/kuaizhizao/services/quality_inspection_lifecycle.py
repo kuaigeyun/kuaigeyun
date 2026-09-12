@@ -16,6 +16,18 @@ QualityInspectionEntityType = Literal[
 
 _REVOKE_CONDUCT_ALLOWED_STATUSES = frozenset({"已检验", "已驳回"})
 
+_TEMPLATE_ATTR_BY_ENTITY: Dict[QualityInspectionEntityType, str] = {
+    "incoming_inspection": "other_checks",
+    "process_inspection": "quality_characteristics",
+    "finished_goods_inspection": "other_checks",
+    "oqc_inspection": "other_checks",
+}
+
+_MEASUREMENT_ATTR_BY_ENTITY: Dict[QualityInspectionEntityType, str] = {
+    "process_inspection": "measurement_data",
+    "finished_goods_inspection": "measurement_data",
+}
+
 
 def can_revoke_quality_inspection_conduct(status: Any, inspection_result: Any) -> bool:
     """是否允许撤回检验（须先撤销审核，不能从已审核直接撤回检验）。"""
@@ -32,8 +44,10 @@ def build_quality_inspection_revoke_conduct_fields(
     entity_type: QualityInspectionEntityType,
     updated_by: int,
     updated_by_name: str,
+    inspection: Any = None,
 ) -> Dict[str, Any]:
     """构建撤回检验后写入 ORM 的字段（四类检验单共用核心字段）。"""
+    from apps.kuaizhizao.services.inspection_step_spec import strip_inspection_template_conduct
     fields: Dict[str, Any] = {
         "status": "待检验",
         "inspection_result": "待检验",
@@ -61,15 +75,12 @@ def build_quality_inspection_revoke_conduct_fields(
                 "appearance_check": None,
                 "dimension_check": None,
                 "performance_check": None,
-                "other_checks": None,
             }
         )
     elif entity_type == "process_inspection":
         fields.update(
             {
                 "process_parameters": None,
-                "quality_characteristics": None,
-                "measurement_data": None,
                 "preventive_action": None,
             }
         )
@@ -82,8 +93,6 @@ def build_quality_inspection_revoke_conduct_fields(
                 "function_test": None,
                 "packaging_check": None,
                 "documentation_check": None,
-                "other_checks": None,
-                "measurement_data": None,
                 "preventive_action": None,
                 "release_certificate": None,
                 "certificate_issued": False,
@@ -94,9 +103,18 @@ def build_quality_inspection_revoke_conduct_fields(
             {
                 "release_decision": "pending",
                 "release_note": None,
-                "other_checks": None,
             }
         )
+
+    template_attr = _TEMPLATE_ATTR_BY_ENTITY.get(entity_type)
+    if template_attr and inspection is not None:
+        preserved = strip_inspection_template_conduct(getattr(inspection, template_attr, None))
+        if preserved is not None:
+            fields[template_attr] = preserved
+    measurement_attr = _MEASUREMENT_ATTR_BY_ENTITY.get(entity_type)
+    if measurement_attr:
+        fields[measurement_attr] = None
+
     return fields
 
 

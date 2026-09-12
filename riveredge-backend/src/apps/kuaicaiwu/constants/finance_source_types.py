@@ -12,6 +12,7 @@ PAYABLE_SOURCE_PURCHASE_INVOICE = "PurchaseInvoice"
 PAYABLE_SOURCE_OUTSOURCE_RECEIPT = "委外收货"
 PAYABLE_SOURCE_PURCHASE_RETURN = "采购退货"
 PAYABLE_SOURCE_PRICE_SETTLEMENT = "采购调价"
+PAYABLE_SOURCE_ORDER_MILESTONE = "订单里程碑"
 
 
 def is_sales_return_offset_receivable(source_type: str | None) -> bool:

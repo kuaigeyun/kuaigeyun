@@ -1,9 +1,12 @@
-"""入库确认入库人解析"""
+"""入库/出库确认业务操作人解析"""
 
 import asyncio
 from types import SimpleNamespace
 
-from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_receiver
+from apps.kuaizhizao.utils.inbound_confirm_helper import (
+    resolve_inbound_confirm_receiver,
+    resolve_outbound_confirm_deliverer,
+)
 
 
 def test_resolve_inbound_confirm_receiver_defaults_to_confirmer():
@@ -49,3 +52,81 @@ def test_resolve_inbound_confirm_receiver_fetches_name_when_missing():
     )
     assert rid == 30
     assert rname == "李四"
+
+
+def test_resolve_outbound_confirm_deliverer_prefers_request():
+    async def get_user_name(user_id: int) -> str:
+        return f"用户{user_id}"
+
+    did, dname = asyncio.run(
+        resolve_outbound_confirm_deliverer(
+            confirmed_by=10,
+            confirmation_data=SimpleNamespace(deliverer_id=40, deliverer_name="王五"),
+            get_user_name=get_user_name,
+            existing_deliverer_id=50,
+            existing_deliverer_name="旧人",
+        )
+    )
+    assert did == 40
+    assert dname == "王五"
+
+
+def test_resolve_outbound_confirm_deliverer_keeps_existing():
+    async def get_user_name(user_id: int) -> str:
+        return f"用户{user_id}"
+
+    did, dname = asyncio.run(
+        resolve_outbound_confirm_deliverer(
+            confirmed_by=10,
+            confirmation_data=None,
+            get_user_name=get_user_name,
+            existing_deliverer_id=50,
+            existing_deliverer_name="旧人",
+        )
+    )
+    assert did == 50
+    assert dname == "旧人"
+
+
+def test_resolve_outbound_confirm_deliverer_defaults_to_confirmer():
+    async def get_user_name(user_id: int) -> str:
+        return f"用户{user_id}"
+
+    did, dname = asyncio.run(
+        resolve_outbound_confirm_deliverer(
+            confirmed_by=10,
+            confirmation_data=None,
+            get_user_name=get_user_name,
+        )
+    )
+    assert did == 10
+    assert dname == "用户10"
+
+
+def test_resolve_inbound_confirm_business_time_prefers_request():
+    from datetime import datetime
+
+    from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_business_time
+
+    requested = datetime(2026, 8, 1, 10, 0, 0)
+    existing = datetime(2026, 7, 1, 10, 0, 0)
+    got = resolve_inbound_confirm_business_time(
+        SimpleNamespace(receipt_time=requested),
+        existing_time=existing,
+    )
+    assert got == resolve_inbound_confirm_business_time(
+        SimpleNamespace(receipt_time=requested),
+        existing_time=None,
+    )
+
+
+def test_resolve_inbound_confirm_business_time_keeps_existing():
+    from datetime import datetime
+
+    from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_business_time
+
+    existing = datetime(2026, 7, 1, 10, 0, 0)
+    got = resolve_inbound_confirm_business_time(None, existing_time=existing)
+    assert got.year == 2026
+    assert got.month == 7
+    assert got.day == 1

@@ -24,11 +24,15 @@ const DefaultHomePage: React.FC = () => {
             <HomeOutlined style={{ marginRight: 8 }} />
             {t('pages.system.defaultHome.title', { defaultValue: '欢迎使用' })}
           </Title>
-          <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            {t('pages.system.defaultHome.description', {
-              defaultValue:
-                '当前未配置角色首页或菜单主页。请从左侧菜单进入业务功能，或由管理员在「角色权限」或「菜单管理」中配置首页。',
-            })}
+          <Paragraph type="secondary" style={{ marginBottom: 8 }}>
+            {t('pages.system.defaultHome.description')}
+          </Paragraph>
+          <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 13 }}>
+            {t('pages.system.defaultHome.setupMenu')}
+            <br />
+            {t('pages.system.defaultHome.setupRole')}
+            <br />
+            {t('pages.system.defaultHome.setupSite')}
           </Paragraph>
           <Space wrap>
             {dashboardEnabled ? (

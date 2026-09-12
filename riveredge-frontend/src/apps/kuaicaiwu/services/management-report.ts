@@ -4,8 +4,6 @@ import {
   QualityLossAnalysis,
   LaborEfficiencyAnalysis,
   WIPValuation,
-  MarginReportListParams,
-  MarginReportListResponse,
 } from '../types/management-report';
 
 const REPORT_API = '/apps/kuaicaiwu/management-report';
@@ -47,27 +45,6 @@ export const managementReportService = {
   getFinanceSummary: () => {
     return apiRequest<Record<string, number>>(`${REPORT_API}/finance-summary`, {
       method: 'GET',
-    });
-  },
-
-  getMarginByProduct: (params: MarginReportListParams = {}) => {
-    return apiRequest<MarginReportListResponse>(`${REPORT_API}/margin-by-product`, {
-      method: 'GET',
-      params: { days: 30, ...params },
-    });
-  },
-
-  getMarginByCustomer: (params: MarginReportListParams = {}) => {
-    return apiRequest<MarginReportListResponse>(`${REPORT_API}/margin-by-customer`, {
-      method: 'GET',
-      params: { days: 30, ...params },
-    });
-  },
-
-  getMarginByOrder: (params: MarginReportListParams = {}) => {
-    return apiRequest<MarginReportListResponse>(`${REPORT_API}/margin-by-order`, {
-      method: 'GET',
-      params: { days: 30, ...params },
     });
   },
 };

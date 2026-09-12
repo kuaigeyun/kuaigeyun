@@ -2214,6 +2214,16 @@ class SalesContractService(AppBaseService[SalesContract]):
         work_orders: List[Any] = []
 
         async def _create_one_work_order(info: Dict[str, Any], qty_dec: Decimal):
+            from apps.kuaizhizao.utils.mrp_scheduling_helper import (
+                resolve_direct_push_work_order_planned_dates,
+            )
+            from core.utils.timezone_utils import resolve_business_datetime, to_site_date
+
+            planned_start_date, planned_end_date = resolve_direct_push_work_order_planned_dates(
+                document_start_date=contract.contract_date,
+                delivery_date=info.get("earliest_delivery"),
+                today=to_site_date(resolve_business_datetime()),
+            )
             wo_data = WorkOrderCreate(
                 code_rule="WORK_ORDER_CODE",
                 product_id=info["material_id"],
@@ -2221,16 +2231,8 @@ class SalesContractService(AppBaseService[SalesContract]):
                 product_name=info["material_name"],
                 quantity=qty_dec,
                 production_mode="MTO",
-                planned_start_date=(
-                    datetime.combine(info["earliest_delivery"], datetime.min.time())
-                    if info.get("earliest_delivery")
-                    else None
-                ),
-                planned_end_date=(
-                    datetime.combine(info["earliest_delivery"], datetime.min.time())
-                    if info.get("earliest_delivery")
-                    else None
-                ),
+                planned_start_date=planned_start_date,
+                planned_end_date=planned_end_date,
                 remarks=f"由销售合同 {contract.contract_code} 直推（含半成品）",
             )
             wo = await work_order_service.create_work_order(
@@ -2278,7 +2280,10 @@ class SalesContractService(AppBaseService[SalesContract]):
             await _create_one_work_order(info, total_qty_dec)
 
         if not work_orders:
-            raise BusinessLogicError("所选明细的本次下推数量均为 0，无法生成工单")
+            raise BusinessLogicError(
+                "无法生成工单：所选明细的本次下推数量均为 0，"
+                "或经 BOM 展开后无自制/外协工单需求"
+            )
 
         work_order_group: Optional[Dict[str, Any]] = None
         if raw_granularity == "peer_group":

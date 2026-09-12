@@ -28,7 +28,6 @@ from apps.kuaizhizao.workflows.functions.work_order_score_workflow import (
     work_order_score_recalc_one,
     work_order_score_recalc_worker,
 )
-
 __all__ = [
     "run_exception_detection_scheduler",
     "exception_detection_worker_function",

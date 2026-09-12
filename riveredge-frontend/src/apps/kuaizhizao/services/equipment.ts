@@ -55,7 +55,19 @@ export const equipmentApi = {
   },
 
   // 获取设备校验记录列表
-  listCalibrations: async (params?: { equipment_uuid?: string; skip?: number; limit?: number }) => {
+  listCalibrations: async (params?: {
+    equipment_uuid?: string;
+    skip?: number;
+    limit?: number;
+    keyword?: string;
+    search?: string;
+    order_by?: string;
+    calibration_start_date?: string;
+    calibration_end_date?: string;
+    equipment_nature?: string;
+    exclude_equipment_nature?: string;
+    [key: string]: unknown;
+  }) => {
     return apiRequest('/apps/kuaizhizao/equipment/calibrations', { method: 'GET', params });
   },
 
@@ -74,8 +86,51 @@ export const equipmentApi = {
   },
 
   // 获取设备检定到期提醒
-  listCalibrationReminders: async (params?: { skip?: number; limit?: number; due_type?: string }) => {
+  listCalibrationReminders: async (params?: {
+    skip?: number;
+    limit?: number;
+    due_type?: string;
+    equipment_nature?: string;
+    exclude_equipment_nature?: string;
+  }) => {
     return apiRequest('/apps/kuaizhizao/equipment/calibration-reminders', { method: 'GET', params });
+  },
+
+  getCalibrationReminderSettings: async () => {
+    return apiRequest<{ advance_days: number }>(
+      '/apps/kuaizhizao/equipment/calibration-reminder-settings',
+      { method: 'GET' },
+    );
+  },
+
+  updateCalibrationReminderSettings: async (data: { advance_days: number }) => {
+    return apiRequest<{ advance_days: number }>(
+      '/apps/kuaizhizao/equipment/calibration-reminder-settings',
+      { method: 'PUT', data },
+    );
+  },
+
+  reportMeasuringInstrumentCalibrationAlerts: async (params?: {
+    skip?: number;
+    limit?: number;
+    due_type?: string;
+  }) => {
+    return apiRequest('/apps/kuaizhizao/equipment/reports/measuring-instrument-calibration-alerts', {
+      method: 'GET',
+      params,
+    });
+  },
+
+  reportMeasuringInstrumentCalibrationDetail: async (params?: {
+    skip?: number;
+    limit?: number;
+    calibration_start_date?: string;
+    calibration_end_date?: string;
+  }) => {
+    return apiRequest('/apps/kuaizhizao/equipment/reports/measuring-instrument-calibration-detail', {
+      method: 'GET',
+      params,
+    });
   },
 
   // 生成设备二维码

@@ -734,7 +734,10 @@ class OutsourceMaterialReceiptService(AppBaseService[OutsourceMaterialReceipt]):
 
         assert_inbound_hub_capability(receipt, "confirm", receipt_type="outsource_receipt")
 
-        from apps.kuaizhizao.utils.inbound_confirm_helper import resolve_inbound_confirm_receiver
+        from apps.kuaizhizao.utils.inbound_confirm_helper import (
+            resolve_inbound_confirm_business_time,
+            resolve_inbound_confirm_receiver,
+        )
 
         confirmer_name = (await self.get_user_info(completed_by))["name"]
         receiver_id, receiver_name = await resolve_inbound_confirm_receiver(
@@ -745,7 +748,10 @@ class OutsourceMaterialReceiptService(AppBaseService[OutsourceMaterialReceipt]):
 
         # 更新状态
         receipt.status = "completed"
-        receipt.received_at = resolve_business_datetime()
+        receipt.received_at = resolve_inbound_confirm_business_time(
+            confirmation_data,
+            existing_time=getattr(receipt, "received_at", None),
+        )
         receipt.received_by = receiver_id
         receipt.received_by_name = receiver_name
         receipt.updated_by = completed_by

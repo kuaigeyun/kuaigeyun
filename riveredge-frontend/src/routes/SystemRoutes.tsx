@@ -19,6 +19,7 @@ import PageSkeleton, { PageSkeletonProps } from '../components/page-skeleton';
 import { useGlobalStore } from '../stores/globalStore';
 import { hasAnyPermission } from '../utils/permission';
 import { useRedirectIfSystemDashboardOff } from '../hooks/useRedirectIfSystemDashboardOff';
+import DefaultHomeRouteGate from '../components/default-home-route-gate';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 
 // 核心页面（立即加载，首屏必需）
@@ -218,7 +219,12 @@ const SystemRoutes: React.FC = () => (
     <Route path="/system/config-center" element={withPermission(withSuspense(ConfigCenterPage), ['system:config-center:read'])} />
     <Route path="/system/business-config" element={<Navigate to="/system/config-center" replace />} />
     <Route path="/system/system-parameters" element={<Navigate to="/system/config-center" replace />} />
-    <Route path="/system/default-home" element={withSuspense(DefaultHomePage)} />
+    <Route
+      path="/system/default-home"
+      element={
+        <DefaultHomeRouteGate>{withSuspense(DefaultHomePage)}</DefaultHomeRouteGate>
+      }
+    />
     <Route path="/system/applications" element={withPermission(withSuspense(ApplicationCenterPage), ['system:application:read'])} />
     <Route path="/system/plugin-manager" element={withPermission(withSuspense(PluginManagerPage), ['system:plugin-manager:read'])} />
     <Route path="/system/operation-logs" element={withPermission(withSuspense(OperationLogsPage), ['system:operation-log:read'])} />

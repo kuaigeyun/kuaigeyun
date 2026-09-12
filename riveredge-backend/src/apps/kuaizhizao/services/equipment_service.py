@@ -44,12 +44,24 @@ class EquipmentService:
     ) -> Equipment:
         """创建设备"""
         try:
-            if not data.code:
-                data.code = await CodeGenerationService.generate_code(
+            code = (data.code or "").strip() or None
+            if code:
+                exists = await Equipment.filter(
+                    tenant_id=tenant_id,
+                    code=code,
+                    deleted_at__isnull=True,
+                ).exists()
+                if exists:
+                    raise ValidationError(
+                        f"设备编码 {code} 已存在，请关闭弹窗后重新新建以获取最新编号"
+                    )
+            else:
+                code = await CodeGenerationService.generate_code(
                     tenant_id=tenant_id,
                     rule_code="EQUIPMENT_CODE",
                     context=None,
                 )
+            data.code = code
 
             bind = (data.qr_bind_code or "").strip() or None
             if bind:
@@ -181,6 +193,7 @@ class EquipmentService:
         type: Optional[str] = None,
         category: Optional[str] = None,
         equipment_nature: Optional[str] = None,
+        exclude_equipment_nature: Optional[str] = None,
         status: Optional[str] = None,
         is_active: Optional[bool] = None,
         workshop_id: Optional[int] = None,
@@ -214,6 +227,8 @@ class EquipmentService:
             query = query.filter(category=category)
         if equipment_nature:
             query = query.filter(equipment_nature=equipment_nature)
+        if exclude_equipment_nature:
+            query = query.exclude(equipment_nature=exclude_equipment_nature)
         if status:
             query = query.filter(status=status)
         if is_active is not None:
@@ -227,7 +242,15 @@ class EquipmentService:
         query = apply_equipment_keyword_filter(
             query,
             pick_search_keyword(keyword, search),
-            ["code", "name", "serial_number", "responsible_person_name", "supplier", "qr_bind_code"],
+            [
+                "code",
+                "name",
+                "serial_number",
+                "responsible_person_name",
+                "spot_check_person_name",
+                "supplier",
+                "qr_bind_code",
+            ],
         )
         query = apply_equipment_created_date_range(
             query,
@@ -243,7 +266,7 @@ class EquipmentService:
         order_clause = resolve_equipment_list_order_by(
             order_by,
             EQUIPMENT_LEDGER_SORTABLE_FIELDS,
-            "code",
+            "-created_at",
         )
         equipment_list = await query.offset(skip).limit(limit).order_by(order_clause)
         return equipment_list, total
@@ -262,6 +285,18 @@ class EquipmentService:
             update_data["responsible_person_id"] = data.responsible_person_id
         if "responsible_person_name" in data.model_fields_set:
             update_data["responsible_person_name"] = data.responsible_person_name
+        if "spot_check_person_id" in data.model_fields_set:
+            update_data["spot_check_person_id"] = data.spot_check_person_id
+        if "spot_check_person_name" in data.model_fields_set:
+            update_data["spot_check_person_name"] = data.spot_check_person_name
+        if "last_calibration_date" in data.model_fields_set:
+            update_data["last_calibration_date"] = data.last_calibration_date
+        if "next_calibration_date" in data.model_fields_set:
+            update_data["next_calibration_date"] = data.next_calibration_date
+        if "calibration_period" in data.model_fields_set:
+            update_data["calibration_period"] = data.calibration_period
+        if "needs_calibration" in data.model_fields_set:
+            update_data["needs_calibration"] = data.needs_calibration
         # 允许清空设备照片
         if "photo_file_uuid" in data.model_fields_set:
             update_data["photo_file_uuid"] = data.photo_file_uuid
@@ -280,6 +315,17 @@ class EquipmentService:
                 raise ValidationError(f"设备编码 {update_data['code']} 已存在")
         for key, value in update_data.items():
             setattr(equipment, key, value)
+        if (
+            "last_calibration_date" in data.model_fields_set
+            or "calibration_period" in data.model_fields_set
+        ) and equipment.last_calibration_date and equipment.calibration_period:
+            from datetime import timedelta
+
+            if "next_calibration_date" not in data.model_fields_set:
+                equipment.next_calibration_date = (
+                    equipment.last_calibration_date
+                    + timedelta(days=equipment.calibration_period)
+                )
         await equipment.save()
         return equipment
     
@@ -358,6 +404,23 @@ class EquipmentService:
         return calib
 
     @staticmethod
+    async def _resolve_equipment_ids_by_nature(
+        tenant_id: int,
+        *,
+        equipment_nature: Optional[str] = None,
+        exclude_equipment_nature: Optional[str] = None,
+    ) -> Optional[set[int]]:
+        if not equipment_nature and not exclude_equipment_nature:
+            return None
+        qs = Equipment.filter(tenant_id=tenant_id, deleted_at__isnull=True)
+        if equipment_nature:
+            qs = qs.filter(equipment_nature=equipment_nature)
+        if exclude_equipment_nature:
+            qs = qs.exclude(equipment_nature=exclude_equipment_nature)
+        ids = await qs.values_list("id", flat=True)
+        return set(ids)
+
+    @staticmethod
     async def list_all_calibrations(
         tenant_id: int,
         equipment_uuid: Optional[str] = None,
@@ -372,6 +435,8 @@ class EquipmentService:
         created_end_date: Optional[str] = None,
         updated_start_date: Optional[str] = None,
         updated_end_date: Optional[str] = None,
+        equipment_nature: Optional[str] = None,
+        exclude_equipment_nature: Optional[str] = None,
     ) -> tuple[List[EquipmentCalibration], int]:
         """获取全量设备校验记录列表（支持按设备筛选）"""
         from apps.kuaizhizao.services.equipment_list_core import (
@@ -383,6 +448,15 @@ class EquipmentService:
             tenant_id=tenant_id,
             deleted_at__isnull=True,
         )
+        nature_ids = await EquipmentService._resolve_equipment_ids_by_nature(
+            tenant_id,
+            equipment_nature=equipment_nature,
+            exclude_equipment_nature=exclude_equipment_nature,
+        )
+        if nature_ids is not None:
+            if not nature_ids:
+                return [], 0
+            query = query.filter(equipment_id__in=list(nature_ids))
         if equipment_uuid:
             equipment = await EquipmentService.get_equipment_by_uuid(tenant_id, equipment_uuid)
             query = query.filter(equipment_id=equipment.id)
@@ -411,23 +485,34 @@ class EquipmentService:
         skip: int = 0,
         limit: int = 100,
         due_type: Optional[str] = None,
+        equipment_nature: Optional[str] = None,
+        exclude_equipment_nature: Optional[str] = None,
     ) -> tuple[List[dict], int]:
-        """设备检定到期提醒（7 天内到期或已逾期）"""
+        """设备检定到期提醒（租户可配置提前天数内到期或已逾期）"""
+        from apps.kuaizhizao.services.equipment_calibration_settings_service import (
+            get_calibration_reminder_advance_days,
+        )
         from core.utils.timezone_utils import resolve_business_datetime, to_site_date
 
+        advance_days = await get_calibration_reminder_advance_days(tenant_id)
         today = to_site_date(resolve_business_datetime())
-        equipments = await Equipment.filter(
+        eq_query = Equipment.filter(
             tenant_id=tenant_id,
             deleted_at__isnull=True,
             is_active=True,
             needs_calibration=True,
         )
+        if equipment_nature:
+            eq_query = eq_query.filter(equipment_nature=equipment_nature)
+        if exclude_equipment_nature:
+            eq_query = eq_query.exclude(equipment_nature=exclude_equipment_nature)
+        equipments = await eq_query
         results: List[dict] = []
         for eq in equipments:
             if not eq.next_calibration_date:
                 continue
             delta = (eq.next_calibration_date - today).days
-            if delta > 7:
+            if delta > advance_days:
                 continue
             rtype = "overdue" if delta < 0 else "due_soon"
             if due_type and rtype != due_type:
@@ -446,6 +531,69 @@ class EquipmentService:
         results.sort(key=lambda x: (0 if x["due_type"] == "overdue" else 1, x["days_until_due"]))
         total = len(results)
         return results[skip : skip + limit], total
+
+    @staticmethod
+    async def report_measuring_instrument_calibration_alerts(
+        tenant_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        due_type: Optional[str] = None,
+    ) -> tuple[List[dict], int]:
+        from apps.kuaizhizao.constants.measuring_instrument import MEASURING_INSTRUMENT_NATURE
+
+        return await EquipmentService.list_calibration_alerts(
+            tenant_id,
+            skip=skip,
+            limit=limit,
+            due_type=due_type,
+            equipment_nature=MEASURING_INSTRUMENT_NATURE,
+        )
+
+    @staticmethod
+    async def report_measuring_instrument_calibration_detail(
+        tenant_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        calibration_start_date: Optional[str] = None,
+        calibration_end_date: Optional[str] = None,
+    ) -> tuple[List[dict], int]:
+        from apps.kuaizhizao.constants.measuring_instrument import MEASURING_INSTRUMENT_NATURE
+
+        items, total = await EquipmentService.list_all_calibrations(
+            tenant_id=tenant_id,
+            skip=skip,
+            limit=limit,
+            equipment_nature=MEASURING_INSTRUMENT_NATURE,
+            calibration_start_date=calibration_start_date,
+            calibration_end_date=calibration_end_date,
+            order_by="-calibration_date",
+        )
+        if not items:
+            return [], total
+        equipment_ids = {c.equipment_id for c in items}
+        equipments = {
+            e.id: e for e in await Equipment.filter(id__in=list(equipment_ids))
+        }
+        rows: List[dict] = []
+        for calib in items:
+            eq = equipments.get(calib.equipment_id)
+            if not eq:
+                continue
+            attachments = calib.attachments if isinstance(calib.attachments, list) else []
+            rows.append({
+                "equipment_uuid": eq.uuid,
+                "equipment_code": eq.code,
+                "equipment_name": eq.name,
+                "calibration_uuid": calib.uuid,
+                "calibration_date": calib.calibration_date,
+                "result": calib.result,
+                "certificate_no": calib.certificate_no,
+                "expiry_date": calib.expiry_date,
+                "attachment_count": len(attachments),
+                "remark": calib.remark,
+                "created_by_name": calib.created_by_name,
+            })
+        return rows, total
 
     @staticmethod
     async def get_equipment_lifecycle_log(

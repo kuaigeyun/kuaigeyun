@@ -27,7 +27,11 @@ import { getPurchaseOrderLifecycle } from '../../../../utils/purchaseOrderLifecy
 import { formatOrderChangeStatusLabel } from '../../../../utils/orderChangeLifecycle';
 import { type PurchaseOrder, type PurchaseOrderItem } from '../../../../services/purchase';
 import { listPurchaseOrderChangesByOrder, type PurchaseOrderChange } from '../../../../services/purchase-order-change';
-import { alignDescriptionColumns } from '../../../sales-management/shared/documentFieldAlignment';
+import {
+  alignDescriptionColumns,
+  GLOBAL_DOC_DETAIL_BASIC_FIELD_RANK,
+} from '../../../sales-management/shared/documentFieldAlignment';
+import { OrderPaymentMilestonesReadOnly } from '../../../sales-management/shared/orderPaymentMilestonesFields';
 import { MarkerTag } from '../../../../../../constants/statusBadges';
 import { formatDateTimeBySiteSetting } from '../../../../../../utils/format';
 import { resolveSystemDictionaryItemLabel } from '../../../../../../utils/systemDictionaryI18n';
@@ -70,12 +74,6 @@ function formatAmount(val: unknown): string {
         ? (val as { value: number }).value
         : parseFloat(String(val ?? 0));
   return (Number.isNaN(num) ? 0 : num).toLocaleString();
-}
-
-function purchaseOrderTaxRateToPercent(raw: unknown): number {
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n <= 0) return 0;
-  return n <= 1 ? n * 100 : n;
 }
 
 export type PurchaseOrderDetailDrawerProps = {
@@ -229,63 +227,56 @@ export const PurchaseOrderDetailDrawer: React.FC<PurchaseOrderDetailDrawerProps>
 
   const basicColumns = useMemo(
     () =>
-      alignDescriptionColumns([
-        {
-          title: t('app.kuaizhizao.purchaseOrder.col.orderCode'),
-          dataIndex: 'order_code',
-          render: (_, entity) => (
-            <Typography.Text copyable={{ text: String(entity.order_code ?? '') }}>
-              {entity.order_code ?? '-'}
-            </Typography.Text>
-          ),
-        },
-        { title: t('app.kuaizhizao.purchaseOrder.col.supplier'), dataIndex: 'supplier_name' },
-        {
-          title: t('app.kuaizhizao.purchaseOrder.col.orderType'),
-          dataIndex: 'order_type',
-          render: (_, entity) =>
-            resolveSystemDictionaryItemLabel(
-              'ORDER_TYPE',
-              { value: entity.order_type ?? '', label: entity.order_type ?? '', is_system_managed: true },
-              t,
-            ) || '—',
-        },
-        { title: t('app.kuaizhizao.purchaseOrder.col.orderDate'), dataIndex: 'order_date', valueType: 'date' },
-        { title: t('app.kuaizhizao.purchaseOrder.col.deliveryDate'), dataIndex: 'delivery_date', valueType: 'date' },
-        { title: t('app.kuaizhizao.purchaseOrder.col.buyer'), dataIndex: 'buyer_name' },
-        { title: t('app.kuaizhizao.purchaseOrder.form.currency'), dataIndex: 'currency', key: 'currency_code' },
-        {
-          title: t('app.kuaizhizao.purchaseOrder.col.orderAmount'),
-          dataIndex: 'total_amount',
-          render: (text) => `¥${formatAmount(text)}`,
-        },
-        {
-          title: t('app.kuaizhizao.purchaseOrder.col.taxRate'),
-          dataIndex: 'tax_rate',
-          render: (text) => {
-            const pct = purchaseOrderTaxRateToPercent(text);
-            return pct > 0 ? `${pct.toFixed(2)}%` : '-';
+      alignDescriptionColumns(
+        [
+          {
+            title: t('app.kuaizhizao.purchaseOrder.col.orderCode'),
+            dataIndex: 'order_code',
+            render: (_, entity) => (
+              <Typography.Text copyable={{ text: String(entity.order_code ?? '') }}>
+                {entity.order_code ?? '-'}
+              </Typography.Text>
+            ),
           },
-        },
-        {
-          title: t('app.kuaizhizao.purchaseOrder.col.taxAmount'),
-          dataIndex: 'tax_amount',
-          render: (text) => (text != null && text !== '' ? `¥${formatAmount(text)}` : '-'),
-        },
-        {
-          title: t('app.kuaizhizao.purchaseOrder.col.inclAmount'),
-          dataIndex: 'net_amount',
-          render: (text) => (text != null && text !== '' ? `¥${formatAmount(text)}` : '-'),
-        },
-      ] as ProDescriptionsItemProps<PurchaseOrder>[]),
+          { title: t('app.kuaizhizao.purchaseOrder.col.orderDate'), dataIndex: 'order_date', valueType: 'date' },
+          { title: t('app.kuaizhizao.purchaseOrder.col.deliveryDate'), dataIndex: 'delivery_date', valueType: 'date' },
+          { title: t('app.kuaizhizao.purchaseOrder.col.supplier'), dataIndex: 'supplier_name' },
+          { title: t('app.kuaizhizao.purchaseOrder.form.contact'), dataIndex: 'supplier_contact' },
+          { title: t('app.kuaizhizao.purchaseOrder.form.phone'), dataIndex: 'supplier_phone' },
+          { title: t('app.kuaizhizao.purchaseOrder.col.buyer'), dataIndex: 'buyer_name' },
+          {
+            title: t('app.kuaizhizao.purchaseOrder.col.orderType'),
+            dataIndex: 'order_type',
+            render: (_, entity) =>
+              resolveSystemDictionaryItemLabel(
+                'ORDER_TYPE',
+                { value: entity.order_type ?? '', label: entity.order_type ?? '', is_system_managed: true },
+                t,
+              ) || '—',
+          },
+          { title: t('app.kuaizhizao.purchaseOrder.form.currency'), dataIndex: 'currency', key: 'currency_code' },
+          {
+            title: t('app.kuaizhizao.purchaseOrder.col.orderAmount'),
+            dataIndex: 'total_amount',
+            render: (text) => `¥${formatAmount(text)}`,
+          },
+          {
+            title: t('app.kuaizhizao.purchaseOrder.totalFeeAmount'),
+            dataIndex: 'total_fee_amount',
+            render: (text) => (text != null && Number(text) > 0 ? `¥${formatAmount(text)}` : '-'),
+          },
+        ] as ProDescriptionsItemProps<PurchaseOrder>[],
+        GLOBAL_DOC_DETAIL_BASIC_FIELD_RANK,
+      ),
     [t],
   );
 
   const notesColumn = useMemo(
     () =>
-      alignDescriptionColumns([
-        { title: t('common.remark'), dataIndex: 'notes', span: 3 },
-      ] as ProDescriptionsItemProps<PurchaseOrder>[]),
+      alignDescriptionColumns(
+        [{ title: t('common.remark'), dataIndex: 'notes', span: 3 }] as ProDescriptionsItemProps<PurchaseOrder>[],
+        GLOBAL_DOC_DETAIL_BASIC_FIELD_RANK,
+      ),
     [t],
   );
 
@@ -351,6 +342,19 @@ export const PurchaseOrderDetailDrawer: React.FC<PurchaseOrderDetailDrawerProps>
               size="small"
               items={basicItems}
             />
+            {effective.payment_milestones && effective.payment_milestones.length > 0 ? (
+              <>
+                <Divider style={{ margin: '16px 0' }} />
+                <Typography.Title level={5} style={{ margin: '0 0 8px' }}>
+                  {t('app.kuaizhizao.purchaseOrder.paymentPlan')}
+                </Typography.Title>
+                <OrderPaymentMilestonesReadOnly
+                  variant="purchase"
+                  milestones={effective.payment_milestones}
+                  t={t}
+                />
+              </>
+            ) : null}
             {effective.fee_details && effective.fee_details.length > 0 ? (
               <>
                 <Divider style={{ margin: '16px 0' }} />

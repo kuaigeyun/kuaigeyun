@@ -704,7 +704,16 @@ class PurchaseRequisitionService(AppBaseService[PurchaseRequisition]):
         if not req:
             raise NotFoundError(f"采购申请不存在: {requisition_id}")
         logger.info("kuaizhizao_purchase_requisition_delete attempt: tenant_id={} req_id={} status={}", tenant_id, requisition_id, req.status)
-        assert_purchase_requisition_capability(req, "delete")
+        from apps.kuaizhizao.services.document_action_policy.enricher import (
+            purchase_requisition_has_linked_purchase_order,
+        )
+
+        has_linked_po = await purchase_requisition_has_linked_purchase_order(
+            tenant_id, requisition_id
+        )
+        assert_purchase_requisition_capability(
+            req, "delete", has_linked_purchase_order=has_linked_po
+        )
         await PurchaseRequisition.filter(tenant_id=tenant_id, id=requisition_id).update(
             deleted_at=resolve_business_datetime()
         )

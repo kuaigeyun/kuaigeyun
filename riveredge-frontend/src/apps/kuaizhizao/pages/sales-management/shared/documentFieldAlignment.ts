@@ -871,6 +871,7 @@ export const GLOBAL_DOC_LIST_FIELD_RANK = {
   recalled_by_name: 76.46,
   recalledByName: 76.46,
   responsible_person_name: 76.5,
+  spot_check_person_name: 76.45,
   inspectorName: 76.4,
   contact_person: 77,
   contactPerson: 77,

@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { extractProTableSort } from '../../../utils/tableQueryKey';
+import { extractProTableSort, extractReportProTableSort } from '../../../utils/tableQueryKey';
 import { parseSalesReportDateRange } from '../services/reports';
 
 export const EQUIPMENT_OPS_PINNED_STATUS_FIELD = 'status';
@@ -469,6 +469,17 @@ export function resolveMasterDataListParams(
   };
 }
 
+/** 设备/模具/工装/计量器具台账默认排序：创建时间倒序（新建在上） */
+export const LEDGER_DEFAULT_ORDER_BY = '-created_at';
+
+function resolveLedgerOrderBy(sort?: Record<string, unknown>): string {
+  const { sortBy, sortOrder } = extractReportProTableSort(sort ?? {});
+  if (sortBy && sortOrder) {
+    return sortOrder === 'desc' ? `-${sortBy}` : sortBy;
+  }
+  return LEDGER_DEFAULT_ORDER_BY;
+}
+
 export function resolveLedgerListParams(
   searchFormValues?: Record<string, unknown> | null,
   sort?: Record<string, unknown>,
@@ -479,8 +490,8 @@ export function resolveLedgerListParams(
   const codeKeyword = pickString(s, 'code');
   return {
     ...base,
-    // 未点列头排序时默认按设备编码升序（与后端 list_equipment 默认一致）
-    order_by: (base.order_by as string | undefined) ?? 'code',
+    // 台账未点列头时固定创建时间倒序；禁止 extractProTableSort 无 sort 对象时误注入缺省
+    order_by: resolveLedgerOrderBy(sort),
     keyword: codeKeyword ?? base.keyword,
     status: typeof s.status === 'string' && s.status ? s.status : undefined,
     type: typeof s.type === 'string' && s.type ? s.type : undefined,

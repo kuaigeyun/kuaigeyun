@@ -1,6 +1,6 @@
 """设备外校计量到期提醒（INF-03 / R-09）。
 
-- 到期前 1 个月：due_soon
+- 到期前 N 天（租户可配置，默认 30）：due_soon
 - 过期后 1 天：due_overdue
 """
 
@@ -30,7 +30,6 @@ RULE_PREFIX = "kuaizhizao.equipment_calibration"
 RULE_DUE_SOON = f"{RULE_PREFIX}.due_soon"
 RULE_OVERDUE = f"{RULE_PREFIX}.overdue"
 CHANNEL_INTERNAL = "internal"
-DUE_SOON_DAYS = 30
 OVERDUE_AFTER_DAYS = 1
 
 
@@ -61,8 +60,13 @@ class EquipmentCalibrationReminderService:
         if not calib.expiry_date:
             return
 
+        from apps.kuaizhizao.services.equipment_calibration_settings_service import (
+            get_calibration_reminder_advance_days,
+        )
+
+        advance_days = await get_calibration_reminder_advance_days(tenant_id)
         due = calib.expiry_date
-        soon_day = due - timedelta(days=DUE_SOON_DAYS)
+        soon_day = due - timedelta(days=advance_days)
         overdue_day = due + timedelta(days=OVERDUE_AFTER_DAYS)
         payload = {
             "calibration_id": calib.id,
@@ -129,10 +133,15 @@ async def dispatch_equipment_calibration_reminder(
             )
             return "stopped"
 
+    from apps.kuaizhizao.services.equipment_calibration_settings_service import (
+        get_calibration_reminder_advance_days,
+    )
+
+    advance_days = await get_calibration_reminder_advance_days(tenant_id)
     rule_code = str(event.rule_code or "")
     if rule_code == RULE_DUE_SOON:
         action = ACTION_DUE_SOON
-        kind_label = "到期前一个月"
+        kind_label = f"到期前{advance_days}天"
     elif rule_code == RULE_OVERDUE:
         action = ACTION_DUE_OVERDUE
         kind_label = "已过期一天"

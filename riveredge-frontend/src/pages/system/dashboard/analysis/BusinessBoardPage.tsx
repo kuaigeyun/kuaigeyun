@@ -45,7 +45,7 @@ import {
   type ProductionBroadcastItem,
   type ActiveWorkOrderItem,
 } from '../../../../services/dashboard';
-import { formatDateTime } from '../../../../utils/format';
+import { formatDateTime, formatQuantity } from '../../../../utils/format';
 
 const { Title } = Typography;
 
@@ -1917,7 +1917,7 @@ const BusinessBoardPage: React.FC = () => {
             >
               <StatTile
                 label={t('dashboard.businessBoard.warehouse.totalStock')}
-                value={warehouseSummary ? formatCompact(warehouseSummary.total_stock) : '—'}
+                value={warehouseSummary ? formatQuantity(warehouseSummary.total_stock) : '—'}
                 color={getBoardHud().cyan}
               />
               <StatTile

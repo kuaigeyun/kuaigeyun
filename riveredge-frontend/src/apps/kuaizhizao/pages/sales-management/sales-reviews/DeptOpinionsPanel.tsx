@@ -2,10 +2,9 @@
  * 订单评审 — 部门意见面板（详情协作区 / 评审 Modal 共用）
  */
 
-import React, { useEffect } from 'react';
-import { Alert, Button, Col, Descriptions, Form, Input, Row, Space } from 'antd';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Col, Descriptions, Form, Input, Row, Space, Tabs } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { DetailDrawerSection } from '../../../../../components/layout-templates';
 import { ThemedSegmented } from '../../../../../components/themed-segmented';
 import { UniUserSelect } from '../../../../../components/uni-user-select';
 import { useCurrentUser } from '../../../../../hooks/useCurrentUser';
@@ -178,7 +177,7 @@ export const SalesReviewDeptOpinionsPanel: React.FC<SalesReviewDeptOpinionsPanel
   const deptLabel = (code: string) =>
     t(`app.kuaizhizao.salesReview.dept.${code}`, { defaultValue: code });
 
-  const opinionByDept = React.useMemo(() => {
+  const opinionByDept = useMemo(() => {
     const map = new Map<string, NonNullable<SalesReview['dept_opinions']>[number]>();
     for (const op of review.dept_opinions || []) {
       if (op?.dept_code) map.set(op.dept_code, op);
@@ -186,48 +185,83 @@ export const SalesReviewDeptOpinionsPanel: React.FC<SalesReviewDeptOpinionsPanel
     return map;
   }, [review.dept_opinions]);
 
-  return (
-    <Space orientation="vertical" style={{ width: '100%' }} size="medium">
-      {review.status === 'reviewing' && canApprove ? (
-        <Alert type="info" showIcon title={t('app.kuaizhizao.salesReview.deptOpinionHint')} />
-      ) : null}
-      {SALES_REVIEW_DEPT_CODES.map((code) => {
+  const firstPendingDept = useMemo(
+    () =>
+      SALES_REVIEW_DEPT_CODES.find((code) => {
+        const existing = opinionByDept.get(code);
+        return !existing || existing.result === 'pending';
+      }) ?? SALES_REVIEW_DEPT_CODES[0],
+    [opinionByDept],
+  );
+
+  const [activeDept, setActiveDept] = useState<string>(SALES_REVIEW_DEPT_CODES[0]);
+
+  useEffect(() => {
+    setActiveDept(firstPendingDept);
+  }, [review.id, firstPendingDept]);
+
+  const tabItems = useMemo(
+    () =>
+      SALES_REVIEW_DEPT_CODES.map((code) => {
         const existing = opinionByDept.get(code);
         // 下达评审会 seed result=pending 行；仅 pass/fail 才算已提交
         const isAnswered = Boolean(existing && existing.result !== 'pending');
         const formState = opinionForms[code] || { result: 'pass' as const, opinion: '' };
         const canSubmitThis = canApprove && review.status === 'reviewing' && !isAnswered;
-        return (
-          <DetailDrawerSection key={code} title={deptLabel(code)} titleAccent={false}>
-            {isAnswered && existing ? (
-              <Descriptions size="small" column={2}>
-                <Descriptions.Item label={t('app.kuaizhizao.salesReview.colOpinionResult')}>
-                  {renderSalesReviewDeptOpinionResultTag(t, existing.result)}
-                </Descriptions.Item>
-                <Descriptions.Item label={t('app.kuaizhizao.salesReview.colReviewedBy')}>
-                  {existing.reviewed_by_name || '—'}
-                </Descriptions.Item>
-                <Descriptions.Item label={t('app.kuaizhizao.salesReview.colReviewedAt')}>
-                  {existing.reviewed_at ? formatDateTime(existing.reviewed_at) : '—'}
-                </Descriptions.Item>
-                <Descriptions.Item label={t('app.kuaizhizao.salesReview.colOpinion')} span={2}>
-                  {existing.opinion?.trim() ? existing.opinion : '—'}
-                </Descriptions.Item>
-              </Descriptions>
-            ) : canSubmitThis ? (
-              <DeptOpinionEditor
-                deptCode={code}
-                formState={formState}
-                setOpinionForms={setOpinionForms}
-                actionLoading={actionLoading}
-                onSubmitDept={onSubmitDept}
-              />
-            ) : (
-              renderSalesReviewDeptOpinionResultTag(t, 'pending')
-            )}
-          </DetailDrawerSection>
-        );
-      })}
+        const resultLabel = isAnswered && existing ? existing.result : 'pending';
+
+        let content: React.ReactNode;
+        if (isAnswered && existing) {
+          content = (
+            <Descriptions size="small" column={2}>
+              <Descriptions.Item label={t('app.kuaizhizao.salesReview.colOpinionResult')}>
+                {renderSalesReviewDeptOpinionResultTag(t, existing.result)}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('app.kuaizhizao.salesReview.colReviewedBy')}>
+                {existing.reviewed_by_name || '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('app.kuaizhizao.salesReview.colReviewedAt')}>
+                {existing.reviewed_at ? formatDateTime(existing.reviewed_at) : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('app.kuaizhizao.salesReview.colOpinion')} span={2}>
+                {existing.opinion?.trim() ? existing.opinion : '—'}
+              </Descriptions.Item>
+            </Descriptions>
+          );
+        } else if (canSubmitThis) {
+          content = (
+            <DeptOpinionEditor
+              deptCode={code}
+              formState={formState}
+              setOpinionForms={setOpinionForms}
+              actionLoading={actionLoading}
+              onSubmitDept={onSubmitDept}
+            />
+          );
+        } else {
+          content = renderSalesReviewDeptOpinionResultTag(t, 'pending');
+        }
+
+        return {
+          key: code,
+          label: (
+            <Space size={4}>
+              <span>{deptLabel(code)}</span>
+              {renderSalesReviewDeptOpinionResultTag(t, resultLabel)}
+            </Space>
+          ),
+          children: <div style={{ paddingTop: 4 }}>{content}</div>,
+        };
+      }),
+    [actionLoading, canApprove, onSubmitDept, opinionByDept, opinionForms, review.status, setOpinionForms, t],
+  );
+
+  return (
+    <Space orientation="vertical" style={{ width: '100%' }} size="medium">
+      {review.status === 'reviewing' && canApprove ? (
+        <Alert type="info" showIcon title={t('app.kuaizhizao.salesReview.deptOpinionHint')} />
+      ) : null}
+      <Tabs activeKey={activeDept} onChange={setActiveDept} items={tabItems} />
     </Space>
   );
 };

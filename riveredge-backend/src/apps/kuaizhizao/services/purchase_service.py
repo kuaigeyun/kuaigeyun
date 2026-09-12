@@ -213,6 +213,13 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
             prepayment_bank_account_id=order.prepayment_bank_account_id,
             operator_id=operator_id,
         )
+        from apps.kuaizhizao.services.contract_milestone_billing_service import (
+            ContractMilestoneBillingService,
+        )
+
+        await ContractMilestoneBillingService().auto_generate_payables_for_purchase_order(
+            tenant_id, int(order.id), operator_id
+        )
 
     async def create_purchase_order(
         self,
@@ -282,7 +289,7 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
                         raise BusinessLogicError("当前组织要求先采购申请后下单，请先关联采购申请单")
 
             # 创建订单头
-            order_dict = order_data.model_dump(exclude={'items'})
+            order_dict = order_data.model_dump(exclude={'items', 'payment_milestones'})
             user_info = await self.get_user_info(created_by)
             order_dict.update({
                 'tenant_id': tenant_id,
@@ -369,6 +376,12 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
                 'updated_by_name': user_info["name"],
             }).save()
 
+            from apps.kuaizhizao.services.purchase_order_terms_service import PurchaseOrderTermsService
+
+            await PurchaseOrderTermsService().replace_order_milestones(
+                tenant_id, int(order.id), order_data.payment_milestones
+            )
+
             return await self.get_purchase_order_by_id(tenant_id, order.id)
 
     async def get_purchase_order_by_id(self, tenant_id: int, order_id: int) -> PurchaseOrderResponse:
@@ -420,6 +433,11 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
 
         response = await enrich_purchase_order_detail_capabilities(
             tenant_id, order, response, has_items=len(items) > 0
+        )
+        from apps.kuaizhizao.services.purchase_order_terms_service import PurchaseOrderTermsService
+
+        response.payment_milestones = await PurchaseOrderTermsService.load_payment_milestones(
+            tenant_id, order_id
         )
         return await enrich_record(tenant_id, "purchase_order", response)
 
@@ -1039,7 +1057,9 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
                         )
 
             # 更新订单头
-            update_dict = order_data.model_dump(exclude_unset=True, exclude={'items', 'change_reason'})
+            update_dict = order_data.model_dump(
+                exclude_unset=True, exclude={'items', 'change_reason', 'payment_milestones'}
+            )
             from core.services.document_code_service import pop_and_apply_code_change_from_update_dict
 
             await pop_and_apply_code_change_from_update_dict(
@@ -1161,6 +1181,13 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
                     'net_amount': net_amount,
                     'updated_by': updated_by
                 }).save()
+
+            if order_data.payment_milestones is not None:
+                from apps.kuaizhizao.services.purchase_order_terms_service import PurchaseOrderTermsService
+
+                await PurchaseOrderTermsService().replace_order_milestones(
+                    tenant_id, order_id, order_data.payment_milestones
+                )
 
             return await self.get_purchase_order_by_id(tenant_id, order_id)
 
@@ -1589,7 +1616,10 @@ class PurchaseService(AppBaseService[PurchaseOrder]):
         if not order:
             raise NotFoundError(f"采购订单不存在: {order_id}")
 
-        assert_purchase_order_capability(order, "delete")
+        from apps.kuaizhizao.services.document_action_policy.enricher import purchase_order_has_downstream
+
+        has_downstream = await purchase_order_has_downstream(tenant_id, order_id)
+        assert_purchase_order_capability(order, "delete", has_downstream=has_downstream)
 
         po_code = getattr(order, "order_code", str(order_id))
 

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from apps.kuaicaiwu.models.chart_of_account import ChartOfAccount
 from apps.kuaicaiwu.services.gl.balance_service import BalanceService
+from apps.kuaicaiwu.services.gl.income_statement_template import build_income_statement_rows
 
 BALANCE_FIELDS = (
     "opening_debit",
@@ -243,93 +244,29 @@ class StatementService:
         *,
         include_unposted: bool = False,
     ) -> Dict[str, Any]:
-        rows = await self._period_balances(
+        balance_rows = await self._period_balances(
             tenant_id, year, month, include_unposted=include_unposted
         )
-        income_lines: List[Dict[str, Any]] = []
-        cost_lines: List[Dict[str, Any]] = []
-        expense_lines: List[Dict[str, Any]] = []
-
-        for row in rows:
-            account_type = str(row.get("account_type") or "")
-            direction = str(row.get("balance_direction") or "debit")
-            period = signed_amount(row["period_debit"], row["period_credit"], direction)
-            year_amt = signed_amount(row["year_debit"], row["year_credit"], direction)
-            if period == 0 and year_amt == 0:
-                continue
-            line = _line(
-                line_key=f"{account_type}-{row['account_id']}",
-                label=str(row["account_name"]),
-                section="income",
-                amount=period,
-                period_amount=period,
-                year_amount=year_amt,
-                account_code=str(row.get("account_code") or ""),
-                account_id=int(row["account_id"]),
-            )
-            if account_type == "cost":
-                line["section"] = "cost"
-                cost_lines.append(line)
-            elif account_type == "profit_loss" and direction == "credit":
-                line["section"] = "income"
-                income_lines.append(line)
-            elif account_type == "profit_loss":
-                line["section"] = "expense"
-                expense_lines.append(line)
-
-        period_income = sum((_d(line["period_amount"]) for line in income_lines), Decimal("0"))
-        year_income = sum((_d(line["year_amount"]) for line in income_lines), Decimal("0"))
-        period_cost = sum((_d(line["period_amount"]) for line in cost_lines), Decimal("0"))
-        year_cost = sum((_d(line["year_amount"]) for line in cost_lines), Decimal("0"))
-        period_expense = sum((_d(line["period_amount"]) for line in expense_lines), Decimal("0"))
-        year_expense = sum((_d(line["year_amount"]) for line in expense_lines), Decimal("0"))
-        period_profit = period_income - period_cost - period_expense
-        year_profit = year_income - year_cost - year_expense
-
-        lines = [
-            _line(line_key="income-header", label="收入", section="income", amount=Decimal("0"), is_total=True),
-            *income_lines,
-            _line(
-                line_key="income-total",
-                label="收入合计",
-                section="income",
-                amount=period_income,
-                period_amount=period_income,
-                year_amount=year_income,
-                is_total=True,
-            ),
-            _line(line_key="cost-header", label="成本", section="cost", amount=Decimal("0"), is_total=True),
-            *cost_lines,
-            _line(
-                line_key="cost-total",
-                label="成本合计",
-                section="cost",
-                amount=period_cost,
-                period_amount=period_cost,
-                year_amount=year_cost,
-                is_total=True,
-            ),
-            _line(line_key="expense-header", label="费用", section="expense", amount=Decimal("0"), is_total=True),
-            *expense_lines,
-            _line(
-                line_key="expense-total",
-                label="费用合计",
-                section="expense",
-                amount=period_expense,
-                period_amount=period_expense,
-                year_amount=year_expense,
-                is_total=True,
-            ),
-            _line(
-                line_key="net-profit",
-                label="净利润",
-                section="profit",
-                amount=period_profit,
-                period_amount=period_profit,
-                year_amount=year_profit,
-                is_total=True,
-            ),
-        ]
+        lines = build_income_statement_rows(
+            balance_rows,
+            signed_amount_fn=signed_amount,
+        )
+        net_line = next((line for line in lines if line.get("line_key") == "line_35"), None)
+        period_profit = _d(net_line["period_amount"]) if net_line else Decimal("0")
+        year_profit = _d(net_line["year_amount"]) if net_line else Decimal("0")
+        line_1 = next((line for line in lines if line.get("line_key") == "line_1"), None)
+        line_2 = next((line for line in lines if line.get("line_key") == "line_2"), None)
+        period_income = _d(line_1["period_amount"]) if line_1 else Decimal("0")
+        year_income = _d(line_1["year_amount"]) if line_1 else Decimal("0")
+        period_cost = _d(line_2["period_amount"]) if line_2 else Decimal("0")
+        year_cost = _d(line_2["year_amount"]) if line_2 else Decimal("0")
+        expense_keys = ("line_3", "line_11", "line_14", "line_18", "line_20", "line_25", "line_32")
+        period_expense = Decimal("0")
+        year_expense = Decimal("0")
+        for line in lines:
+            if line.get("line_key") in expense_keys:
+                period_expense += _d(line.get("period_amount"))
+                year_expense += _d(line.get("year_amount"))
         return {
             "year": year,
             "month": month,

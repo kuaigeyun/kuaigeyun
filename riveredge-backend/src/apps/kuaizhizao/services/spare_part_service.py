@@ -19,6 +19,24 @@ from infra.exceptions.exceptions import NotFoundError, ValidationError
 from infra.models.user import User
 from core.utils.timezone_utils import resolve_business_datetime
 
+DEFAULT_SPARE_PART_WAREHOUSE_LOCATION = "默认库位"
+
+
+def normalize_spare_part_warehouse_location(location: Optional[str]) -> str:
+    text = str(location or "").strip()
+    return text or DEFAULT_SPARE_PART_WAREHOUSE_LOCATION
+
+
+def normalize_stock_adjust_delta(quantity: int, operation_type: str) -> int:
+    """入库为正、出库为负；兼容前端 in/out 与中文入出库。"""
+    qty = abs(int(quantity))
+    op = str(operation_type or "").strip().lower()
+    if op in ("out", "出库", "issue", "deduct"):
+        return -qty
+    if op in ("in", "入库", "receive"):
+        return qty
+    return int(quantity)
+
 
 class SparePartService:
     """
@@ -131,6 +149,140 @@ class SparePartService:
         part.is_active = False
         await part.save()
 
+    async def _get_or_create_active_inventory(
+        self,
+        tenant_id: int,
+        spare_part: SparePart,
+        warehouse_location: str,
+    ) -> SparePartInventory:
+        location = normalize_spare_part_warehouse_location(warehouse_location)
+        inventory = await SparePartInventory.filter(
+            tenant_id=tenant_id,
+            spare_part_id=spare_part.id,
+            warehouse_location=location,
+            deleted_at__isnull=True,
+        ).first()
+        if inventory:
+            return inventory
+        return await SparePartInventory.create(
+            tenant_id=tenant_id,
+            spare_part_id=spare_part.id,
+            spare_part_uuid=spare_part.uuid,
+            warehouse_location=location,
+            stock_quantity=0,
+        )
+
+    async def _list_active_inventory_rows(
+        self, tenant_id: int, spare_part_id: int
+    ) -> List[SparePartInventory]:
+        return await SparePartInventory.filter(
+            tenant_id=tenant_id,
+            spare_part_id=spare_part_id,
+            deleted_at__isnull=True,
+        ).order_by("-stock_quantity", "id").all()
+
+    def _format_inventory_shortage_message(
+        self,
+        spare_part: SparePart,
+        *,
+        preferred_location: str,
+        required_qty: int,
+        location_qty: int,
+        rows: List[SparePartInventory],
+    ) -> str:
+        part_label = f"{spare_part.part_no} {spare_part.part_name}".strip()
+        stocked = [
+            f"「{normalize_spare_part_warehouse_location(row.warehouse_location)}」{int(row.stock_quantity or 0)}"
+            for row in rows
+            if int(row.stock_quantity or 0) > 0
+        ]
+        total_qty = sum(int(row.stock_quantity or 0) for row in rows)
+        detail = "、".join(stocked[:5]) if stocked else "无可用库位"
+        if len(stocked) > 5:
+            detail = f"{detail} 等"
+        return (
+            f"备件「{part_label}」在库位「{preferred_location}」库存不足："
+            f"当前 {location_qty}，本次需出库 {required_qty}。"
+            f"全库位合计 {total_qty}（{detail}）。请核对库位或在备品备件中入库。"
+        )
+
+    async def _deduct_stock_across_locations(
+        self,
+        tenant_id: int,
+        spare_part: SparePart,
+        quantity: int,
+        preferred_location: Optional[str],
+        *,
+        operation_type: str,
+        rel_type: Optional[str] = None,
+        rel_id: Optional[int] = None,
+        operator_id: Optional[int] = None,
+        operator_name: Optional[str] = None,
+        remark: Optional[str] = None,
+    ) -> None:
+        need_qty = abs(int(quantity))
+        if need_qty <= 0:
+            return
+
+        preferred = normalize_spare_part_warehouse_location(preferred_location)
+        rows = await self._list_active_inventory_rows(tenant_id, int(spare_part.id))
+        location_qty = next(
+            (int(row.stock_quantity or 0) for row in rows if normalize_spare_part_warehouse_location(row.warehouse_location) == preferred),
+            0,
+        )
+        total_qty = sum(int(row.stock_quantity or 0) for row in rows)
+        if total_qty < need_qty:
+            raise ValidationError(
+                self._format_inventory_shortage_message(
+                    spare_part,
+                    preferred_location=preferred,
+                    required_qty=need_qty,
+                    location_qty=location_qty,
+                    rows=rows,
+                )
+            )
+
+        remaining = need_qty
+        preferred_rows = [
+            row for row in rows if normalize_spare_part_warehouse_location(row.warehouse_location) == preferred
+        ]
+        other_rows = [
+            row for row in rows if normalize_spare_part_warehouse_location(row.warehouse_location) != preferred
+        ]
+        ordered_rows = preferred_rows + other_rows
+
+        for row in ordered_rows:
+            if remaining <= 0:
+                break
+            available = int(row.stock_quantity or 0)
+            if available <= 0:
+                continue
+            take = min(available, remaining)
+            await self.adjust_stock(
+                tenant_id=tenant_id,
+                spare_part_id=int(spare_part.id),
+                quantity=-take,
+                operation_type=operation_type,
+                warehouse_location=normalize_spare_part_warehouse_location(row.warehouse_location),
+                rel_type=rel_type,
+                rel_id=rel_id,
+                operator_id=operator_id,
+                operator_name=operator_name,
+                remark=remark,
+            )
+            remaining -= take
+
+        if remaining > 0:
+            raise ValidationError(
+                self._format_inventory_shortage_message(
+                    spare_part,
+                    preferred_location=preferred,
+                    required_qty=need_qty,
+                    location_qty=location_qty,
+                    rows=rows,
+                )
+            )
+
     async def adjust_stock(
         self,
         tenant_id: int,
@@ -147,27 +299,32 @@ class SparePartService:
         """
         调整备件库存并记录流水
         """
-        spare_part = await SparePart.filter(id=spare_part_id, tenant_id=tenant_id).first()
+        spare_part = await SparePart.filter(
+            id=spare_part_id,
+            tenant_id=tenant_id,
+            deleted_at__isnull=True,
+        ).first()
         if not spare_part:
             raise NotFoundError(f"备件不存在: {spare_part_id}")
-        warehouse_location = str(warehouse_location or "").strip()
-        if not warehouse_location:
-            raise ValidationError("仓库位置不能为空，请传入实际仓库/库位名称")
+        warehouse_location = normalize_spare_part_warehouse_location(warehouse_location)
+        delta = normalize_stock_adjust_delta(quantity, operation_type)
 
-        inventory, created = await SparePartInventory.get_or_create(
-            tenant_id=tenant_id,
-            spare_part_id=spare_part_id,
-            warehouse_location=warehouse_location,
-            defaults={"spare_part_uuid": spare_part.uuid}
+        inventory = await self._get_or_create_active_inventory(
+            tenant_id, spare_part, warehouse_location
         )
 
-        old_quantity = inventory.stock_quantity
-        new_quantity = old_quantity + quantity
+        old_quantity = int(inventory.stock_quantity or 0)
+        new_quantity = old_quantity + delta
         if new_quantity < 0:
-            part_label = f"{spare_part.part_no} {spare_part.part_name}".strip()
+            rows = await self._list_active_inventory_rows(tenant_id, spare_part_id)
             raise ValidationError(
-                f"备件「{part_label}」在库位「{warehouse_location}」库存不足："
-                f"当前 {old_quantity}，本次需出库 {abs(int(quantity))}。请先在备品备件中入库后再批准。"
+                self._format_inventory_shortage_message(
+                    spare_part,
+                    preferred_location=warehouse_location,
+                    required_qty=abs(delta),
+                    location_qty=old_quantity,
+                    rows=rows,
+                )
             )
 
         inventory.stock_quantity = new_quantity
@@ -180,7 +337,7 @@ class SparePartService:
             spare_part_id=spare_part_id,
             spare_part_uuid=spare_part.uuid,
             operation_type=operation_type,
-            quantity=quantity,
+            quantity=delta,
             after_quantity=new_quantity,
             rel_type=rel_type,
             rel_id=rel_id,
@@ -212,15 +369,22 @@ class SparePartService:
                 continue
             part_id = item.get("spare_part_id") or item.get("part_id")
             qty = item.get("quantity") or item.get("qty")
-            location = item.get("warehouse_location") or item.get("location") or "默认库位"
+            location = item.get("warehouse_location") or item.get("location")
             if not part_id or not qty:
                 continue
-            await self.adjust_stock(
+            spare_part = await SparePart.filter(
                 tenant_id=tenant_id,
-                spare_part_id=int(part_id),
-                quantity=-abs(int(qty)),
+                id=int(part_id),
+                deleted_at__isnull=True,
+            ).first()
+            if not spare_part:
+                raise NotFoundError(f"备件不存在: {part_id}")
+            await self._deduct_stock_across_locations(
+                tenant_id=tenant_id,
+                spare_part=spare_part,
+                quantity=abs(int(qty)),
+                preferred_location=location,
                 operation_type="出库",
-                warehouse_location=str(location),
                 rel_type=rel_type,
                 rel_id=rel_id,
                 operator_id=operator_id,
@@ -235,7 +399,11 @@ class SparePartService:
         all_parts = await SparePart.filter(tenant_id=tenant_id, is_active=True, deleted_at__isnull=True).all()
         alerts = []
         for part in all_parts:
-            total_stock = await SparePartInventory.filter(tenant_id=tenant_id, spare_part_id=part.id).all()
+            total_stock = await SparePartInventory.filter(
+                tenant_id=tenant_id,
+                spare_part_id=part.id,
+                deleted_at__isnull=True,
+            ).all()
             total_qty = sum([inv.stock_quantity for inv in total_stock])
             if total_qty < part.safety_stock:
                 alerts.append({

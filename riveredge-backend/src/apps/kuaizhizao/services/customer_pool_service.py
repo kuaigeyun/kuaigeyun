@@ -846,6 +846,67 @@ class CustomerPoolService:
         return CustomerPoolRuleResponse.model_validate(rule)
 
     @classmethod
+    async def _recycle_due_customers_for_tenant(
+        cls,
+        tenant_id: int,
+        *,
+        now,
+    ) -> tuple[int, int]:
+        scanned = 0
+        recycled = 0
+        rules = await CustomerPoolRule.filter(
+            tenant_id=tenant_id,
+            deleted_at__isnull=True,
+            recycle_enabled=True,
+        ).all()
+        if not rules:
+            return scanned, recycled
+        rows = await Customer.filter(
+            tenant_id=tenant_id,
+            deleted_at__isnull=True,
+            pool_status="owned",
+            recycle_at__isnull=False,
+            recycle_at__lte=now,
+        ).all()
+        scanned = len(rows)
+        for customer in rows:
+            from_salesman = customer.salesman_id
+            customer.salesman_id = None
+            customer.salesman_name = None
+            customer.pool_status = "pool"
+            customer.assigned_at = None
+            customer.recycle_at = None
+            await customer.save()
+            await cls._clear_collaborators(
+                tenant_id=tenant_id,
+                customer=customer,
+                operator_user_id=0,
+                reason="auto recycle job",
+            )
+            await cls._write_log(
+                tenant_id=tenant_id,
+                customer=customer,
+                action="recycle",
+                operator_user_id=0,
+                from_salesman_id=from_salesman,
+                to_salesman_id=None,
+                reason="auto recycle job",
+            )
+            recycled += 1
+        return scanned, recycled
+
+    @classmethod
+    async def execute_recycle_job_for_tenant(cls, tenant_id: int) -> dict:
+        now = timezone.now()
+        scanned, recycled = await cls._recycle_due_customers_for_tenant(tenant_id, now=now)
+        return {
+            "success": True,
+            "scanned": scanned,
+            "recycled": recycled,
+            "timestamp": to_api_isoformat(now),
+        }
+
+    @classmethod
     async def execute_recycle_job(cls) -> dict:
         now = timezone.now()
         scanned = 0
@@ -855,40 +916,11 @@ class CustomerPoolService:
             deleted_at__isnull=True,
             recycle_enabled=True,
         ).all()
-
-        for rule in rules:
-            rows = await Customer.filter(
-                tenant_id=rule.tenant_id,
-                deleted_at__isnull=True,
-                pool_status="owned",
-                recycle_at__isnull=False,
-                recycle_at__lte=now,
-            ).all()
-            scanned += len(rows)
-            for customer in rows:
-                from_salesman = customer.salesman_id
-                customer.salesman_id = None
-                customer.salesman_name = None
-                customer.pool_status = "pool"
-                customer.assigned_at = None
-                customer.recycle_at = None
-                await customer.save()
-                await cls._clear_collaborators(
-                    tenant_id=rule.tenant_id,
-                    customer=customer,
-                    operator_user_id=0,
-                    reason="auto recycle job",
-                )
-                await cls._write_log(
-                    tenant_id=rule.tenant_id,
-                    customer=customer,
-                    action="recycle",
-                    operator_user_id=0,
-                    from_salesman_id=from_salesman,
-                    to_salesman_id=None,
-                    reason="auto recycle job",
-                )
-                recycled += 1
+        tenant_ids = sorted({int(rule.tenant_id) for rule in rules})
+        for tenant_id in tenant_ids:
+            s, r = await cls._recycle_due_customers_for_tenant(tenant_id, now=now)
+            scanned += s
+            recycled += r
 
         return {
             "success": True,

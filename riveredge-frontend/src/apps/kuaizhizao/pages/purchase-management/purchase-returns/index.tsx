@@ -112,6 +112,7 @@ import { useNewShortcut } from '../../../../../hooks/useNewShortcut';
 import {
   purchaseReturnBatchConfirmAllowed,
   purchaseReturnBatchWithdrawAllowed,
+  purchaseReturnCapabilityReasonMessage,
 } from '../../../../../hooks/useDocumentCapabilities';
 import { UniWorkflowActions } from '../../../../../components/uni-workflow-actions';
 import { isManualAuditEnabled } from '../../../../../utils/auditMode';
@@ -177,6 +178,20 @@ const PR_WORKFLOW_DRAFT_STATUSES = ['草稿', 'draft'];
 const PR_WORKFLOW_PENDING_STATUSES = ['待审核', 'pending_review', 'pending_approval', 'PENDING'];
 const PR_WORKFLOW_APPROVED_STATUSES = ['审核通过', '已通过', 'approved', 'APPROVED'];
 const PR_WORKFLOW_REJECTED_STATUSES = ['审核驳回', '已驳回', 'rejected', 'REJECTED'];
+
+function isPurchaseReturnRowSelectable(record: PurchaseReturn): boolean {
+  if (record.capabilities?.delete?.allowed === true) return true;
+  if (record.capabilities?.confirm?.allowed === true) return true;
+  if (record.capabilities?.withdraw?.allowed === true) return true;
+  const st = record.status ?? '';
+  const rs = record.review_status ?? '';
+  if (PR_WORKFLOW_DRAFT_STATUSES.includes(st)) return true;
+  if (PR_WORKFLOW_PENDING_STATUSES.includes(st) || PR_WORKFLOW_PENDING_STATUSES.includes(rs)) {
+    return true;
+  }
+  if (PR_WORKFLOW_REJECTED_STATUSES.includes(rs)) return true;
+  return false;
+}
 
 type PurchaseReturnItemRow = PurchaseReturnItem & {
   _rowKey: string;
@@ -1327,14 +1342,29 @@ const PurchaseReturnsPage: React.FC = () => {
 
   const handleBatchDelete = async (keys: React.Key[]) => {
     if (!keys || keys.length === 0) return;
+    const rows = keys
+      .map((key) => tableRowsRef.current.find((row) => String(row.id) === String(key)))
+      .filter((row): row is PurchaseReturn => row != null);
+    const deletable = rows.filter((row) => row.capabilities?.delete?.allowed === true);
+    if (deletable.length === 0) {
+      const blocked = rows.find((row) => row.capabilities?.delete?.reason);
+      messageApi.warning(
+        purchaseReturnCapabilityReasonMessage(blocked?.capabilities?.delete?.reason, t)
+          || t('common.deleteFailed'),
+      );
+      return;
+    }
+    if (deletable.length < rows.length) {
+      messageApi.warning(t('app.kuaizhizao.purchaseReturn.batchDeletePartialSkipped'));
+    }
     try {
-      for (const id of keys) {
-        await warehouseApi.purchaseReturn.delete(String(id));
+      for (const row of deletable) {
+        await warehouseApi.purchaseReturn.delete(String(row.id));
       }
-      messageApi.success(t('app.kuaizhizao.purchaseReturn.batchDeleteSuccess', { count: keys.length }));
+      messageApi.success(t('app.kuaizhizao.purchaseReturn.batchDeleteSuccess', { count: deletable.length }));
       setSelectedRowKeys([]);
       invalidatePurchaseReturnStatistics();
-      if (returnDetail?.id != null && keys.includes(returnDetail.id)) {
+      if (returnDetail?.id != null && deletable.some((row) => row.id === returnDetail.id)) {
         setReturnDetail(null);
         setDetailDrawerVisible(false);
       }
@@ -2297,6 +2327,9 @@ const PurchaseReturnsPage: React.FC = () => {
               tableRowsRef.current = rows as PurchaseReturn[];
             }
           }}
+          rowSelectionGetCheckboxProps={(record) => ({
+            disabled: !isPurchaseReturnRowSelectable(record),
+          })}
           showDeleteButton={viewTypeState !== 'detailTable'}
           onDelete={handleBatchDelete}
           deleteConfirmTitle={(count) => t('app.kuaizhizao.purchaseReturn.confirmBatchDelete', { count })}

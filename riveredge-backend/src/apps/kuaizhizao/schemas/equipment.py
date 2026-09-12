@@ -59,6 +59,14 @@ class EquipmentBase(BaseModel):
     work_center_name: Optional[str] = Field(None, max_length=200, description="工作中心名称")
     responsible_person_id: Optional[int] = Field(None, description="设备负责人ID（可选）")
     responsible_person_name: Optional[str] = Field(None, max_length=100, description="设备负责人姓名")
+    spot_check_person_id: Optional[int] = Field(None, description="点检人ID（可选）")
+    spot_check_person_name: Optional[str] = Field(None, max_length=100, description="点检人姓名")
+    needs_calibration: bool = Field(default=False, description="是否需要校验/计量")
+    calibration_period: Optional[int] = Field(None, ge=1, description="校验周期（天）")
+    last_calibration_date: Optional[date] = Field(None, description="上次校验日期")
+    next_calibration_date: Optional[date] = Field(None, description="下次校验日期")
+    measuring_precision: Optional[str] = Field(None, max_length=100, description="精度（计量器具）")
+    measurement_range: Optional[str] = Field(None, max_length=200, description="测量范围（计量器具）")
     status: str = Field(
         default="正常",
         max_length=50,
@@ -136,6 +144,14 @@ class EquipmentUpdate(BaseModel):
     work_center_name: Optional[str] = Field(None, max_length=200, description="工作中心名称")
     responsible_person_id: Optional[int] = Field(None, description="设备负责人ID（可选）")
     responsible_person_name: Optional[str] = Field(None, max_length=100, description="设备负责人姓名")
+    spot_check_person_id: Optional[int] = Field(None, description="点检人ID（可选）")
+    spot_check_person_name: Optional[str] = Field(None, max_length=100, description="点检人姓名")
+    needs_calibration: Optional[bool] = Field(None, description="是否需要校验/计量")
+    calibration_period: Optional[int] = Field(None, ge=1, description="校验周期（天）")
+    last_calibration_date: Optional[date] = Field(None, description="上次校验日期")
+    next_calibration_date: Optional[date] = Field(None, description="下次校验日期")
+    measuring_precision: Optional[str] = Field(None, max_length=100, description="精度（计量器具）")
+    measurement_range: Optional[str] = Field(None, max_length=200, description="测量范围（计量器具）")
     status: Optional[str] = Field(
         None,
         max_length=50,
@@ -150,7 +166,7 @@ class EquipmentUpdate(BaseModel):
         max_length=200,
         description="手工绑定二维码内容（空则使用系统生成的 EQ 码）",
     )
-    
+
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: Optional[str]) -> Optional[str]:
@@ -299,4 +315,60 @@ class EquipmentCalibrationReminderListResponse(BaseModel):
     total: int = Field(..., description="总数量")
     skip: int = Field(..., description="跳过数量")
     limit: int = Field(..., description="限制数量")
+
+
+class EquipmentCalibrationReminderSettingsResponse(BaseModel):
+    """设备校准到期提醒租户配置"""
+    advance_days: int = Field(
+        ...,
+        ge=1,
+        le=365,
+        description="提前提醒天数（距到期日以内纳入即将到期列表并调度通知）",
+    )
+
+
+class EquipmentCalibrationReminderSettingsUpdate(BaseModel):
+    """更新设备校准到期提醒租户配置"""
+    advance_days: int = Field(..., ge=1, le=365, description="提前提醒天数")
+
+
+class MeasuringInstrumentCalibrationAlertReportItem(BaseModel):
+    """计量器具校准到期预警报表行"""
+    equipment_uuid: str
+    equipment_code: str
+    equipment_name: str
+    due_type: str
+    due_date: date
+    days_until_due: int
+    calibration_period: Optional[int] = None
+    last_calibration_date: Optional[date] = None
+
+
+class MeasuringInstrumentCalibrationAlertReportResponse(BaseModel):
+    items: list[MeasuringInstrumentCalibrationAlertReportItem]
+    total: int
+    skip: int
+    limit: int
+
+
+class MeasuringInstrumentCalibrationDetailReportItem(BaseModel):
+    """计量器具校准记录明细报表行"""
+    equipment_uuid: str
+    equipment_code: str
+    equipment_name: str
+    calibration_uuid: str
+    calibration_date: date
+    result: str
+    certificate_no: Optional[str] = None
+    expiry_date: Optional[date] = None
+    attachment_count: int = 0
+    remark: Optional[str] = None
+    created_by_name: Optional[str] = None
+
+
+class MeasuringInstrumentCalibrationDetailReportResponse(BaseModel):
+    items: list[MeasuringInstrumentCalibrationDetailReportItem]
+    total: int
+    skip: int
+    limit: int
 

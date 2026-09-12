@@ -737,6 +737,26 @@ def assert_unqualified_qty_when_steps_fail(
         raise ValidationError("存在不合格检验项时，不合格数量必须大于 0")
 
 
+_CONDUCT_RESULT_KEYS = frozenset(
+    {
+        "conduct_step_results",
+        "conduct_item_results",
+        "conduct_measurement_data",
+        "measurement_data",
+    }
+)
+
+
+def strip_inspection_template_conduct(template_json: Any) -> Any:
+    """撤回检验时保留方案/标准快照，仅清除执行结果。"""
+    if not template_json or not isinstance(template_json, dict):
+        return template_json
+    preserved = dict(template_json)
+    for key in _CONDUCT_RESULT_KEYS:
+        preserved.pop(key, None)
+    return preserved
+
+
 def merge_template_conduct_results(template_json: Any, conduct_data: Dict[str, Any]) -> Any:
     if not template_json or not isinstance(template_json, dict):
         return template_json

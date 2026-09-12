@@ -79,4 +79,34 @@ export const ROUTES = {
   PERF_SUMMARIES: `${APP_BASE}/performance/summaries`,
 } as const;
 
+/** 报修维修列表或详情抽屉深链（与 equipment-faults 页 ?uuid= 契约一致） */
+export function buildEquipmentFaultDetailPath(uuid?: string | null): string {
+  if (uuid?.trim()) {
+    return `${ROUTES.EQUIPMENT_FAULTS}?uuid=${encodeURIComponent(uuid.trim())}`;
+  }
+  return ROUTES.EQUIPMENT_FAULTS;
+}
+
+/** 点检单列表或详情深链 */
+export function buildEquipmentSpotCheckDetailPath(uuid?: string | null): string {
+  if (uuid?.trim()) {
+    return `${ROUTES.EQUIPMENT_SPOT_CHECKS}?uuid=${encodeURIComponent(uuid.trim())}`;
+  }
+  return ROUTES.EQUIPMENT_SPOT_CHECKS;
+}
+
+/** 运维看板预警 link_path + link_uuid 合成可导航地址 */
+export function resolveEquipmentBoardAlertLink(row: {
+  link_path?: string | null;
+  link_uuid?: string | null;
+}): string | undefined {
+  const path = row.link_path?.trim();
+  if (!path) return undefined;
+  const uuid = row.link_uuid?.trim();
+  if (!uuid) return path;
+  if (path.includes('equipment-faults')) return buildEquipmentFaultDetailPath(uuid);
+  if (path.includes('spot-checks')) return buildEquipmentSpotCheckDetailPath(uuid);
+  return path;
+}
+
 export { APP_BASE };

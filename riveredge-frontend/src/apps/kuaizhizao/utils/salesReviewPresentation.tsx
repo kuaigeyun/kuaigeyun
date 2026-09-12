@@ -99,5 +99,5 @@ export function renderSalesReviewDeptOpinionResultTag(
   if (result === 'fail') {
     return <MarkerTag color="error">{t('app.kuaizhizao.salesReview.opinionFail')}</MarkerTag>;
   }
-  return <MarkerTag color="default">{t('app.kuaizhizao.salesReview.deptPending')}</MarkerTag>;
+  return <MarkerTag color="warning">{t('app.kuaizhizao.salesReview.deptPending')}</MarkerTag>;
 }

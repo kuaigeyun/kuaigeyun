@@ -4,27 +4,21 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { App, Button, Descriptions, Empty, Modal, Result, Space, Spin, Table } from 'antd';
+import { App, Button, Empty, Modal, Result, Space, Spin, Table } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { DetailDrawerSection } from '../../../../../components/layout-templates';
-import { DictionaryLabel } from '../../../../../components/dictionary-label';
 import { getApiErrorMessage } from '../../../../../utils/errorHandler';
-import { formatBusinessDateOnly } from '../../../../../utils/format';
 import {
   salesReviewApi,
   type SalesReview,
   type SalesReviewItem,
 } from '../../../services/sales-review';
 import {
-  renderSalesReviewRiskMarkerTag,
-  renderSalesReviewStatusTag,
-  renderSalesReviewUrgencyMarkerTag,
-} from '../../../utils/salesReviewPresentation';
-import {
   SalesReviewDeptOpinionsPanel,
   validateDeptOpinionForm,
   type DeptOpinionFormState,
 } from './DeptOpinionsPanel';
+import { SalesReviewBasicInfo } from './SalesReviewBasicInfo';
 
 export type SalesReviewReviewModalProps = {
   open: boolean;
@@ -156,7 +150,6 @@ export const SalesReviewReviewModal: React.FC<SalesReviewReviewModalProps> = ({
 
   const titleCode = review?.review_code ? ` ${review.review_code}` : '';
   const items = (review?.items || []) as SalesReviewItem[];
-  const totalAmount = Number(review?.total_amount);
 
   return (
     <Modal
@@ -188,62 +181,7 @@ export const SalesReviewReviewModal: React.FC<SalesReviewReviewModalProps> = ({
       ) : review ? (
         <Space orientation="vertical" style={{ width: '100%' }} size="medium">
           <DetailDrawerSection title={t('app.kuaizhizao.salesReview.basicInfoTitle')} titleAccent>
-            <Descriptions size="small" column={2}>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.colCustomer')}>
-                {review.customer_name || '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.colProjectName')}>
-                {review.project_name || '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.fieldContact')}>
-                {review.customer_contact || '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.fieldPhone')}>
-                {review.customer_phone || '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.fieldDeliveryDate')}>
-                {review.delivery_date ? formatBusinessDateOnly(review.delivery_date) : '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.colTotalAmount')}>
-                {Number.isFinite(totalAmount) ? totalAmount.toFixed(2) : '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.fieldUrgency')}>
-                {renderSalesReviewUrgencyMarkerTag(t, review.urgency)}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.fieldRiskLevel')}>
-                {renderSalesReviewRiskMarkerTag(t, review.risk_level)}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.colSalesman')}>
-                {review.salesman_name || '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('common.status')}>
-                {renderSalesReviewStatusTag(t, review.status)}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.fieldSettlement')}>
-                {review.settlement_method || '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('app.kuaizhizao.salesReview.fieldPaymentCycle')}>
-                {review.payment_cycle ? (
-                  <DictionaryLabel
-                    dictionaryCode="PAYMENT_TERMS"
-                    value={review.payment_cycle}
-                    notFoundPlaceholder={review.payment_cycle}
-                  />
-                ) : (
-                  '—'
-                )}
-              </Descriptions.Item>
-              {review.quotation_code ? (
-                <Descriptions.Item label={t('app.kuaizhizao.salesReview.colQuotation')} span={2}>
-                  {review.quotation_code}
-                </Descriptions.Item>
-              ) : null}
-              {review.remarks ? (
-                <Descriptions.Item label={t('common.remark')} span={2}>
-                  {review.remarks}
-                </Descriptions.Item>
-              ) : null}
-            </Descriptions>
+            <SalesReviewBasicInfo review={review} variant="modal" />
           </DetailDrawerSection>
 
           <DetailDrawerSection title={t('app.kuaizhizao.salesReview.itemsTitle')} titleAccent>

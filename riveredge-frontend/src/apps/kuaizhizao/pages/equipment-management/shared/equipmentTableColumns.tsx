@@ -75,6 +75,7 @@ export function buildLedgerNameCodeRemainderColumn<T extends object>(
     fixed?: 'left' | 'right';
     minWidth?: number;
     sorter?: boolean;
+    defaultSortOrder?: 'ascend' | 'descend';
     searchOrder?: number;
     nameKey?: string;
     codeKey?: string;
@@ -89,6 +90,7 @@ export function buildLedgerNameCodeRemainderColumn<T extends object>(
       dataIndex: codeKey,
       fixed: options?.fixed ?? 'left',
       sorter: options?.sorter ?? true,
+      defaultSortOrder: options?.defaultSortOrder,
       search: options?.searchOrder != null ? ({ order: options.searchOrder } as ProColumns['search']) : undefined,
       render: (_, record) => {
         const row = record as Record<string, unknown>;

@@ -313,3 +313,56 @@ async def get_pushable_qty_for_order_items(
         tenant_id, order_items, exclude_notice_id=exclude_notice_id
     )
     return pushable.get(int(sales_order_id), {})
+
+
+ACTIVE_SALES_ORDER_STATUSES_EXCLUDED = {
+    "草稿",
+    "DRAFT",
+    "已驳回",
+    "REJECTED",
+    "已取消",
+    "CANCELLED",
+}
+
+
+async def batch_sales_committed_by_material(
+    tenant_id: int,
+    material_ids: Sequence[int],
+    *,
+    exclude_sales_order_id: Optional[int] = None,
+) -> Dict[int, Decimal]:
+    """
+    有效销售订单未交付数量按物料汇总（销售承诺/锁单口径，与即时库存 ATP 一致）。
+    exclude_sales_order_id：预览当前单时排除本单占用，便于展示「其他销售占用」。
+    """
+    unique_ids = [int(mid) for mid in material_ids if mid is not None and int(mid) > 0]
+    if not unique_ids:
+        return {}
+
+    from apps.kuaizhizao.models.sales_order import SalesOrder
+    from apps.kuaizhizao.models.sales_order_item import SalesOrderItem
+
+    order_query = SalesOrder.filter(
+        tenant_id=tenant_id,
+        deleted_at__isnull=True,
+    ).exclude(status__in=list(ACTIVE_SALES_ORDER_STATUSES_EXCLUDED))
+    if exclude_sales_order_id is not None:
+        order_query = order_query.exclude(id=int(exclude_sales_order_id))
+    active_order_ids = await order_query.values_list("id", flat=True)
+    if not active_order_ids:
+        return {}
+
+    rows = await SalesOrderItem.filter(
+        tenant_id=tenant_id,
+        sales_order_id__in=list(active_order_ids),
+        material_id__in=unique_ids,
+        remaining_quantity__gt=0,
+    ).values("material_id", "remaining_quantity")
+
+    result: Dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
+    for row in rows:
+        mid = int(row.get("material_id") or 0)
+        if mid <= 0:
+            continue
+        result[mid] += Decimal(str(row.get("remaining_quantity") or 0))
+    return dict(result)

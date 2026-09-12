@@ -102,6 +102,7 @@ class EquipmentStatusHistoryResponse(BaseModel):
     changed_by_name: Optional[str] = Field(None, description="变更人姓名")
     reason: Optional[str] = Field(None, description="变更原因")
     remark: Optional[str] = Field(None, description="备注")
+    attachments: Optional[List[dict]] = Field(None, description="附件列表")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 

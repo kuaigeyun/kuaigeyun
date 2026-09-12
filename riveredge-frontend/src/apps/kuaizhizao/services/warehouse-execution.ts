@@ -518,7 +518,16 @@ export const warehouseApi = {
       ),
     confirm: async (
       id: string,
-      data?: { item_batches?: { item_id: number; batch_no: string }[] },
+      data?: {
+        item_batches?: { item_id: number; batch_no: string }[];
+        delivery_time?: string;
+        deliverer_id?: number;
+        deliverer_name?: string;
+        items?: unknown[];
+        warehouse_id?: number;
+        warehouse_name?: string;
+        notes?: string;
+      },
     ) => apiRequest(`/apps/kuaizhizao/sales-deliveries/${id}/confirm`, { method: 'POST', data: data ?? {} }),
     withdraw: async (id: string) => apiRequest(`/apps/kuaizhizao/sales-deliveries/${id}/withdraw`, { method: 'POST' }),
     import: async (data: any[][]) => apiRequest('/apps/kuaizhizao/sales-deliveries/import', { method: 'POST', data: { data } }),

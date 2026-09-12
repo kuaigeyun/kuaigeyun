@@ -678,6 +678,78 @@
           }
         ],
         "icon": "wrench"
+      },
+      {
+        "title": "app.kuaiems.menu.group.measuring-instrument",
+        "sort_order": 4,
+        "children": [
+          {
+            "title": "app.kuaiems.menu.group.measuring-instrument-basic-data",
+            "sort_order": 1,
+            "children": [
+              {
+                "title": "app.kuaizhizao.menu.measuring-instruments.ledger",
+                "path": "/apps/kuaizhizao/equipment-management/measuring-instruments",
+                "permission": "kuaizhizao:equipment-management-equipment:read",
+                "sort_order": 1,
+                "meta": {
+                  "module": "equipment"
+                }
+              }
+            ]
+          },
+          {
+            "title": "app.kuaiems.menu.group.measuring-instrument-docs",
+            "sort_order": 2,
+            "children": [
+              {
+                "title": "app.kuaizhizao.menu.measuring-instruments.calibrations",
+                "path": "/apps/kuaizhizao/equipment-management/measuring-instruments/calibrations",
+                "permission": "kuaizhizao:measuring-instrument-calibration:read",
+                "sort_order": 1,
+                "meta": {
+                  "node": "measuring_instrument_calibration",
+                  "module": "equipment"
+                }
+              },
+              {
+                "title": "app.kuaizhizao.menu.measuring-instruments.calibration-reminders",
+                "path": "/apps/kuaizhizao/equipment-management/measuring-instruments/calibration-reminders",
+                "permission": "kuaizhizao:measuring-instrument-calibration-reminder:read",
+                "sort_order": 2,
+                "meta": {
+                  "node": "measuring_instrument_calibration_reminder",
+                  "module": "equipment"
+                }
+              }
+            ]
+          },
+          {
+            "title": "app.kuaiems.menu.group.measuring-instrument-reports",
+            "sort_order": 3,
+            "children": [
+              {
+                "title": "app.kuaizhizao.menu.reports.measuring-instrument-calibration-alerts",
+                "path": "/apps/kuaizhizao/equipment-management/measuring-instruments/reports/calibration-alerts",
+                "permission": "kuaizhizao:measuring-instrument-report-calibration-alerts:read",
+                "sort_order": 1,
+                "meta": {
+                  "module": "equipment"
+                }
+              },
+              {
+                "title": "app.kuaizhizao.menu.reports.measuring-instrument-calibration-detail",
+                "path": "/apps/kuaizhizao/equipment-management/measuring-instruments/reports/calibration-detail",
+                "permission": "kuaizhizao:measuring-instrument-report-calibration-detail:read",
+                "sort_order": 2,
+                "meta": {
+                  "module": "equipment"
+                }
+              }
+            ]
+          }
+        ],
+        "icon": "ruler"
       }
     ]
   },

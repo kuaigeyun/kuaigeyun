@@ -42,7 +42,6 @@ const MonthlySettlementPage = lazy(() => import('./pages/cost-management/monthly
 
 // 管理报表
 const FinanceCenterDashboard = lazy(() => import('./pages/finance-management/dashboard'));
-const MarginReportPage = lazy(() => import('./pages/management-analysis/margin-report'));
 const SettlementPage = lazy(() => import('./pages/finance-management/settlement'));
 const PartnerStatementsPage = lazy(() => import('./pages/finance-management/partner-statements'));
 const PartnerStatementDetailPage = lazy(() => import('./pages/finance-management/partner-statements/detail'));
@@ -63,6 +62,16 @@ const GlBooksPage = lazy(() => import('./pages/gl-management/books'));
 const GlFinancialStatementsPage = lazy(() => import('./pages/gl-management/financial-statements'));
 const GlPeriodClosePage = lazy(() => import('./pages/gl-management/period-close'));
 const GlCashierPage = lazy(() => import('./pages/gl-management/cashier'));
+
+const FaMastersPage = lazy(() => import('./pages/fixed-assets/masters'));
+const FaAssetsPage = lazy(() => import('./pages/fixed-assets/assets'));
+const FaChangesPage = lazy(() => import('./pages/fixed-assets/changes'));
+const FaDisposalsPage = lazy(() => import('./pages/fixed-assets/disposals'));
+const FaDepreciationRunsPage = lazy(() => import('./pages/fixed-assets/depreciation-runs'));
+const FaDepreciationAdjustmentsPage = lazy(() => import('./pages/fixed-assets/depreciation-adjustments'));
+const FaDepreciationDetailReportPage = lazy(() => import('./pages/fixed-assets/reports/depreciation-detail'));
+const FaDepreciationSummaryReportPage = lazy(() => import('./pages/fixed-assets/reports/depreciation-summary'));
+const FaPeriodClosePage = lazy(() => import('./pages/fixed-assets/period-close'));
 
 const TaxSettingsPage = lazy(() => import('./pages/tax-management/settings'));
 const VatLedgerPage = lazy(() => import('./pages/tax-management/vat-ledger'));
@@ -134,7 +143,10 @@ const KuaicaiwuApp: React.FC = () => {
         path="management-dashboard"
         element={<Navigate to="/apps/kuaicaiwu/finance-management/dashboard" replace />}
       />
-      <Route path="management-analysis/margin-report" element={withPageSuspense(MarginReportPage)} />
+      <Route
+        path="management-analysis/margin-report"
+        element={<Navigate to="/apps/kuaicaiwu/finance-management/dashboard" replace />}
+      />
 
       {/* 总账管理路由 */}
       <Route path="gl-management/chart-of-accounts" element={withPageSuspense(GlChartOfAccountsPage)} />
@@ -156,6 +168,17 @@ const KuaicaiwuApp: React.FC = () => {
       />
       <Route path="gl-management/period-close" element={withPageSuspense(GlPeriodClosePage)} />
       <Route path="gl-management/cashier" element={withPageSuspense(GlCashierPage)} />
+
+      {/* 固定资产 */}
+      <Route path="fixed-assets/masters" element={withPageSuspense(FaMastersPage)} />
+      <Route path="fixed-assets/assets" element={withPageSuspense(FaAssetsPage)} />
+      <Route path="fixed-assets/changes" element={withPageSuspense(FaChangesPage)} />
+      <Route path="fixed-assets/disposals" element={withPageSuspense(FaDisposalsPage)} />
+      <Route path="fixed-assets/depreciation-runs" element={withPageSuspense(FaDepreciationRunsPage)} />
+      <Route path="fixed-assets/depreciation-adjustments" element={withPageSuspense(FaDepreciationAdjustmentsPage)} />
+      <Route path="fixed-assets/reports/depreciation-detail" element={withPageSuspense(FaDepreciationDetailReportPage)} />
+      <Route path="fixed-assets/reports/depreciation-summary" element={withPageSuspense(FaDepreciationSummaryReportPage)} />
+      <Route path="fixed-assets/period-close" element={withPageSuspense(FaPeriodClosePage)} />
 
       {/* 税务管理 */}
       <Route path="tax-management/settings" element={withPageSuspense(TaxSettingsPage)} />

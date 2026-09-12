@@ -960,7 +960,7 @@ async def get_todos(
                     priority=prio,
                     due_date=None,
                     status="pending",
-                    link="/apps/kuaizhizao/equipment-management/equipment-faults",
+                    link=f"/apps/kuaizhizao/equipment-management/equipment-faults?uuid={row.uuid}",
                     created_at=row.created_at,
                 ))
             return out
@@ -2875,7 +2875,7 @@ async def get_work_orders_active(
 
 
 @router.get("/warehouse-summary", summary="Warehouse center KPI summary")
-@cache_by_kwargs(namespace="dashboard:warehouse_summary", ttl=60)
+@cache_by_kwargs(namespace="dashboard:warehouse_summary_v2", ttl=60)
 async def get_warehouse_summary(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_current_tenant),
@@ -2896,10 +2896,7 @@ async def get_warehouse_summary(
     from apps.kuaizhizao.services.document_action_policy.warehouse_inbound_hub import (
         _INBOUND_PENDING_STATUSES,
     )
-    from apps.kuaizhizao.utils.inventory_helper import (
-        count_on_hand_batches,
-        sum_on_hand_quantity,
-    )
+    from apps.kuaizhizao.utils.inventory_helper import compute_tenant_inventory_dashboard_metrics
     import asyncio
 
     _pending_in = tuple(_INBOUND_PENDING_STATUSES)
@@ -2921,9 +2918,8 @@ async def get_warehouse_summary(
     sd_q = SalesDelivery.filter(tenant_id=tenant_id, status="待出库", deleted_at__isnull=True).count()
     oo_q = OtherOutbound.filter(tenant_id=tenant_id, status="待出库", deleted_at__isnull=True).count()
 
-    total_stock_dec, batch_count, pr, fg, oi, pret, sd, oo = await asyncio.gather(
-        sum_on_hand_quantity(tenant_id),
-        count_on_hand_batches(tenant_id),
+    inventory_metrics, pr, fg, oi, pret, sd, oo = await asyncio.gather(
+        compute_tenant_inventory_dashboard_metrics(tenant_id),
         pr_q,
         fg_q,
         oi_q,
@@ -2933,8 +2929,8 @@ async def get_warehouse_summary(
     )
 
     return {
-        "total_stock": round(float(total_stock_dec), 2),
-        "in_stock_batches": int(batch_count or 0),
+        "total_stock": float(inventory_metrics["total_quantity"]),
+        "in_stock_batches": int(inventory_metrics["batch_count"] or 0),
         "pending_inbound": int((pr or 0) + (fg or 0) + (oi or 0) + (pret or 0)),
         "pending_outbound": int((sd or 0) + (oo or 0)),
     }

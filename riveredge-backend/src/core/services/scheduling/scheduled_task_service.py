@@ -11,7 +11,11 @@ from datetime import datetime
 from tortoise.exceptions import IntegrityError
 
 from core.models.scheduled_task import ScheduledTask
-from core.schemas.scheduled_task import ScheduledTaskCreate, ScheduledTaskUpdate
+from core.schemas.scheduled_task import (
+    ScheduledTaskCreate,
+    ScheduledTaskResponse,
+    ScheduledTaskUpdate,
+)
 from core.services.messaging.message_service import MessageService
 from core.schemas.message_template import SendMessageRequest
 from infra.models.user import User
@@ -25,6 +29,26 @@ class ScheduledTaskService:
 
     提供定时任务的 CRUD；与运行记录字段（如历史 inngest_run_id）兼容，调度由 Taskiq 承担。
     """
+
+    @staticmethod
+    def to_response(scheduled_task: ScheduledTask) -> ScheduledTaskResponse:
+        from core.config.scheduled_job_registry import get_preset
+        from core.services.scheduling.scheduled_job_preset_service import (
+            is_preset_task,
+            preset_handler_code,
+        )
+
+        resp = ScheduledTaskResponse.model_validate(scheduled_task)
+        if is_preset_task(scheduled_task):
+            preset = get_preset(preset_handler_code(scheduled_task))
+            cfg = scheduled_task.task_config or {}
+            return resp.model_copy(
+                update={
+                    "is_preset": True,
+                    "preset_module": cfg.get("module") or (preset.module if preset else None),
+                }
+            )
+        return resp
     
     @staticmethod
     async def create_scheduled_task(
@@ -44,6 +68,8 @@ class ScheduledTaskService:
         Raises:
             ValidationError: 当任务代码已存在时抛出
         """
+        if data.type == "builtin":
+            raise ValidationError("内置定时任务请通过 sync-presets 同步，不可手工创建")
         try:
             scheduled_task = ScheduledTask(
                 tenant_id=tenant_id,
@@ -154,6 +180,9 @@ class ScheduledTaskService:
         scheduled_task = await ScheduledTaskService.get_scheduled_task_by_uuid(tenant_id, uuid)
         
         update_data = data.model_dump(exclude_unset=True)
+        from core.services.scheduling.scheduled_job_preset_service import ScheduledJobPresetService
+
+        ScheduledJobPresetService.validate_preset_update(scheduled_task, update_data)
         for key, value in update_data.items():
             setattr(scheduled_task, key, value)
         
@@ -189,6 +218,11 @@ class ScheduledTaskService:
             NotFoundError: 当定时任务不存在时抛出
         """
         scheduled_task = await ScheduledTaskService.get_scheduled_task_by_uuid(tenant_id, uuid)
+
+        from core.services.scheduling.scheduled_job_preset_service import is_preset_task
+
+        if is_preset_task(scheduled_task):
+            raise ValidationError("内置定时任务不可删除，请停用任务")
         
         # TODO: 集成 Inngest 函数注销
         # 如果任务已注册到 Inngest，需要先注销

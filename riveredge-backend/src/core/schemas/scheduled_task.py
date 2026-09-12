@@ -34,7 +34,13 @@ class ScheduledTaskBase(BaseModel):
     @classmethod
     def validate_task_type(cls, v):
         """验证任务类型"""
-        allowed_types = ['python_script', 'api_call']
+        allowed_types = [
+            'python_script',
+            'api_call',
+            'backup',
+            'kuaireport_report_subscription',
+            'builtin',
+        ]
         if v not in allowed_types:
             raise ValueError(f'任务类型必须是 {allowed_types} 之一')
         return v
@@ -66,6 +72,8 @@ class ScheduledTaskResponse(ScheduledTaskBase):
     last_error: Optional[str] = Field(None, description="最后错误信息")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
+    is_preset: bool = Field(False, description="是否为系统内置预设任务")
+    preset_module: Optional[str] = Field(None, description="预设任务所属配置模块")
     
     model_config = ConfigDict(from_attributes=True)
 

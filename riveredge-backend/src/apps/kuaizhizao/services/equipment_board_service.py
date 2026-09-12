@@ -364,7 +364,7 @@ async def _build_alerts(
                     "equipment_code": fault.equipment_code,
                     "equipment_name": fault.equipment_name,
                     "occurred_at": to_api_isoformat(fault.reported_at or fault.fault_date),
-                    "link_path": "/apps/kuaizhizao/equipment-management/equipment-faults",
+                    "link_path": f"/apps/kuaizhizao/equipment-management/equipment-faults?uuid={fault.uuid}",
                     "link_uuid": fault.uuid,
                 }
             )
@@ -445,7 +445,7 @@ async def _build_alerts(
                         "equipment_code": fault.equipment_code,
                         "equipment_name": fault.equipment_name,
                         "occurred_at": to_api_isoformat(fault.response_due_at),
-                        "link_path": "/apps/kuaizhizao/equipment-management/equipment-faults",
+                        "link_path": f"/apps/kuaizhizao/equipment-management/equipment-faults?uuid={fault.uuid}",
                         "link_uuid": fault.uuid,
                     }
                 )

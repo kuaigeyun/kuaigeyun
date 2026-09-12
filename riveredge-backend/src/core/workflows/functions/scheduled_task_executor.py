@@ -65,6 +65,15 @@ async def scheduled_task_executor_function(event: Event) -> Dict[str, Any]:
             result = await _execute_backup_task(tenant_id, scheduled_task)
         elif scheduled_task.type == "kuaireport_report_subscription":
             result = await _execute_kuaireport_subscription_task(tenant_id, scheduled_task)
+        elif scheduled_task.type == "builtin":
+            from core.services.scheduling.scheduled_job_handlers import execute_builtin_scheduled_job
+            from core.services.scheduling.scheduled_job_preset_service import preset_handler_code
+
+            result = await execute_builtin_scheduled_job(
+                tenant_id,
+                preset_handler_code(scheduled_task),
+                scheduled_task.task_config or {},
+            )
         else:
             result = {"success": False, "error": f"不支持的任务类型: {scheduled_task.type}"}
 

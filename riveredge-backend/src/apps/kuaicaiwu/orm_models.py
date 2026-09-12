@@ -11,6 +11,7 @@ ORM_MODEL_MODULES: list[str] = [
     "apps.kuaicaiwu.models.cost_calculation",
     "apps.kuaicaiwu.models.cost_rule",
     "apps.kuaicaiwu.models.finance_note",
+    "apps.kuaicaiwu.models.fixed_asset",
     "apps.kuaicaiwu.models.gl_accrual_item",
     "apps.kuaicaiwu.models.gl_book_settings",
     "apps.kuaicaiwu.models.gl_cash_flow_item",

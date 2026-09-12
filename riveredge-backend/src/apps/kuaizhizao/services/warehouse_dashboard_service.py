@@ -14,7 +14,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from loguru import logger
 from tortoise.functions import Count, Sum
 
-from apps.kuaicaiwu.services.inventory_cost_service import InventoryCostService
 from apps.kuaizhizao.models.inventory_alert import InventoryAlert
 from apps.kuaizhizao.models.other_inbound import OtherInbound
 from apps.kuaizhizao.models.finished_goods_receipt import FinishedGoodsReceipt
@@ -26,8 +25,10 @@ from apps.kuaizhizao.models.purchase_receipt import PurchaseReceipt
 from apps.kuaizhizao.models.purchase_receipt_item import PurchaseReceiptItem
 from apps.kuaizhizao.models.sales_delivery import SalesDelivery
 from apps.kuaizhizao.models.sales_delivery_item import SalesDeliveryItem
-from apps.kuaizhizao.utils.inventory_helper import aggregate_on_hand_qty_by_material
-from apps.master_data.models.material import Material
+from apps.kuaizhizao.utils.inventory_helper import (
+    aggregate_on_hand_qty_by_material,
+    compute_tenant_inventory_dashboard_metrics,
+)
 from core.utils.timezone_utils import resolve_business_datetime, to_api_isoformat
 from apps.kuaizhizao.services.document_action_policy.warehouse_inbound_hub import (
     _INBOUND_PENDING_STATUSES,
@@ -35,24 +36,6 @@ from apps.kuaizhizao.services.document_action_policy.warehouse_inbound_hub impor
 
 _INBOUND_DOC_PENDING_STATUSES = tuple(_INBOUND_PENDING_STATUSES)
 _PRODUCTION_RETURN_PENDING_STATUSES = ("待退料",)
-
-
-def _unit_cost_from_material(material: Optional[Material]) -> Decimal:
-    """与 InventoryCostService.get_material_unit_cost 同一优先级，无单价则 0。"""
-    if material is None:
-        return Decimal("0")
-    cost = InventoryCostService._read_defaults_cost(
-        material.defaults,
-        "moving_average_cost",
-        "standard_cost",
-        "purchase_price",
-    )
-    if cost is not None:
-        return cost
-    src = InventoryCostService._read_source_config_purchase_price(
-        getattr(material, "source_config", None)
-    )
-    return src if src is not None else Decimal("0")
 
 
 # 兼容旧调用名：真源为 inventory_helper.aggregate_on_hand_qty_by_material
@@ -104,30 +87,6 @@ async def _inventory_statistics_core(
         high_stock_count,
         normal_stock,
     )
-
-
-async def _total_inventory_value(tenant_id: int) -> float:
-    """在库数量 × InventoryCostService 单价。"""
-    try:
-        qty_by_material = await _on_hand_qty_by_material(tenant_id)
-    except Exception as e:
-        logger.warning(f"warehouse-dashboard value batches: {e}")
-        return 0.0
-
-    if not qty_by_material:
-        return 0.0
-
-    material_ids = list(qty_by_material.keys())
-    materials = await Material.filter(
-        tenant_id=tenant_id, id__in=material_ids, deleted_at__isnull=True
-    ).only("id", "defaults", "source_config")
-    mid_material = {m.id: m for m in materials}
-
-    total = Decimal("0")
-    for mid, qty in qty_by_material.items():
-        total += qty * _unit_cost_from_material(mid_material.get(mid))
-
-    return float(round(total, 2))
 
 
 def _iso(dt: Optional[datetime]) -> Optional[str]:
@@ -262,21 +221,12 @@ class WarehouseDashboardService:
             ).count()
 
         async def _sku_qty_and_value() -> Tuple[int, float, float]:
-            qty_by_material = await _on_hand_qty_by_material(tenant_id)
-            total_sku = len(qty_by_material)
-            total_qty = float(sum(qty_by_material.values(), Decimal("0")))
-            if not qty_by_material:
-                return total_sku, round(total_qty, 2), 0.0
-            materials = await Material.filter(
-                tenant_id=tenant_id,
-                id__in=list(qty_by_material.keys()),
-                deleted_at__isnull=True,
-            ).only("id", "defaults", "source_config")
-            mid_material = {m.id: m for m in materials}
-            total_value = Decimal("0")
-            for mid, qty in qty_by_material.items():
-                total_value += qty * _unit_cost_from_material(mid_material.get(mid))
-            return total_sku, round(total_qty, 2), float(round(total_value, 2))
+            metrics = await compute_tenant_inventory_dashboard_metrics(tenant_id)
+            return (
+                int(metrics["total_sku"]),
+                float(metrics["total_quantity"]),
+                float(metrics["total_inventory_value"]),
+            )
 
         async def _alert_stock_counts() -> Tuple[int, int, int]:
             """pending 预警：低库存 / 缺货 / 高库存。"""

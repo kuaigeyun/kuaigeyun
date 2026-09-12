@@ -2367,9 +2367,11 @@ class ReportService:
         batch_number: Optional[str] = None,
         include_expired: bool = False,
     ) -> List[Dict[str, Any]]:
+        from apps.master_data.constants.batch_quality_status import QUALIFIED
         from apps.master_data.models.material_batch import MaterialBatch
         from apps.kuaizhizao.models.line_side_inventory import LineSideInventory
         from apps.master_data.models.warehouse import Warehouse
+        from apps.kuaizhizao.utils.inventory_helper import _site_today
         from tortoise.expressions import Q
 
         include_main_batches = True
@@ -2383,13 +2385,20 @@ class ReportService:
             elif wh:
                 main_warehouse_filter_id = int(wh.id)
 
-        batch_query = MaterialBatch.filter(tenant_id=tenant_id, deleted_at__isnull=True)
+        today = _site_today()
+        batch_query = MaterialBatch.filter(
+            tenant_id=tenant_id,
+            deleted_at__isnull=True,
+            quality_status=QUALIFIED,
+        ).filter(~Q(status__in=["out_stock", "scrapped", "expired"]))
+        if not include_expired:
+            batch_query = batch_query.filter(
+                Q(expiry_date__isnull=True) | Q(expiry_date__gte=today)
+            )
         if material_id:
             batch_query = batch_query.filter(material_id=material_id)
         if batch_number:
             batch_query = batch_query.filter(batch_no__icontains=batch_number)
-        if not include_expired:
-            batch_query = batch_query.filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=date.today()))
 
         line_query = LineSideInventory.filter(tenant_id=tenant_id, deleted_at__isnull=True, status="available")
         if material_id:
@@ -2399,7 +2408,7 @@ class ReportService:
         if warehouse_id:
             line_query = line_query.filter(warehouse_id=warehouse_id)
         if not include_expired:
-            line_query = line_query.filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=date.today()))
+            line_query = line_query.filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=today))
 
         batches = await batch_query.prefetch_related("material").all()
         lines = await line_query.all()
@@ -2430,7 +2439,9 @@ class ReportService:
                     continue
                 expiry_iso = to_api_isoformat(b.expiry_date) if b.expiry_date else None
                 qty = float(b.quantity or 0)
-                status = "已过期" if b.expiry_date and b.expiry_date < date.today() else ("在库" if qty > 0 else "无库存")
+                if qty <= 0:
+                    continue
+                status = "已过期" if b.expiry_date and b.expiry_date < today else "在库"
                 rows.append({
                     "id": 1000000 + b.id,
                     "material_id": b.material_id,
@@ -2448,7 +2459,9 @@ class ReportService:
                 })
         for l in lines:
             qty = float((l.quantity or 0) - (l.reserved_quantity or 0))
-            status = "已过期" if l.expiry_date and l.expiry_date < date.today() else ("在库" if qty > 0 else "无库存")
+            if qty <= 0:
+                continue
+            status = "已过期" if l.expiry_date and l.expiry_date < today else "在库"
             wh_id = int(l.warehouse_id) if l.warehouse_id else None
             wh = line_wh_map.get(wh_id) if wh_id else None
             wh_name = (
@@ -2779,7 +2792,7 @@ class ReportService:
             tenant_id=tenant_id,
             material_id=material_id,
             warehouse_id=warehouse_id,
-            include_expired=True,
+            include_expired=False,
         )
         grouped: Dict[tuple, Dict[str, Any]] = {}
         for it in rows:

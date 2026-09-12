@@ -36,6 +36,9 @@ from apps.kuaizhizao.schemas.purchase_order_sync import (
     PurchaseOrderSyncFromSourceRequest,
 )
 from apps.kuaizhizao.services.purchase_service import PurchaseService
+from apps.kuaizhizao.services.contract_milestone_billing_service import ContractMilestoneBillingService
+
+milestone_billing_service = ContractMilestoneBillingService()
 from apps.kuaizhizao.services.purchase_order_sync_service import PurchaseOrderSyncService
 from apps.kuaizhizao.services.purchase_inquiry_service import PurchaseInquiryService
 from apps.kuaizhizao.services.purchase_cost_service import PurchaseCostService
@@ -614,6 +617,26 @@ async def delete_purchase_order(
 
 
 # === 采购订单业务操作接口 ===
+@router.post(
+    "/purchase-orders/{order_id}/milestones/{milestone_id}/generate-payable",
+    summary="Generate payable from purchase order payment milestone",
+)
+async def generate_order_milestone_payable(
+    order_id: int = Path(..., description="采购订单ID"),
+    milestone_id: int = Path(..., description="付款里程碑ID"),
+    current_user: CurrentUser = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    try:
+        return await milestone_billing_service.generate_payable_for_order_milestone(
+            tenant_id, order_id, milestone_id, current_user.id
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail=str(e))
+    except BusinessLogicError as e:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 @router.post("/purchase-orders/{order_id}/submit", response_model=PurchaseOrderResponse, summary="Submit purchase order")
 async def submit_purchase_order(
     order_id: int = Path(..., description="采购订单ID"),

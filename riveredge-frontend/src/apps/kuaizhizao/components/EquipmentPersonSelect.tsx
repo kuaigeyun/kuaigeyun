@@ -57,6 +57,8 @@ export const EquipmentPersonSelect: React.FC<EquipmentPersonSelectProps> = ({
       label={label}
       placeholder={placeholder}
       required={required}
+      pageSize={200}
+      loadAllWhenNoKeyword
       onChange={(_uuid, user) => syncEquipmentPersonFields(formRef, idFieldName, nameFieldName, user)}
     />
     <Form.Item name={idFieldName} hidden>

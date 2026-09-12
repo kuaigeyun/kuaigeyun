@@ -35,6 +35,7 @@ import {
 } from '../../../utils/equipmentListCore';
 import { UNI_TABLE_MARKER_BADGE_COLUMN_DEFAULTS } from '../../../../../utils/uniTableLayoutColumns';
 import { UniTableStackedPrimaryCell } from '../../../../../components/uni-table/stackedPrimaryColumn';
+import { MEASURING_INSTRUMENT_NATURE } from '../measuring-instruments/measuringInstrumentConstants';
 
 const RESOURCE = 'kuaizhizao:equipment-calibration';
 const P = 'app.kuaizhizao.equipmentCalibration';
@@ -353,6 +354,7 @@ const EquipmentCalibrationsPage: React.FC = () => {
             skip: ((params.current || 1) - 1) * (params.pageSize || 20),
             limit: params.pageSize || 20,
             equipment_uuid: params.equipment_uuid as string | undefined,
+            exclude_equipment_nature: MEASURING_INSTRUMENT_NATURE,
             ...listParams,
           });
           const { data, total } = normalizeEquipmentListResponse(res);

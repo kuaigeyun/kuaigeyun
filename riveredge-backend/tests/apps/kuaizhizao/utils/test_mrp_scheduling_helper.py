@@ -11,6 +11,7 @@ from apps.kuaizhizao.utils.mrp_scheduling_helper import (
     planning_date_to_work_order_end,
     planning_date_to_work_order_start,
     resolve_demand_item_delivery_date,
+    resolve_direct_push_work_order_planned_dates,
     resolve_work_order_planned_dates_for_push,
     should_prefer_source_document_planned_dates,
 )
@@ -222,6 +223,16 @@ def test_should_prefer_source_for_finished_good_not_subassembly():
     })()
     assert should_prefer_source_document_planned_dates(fg, source_end=date(2026, 7, 31))
     assert not should_prefer_source_document_planned_dates(sub, source_end=date(2026, 7, 31))
+
+
+def test_resolve_direct_push_work_order_planned_dates():
+    start, end = resolve_direct_push_work_order_planned_dates(
+        document_start_date=date(2026, 9, 10),
+        delivery_date=date(2026, 9, 25),
+    )
+    assert start.date() == date(2026, 9, 10)
+    assert end.date() == date(2026, 9, 25)
+    assert start < end
 
 
 def test_resolve_work_order_planned_dates_prefers_source_window():

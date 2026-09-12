@@ -10,7 +10,7 @@
  */
 
 import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import PageSkeleton from '../../components/page-skeleton';
 import { LinkedDocumentDetailProvider } from '../../components/linked-document-detail';
 
@@ -20,6 +20,23 @@ const withPageSuspense = (LazyComponent: React.LazyExoticComponent<React.Compone
     <LazyComponent />
   </Suspense>
 );
+
+/** 兼容旧链 /equipment-faults/:id，避免无匹配路由导致空白页 */
+function EquipmentFaultsLegacyPathRedirect() {
+  const { legacySegment } = useParams<{ legacySegment: string }>();
+  const seg = String(legacySegment ?? '').trim();
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(seg)
+  ) {
+    return (
+      <Navigate
+        to={`equipment-management/equipment-faults?uuid=${encodeURIComponent(seg)}`}
+        replace
+      />
+    );
+  }
+  return <Navigate to="equipment-management/equipment-faults" replace />;
+}
 
 // 计划管理页面
 const DemandManagementPage = lazy(() => import('./pages/plan-management/demand-management'));
@@ -123,6 +140,20 @@ const MoldsPage = lazy(() => import('./pages/equipment-management/molds'));
 const MoldDetailPage = lazy(() => import('./pages/equipment-management/molds/detail'));
 const ToolLedgerPage = lazy(() => import('./pages/equipment-management/tool-ledger'));
 const ToolLedgerDetailPage = lazy(() => import('./pages/equipment-management/tool-ledger/detail'));
+const MeasuringInstrumentsPage = lazy(() => import('./pages/equipment-management/measuring-instruments'));
+const MeasuringInstrumentDetailPage = lazy(() => import('./pages/equipment-management/measuring-instruments/detail'));
+const MeasuringInstrumentCalibrationsPage = lazy(
+  () => import('./pages/equipment-management/measuring-instruments/calibrations'),
+);
+const MeasuringInstrumentCalibrationRemindersPage = lazy(
+  () => import('./pages/equipment-management/measuring-instruments/calibration-reminders'),
+);
+const MeasuringInstrumentCalibrationAlertsReportPage = lazy(
+  () => import('./pages/equipment-management/measuring-instruments/reports/calibration-alerts'),
+);
+const MeasuringInstrumentCalibrationDetailReportPage = lazy(
+  () => import('./pages/equipment-management/measuring-instruments/reports/calibration-detail'),
+);
 const EquipmentStatusPage = lazy(() => import('./pages/equipment-management/equipment-status'));
 const MaintenanceRemindersPage = lazy(() => import('./pages/equipment-management/maintenance-reminders'));
 const MoldCalibrationsPage = lazy(() => import('./pages/equipment-management/mold-calibrations'));
@@ -457,6 +488,10 @@ const KuaizhizaoApp: React.FC = () => {
       <Route path="equipment-management/dashboard" element={withPageSuspense(EquipmentDashboardPage)} />
       <Route path="equipment-management/equipment/:uuid" element={withPageSuspense(EquipmentDetailPage)} />
       <Route path="equipment-management/equipment" element={withPageSuspense(EquipmentPage)} />
+      <Route
+        path="equipment-management/equipment-faults/:legacySegment"
+        element={<EquipmentFaultsLegacyPathRedirect />}
+      />
       <Route path="equipment-management/equipment-faults" element={withPageSuspense(EquipmentFaultsPage)} />
       <Route path="equipment-management/maintenance-plans" element={withPageSuspense(MaintenancePlansPage)} />
       <Route path="equipment-management/maintenance-plan-calendar" element={withPageSuspense(MaintenancePlanCalendarPage)} />
@@ -469,6 +504,24 @@ const KuaizhizaoApp: React.FC = () => {
       <Route path="equipment-management/molds" element={withPageSuspense(MoldsPage)} />
       <Route path="equipment-management/tool-ledger/:uuid" element={withPageSuspense(ToolLedgerDetailPage)} />
       <Route path="equipment-management/tool-ledger" element={withPageSuspense(ToolLedgerPage)} />
+      <Route
+        path="equipment-management/measuring-instruments/reports/calibration-alerts"
+        element={withPageSuspense(MeasuringInstrumentCalibrationAlertsReportPage)}
+      />
+      <Route
+        path="equipment-management/measuring-instruments/reports/calibration-detail"
+        element={withPageSuspense(MeasuringInstrumentCalibrationDetailReportPage)}
+      />
+      <Route
+        path="equipment-management/measuring-instruments/calibrations"
+        element={withPageSuspense(MeasuringInstrumentCalibrationsPage)}
+      />
+      <Route
+        path="equipment-management/measuring-instruments/calibration-reminders"
+        element={withPageSuspense(MeasuringInstrumentCalibrationRemindersPage)}
+      />
+      <Route path="equipment-management/measuring-instruments/:uuid" element={withPageSuspense(MeasuringInstrumentDetailPage)} />
+      <Route path="equipment-management/measuring-instruments" element={withPageSuspense(MeasuringInstrumentsPage)} />
       <Route path="equipment-management/equipment-status" element={withPageSuspense(EquipmentStatusPage)} />
       <Route path="equipment-management/maintenance-reminders" element={withPageSuspense(MaintenanceRemindersPage)} />
       <Route path="equipment-management/mold-usages" element={<Navigate to="/apps/kuaizhizao/equipment-management/mold-borrows" replace />} />

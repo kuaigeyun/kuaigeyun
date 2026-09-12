@@ -531,15 +531,6 @@
             "permission": "kuaizhizao:production-daily:read"
           },
           {
-            "title": "app.kuaizhizao.menu.production-execution.reporting.statistics",
-            "path": "/apps/kuaizhizao/production-execution/reporting/statistics",
-            "sort_order": 8,
-            "meta": {
-              "module": "production"
-            },
-            "permission": "kuaizhizao:production-execution-reporting-statistics:read"
-          },
-          {
             "title": "app.kuaizhizao.menu.production-execution.exception-management",
             "icon": "alert-circle",
             "sort_order": 9,
@@ -586,16 +577,6 @@
                   "node": "work_order"
                 },
                 "permission": "kuaizhizao:production-execution-exception-process:read"
-              },
-              {
-                "title": "app.kuaizhizao.menu.production-execution.exception-statistics",
-                "path": "/apps/kuaizhizao/production-execution/exception-statistics",
-                "sort_order": 5,
-                "meta": {
-                  "module": "production",
-                  "node": "work_order"
-                },
-                "permission": "kuaizhizao:production-execution-exception-statistics:read"
               }
             ]
           },
@@ -663,6 +644,25 @@
                 "path": "/apps/kuaizhizao/production-execution/reports/production-daily",
                 "sort_order": 95,
                 "permission": "kuaizhizao:production-execution-reports-production-daily:read"
+              },
+              {
+                "title": "app.kuaizhizao.menu.production-execution.reporting.statistics",
+                "path": "/apps/kuaizhizao/production-execution/reporting/statistics",
+                "sort_order": 96,
+                "meta": {
+                  "module": "production"
+                },
+                "permission": "kuaizhizao:production-execution-reporting-statistics:read"
+              },
+              {
+                "title": "app.kuaizhizao.menu.production-execution.exception-statistics",
+                "path": "/apps/kuaizhizao/production-execution/exception-statistics",
+                "sort_order": 97,
+                "meta": {
+                  "module": "production",
+                  "node": "work_order"
+                },
+                "permission": "kuaizhizao:production-execution-exception-statistics:read"
               }
             ]
           }
@@ -1835,6 +1835,36 @@
     "kuaizhizao:equipment-calibration:revoke",
     "kuaizhizao:equipment-calibration:submit",
     "kuaizhizao:equipment-calibration:update",
+    "kuaizhizao:measuring-instrument-calibration:approve",
+    "kuaizhizao:measuring-instrument-calibration:audit",
+    "kuaizhizao:measuring-instrument-calibration:create",
+    "kuaizhizao:measuring-instrument-calibration:delete",
+    "kuaizhizao:measuring-instrument-calibration:export",
+    "kuaizhizao:measuring-instrument-calibration:import",
+    "kuaizhizao:measuring-instrument-calibration:print",
+    "kuaizhizao:measuring-instrument-calibration:read",
+    "kuaizhizao:measuring-instrument-calibration:reject",
+    "kuaizhizao:measuring-instrument-calibration:revoke",
+    "kuaizhizao:measuring-instrument-calibration:submit",
+    "kuaizhizao:measuring-instrument-calibration:update",
+    "kuaizhizao:measuring-instrument-calibration-reminder:approve",
+    "kuaizhizao:measuring-instrument-calibration-reminder:audit",
+    "kuaizhizao:measuring-instrument-calibration-reminder:create",
+    "kuaizhizao:measuring-instrument-calibration-reminder:delete",
+    "kuaizhizao:measuring-instrument-calibration-reminder:export",
+    "kuaizhizao:measuring-instrument-calibration-reminder:import",
+    "kuaizhizao:measuring-instrument-calibration-reminder:print",
+    "kuaizhizao:measuring-instrument-calibration-reminder:read",
+    "kuaizhizao:measuring-instrument-calibration-reminder:reject",
+    "kuaizhizao:measuring-instrument-calibration-reminder:revoke",
+    "kuaizhizao:measuring-instrument-calibration-reminder:submit",
+    "kuaizhizao:measuring-instrument-calibration-reminder:update",
+    "kuaizhizao:measuring-instrument-report-calibration-alerts:export",
+    "kuaizhizao:measuring-instrument-report-calibration-alerts:print",
+    "kuaizhizao:measuring-instrument-report-calibration-alerts:read",
+    "kuaizhizao:measuring-instrument-report-calibration-detail:export",
+    "kuaizhizao:measuring-instrument-report-calibration-detail:print",
+    "kuaizhizao:measuring-instrument-report-calibration-detail:read",
     "kuaizhizao:equipment-acceptance:approve",
     "kuaizhizao:equipment-acceptance:audit",
     "kuaizhizao:equipment-acceptance:create",
@@ -4392,6 +4422,33 @@
       "rule_code": "EQUIPMENT_CODE",
       "allow_manual_edit": true,
       "skip_date": true
+    },
+    {
+      "page_code": "kuaizhizao-equipment-management-measuring-instruments",
+      "page_name": "计量器具台账",
+      "page_path": "/apps/kuaizhizao/equipment-management/measuring-instruments",
+      "code_field": "code",
+      "code_field_label": "器具编号",
+      "module": "快制造",
+      "module_icon": "tool",
+      "auto_generate": true,
+      "rule_code": "EQUIPMENT_CODE",
+      "allow_manual_edit": true,
+      "skip_date": true
+    },
+    {
+      "page_code": "kuaizhizao-measuring-instrument-calibrations",
+      "page_name": "计量器具校准记录",
+      "page_path": "/apps/kuaizhizao/equipment-management/measuring-instruments/calibrations",
+      "module": "快制造",
+      "module_icon": "tool"
+    },
+    {
+      "page_code": "kuaizhizao-measuring-instrument-calibration-reminders",
+      "page_name": "计量器具校准到期提醒",
+      "page_path": "/apps/kuaizhizao/equipment-management/measuring-instruments/calibration-reminders",
+      "module": "快制造",
+      "module_icon": "tool"
     },
     {
       "page_code": "kuaizhizao-equipment-management-mold",

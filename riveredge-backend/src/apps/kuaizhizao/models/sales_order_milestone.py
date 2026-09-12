@@ -26,6 +26,10 @@ class SalesOrderMilestone(BaseModel):
         default=False,
         description="是否预收节点（审单自动生成预收收款单；金额/账户回写订单预收字段）",
     )
+    auto_generate_receivable = fields.BooleanField(
+        default=False,
+        description="普通节点是否在审单后自动生成应收",
+    )
     bank_account_id = fields.IntField(null=True, description="预收银行账户ID")
     status = fields.CharField(max_length=20, default="pending", description="pending / invoiced / collected / overdue")
 

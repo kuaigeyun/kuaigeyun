@@ -34,6 +34,10 @@ interface UniUserSelectProps {
   readonly?: boolean;
   /** 是否只查询启用状态的用户，默认为 true */
   activeOnly?: boolean;
+  /** 每页条数（display-search 上限 200） */
+  pageSize?: number;
+  /** 无搜索关键词时自动分页拉全量（上限 5 页） */
+  loadAllWhenNoKeyword?: boolean;
   /** 限定查询某个部门下的用户UUID */
   departmentUuid?: string;
   /** 限定查询某个岗位下的用户UUID */
@@ -84,6 +88,33 @@ function mergeUsersByUuid(prev: User[], incoming: User[]): User[] {
   return next;
 }
 
+const DEFAULT_PICKER_PAGE_SIZE = 200;
+const MAX_PICKER_AUTO_LOAD_PAGES = 5;
+
+async function fetchAllPickerPages(
+  fetchPage: (page: number, pageSize: number) => Promise<{ items: User[]; total: number }>,
+  options: { keyword?: string; pageSize: number; loadAllWhenNoKeyword: boolean },
+): Promise<User[]> {
+  const keyword = options.keyword?.trim();
+  const pageSize = options.pageSize;
+  const first = await fetchPage(1, pageSize);
+  let merged = first.items;
+  const total = first.total;
+
+  if (keyword || !options.loadAllWhenNoKeyword || merged.length >= total) {
+    return merged;
+  }
+
+  let page = 2;
+  while (merged.length < total && page <= MAX_PICKER_AUTO_LOAD_PAGES) {
+    const next = await fetchPage(page, pageSize);
+    merged = mergeUsersByUuid(merged, next.items);
+    if (next.items.length < pageSize) break;
+    page += 1;
+  }
+  return merged;
+}
+
 /**
  * 统一的人员/角色选择组件
  *
@@ -99,6 +130,8 @@ export const UniUserSelect: React.FC<UniUserSelectProps> = ({
   disabled = false,
   readonly = false,
   activeOnly = true,
+  pageSize = DEFAULT_PICKER_PAGE_SIZE,
+  loadAllWhenNoKeyword = false,
   departmentUuid,
   positionUuid,
   mode,
@@ -126,27 +159,40 @@ export const UniUserSelect: React.FC<UniUserSelectProps> = ({
     }
     setLoading(true);
     try {
-      if (useFullList) {
-        const response = await getUserList({
-          page: 1,
-          page_size: 50,
-          keyword: searchText,
-          ...(activeOnly ? { is_active: true } : {}),
-          ...(departmentUuid ? { department_uuid: departmentUuid } : {}),
-          ...(positionUuid ? { position_uuid: positionUuid } : {}),
-        });
-        setData(response.items || []);
-      } else {
-        const response = await searchUserDisplay({
-          page: 1,
-          page_size: 50,
-          keyword: searchText || undefined,
-          ...(activeOnly ? { is_active: true } : {}),
-          ...(departmentUuid ? { department_uuid: departmentUuid } : {}),
-          ...(positionUuid ? { position_uuid: positionUuid } : {}),
-        });
-        setData((response.items || []).map(displayItemToUser));
-      }
+      const keyword = searchText.trim() || undefined;
+      const commonFilters = {
+        ...(activeOnly ? { is_active: true } : {}),
+        ...(departmentUuid ? { department_uuid: departmentUuid } : {}),
+        ...(positionUuid ? { position_uuid: positionUuid } : {}),
+      };
+      const items = await fetchAllPickerPages(
+        async (page, size) => {
+          if (useFullList) {
+            const response = await getUserList({
+              page,
+              page_size: size,
+              keyword,
+              ...commonFilters,
+            });
+            return {
+              items: response.items || [],
+              total: response.total ?? (response.items || []).length,
+            };
+          }
+          const response = await searchUserDisplay({
+            page,
+            page_size: size,
+            keyword,
+            ...commonFilters,
+          });
+          return {
+            items: (response.items || []).map(displayItemToUser),
+            total: response.total ?? (response.items || []).length,
+          };
+        },
+        { keyword, pageSize, loadAllWhenNoKeyword },
+      );
+      setData(items);
     } catch (error) {
       console.error('Failed to fetch users:', error);
       if (!isReadonlyMode) {
@@ -166,7 +212,7 @@ export const UniUserSelect: React.FC<UniUserSelectProps> = ({
     if (!canInteract) return;
     void fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeOnly, departmentUuid, positionUuid, canInteract, useFullList]);
+  }, [activeOnly, departmentUuid, positionUuid, canInteract, useFullList, pageSize, loadAllWhenNoKeyword]);
 
   /** 表单预填 uuid 时，解析展示名并并入 options（避免 Select 回显原始 UUID） */
   useEffect(() => {

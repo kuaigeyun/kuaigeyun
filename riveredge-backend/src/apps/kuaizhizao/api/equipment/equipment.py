@@ -34,6 +34,12 @@ from apps.kuaizhizao.schemas.equipment import (
     EquipmentCalibrationListResponse,
     EquipmentCalibrationReminderResponse,
     EquipmentCalibrationReminderListResponse,
+    EquipmentCalibrationReminderSettingsResponse,
+    EquipmentCalibrationReminderSettingsUpdate,
+    MeasuringInstrumentCalibrationAlertReportItem,
+    MeasuringInstrumentCalibrationAlertReportResponse,
+    MeasuringInstrumentCalibrationDetailReportItem,
+    MeasuringInstrumentCalibrationDetailReportResponse,
 )
 from apps.kuaizhizao.schemas.equipment_oee import (
     EquipmentOEResponse,
@@ -42,6 +48,10 @@ from apps.kuaizhizao.schemas.equipment_oee import (
 )
 from apps.kuaizhizao.services.equipment_service import EquipmentService
 from apps.kuaizhizao.services.equipment_oee_service import EquipmentOEEService
+from apps.kuaizhizao.services.equipment_calibration_settings_service import (
+    get_calibration_reminder_settings,
+    set_calibration_reminder_settings,
+)
 from core.api.deps.deps import get_current_tenant
 from core.api.deps.access import require_permission_codes
 from core.utils.timezone_utils import to_api_isoformat
@@ -95,6 +105,7 @@ async def list_equipment(
     type: Optional[str] = Query(None, description="设备类型（可选）"),
     category: Optional[str] = Query(None, description="设备分类（可选）"),
     equipment_nature: Optional[str] = Query(None, description="设备性质（可选）"),
+    exclude_equipment_nature: Optional[str] = Query(None, description="排除的设备性质（可选）"),
     status: Optional[str] = Query(None, description="设备状态（可选）"),
     is_active: Optional[bool] = Query(None, description="是否启用（可选）"),
     workshop_id: Optional[int] = Query(None, description="车间ID（可选）"),
@@ -137,6 +148,7 @@ async def list_equipment(
         type=type,
         category=category,
         equipment_nature=equipment_nature,
+        exclude_equipment_nature=exclude_equipment_nature,
         status=status,
         is_active=is_active,
         workshop_id=workshop_id,
@@ -164,12 +176,30 @@ async def list_equipment(
 @router.get(
     "/calibrations",
     response_model=EquipmentCalibrationListResponse,
-    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-calibration:read"))],
+    dependencies=[
+        Depends(
+            require_permission_codes(
+                "kuaizhizao:equipment-calibration:read",
+                "kuaizhizao:measuring-instrument-calibration:read",
+            )
+        )
+    ],
 )
 async def list_equipment_calibrations(
     equipment_uuid: Optional[str] = Query(None, description="设备UUID（可选，不传则返回全量）"),
     skip: int = Query(0, ge=0, description="跳过数量"),
     limit: int = Query(100, ge=1, le=1000, description="限制数量"),
+    keyword: Optional[str] = Query(None, description="模糊搜索"),
+    search: Optional[str] = Query(None, description="搜索关键词"),
+    order_by: Optional[str] = Query(None, description="排序字段"),
+    calibration_start_date: Optional[str] = Query(None, description="校准日期起"),
+    calibration_end_date: Optional[str] = Query(None, description="校准日期止"),
+    created_start_date: Optional[str] = Query(None, description="创建日期起"),
+    created_end_date: Optional[str] = Query(None, description="创建日期止"),
+    updated_start_date: Optional[str] = Query(None, description="更新日期起"),
+    updated_end_date: Optional[str] = Query(None, description="更新日期止"),
+    equipment_nature: Optional[str] = Query(None, description="设备性质（可选）"),
+    exclude_equipment_nature: Optional[str] = Query(None, description="排除的设备性质（可选）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
@@ -179,6 +209,17 @@ async def list_equipment_calibrations(
         equipment_uuid=equipment_uuid,
         skip=skip,
         limit=limit,
+        keyword=keyword,
+        search=search,
+        order_by=order_by,
+        calibration_start_date=calibration_start_date,
+        calibration_end_date=calibration_end_date,
+        created_start_date=created_start_date,
+        created_end_date=created_end_date,
+        updated_start_date=updated_start_date,
+        updated_end_date=updated_end_date,
+        equipment_nature=equipment_nature,
+        exclude_equipment_nature=exclude_equipment_nature,
     )
     equipment_ids = {c.equipment_id for c in items}
     equipments = {e.id: e for e in await Equipment.filter(id__in=equipment_ids)}
@@ -196,7 +237,14 @@ async def list_equipment_calibrations(
     "/calibrations",
     response_model=EquipmentCalibrationResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_permission_codes("kuaizhizao:equipment-calibration:create"))],
+    dependencies=[
+        Depends(
+            require_permission_codes(
+                "kuaizhizao:equipment-calibration:create",
+                "kuaizhizao:measuring-instrument-calibration:create",
+            )
+        )
+    ],
 )
 async def create_equipment_calibration_record(
     data: EquipmentCalibrationCreateWithEquipment,
@@ -235,21 +283,143 @@ async def create_equipment_calibration_record(
 @router.get(
     "/calibration-reminders",
     response_model=EquipmentCalibrationReminderListResponse,
-    dependencies=[Depends(require_permission_codes("kuaizhizao:maintenance-reminder:read"))],
+    dependencies=[
+        Depends(
+            require_permission_codes(
+                "kuaizhizao:maintenance-reminder:read",
+                "kuaizhizao:measuring-instrument-calibration-reminder:read",
+            )
+        )
+    ],
 )
 async def list_equipment_calibration_reminders(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     due_type: Optional[str] = Query(None, description="due_soon/overdue"),
+    equipment_nature: Optional[str] = Query(None, description="设备性质（可选）"),
+    exclude_equipment_nature: Optional[str] = Query(None, description="排除的设备性质（可选）"),
     current_user: User = Depends(soil_get_current_user),
     tenant_id: int = Depends(get_current_tenant),
 ):
     """设备检定到期提醒"""
     items, total = await EquipmentService.list_calibration_alerts(
-        tenant_id, skip, limit, due_type
+        tenant_id,
+        skip,
+        limit,
+        due_type,
+        equipment_nature=equipment_nature,
+        exclude_equipment_nature=exclude_equipment_nature,
     )
     return EquipmentCalibrationReminderListResponse(
         items=[EquipmentCalibrationReminderResponse.model_validate(i) for i in items],
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
+
+
+_CALIBRATION_REMINDER_READ_PERMISSIONS = (
+    "kuaizhizao:maintenance-reminder:read",
+    "kuaizhizao:measuring-instrument-calibration-reminder:read",
+)
+
+_CALIBRATION_REMINDER_UPDATE_PERMISSIONS = (
+    "kuaizhizao:maintenance-reminder:update",
+    "kuaizhizao:measuring-instrument-calibration-reminder:update",
+)
+
+
+@router.get(
+    "/calibration-reminder-settings",
+    response_model=EquipmentCalibrationReminderSettingsResponse,
+    dependencies=[
+        Depends(require_permission_codes(*_CALIBRATION_REMINDER_READ_PERMISSIONS))
+    ],
+)
+async def get_equipment_calibration_reminder_settings(
+    current_user: User = Depends(soil_get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """读取设备校准到期提前提醒天数（租户级）。"""
+    data = await get_calibration_reminder_settings(tenant_id)
+    return EquipmentCalibrationReminderSettingsResponse.model_validate(data)
+
+
+@router.put(
+    "/calibration-reminder-settings",
+    response_model=EquipmentCalibrationReminderSettingsResponse,
+    dependencies=[
+        Depends(require_permission_codes(*_CALIBRATION_REMINDER_UPDATE_PERMISSIONS))
+    ],
+)
+async def update_equipment_calibration_reminder_settings(
+    body: EquipmentCalibrationReminderSettingsUpdate,
+    current_user: User = Depends(soil_get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """更新设备校准到期提前提醒天数（租户级）。"""
+    try:
+        saved = await set_calibration_reminder_settings(
+            tenant_id,
+            advance_days=body.advance_days,
+            description="API 更新设备校准到期提醒天数",
+        )
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return EquipmentCalibrationReminderSettingsResponse.model_validate(saved)
+
+
+@router.get(
+    "/reports/measuring-instrument-calibration-alerts",
+    response_model=MeasuringInstrumentCalibrationAlertReportResponse,
+    dependencies=[
+        Depends(
+            require_permission_codes("kuaizhizao:measuring-instrument-report-calibration-alerts:read")
+        )
+    ],
+)
+async def report_measuring_instrument_calibration_alerts(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    due_type: Optional[str] = Query(None, description="due_soon/overdue"),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    items, total = await EquipmentService.report_measuring_instrument_calibration_alerts(
+        tenant_id, skip, limit, due_type
+    )
+    return MeasuringInstrumentCalibrationAlertReportResponse(
+        items=[MeasuringInstrumentCalibrationAlertReportItem.model_validate(i) for i in items],
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/reports/measuring-instrument-calibration-detail",
+    response_model=MeasuringInstrumentCalibrationDetailReportResponse,
+    dependencies=[
+        Depends(
+            require_permission_codes("kuaizhizao:measuring-instrument-report-calibration-detail:read")
+        )
+    ],
+)
+async def report_measuring_instrument_calibration_detail(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    calibration_start_date: Optional[str] = Query(None, description="校准日期起"),
+    calibration_end_date: Optional[str] = Query(None, description="校准日期止"),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    items, total = await EquipmentService.report_measuring_instrument_calibration_detail(
+        tenant_id,
+        skip,
+        limit,
+        calibration_start_date=calibration_start_date,
+        calibration_end_date=calibration_end_date,
+    )
+    return MeasuringInstrumentCalibrationDetailReportResponse(
+        items=[MeasuringInstrumentCalibrationDetailReportItem.model_validate(i) for i in items],
         total=total,
         skip=skip,
         limit=limit,

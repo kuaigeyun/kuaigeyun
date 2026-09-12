@@ -6,7 +6,7 @@
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { App, Button, Space, Table, Tooltip, Typography, Descriptions, Tag } from 'antd';
+import { App, Button, Space, Table, Tooltip, Typography, Descriptions, Tag, Divider } from 'antd';
 import { CopyOutlined, PrinterOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -25,6 +25,7 @@ import { DetailDrawerSection, useDetailDrawerDescriptionItems, type TraceBriefDo
 import { MarkerTag } from '../../../../../../constants/statusBadges';
 import type { ProDescriptionsItemProps } from '@ant-design/pro-components';
 import { alignDescriptionColumns } from '../../shared/documentFieldAlignment';
+import { OrderPaymentMilestonesReadOnly } from '../../shared/orderPaymentMilestonesFields';
 import { useResourcePermissions } from '../../../../../../hooks/useResourcePermissions';
 import {
   CustomFieldsDetailSection,
@@ -398,10 +399,23 @@ export const SalesOrderDetailBasicPane: React.FC = () => {
           <CustomFieldsDetailSection customFields={customFields} customFieldValues={customFieldValues} />
         </div>
       ) : null}
+      {order.payment_milestones && order.payment_milestones.length > 0 ? (
+        <>
+          <Divider style={{ margin: '16px 0' }} />
+          <Typography.Title level={5} style={{ margin: '0 0 8px' }}>
+            {t('app.kuaizhizao.salesOrder.paymentPlan')}
+          </Typography.Title>
+          <OrderPaymentMilestonesReadOnly
+            variant="sales"
+            milestones={order.payment_milestones}
+            t={t}
+          />
+        </>
+      ) : null}
       <Descriptions
         column={3}
         size="small"
-        style={{ marginTop: showCustomFields ? 16 : 0 }}
+        style={{ marginTop: 16 }}
         items={noteItems}
       />
     </>

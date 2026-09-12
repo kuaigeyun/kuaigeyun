@@ -52,6 +52,25 @@ class InventoryTransferService(AppBaseService[InventoryTransfer]):
     def _infer_transfer_mode(transfer: InventoryTransfer) -> str:
         return "bin_relocation" if transfer.from_warehouse_id == transfer.to_warehouse_id else "transfer"
 
+    @staticmethod
+    async def _resolve_header_warehouse_names(
+        tenant_id: int,
+        *,
+        from_warehouse_id: int,
+        from_warehouse_name: Optional[str],
+        to_warehouse_id: int,
+        to_warehouse_name: Optional[str],
+    ) -> tuple[str, str]:
+        from apps.kuaizhizao.services.warehouse_service import _resolve_warehouse_name_by_id
+
+        from_name = await _resolve_warehouse_name_by_id(
+            tenant_id, from_warehouse_id, from_warehouse_name
+        )
+        to_name = await _resolve_warehouse_name_by_id(
+            tenant_id, to_warehouse_id, to_warehouse_name
+        )
+        return from_name, to_name
+
     def _to_transfer_response(self, transfer: InventoryTransfer) -> InventoryTransferResponse:
         from apps.kuaizhizao.services.document_lifecycle_service import get_inventory_transfer_lifecycle
 
@@ -176,15 +195,23 @@ class InventoryTransferService(AppBaseService[InventoryTransfer]):
             # 获取创建人信息
             user_info = await self.get_user_info(created_by)
 
+            from_wh_name, to_wh_name = await self._resolve_header_warehouse_names(
+                tenant_id,
+                from_warehouse_id=transfer_data.from_warehouse_id,
+                from_warehouse_name=transfer_data.from_warehouse_name,
+                to_warehouse_id=transfer_data.to_warehouse_id,
+                to_warehouse_name=transfer_data.to_warehouse_name,
+            )
+
             # 创建调拨单
             transfer = await InventoryTransfer.create(
                 tenant_id=tenant_id,
                 uuid=str(uuid.uuid4()),
                 code=code,
                 from_warehouse_id=transfer_data.from_warehouse_id,
-                from_warehouse_name=transfer_data.from_warehouse_name,
+                from_warehouse_name=from_wh_name,
                 to_warehouse_id=transfer_data.to_warehouse_id,
-                to_warehouse_name=transfer_data.to_warehouse_name,
+                to_warehouse_name=to_wh_name,
                 transfer_date=transfer_data.transfer_date,
                 status="draft",
                 total_items=0,
@@ -334,6 +361,16 @@ class InventoryTransferService(AppBaseService[InventoryTransfer]):
                 transfer.transfer_reason = transfer_data.transfer_reason
             if transfer_data.remarks is not None:
                 transfer.remarks = transfer_data.remarks
+
+            from_wh_name, to_wh_name = await self._resolve_header_warehouse_names(
+                tenant_id,
+                from_warehouse_id=transfer.from_warehouse_id,
+                from_warehouse_name=transfer.from_warehouse_name,
+                to_warehouse_id=transfer.to_warehouse_id,
+                to_warehouse_name=transfer.to_warehouse_name,
+            )
+            transfer.from_warehouse_name = from_wh_name
+            transfer.to_warehouse_name = to_wh_name
 
             transfer.updated_by = updated_by
             transfer.updated_by_name = user_info["name"]

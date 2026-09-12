@@ -36,6 +36,7 @@ import {
 import { ROUTES } from '../../../constants/routes';
 import { buildDocumentListHelpViewConfig, DOCUMENT_LIST_HELP_KEYS } from '../../../../../components/page-help-wiki';
 import { UniTableStackedPrimaryCell } from '../../../../../components/uni-table/stackedPrimaryColumn';
+import { MEASURING_INSTRUMENT_NATURE } from '../measuring-instruments/measuringInstrumentConstants';
 
 const P = 'app.kuaizhizao.maintenanceReminder';
 
@@ -652,6 +653,7 @@ const MaintenanceRemindersPage: React.FC = () => {
                     skip: ((params.current || 1) - 1) * (params.pageSize || 20),
                     limit: params.pageSize || 20,
                     due_type: params.due_type as string | undefined,
+                    exclude_equipment_nature: MEASURING_INSTRUMENT_NATURE,
                   });
                   return { data: res.items || [], success: true, total: res.total || 0 };
                 }}
