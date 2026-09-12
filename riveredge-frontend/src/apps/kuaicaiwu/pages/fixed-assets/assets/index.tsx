@@ -1,22 +1,22 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import {
-  ProFormDatePicker,
-  ProFormDigit,
-  ProFormMoney,
-  ProFormSelect,
-  ProFormText,
-  ProFormTextArea,
-} from '@ant-design/pro-components';
 import { App, Popconfirm } from 'antd';
 import { useTranslation } from 'react-i18next';
-import dayjs from 'dayjs';
-import { FormModalTemplate, ListPageTemplate, MODAL_CONFIG } from '../../../../../components/layout-templates';
+import { ListPageTemplate } from '../../../../../components/layout-templates';
+import FaAssetFormModal from './FaAssetFormModal';
 import { UniTable } from '../../../../../components/uni-table';
 import { MarkerTag } from '../../../../../constants/statusBadges';
 import { downloadRecordsAsXlsx } from '../../../../../utils/exportRecordsXlsx';
+import { parseSpreadsheetDateToApiString } from '../../../../../utils/formDate';
 import { fetchAllListItems } from '../../../../../utils/fetchAllListPages';
+import { resolveFactoryImportHeaderIndexMap } from '../../../../../utils/spreadsheetImportTemplate';
 import { fixedAssetService, type FaAsset, type FaCategory } from '../../../services/fixed-assets';
+import {
+  buildFaAssetImportTemplate,
+  parseFaAssetStatusLabel,
+  parseFaDepreciationMethodLabel,
+  parseFaResidualRate,
+} from './faAssetImportTemplate';
 
 const RESOURCE = 'kuaicaiwu:fixed-asset';
 const NS = 'app.kuaicaiwu.fixedAssets.assets';
@@ -27,19 +27,6 @@ const STATUS_ENUM: Record<string, string> = {
   disposed: '已清理',
   scrapped: '已报废',
 };
-
-const IMPORT_HEADERS = [
-  '资产编号',
-  '资产名称',
-  '类别',
-  '原值',
-  '入账日期',
-  '使用部门',
-  '使用人',
-  '存放地点',
-];
-
-const IMPORT_EXAMPLE = ['FA202609110001', '示例设备', '办公设备', '10000', '2026-09-11', '行政部', '张三', '1楼仓库'];
 
 const FaAssetsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -54,7 +41,17 @@ const FaAssetsPage: React.FC = () => {
   const loadCategories = async () => {
     const items = await fixedAssetService.listCategories({ is_active: true });
     setCategories(items);
+    return items;
   };
+
+  useEffect(() => {
+    void loadCategories();
+  }, []);
+
+  const importTemplate = useMemo(
+    () => buildFaAssetImportTemplate(t, categories.map((c) => c.category_name)),
+    [t, categories],
+  );
 
   const openCreate = async () => {
     await loadCategories();
@@ -134,46 +131,90 @@ const FaAssetsPage: React.FC = () => {
         deleteConfirmTitle={t('app.kuaicaiwu.common.confirmBatchDelete')}
         deleteConfirmDescription={(count) => t(`${NS}.batchDeleteConfirm`, { count })}
         showImportButton
-        importHeaders={IMPORT_HEADERS}
-        importExampleRow={IMPORT_EXAMPLE}
+        importHeaders={importTemplate.importHeaders}
+        importExampleRow={importTemplate.importExampleRow}
+        importFieldMap={importTemplate.importHeaderMap}
+        importColumnOptions={importTemplate.importColumnOptions}
         importTemplateName={t(`${NS}.importTemplateName`)}
         onImport={async (data) => {
           if (!data || data.length < 2) {
             message.warning(t('app.kuaicaiwu.common.importEmpty'));
             return false;
           }
-          const cats = await fixedAssetService.listCategories({ is_active: true });
-          const importRows = data.slice(2).filter((row) => row?.some((c) => c != null && String(c).trim() !== ''));
+          const cats = await loadCategories();
+          const headerIndexMap = resolveFactoryImportHeaderIndexMap(
+            (data[0] || []).map((h) => String(h ?? '').trim()),
+            importTemplate.importHeaderMap,
+          );
+          if (headerIndexMap.asset_name === undefined) {
+            message.error(t(`${NS}.importHeaderMissingName`));
+            return false;
+          }
+          const cellAt = (row: unknown[], field: string) => {
+            const idx = headerIndexMap[field];
+            if (idx === undefined) return '';
+            return String(row[idx] ?? '').trim();
+          };
+          const numAt = (row: unknown[], field: string) => {
+            const raw = cellAt(row, field);
+            if (!raw) return undefined;
+            const n = Number(raw);
+            return Number.isFinite(n) ? n : undefined;
+          };
+          const importRows = data.slice(2).filter((row) =>
+            row?.some((c) => c != null && String(c).trim() !== ''),
+          );
           let created = 0;
           const errors: string[] = [];
           for (let i = 0; i < importRows.length; i += 1) {
             const row = importRows[i];
-            const assetName = String(row[1] ?? '').trim();
+            const assetName = cellAt(row, 'asset_name');
             if (!assetName) {
               errors.push(t(`${NS}.importRowNameRequired`, { row: i + 3 }));
               continue;
             }
-            const categoryName = String(row[2] ?? '').trim();
-            let categoryId: number | undefined;
-            if (categoryName) {
-              const cat = cats.find((c) => c.category_name === categoryName || c.category_code === categoryName);
-              if (!cat) {
-                errors.push(t(`${NS}.importRowCategoryMissing`, { row: i + 3, name: categoryName }));
-                continue;
-              }
-              categoryId = cat.id;
+            const categoryName = cellAt(row, 'category_name');
+            if (!categoryName) {
+              errors.push(t(`${NS}.importRowCategoryRequired`, { row: i + 3 }));
+              continue;
             }
+            const cat = cats.find(
+              (c) => c.category_name === categoryName || c.category_code === categoryName,
+            );
+            if (!cat) {
+              errors.push(t(`${NS}.importRowCategoryMissing`, { row: i + 3, name: categoryName }));
+              continue;
+            }
+            const statusRaw = cellAt(row, 'status');
+            const status = parseFaAssetStatusLabel(statusRaw) || 'active';
+            const residualRate = parseFaResidualRate(cellAt(row, 'residual_rate'));
             try {
               await fixedAssetService.createAsset({
-                asset_code: String(row[0] ?? '').trim() || undefined,
+                asset_code: cellAt(row, 'asset_code') || undefined,
                 asset_name: assetName,
-                category_id: categoryId,
-                original_value: Number(row[3]) || 0,
-                entry_date: row[4] ? String(row[4]).slice(0, 10) : undefined,
-                department_name: row[5] ? String(row[5]).trim() : undefined,
-                user_name: row[6] ? String(row[6]).trim() : undefined,
-                location: row[7] ? String(row[7]).trim() : undefined,
-                change_method: 'import',
+                category_id: cat.id,
+                change_method: cellAt(row, 'change_method') || 'import',
+                quantity: numAt(row, 'quantity') ?? 1,
+                unit: cellAt(row, 'unit') || undefined,
+                useful_life_months: numAt(row, 'useful_life_months'),
+                department_name: cellAt(row, 'department_name') || undefined,
+                user_name: cellAt(row, 'user_name') || undefined,
+                status,
+                location: cellAt(row, 'location') || undefined,
+                start_use_date: parseSpreadsheetDateToApiString(cellAt(row, 'start_use_date')),
+                entry_date: parseSpreadsheetDateToApiString(cellAt(row, 'entry_date')),
+                specification: cellAt(row, 'specification') || undefined,
+                notes: cellAt(row, 'notes') || undefined,
+                depreciation_method: parseFaDepreciationMethodLabel(cellAt(row, 'depreciation_method')),
+                original_value: numAt(row, 'original_value') ?? 0,
+                impairment_value: numAt(row, 'impairment_value') ?? 0,
+                depreciated_periods: numAt(row, 'depreciated_periods') ?? 0,
+                accumulated_depreciation: numAt(row, 'accumulated_depreciation') ?? 0,
+                residual_rate: residualRate,
+                accumulated_depreciation_account_code:
+                  cellAt(row, 'accumulated_depreciation_account_code') || undefined,
+                expense_account_code: cellAt(row, 'expense_account_code') || undefined,
+                asset_account_code: cellAt(row, 'asset_account_code') || undefined,
               });
               created += 1;
             } catch (err) {
@@ -245,60 +286,17 @@ const FaAssetsPage: React.FC = () => {
           return { data: res.items, success: true, total: res.total };
         }}
       />
-      <FormModalTemplate
-        title={editing ? t(`${NS}.editTitle`) : t(`${NS}.createTitle`)}
+      <FaAssetFormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        grid={false}
-        modalProps={{ ...MODAL_CONFIG, destroyOnHidden: true, width: 880 }}
-        onFinish={async (values) => {
-          const body = {
-            ...values,
-            entry_date: values.entry_date ? dayjs(values.entry_date).format('YYYY-MM-DD') : undefined,
-            start_use_date: values.start_use_date ? dayjs(values.start_use_date).format('YYYY-MM-DD') : undefined,
-          };
-          if (editing) {
-            await fixedAssetService.updateAsset(editing.id, body);
-          } else {
-            await fixedAssetService.createAsset(body);
-          }
+        editing={editing}
+        categories={categories}
+        onSuccess={() => {
           message.success(t('common.saveSuccess'));
           setModalOpen(false);
           actionRef.current?.reload();
-          return true;
         }}
-        initialValues={
-          editing
-            ? {
-                ...editing,
-                entry_date: editing.entry_date ? dayjs(editing.entry_date) : undefined,
-                start_use_date: editing.entry_date ? dayjs(editing.entry_date) : undefined,
-              }
-            : { status: 'active', useful_life_months: 60, residual_rate: 0.05 }
-        }
-      >
-        <ProFormText name="asset_code" label={t(`${NS}.col.code`)} />
-        <ProFormText name="asset_name" label={t(`${NS}.col.name`)} rules={[{ required: true }]} />
-        <ProFormSelect
-          name="category_id"
-          label={t(`${NS}.col.category`)}
-          options={categories.map((c) => ({ label: c.category_name, value: c.id }))}
-        />
-        <ProFormSelect
-          name="status"
-          label={t(`${NS}.col.status`)}
-          options={Object.entries(STATUS_ENUM).map(([value, label]) => ({ value, label }))}
-        />
-        <ProFormMoney name="original_value" label={t(`${NS}.col.originalValue`)} />
-        <ProFormDigit name="useful_life_months" label={t(`${NS}.col.lifeMonths`)} min={1} />
-        <ProFormDigit name="residual_rate" label={t(`${NS}.col.residualRate`)} min={0} max={1} fieldProps={{ step: 0.01 }} />
-        <ProFormText name="department_name" label={t(`${NS}.col.department`)} />
-        <ProFormText name="user_name" label={t(`${NS}.col.user`)} />
-        <ProFormText name="location" label={t(`${NS}.col.location`)} />
-        <ProFormDatePicker name="entry_date" label={t(`${NS}.col.entryDate`)} />
-        <ProFormDatePicker name="start_use_date" label={t(`${NS}.col.startUseDate`)} />
-        <ProFormTextArea name="notes" label={t('common.notes')} />
-      </FormModalTemplate>
+      />
     </ListPageTemplate>
   );
 };

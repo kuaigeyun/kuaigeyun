@@ -11,8 +11,16 @@ import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next';
 import {
   filterWarehouseTrackingColumns,
+  isMaterialBatchEntryEnabled,
   useWarehouseTrackingFlags,
 } from '../shared/warehouseTrackingFlags';
+import { materialApi } from '../../../../master-data/services/material';
+import type { Material } from '../../../../master-data/types/material';
+import {
+  isValidOutboundBatchSelection,
+  loadBatchOptionsByMaterialId,
+  type InventoryPickOption,
+} from '../outbound/outboundConfirmInventoryOptions';
 import { useNumericPrecisionPlaces } from '../../../../../hooks/useNumericPrecision';
 import { useSearchParams } from 'react-router-dom';
 import { useInvalidateMenuBadgeCounts } from '../../../../../hooks/useInvalidateMenuBadgeCounts';
@@ -107,6 +115,7 @@ interface InventoryTransferItem {
 }
 
 const defaultTransferItem = {
+  id: undefined as number | undefined,
   material_id: undefined as number | undefined,
   material_code: '',
   material_name: '',
@@ -117,7 +126,8 @@ const defaultTransferItem = {
   from_location_id: undefined as number | undefined,
   to_storage_area_id: undefined as number | undefined,
   to_location_id: undefined as number | undefined,
-  batch_no: '',
+  batch_no: undefined as string | undefined,
+  batch_managed: false,
 };
 
 const InventoryTransferPage: React.FC = () => {
@@ -133,10 +143,19 @@ const InventoryTransferPage: React.FC = () => {
   const invalidateMenuBadgeCounts = useInvalidateMenuBadgeCounts();
   // Modal 相关状态
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingTransferId, setEditingTransferId] = useState<number | null>(null);
+  const editOriginalItemsRef = useRef<InventoryTransferItem[]>([]);
   const [itemModalVisible, setItemModalVisible] = useState(false);
   const [createTransferMode, setCreateTransferMode] = useState<'transfer' | 'bin_relocation'>('transfer');
   const formRef = useRef<any>(null);
   const itemFormRef = useRef<any>(null);
+  const [rowBatchOptions, setRowBatchOptions] = useState<Record<number, InventoryPickOption[]>>({});
+  const [rowBatchManaged, setRowBatchManaged] = useState<Record<number, boolean>>({});
+  const [itemModalBatchOptions, setItemModalBatchOptions] = useState<InventoryPickOption[]>([]);
+  const [itemModalBatchManaged, setItemModalBatchManaged] = useState(false);
+  const [itemModalBatchLoading, setItemModalBatchLoading] = useState(false);
+  const [itemModalFromWarehouseId, setItemModalFromWarehouseId] = useState<number | undefined>();
 
   // Drawer 相关状态
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
@@ -159,6 +178,112 @@ const InventoryTransferPage: React.FC = () => {
   const resolveLocationMeta = (locationId?: number) => {
     const loc = storageLocationList.find((l: any) => l.id === locationId);
     return { id: locationId, code: loc?.code as string | undefined };
+  };
+
+  const resolveMaterialBatchManaged = async (
+    material?: Material | null,
+    materialId?: number,
+  ): Promise<boolean> => {
+    let managed = !!(material?.batchManaged ?? (material as { batch_managed?: boolean } | null | undefined)?.batch_managed);
+    const id = Number(materialId ?? material?.id ?? 0);
+    if (id > 0) {
+      try {
+        const res = await materialApi.list({ ids: [id], limit: 1 });
+        const row = res.items?.[0];
+        if (row) managed = !!row.batchManaged;
+      } catch {
+        // keep prior flag
+      }
+    }
+    return isMaterialBatchEntryEnabled(trackingFlags, managed);
+  };
+
+  const syncRowBatchOptions = async (
+    rowIndex: number,
+    materialId?: number,
+    warehouseId?: number,
+    preferBatch?: string,
+  ) => {
+    const managed = await resolveMaterialBatchManaged(undefined, materialId);
+    setRowBatchManaged((prev) => ({ ...prev, [rowIndex]: managed }));
+    formRef.current?.setFieldValue(['items', rowIndex, 'batch_managed'], managed);
+    if (!managed || !materialId || !warehouseId) {
+      setRowBatchOptions((prev) => ({ ...prev, [rowIndex]: [] }));
+      formRef.current?.setFieldValue(['items', rowIndex, 'batch_no'], undefined);
+      return;
+    }
+    const map = await loadBatchOptionsByMaterialId([materialId], warehouseId);
+    const options = map[materialId] ?? [];
+    setRowBatchOptions((prev) => ({ ...prev, [rowIndex]: options }));
+    const preferred = String(preferBatch ?? formRef.current?.getFieldValue(['items', rowIndex, 'batch_no']) ?? '').trim();
+    let next: string | undefined;
+    if (preferred && isValidOutboundBatchSelection(preferred, options)) {
+      next = preferred;
+    } else if (options.length === 1) {
+      next = options[0].value;
+    } else {
+      next = undefined;
+    }
+    formRef.current?.setFieldValue(['items', rowIndex, 'batch_no'], next);
+  };
+
+  const syncItemModalBatchOptions = async (
+    material?: Material,
+    materialId?: number,
+    warehouseId?: number,
+    preferBatch?: string,
+  ) => {
+    const managed = await resolveMaterialBatchManaged(material, materialId);
+    setItemModalBatchManaged(managed);
+    if (!managed || !materialId || !warehouseId) {
+      setItemModalBatchOptions([]);
+      itemFormRef.current?.setFieldsValue({ batch_no: undefined });
+      return;
+    }
+    setItemModalBatchLoading(true);
+    try {
+      const map = await loadBatchOptionsByMaterialId([materialId], warehouseId);
+      const options = map[materialId] ?? [];
+      setItemModalBatchOptions(options);
+      const preferred = String(preferBatch ?? itemFormRef.current?.getFieldValue('batch_no') ?? '').trim();
+      let next: string | undefined;
+      if (preferred && isValidOutboundBatchSelection(preferred, options)) {
+        next = preferred;
+      } else if (options.length === 1) {
+        next = options[0].value;
+      } else {
+        next = undefined;
+      }
+      itemFormRef.current?.setFieldsValue({ batch_no: next });
+    } finally {
+      setItemModalBatchLoading(false);
+    }
+  };
+
+  const clearCreateFormItemMaterials = () => {
+    const items = formRef.current?.getFieldValue('items') || [];
+    formRef.current?.setFieldsValue({
+      items: (Array.isArray(items) ? items : []).map((row: Record<string, unknown>) => ({
+        ...defaultTransferItem,
+        id: row.id,
+        from_storage_area_id: row.from_storage_area_id,
+        from_location_id: row.from_location_id,
+        to_storage_area_id: row.to_storage_area_id,
+        to_location_id: row.to_location_id,
+      })),
+    });
+    setRowBatchOptions({});
+    setRowBatchManaged({});
+  };
+
+  const resetCreateModalState = () => {
+    setCreateModalVisible(false);
+    setIsEditMode(false);
+    setEditingTransferId(null);
+    editOriginalItemsRef.current = [];
+    setRowBatchOptions({});
+    setRowBatchManaged({});
+    formRef.current?.resetFields();
   };
 
   const buildItemPayload = (
@@ -191,11 +316,30 @@ const InventoryTransferPage: React.FC = () => {
     };
   };
 
-  const validateTransferItems = (items: Record<string, unknown>[], mode: 'transfer' | 'bin_relocation') => {
+  const validateTransferItems = (
+    items: Record<string, unknown>[],
+    mode: 'transfer' | 'bin_relocation',
+    batchManagedByRow: Record<number, boolean>,
+    batchOptionsByRow: Record<number, InventoryPickOption[]>,
+  ) => {
     const valid = items.filter((it) => it.material_id && (Number(it.quantity) || 0) > 0);
     if (!valid.length) {
       messageApi.error(t('app.kuaizhizao.inventoryTransfer.msgNoValidItems'));
       throw new Error('no items');
+    }
+    for (let index = 0; index < items.length; index += 1) {
+      const it = items[index];
+      if (!it.material_id || !(Number(it.quantity) || 0) > 0) continue;
+      const managed = batchManagedByRow[index] ?? !!it.batch_managed;
+      if (managed) {
+        const batch = String(it.batch_no ?? '').trim();
+        const options = batchOptionsByRow[index] ?? [];
+        if (!batch || !isValidOutboundBatchSelection(batch, options)) {
+          const label = String(it.material_code || it.material_name || '').trim() || `#${index + 1}`;
+          messageApi.error(t('app.kuaizhizao.inventoryTransfer.msgBatchRequired', { material: label }));
+          throw new Error('batch required');
+        }
+      }
     }
     if (mode === 'bin_relocation') {
       for (const it of valid) {
@@ -231,6 +375,11 @@ const InventoryTransferPage: React.FC = () => {
    * 处理创建调拨单
    */
   const handleCreate = () => {
+    setIsEditMode(false);
+    setEditingTransferId(null);
+    editOriginalItemsRef.current = [];
+    setRowBatchOptions({});
+    setRowBatchManaged({});
     setCreateModalVisible(true);
     setCreateTransferMode('transfer');
     setSelectedCreateWarehouseId(undefined);
@@ -242,6 +391,64 @@ const InventoryTransferPage: React.FC = () => {
         items: [{ ...defaultTransferItem }],
       });
     }, 0);
+  };
+
+  const handleEdit = async (record: InventoryTransfer) => {
+    if (record.id == null) return;
+    try {
+      const detail = await inventoryTransferApi.get(record.id.toString());
+      if (detail.status !== 'draft') {
+        messageApi.error(t('app.kuaizhizao.inventoryTransfer.msgEditDraftOnly'));
+        return;
+      }
+      const mode =
+        detail.transfer_mode ||
+        (detail.from_warehouse_id === detail.to_warehouse_id ? 'bin_relocation' : 'transfer');
+      const detailItems: InventoryTransferItem[] = Array.isArray(detail.items) ? detail.items : [];
+      setIsEditMode(true);
+      setEditingTransferId(detail.id ?? null);
+      editOriginalItemsRef.current = detailItems;
+      setCreateTransferMode(mode);
+      setSelectedCreateWarehouseId(detail.from_warehouse_id);
+      setRowBatchOptions({});
+      setRowBatchManaged({});
+      setCreateModalVisible(true);
+      setTimeout(async () => {
+        formRef.current?.resetFields();
+        formRef.current?.setFieldsValue({
+          transfer_mode: mode,
+          from_warehouse_id: detail.from_warehouse_id,
+          to_warehouse_id: detail.to_warehouse_id,
+          _from_warehouse_name: detail.from_warehouse_name,
+          _to_warehouse_name: detail.to_warehouse_name,
+          transfer_date: detail.transfer_date ? dayjs(detail.transfer_date) : dayjs(),
+          transfer_reason: detail.transfer_reason,
+          remarks: detail.remarks,
+          attachments: detail.attachments,
+          items: (detailItems.length ? detailItems : [{ ...defaultTransferItem }]).map((it) => ({
+            id: it.id,
+            material_id: it.material_id,
+            material_code: it.material_code,
+            material_name: it.material_name,
+            material_unit: it.material_unit,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+            from_storage_area_id: it.from_storage_area_id,
+            from_location_id: it.from_location_id,
+            to_storage_area_id: it.to_storage_area_id,
+            to_location_id: it.to_location_id,
+            batch_no: it.batch_no,
+            batch_managed: false,
+          })),
+        });
+        for (let i = 0; i < detailItems.length; i += 1) {
+          const it = detailItems[i];
+          await syncRowBatchOptions(i, it.material_id, detail.from_warehouse_id, it.batch_no);
+        }
+      }, 0);
+    } catch (error: any) {
+      messageApi.error(error.message || t('app.kuaizhizao.inventoryTransfer.msgGetDetailFailed'));
+    }
   };
   useNewShortcut(handleCreate);
   const createButtonLabel = useMemo(
@@ -264,11 +471,70 @@ const InventoryTransferPage: React.FC = () => {
         throw new Error('库内移位时，调出仓库和调入仓库必须相同');
       }
 
-      const validItems = validateTransferItems(values.items || [], mode);
+      const validItems = validateTransferItems(
+        values.items || [],
+        mode,
+        rowBatchManaged,
+        rowBatchOptions,
+      );
       const header = {
         from_warehouse_id: values.from_warehouse_id,
         to_warehouse_id: values.to_warehouse_id,
       };
+
+      if (isEditMode && editingTransferId) {
+        await inventoryTransferApi.update(editingTransferId.toString(), {
+          from_warehouse_id: values.from_warehouse_id,
+          from_warehouse_name: values._from_warehouse_name || '',
+          to_warehouse_id: values.to_warehouse_id,
+          to_warehouse_name: values._to_warehouse_name || '',
+          transfer_date: toApiDateTimeString(values.transfer_date) ?? nowSiteDateTimeString(),
+          transfer_reason: values.transfer_reason,
+          remarks: values.remarks,
+          attachments: normalizeDocumentAttachments(values.attachments),
+          allow_same_warehouse: mode === 'bin_relocation',
+        });
+
+        const originalItems = editOriginalItemsRef.current;
+        const keptIds = new Set(
+          validItems.map((it) => it.id).filter((id): id is number => typeof id === 'number' && id > 0),
+        );
+        for (const orig of originalItems) {
+          if (orig.id && !keptIds.has(orig.id)) {
+            await inventoryTransferApi.deleteItem(editingTransferId.toString(), orig.id.toString());
+          }
+        }
+        const originalById = new Map(
+          originalItems.filter((row) => row.id).map((row) => [Number(row.id), row]),
+        );
+        for (const it of validItems) {
+          const payload = buildItemPayload(it, header);
+          const itemId = typeof it.id === 'number' ? it.id : Number(it.id);
+          if (itemId > 0) {
+            const original = originalById.get(itemId);
+            if (original && Number(original.material_id) !== Number(it.material_id)) {
+              await inventoryTransferApi.deleteItem(editingTransferId.toString(), String(itemId));
+              await inventoryTransferApi.createItem(editingTransferId.toString(), {
+                transfer_id: editingTransferId,
+                ...payload,
+              });
+            } else {
+              await inventoryTransferApi.updateItem(editingTransferId.toString(), String(itemId), payload);
+            }
+          } else {
+            await inventoryTransferApi.createItem(editingTransferId.toString(), {
+              transfer_id: editingTransferId,
+              ...payload,
+            });
+          }
+        }
+        messageApi.success(t('app.kuaizhizao.inventoryTransfer.msgUpdateSuccess'));
+        resetCreateModalState();
+        invalidateMenuBadgeCounts();
+        actionRef.current?.reload();
+        return;
+      }
+
       const payload = {
         from_warehouse_id: values.from_warehouse_id,
         from_warehouse_name: values._from_warehouse_name || '',
@@ -288,8 +554,7 @@ const InventoryTransferPage: React.FC = () => {
         await inventoryTransferApi.create(payload);
         messageApi.success(t('app.kuaizhizao.inventoryTransfer.msgCreateSuccess'));
       }
-      setCreateModalVisible(false);
-      formRef.current?.resetFields();
+      resetCreateModalState();
       invalidateMenuBadgeCounts();
 
       actionRef.current?.reload();
@@ -299,9 +564,15 @@ const InventoryTransferPage: React.FC = () => {
         error.message !== '库内移位时，调出仓库和调入仓库必须相同' &&
         error.message !== 'no items' &&
         error.message !== 'bin_relocation areas required' &&
-        error.message !== 'same location'
+        error.message !== 'same location' &&
+        error.message !== 'batch required'
       ) {
-        messageApi.error(error.message || t('app.kuaizhizao.inventoryTransfer.msgCreateFailed'));
+        messageApi.error(
+          error.message ||
+            (isEditMode
+              ? t('app.kuaizhizao.inventoryTransfer.msgUpdateFailed')
+              : t('app.kuaizhizao.inventoryTransfer.msgCreateFailed')),
+        );
       }
       throw error;
     }
@@ -388,8 +659,10 @@ const InventoryTransferPage: React.FC = () => {
     setCurrentItemTransferMode(
       record.transfer_mode || (record.from_warehouse_id === record.to_warehouse_id ? 'bin_relocation' : 'transfer')
     );
+    setItemModalFromWarehouseId(record.from_warehouse_id);
+    setItemModalBatchOptions([]);
+    setItemModalBatchManaged(false);
     itemFormRef.current?.resetFields();
-    // 自动填充调出和调入仓库
     itemFormRef.current?.setFieldsValue({
       from_warehouse_id: record.from_warehouse_id,
       to_warehouse_id: record.to_warehouse_id,
@@ -422,6 +695,14 @@ const InventoryTransferPage: React.FC = () => {
           messageApi.error(t('app.kuaizhizao.inventoryTransfer.msgSameLocationError'));
           return;
         }
+      }
+
+      if (
+        itemModalBatchManaged &&
+        (!values.batch_no || !isValidOutboundBatchSelection(values.batch_no, itemModalBatchOptions))
+      ) {
+        messageApi.error(t('app.kuaizhizao.inventoryTransfer.msgBatchRequired', { material: materialCode || materialName }));
+        return;
       }
 
       const fromArea = resolveAreaMeta(values.from_storage_area_id);
@@ -627,6 +908,7 @@ const InventoryTransferPage: React.FC = () => {
           <Button {...rowActionKind('read')} onClick={() => handleDetail(record)} />
           {record.status === 'draft' && (
             <>
+              <Button {...rowActionKind('update')} onClick={() => handleEdit(record)} />
               <Button {...rowActionKind('create')} {...rowActionLabelKeep()} onClick={() => handleAddItem(record)}>
                 {t('app.kuaizhizao.inventoryTransfer.actionAddItem')}
               </Button>
@@ -834,12 +1116,13 @@ const InventoryTransferPage: React.FC = () => {
 
       {/* 创建调拨单Modal */}
       <FormModalTemplate
-        title={t('app.kuaizhizao.inventoryTransfer.modalCreate')}
+        title={
+          isEditMode
+            ? t('app.kuaizhizao.inventoryTransfer.modalEdit')
+            : t('app.kuaizhizao.inventoryTransfer.modalCreate')
+        }
         open={createModalVisible}
-        onClose={() => {
-          setCreateModalVisible(false);
-          formRef.current?.resetFields();
-        }}
+        onClose={resetCreateModalState}
         onFinish={handleCreateSubmit}
         formRef={formRef}
         grid={false}
@@ -856,6 +1139,7 @@ const InventoryTransferPage: React.FC = () => {
             { label: t('app.kuaizhizao.inventoryTransfer.transferModeBinRelocationSame'), value: 'bin_relocation' },
           ]}
           fieldProps={{
+            disabled: isEditMode,
             onChange: (v: 'transfer' | 'bin_relocation') => {
               setCreateTransferMode(v);
               if (v === 'bin_relocation') {
@@ -880,8 +1164,10 @@ const InventoryTransferPage: React.FC = () => {
               required
               onChange={(value, warehouse) => {
                 const warehouseName = String(warehouse?.name ?? '').trim();
+                const warehouseId = typeof value === 'number' ? value : Number(value);
                 formRef.current?.setFieldsValue({ _from_warehouse_name: warehouseName });
-                setSelectedCreateWarehouseId(typeof value === 'number' ? value : Number(value));
+                setSelectedCreateWarehouseId(Number.isFinite(warehouseId) && warehouseId > 0 ? warehouseId : undefined);
+                clearCreateFormItemMaterials();
                 if (createTransferMode === 'bin_relocation') {
                   formRef.current?.setFieldsValue({
                     to_warehouse_id: value,
@@ -940,9 +1226,15 @@ const InventoryTransferPage: React.FC = () => {
                               <UniMaterialSelect
                                 name={[index, 'material_id']}
                                 label=""
-                                placeholder={t('app.kuaizhizao.warehouseCommon.selectMaterial')}
+                                placeholder={
+                                  selectedCreateWarehouseId
+                                    ? t('app.kuaizhizao.warehouseCommon.selectMaterial')
+                                    : t('app.kuaizhizao.inventoryTransfer.formSelectFromWarehouseFirst')
+                                }
                                 required
                                 size="small"
+                                disabled={!selectedCreateWarehouseId}
+                                warehouseId={selectedCreateWarehouseId}
                                 listFieldKey={index}
                                 listFieldName="items"
                                 fillMapping={{
@@ -952,8 +1244,15 @@ const InventoryTransferPage: React.FC = () => {
                                 }}
                                 fallbackOption={fallback}
                                 formItemProps={{ style: { margin: 0 } }}
-                                showQuickCreate
+                                showQuickCreate={false}
                                 showAdvancedSearch
+                                onChange={(_val, material) => {
+                                  void syncRowBatchOptions(
+                                    index,
+                                    material && !Array.isArray(material) ? Number(material.id) : undefined,
+                                    selectedCreateWarehouseId,
+                                  );
+                                }}
                               />
                             </div>
                           );
@@ -1109,10 +1408,36 @@ const InventoryTransferPage: React.FC = () => {
                   {
                     title: t('app.kuaizhizao.warehouseReports.colBatchNo'),
                     dataIndex: 'batch_no',
-                    width: 120,
+                    width: 160,
                     render: (_: unknown, __: unknown, index: number) => (
-                      <AntForm.Item name={[index, 'batch_no']} style={{ margin: 0 }}>
-                        <Input placeholder={t('app.kuaizhizao.warehouseCommon.optional')} size="small" />
+                      <AntForm.Item noStyle shouldUpdate>
+                        {() => {
+                          const managed = rowBatchManaged[index];
+                          const options = rowBatchOptions[index] ?? [];
+                          if (!managed) {
+                            return (
+                              <AntForm.Item name={[index, 'batch_no']} style={{ margin: 0 }}>
+                                <Input placeholder={t('app.kuaizhizao.warehouseCommon.optional')} size="small" disabled />
+                              </AntForm.Item>
+                            );
+                          }
+                          return (
+                            <AntForm.Item
+                              name={[index, 'batch_no']}
+                              rules={[{ required: true, message: t('app.kuaizhizao.inventoryTransfer.formBatchNoRequired') }]}
+                              style={{ margin: 0 }}
+                            >
+                              <Select
+                                options={options}
+                                placeholder={t('app.kuaizhizao.inventoryTransfer.formBatchNoSelectPlaceholder')}
+                                size="small"
+                                showSearch
+                                optionFilterProp="label"
+                                notFoundContent={t('app.kuaizhizao.inventoryTransfer.msgNoBatchInWarehouse')}
+                              />
+                            </AntForm.Item>
+                          );
+                        }}
                       </AntForm.Item>
                     ),
                   },
@@ -1125,7 +1450,25 @@ const InventoryTransferPage: React.FC = () => {
                         danger
                         size="small"
                         icon={<DeleteOutlined />}
-                        onClick={() => remove(index)}
+                        onClick={() => {
+                          remove(index);
+                          setTimeout(() => {
+                            setRowBatchOptions({});
+                            setRowBatchManaged({});
+                            const items = formRef.current?.getFieldValue('items') || [];
+                            items.forEach((row: Record<string, unknown>, rowIndex: number) => {
+                              const materialId = Number(row.material_id);
+                              if (Number.isFinite(materialId) && materialId > 0) {
+                                void syncRowBatchOptions(
+                                  rowIndex,
+                                  materialId,
+                                  selectedCreateWarehouseId,
+                                  String(row.batch_no ?? ''),
+                                );
+                              }
+                            });
+                          }, 0);
+                        }}
                         disabled={fields.length <= 1}
                       />
                     ),
@@ -1186,6 +1529,9 @@ const InventoryTransferPage: React.FC = () => {
         onClose={() => {
           setItemModalVisible(false);
           setCurrentTransferId(null);
+          setItemModalFromWarehouseId(undefined);
+          setItemModalBatchOptions([]);
+          setItemModalBatchManaged(false);
           itemFormRef.current?.resetFields();
         }}
         onFinish={handleAddItemSubmit}
@@ -1195,14 +1541,27 @@ const InventoryTransferPage: React.FC = () => {
         <UniMaterialSelect
           name="material_id"
           label={t('app.kuaizhizao.warehouseCommon.colMaterial')}
-          placeholder={t('app.kuaizhizao.warehouseCommon.selectMaterial')}
+          placeholder={
+            itemModalFromWarehouseId
+              ? t('app.kuaizhizao.warehouseCommon.selectMaterial')
+              : t('app.kuaizhizao.inventoryTransfer.formSelectFromWarehouseFirst')
+          }
           required
+          disabled={!itemModalFromWarehouseId}
+          warehouseId={itemModalFromWarehouseId}
           fillMapping={{
             material_code: 'mainCode',
             material_name: 'name',
           }}
-          showQuickCreate
+          showQuickCreate={false}
           showAdvancedSearch
+          onChange={(_val, material) => {
+            void syncItemModalBatchOptions(
+              material && !Array.isArray(material) ? material : undefined,
+              material && !Array.isArray(material) ? Number(material.id) : undefined,
+              itemModalFromWarehouseId,
+            );
+          }}
         />
         <ProFormDigit
           name="quantity"
@@ -1306,11 +1665,27 @@ const InventoryTransferPage: React.FC = () => {
         </Row>
         <ProFormText name="from_location_code" hidden />
         <ProFormText name="to_location_code" hidden />
-        <ProFormText
-          name="batch_no"
-          label={t('app.kuaizhizao.inventoryTransfer.formBatchNoOptional')}
-          placeholder={t('app.kuaizhizao.inventoryTransfer.formBatchNoPlaceholder')}
-        />
+        {itemModalBatchManaged ? (
+          <ProFormSelect
+            name="batch_no"
+            label={t('app.kuaizhizao.warehouseReports.colBatchNo')}
+            placeholder={t('app.kuaizhizao.inventoryTransfer.formBatchNoSelectPlaceholder')}
+            rules={[{ required: true, message: t('app.kuaizhizao.inventoryTransfer.formBatchNoRequired') }]}
+            options={itemModalBatchOptions}
+            fieldProps={{
+              showSearch: true,
+              loading: itemModalBatchLoading,
+              notFoundContent: t('app.kuaizhizao.inventoryTransfer.msgNoBatchInWarehouse'),
+            }}
+          />
+        ) : (
+          <ProFormText
+            name="batch_no"
+            label={t('app.kuaizhizao.inventoryTransfer.formBatchNoOptional')}
+            placeholder={t('app.kuaizhizao.warehouseCommon.optional')}
+            disabled
+          />
+        )}
         <ProFormTextArea
           name="remarks"
           label={t('common.remark')}

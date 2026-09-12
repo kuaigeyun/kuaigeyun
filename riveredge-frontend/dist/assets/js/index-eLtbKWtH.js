@@ -1,0 +1,1 @@
+import{j as e}from"./vendor-BPww9IVW.js";import{N as t}from"./clientRelease-oFf-DLfD.js";function p(){return e.jsx(t,{to:"/apps/haoligo/molds/documents/upkeep-complete",replace:!0})}export{p as default};

@@ -13,6 +13,9 @@ export const getOutboundLifecycle = createLifecycleResolver({
     { key: 'confirmed', label: '已确认' },
     { key: 'completed', label: '已完成' },
     { key: 'cancelled', label: '已取消' },
+    { key: 'pending_borrow', label: '待借出' },
+    { key: 'borrowed', label: '已借出' },
+    { key: 'delivered', label: '已出库' },
   ],
   statusToKey: {
     草稿: 'draft',

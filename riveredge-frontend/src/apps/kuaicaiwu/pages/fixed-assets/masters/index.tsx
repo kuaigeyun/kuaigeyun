@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
-  ProFormDigit,
   ProFormSwitch,
   ProFormText,
   ProFormTextArea,
@@ -54,14 +53,6 @@ const FaMastersPage: React.FC = () => {
     () => [
       { title: t(`${NS}.col.code`), dataIndex: 'category_code', width: 120, uniTableKeepWidth: true },
       { title: t(`${NS}.col.name`), dataIndex: 'category_name', ellipsis: true },
-      { title: t(`${NS}.col.lifeMonths`), dataIndex: 'useful_life_months', width: 100, uniTableKeepWidth: true },
-      {
-        title: t(`${NS}.col.residualRate`),
-        dataIndex: 'residual_rate',
-        width: 100,
-        render: (_, r) => `${((Number(r.residual_rate) || 0) * 100).toFixed(2)}%`,
-      },
-      { title: t(`${NS}.col.expenseAccount`), dataIndex: 'expense_account_code', width: 100, uniTableKeepWidth: true },
       {
         title: t('common.enabled'),
         dataIndex: 'is_active',
@@ -156,9 +147,6 @@ const FaMastersPage: React.FC = () => {
             [
               { key: 'category_code', title: t(`${NS}.col.code`) },
               { key: 'category_name', title: t(`${NS}.col.name`) },
-              { key: 'useful_life_months', title: t(`${NS}.col.lifeMonths`) },
-              { key: 'residual_rate', title: t(`${NS}.col.residualRate`) },
-              { key: 'expense_account_code', title: t(`${NS}.col.expenseAccount`) },
               { key: 'is_active', title: t('common.enabled') },
             ],
             t(`${NS}.exportFileName`),
@@ -185,15 +173,10 @@ const FaMastersPage: React.FC = () => {
           actionRef.current?.reload();
           return true;
         }}
-        initialValues={editing ?? { is_active: true, useful_life_months: 60, residual_rate: 0.05 }}
+        initialValues={editing ?? { is_active: true }}
       >
         <ProFormText name="category_code" label={t(`${NS}.col.code`)} rules={[{ required: !editing }]} disabled={!!editing} />
         <ProFormText name="category_name" label={t(`${NS}.col.name`)} rules={[{ required: true }]} />
-        <ProFormDigit name="useful_life_months" label={t(`${NS}.col.lifeMonths`)} min={1} />
-        <ProFormDigit name="residual_rate" label={t(`${NS}.col.residualRate`)} min={0} max={1} fieldProps={{ step: 0.01 }} />
-        <ProFormText name="asset_account_code" label={t(`${NS}.col.assetAccount`)} />
-        <ProFormText name="accumulated_depreciation_account_code" label={t(`${NS}.col.accumAccount`)} />
-        <ProFormText name="expense_account_code" label={t(`${NS}.col.expenseAccount`)} />
         <ProFormSwitch name="is_active" label={t('common.enabled')} />
         <ProFormTextArea name="notes" label={t('common.notes')} />
       </FormModalTemplate>

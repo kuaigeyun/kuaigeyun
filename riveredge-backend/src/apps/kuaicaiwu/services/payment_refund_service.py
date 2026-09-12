@@ -518,6 +518,31 @@ class PaymentRefundService(AppBaseService[Payment]):
                     operator_id=operator_id,
                 )
 
+            from apps.kuaicaiwu.services.accounting_event_service import AccountingEventService
+
+            user_name = await settlement_service.get_user_name(operator_id)
+            await AccountingEventService.record_event(
+                tenant_id=tenant_id,
+                event_type="PAYMENT_REFUND_CONFIRMED",
+                business_type="payment_refund",
+                source_doc_type="payment",
+                source_doc_id=int(allocations[0]["source_id"]),
+                source_doc_code=str(allocations[0].get("source_code") or allocations[0]["source_id"]),
+                target_doc_type="Payment",
+                target_doc_id=refund_payment_id,
+                target_doc_code=str(refund.payment_code or refund_payment_id),
+                amount=refund_amount,
+                operator_id=operator_id,
+                operator_name=user_name,
+                payload={
+                    "supplier_id": refund.supplier_id,
+                    "supplier_name": refund.supplier_name,
+                    "bank_account_id": refund.bank_account_id,
+                    "settlement_type": "refund",
+                },
+                notes=f"付款退款 {refund.payment_code or refund_payment_id} 确认",
+            )
+
         return await Payment.get_or_none(tenant_id=tenant_id, id=refund_payment_id)
 
     async def unconfirm_refund(

@@ -162,6 +162,17 @@ export const glService = {
     apiRequest<GlVoucher>(`${BASE}/vouchers/${id}/unpost`, { method: 'POST' }),
   obsoleteVoucher: (id: number) =>
     apiRequest<GlVoucher>(`${BASE}/vouchers/${id}/obsolete`, { method: 'POST' }),
+  deleteVoucher: (id: number) =>
+    apiRequest<{ success: boolean }>(`${BASE}/vouchers/${id}`, { method: 'DELETE' }),
+  reorganizeVouchers: (data: {
+    organize_date: string;
+    voucher_word?: string;
+    method?: 'shift_gaps' | 'by_date';
+  }) =>
+    apiRequest<{ updated_count: number; groups: Array<{ voucher_word: string; updated_count: number }> }>(
+      `${BASE}/vouchers/reorganize`,
+      { method: 'POST', data },
+    ),
   listPendingVoucherEvents: (params?: {
     business_type?: string;
     source_doc_type?: string;

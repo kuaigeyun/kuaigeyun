@@ -36,6 +36,139 @@ export const PLATFORM_UPDATE_TYPE_ORDER: PlatformUpdateType[] = [
  */
 export const PLATFORM_UPDATE_LOG: PlatformUpdateLogEntry[] = [
   {
+    id: 'inventory-transfer-edit-batch-warehouse-filter',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.inventory-transfer-edit-batch-warehouse-filter.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.inventory-transfer-edit-batch-warehouse-filter.description',
+  },
+  {
+    id: 'menu-admin-disabled-hierarchy',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.menu-admin-disabled-hierarchy.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.menu-admin-disabled-hierarchy.description',
+  },
+  {
+    id: 'sales-order-approval-callback-sync',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-order-approval-callback-sync.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.sales-order-approval-callback-sync.description',
+  },
+  {
+    id: 'sales-delivery-edit-batch-picker',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-delivery-edit-batch-picker.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.sales-delivery-edit-batch-picker.description',
+  },
+  {
+    id: 'outsource-issue-outbound-lifecycle',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.outsource-issue-outbound-lifecycle.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.outsource-issue-outbound-lifecycle.description',
+  },
+  {
+    id: 'outsource-material-issue-operator',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.outsource-material-issue-operator.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.outsource-material-issue-operator.description',
+  },
+  {
+    id: 'sales-return-refund-gl-event',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.sales-return-refund-gl-event.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.sales-return-refund-gl-event.description',
+  },
+  {
+    id: 'outsource-issue-manual-lines',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.outsource-issue-manual-lines.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.outsource-issue-manual-lines.description',
+  },
+  {
+    id: 'fa-asset-depreciation-per-card',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.fa-asset-depreciation-per-card.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.fa-asset-depreciation-per-card.description',
+  },
+  {
+    id: 'fa-asset-form-full-fields',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.fa-asset-form-full-fields.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.fa-asset-form-full-fields.description',
+  },
+  {
+    id: 'fa-asset-import-template',
+    date: '2026-09-12',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.fa-asset-import-template.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.fa-asset-import-template.description',
+  },
+  {
+    id: 'gl-balance-cashflow-excel-template',
+    date: '2026-09-12',
+    type: 'improvement',
+    titleKey: 'pages.dashboard.updateLog.entries.gl-balance-cashflow-excel-template.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.gl-balance-cashflow-excel-template.description',
+  },
+  {
+    id: 'gl-voucher-reorganize',
+    date: '2026-09-12',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.gl-voucher-reorganize.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.gl-voucher-reorganize.description',
+  },
+  {
+    id: 'gl-voucher-draft-delete',
+    date: '2026-09-12',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.gl-voucher-draft-delete.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.gl-voucher-draft-delete.description',
+  },
+  {
+    id: 'purchase-order-milestone-created-by-column',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.purchase-order-milestone-created-by-column.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.purchase-order-milestone-created-by-column.description',
+  },
+  {
+    id: 'gl-coa-cost-accounts-gap-fix',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.gl-coa-cost-accounts-gap-fix.title',
+    descriptionKey: 'pages.dashboard.updateLog.entries.gl-coa-cost-accounts-gap-fix.description',
+  },
+  {
+    id: 'gl-chart-of-accounts-multi-level',
+    date: '2026-09-12',
+    type: 'feature',
+    titleKey: 'pages.dashboard.updateLog.entries.gl-chart-of-accounts-multi-level.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.gl-chart-of-accounts-multi-level.description',
+  },
+  {
+    id: 'tenant-expires-at-enforcement',
+    date: '2026-09-12',
+    type: 'fix',
+    titleKey: 'pages.dashboard.updateLog.entries.tenant-expires-at-enforcement.title',
+    descriptionKey:
+      'pages.dashboard.updateLog.entries.tenant-expires-at-enforcement.description',
+  },
+  {
     id: 'custom-document-date-off-by-one-backfill',
     date: '2026-09-12',
     type: 'fix',

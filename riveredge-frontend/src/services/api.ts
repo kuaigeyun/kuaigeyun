@@ -10,6 +10,7 @@ import { updateLastActivity, incrementPendingRequests, decrementPendingRequests 
 import { handleNetworkError, handleServerError, withRetry } from '../utils/errorRecovery';
 import { navigateTo } from '../utils/navigation';
 import { redirectAfterLogout } from '../utils/loginEntry';
+import { isTenantExpiredApiDetail, TENANT_EXPIRED_MESSAGE } from '../utils/tenantAccess';
 import { isKuaireportSharedApiPath, isKuaireportSharedBrowsePath } from '../utils/kuaireportSharedPath';
 import { webClientChannelHeaders } from '../utils/clientChannel';
 import { isRequestCancellation } from '../utils/requestCancellation';
@@ -442,6 +443,28 @@ export async function apiRequest<T = any>(
           error.response = { data, status: response.status };
           throw error;
         } else {
+          const sessionDetail = formatApiErrorDetail(data?.detail || data?.message || '');
+          if (isTenantExpiredApiDetail(sessionDetail)) {
+            clearAuth();
+            try {
+              const { useGlobalStore } = await import('../stores/globalStore');
+              useGlobalStore.getState().setCurrentUser(undefined);
+            } catch {
+              /* ignore */
+            }
+            const currentPath = window.location.pathname;
+            if (
+              !isKuaireportSharedBrowsePath(currentPath) &&
+              currentPath !== '/login' &&
+              currentPath !== '/infra/login'
+            ) {
+              redirectAfterLogout();
+            }
+            const error = new Error(sessionDetail || TENANT_EXPIRED_MESSAGE) as any;
+            error.response = { data, status: response.status };
+            throw error;
+          }
+
           // 其它接口 401：只允许「访问令牌已失效且续期被服务端明确拒绝」时结束会话。
           // 续期成功后同一接口仍 401 = 业务/权限/上下文问题，禁止 clearAuth。
           const throwTransient401 = (message: string) => {
@@ -512,6 +535,33 @@ export async function apiRequest<T = any>(
         }
       }
       
+      // 组织已过期等业务禁用：清会话并回登录页
+      if (response.status === 403) {
+        const forbiddenDetail = formatApiErrorDetail(
+          data?.detail || data?.message || '',
+        );
+        if (isTenantExpiredApiDetail(forbiddenDetail)) {
+          clearAuth();
+          try {
+            const { useGlobalStore } = await import('../stores/globalStore');
+            useGlobalStore.getState().setCurrentUser(undefined);
+          } catch {
+            /* ignore */
+          }
+          const currentPath = window.location.pathname;
+          if (
+            !isKuaireportSharedBrowsePath(currentPath) &&
+            currentPath !== '/login' &&
+            currentPath !== '/infra/login'
+          ) {
+            redirectAfterLogout();
+          }
+          const error = new Error(forbiddenDetail || TENANT_EXPIRED_MESSAGE) as any;
+          error.response = { data, status: response.status };
+          throw error;
+        }
+      }
+
       // 处理 400 错误（可能是组织上下文未设置或其他验证错误）
       if (response.status === 400) {
         const rawErrorDetail =

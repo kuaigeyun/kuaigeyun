@@ -1055,7 +1055,9 @@ export const OutsourceWorkOrdersTable: React.FC = () => {
       }>;
       message?: string | null;
       outsource_work_order_code?: string;
+      allow_manual_lines?: boolean;
     }): PushPreviewResponse => {
+      const allowManual = preview.allow_manual_lines !== false;
       const items = (preview.lines ?? []).map((line) => ({
         item_id: Number(line.material_id),
         material_code: String(line.material_code ?? ''),
@@ -1066,9 +1068,13 @@ export const OutsourceWorkOrdersTable: React.FC = () => {
       }));
       const pushableCount = items.filter((row) => Number(row.max_push_quantity ?? 0) > 0).length;
       let blockingReason: string | null = null;
-      if (!items.length || pushableCount === 0) {
+      if (!allowManual && (!items.length || pushableCount === 0)) {
         blockingReason = preview.message || t('app.kuaizhizao.warehouseOutbound.pull.osPreviewNoLines');
       }
+      const infoReason =
+        allowManual && (preview.message || (!items.length && pushableCount === 0))
+          ? preview.message || t('app.kuaizhizao.warehouseOutbound.pull.osPreviewManualHint')
+          : null;
       return {
         target_type: 'outsource_material_issue',
         summary: t('app.kuaizhizao.warehouseOutbound.pull.osPreviewSummary', {
@@ -1077,10 +1083,13 @@ export const OutsourceWorkOrdersTable: React.FC = () => {
           total: items.length,
         }),
         items,
-        tip: t('app.kuaizhizao.warehouseOutbound.pull.osPreviewTip'),
+        tip: allowManual
+          ? t('app.kuaizhizao.warehouseOutbound.pull.osPreviewManualTip')
+          : t('app.kuaizhizao.warehouseOutbound.pull.osPreviewTip'),
         has_blocking_issues: !!blockingReason,
-        blocking_reason: blockingReason,
-      };
+        blocking_reason: blockingReason || infoReason,
+        allow_manual_lines: allowManual,
+      } as PushPreviewResponse & { allow_manual_lines?: boolean };
     },
     [t],
   );
@@ -1171,6 +1180,8 @@ export const OutsourceWorkOrdersTable: React.FC = () => {
   const handlePushPreviewConfirm = useCallback(() => {
     if (!pushPreviewWorkOrderId || !pushPreviewData || pushPreviewData.has_blocking_issues) return;
     if (pushPreviewKind === 'outbound_issue') {
+      const allowManual =
+        (pushPreviewData as PushPreviewResponse & { allow_manual_lines?: boolean }).allow_manual_lines !== false;
       const rowById = new Map(
         (pushPreviewData.items || []).map((row) => [Number(row.item_id), row]),
       );
@@ -1178,7 +1189,7 @@ export const OutsourceWorkOrdersTable: React.FC = () => {
         const row = rowById.get(id);
         return row && Number(row.max_push_quantity ?? 0) > 0;
       });
-      if (!selectedIds.length) {
+      if (!selectedIds.length && !allowManual) {
         messageApi.warning(t('app.kuaizhizao.warehouseOutbound.pull.osSelectLinesFirst'));
         return;
       }
@@ -1188,7 +1199,9 @@ export const OutsourceWorkOrdersTable: React.FC = () => {
       });
       const entryPath = outboundOutsourceEntryPath(pushPreviewWorkOrderId);
       const draftKey = buildDocumentCreateDraftKey('kuaizhizao:outbound-outsource-pull', entryPath, '');
-      setDocumentFormDraft(draftKey, { issueQuantities });
+      if (selectedIds.length) {
+        setDocumentFormDraft(draftKey, { issueQuantities });
+      }
       resetPushPreview();
       navigate(entryPath);
     }
@@ -2248,7 +2261,9 @@ export const OutsourceWorkOrdersTable: React.FC = () => {
             pushPreviewLoading ||
             !pushPreviewData ||
             !!pushPreviewData?.has_blocking_issues ||
-            !(pushPreviewData?.items || []).some((row) => Number(row.max_push_quantity ?? 0) > 0),
+            ((pushPreviewData as PushPreviewResponse & { allow_manual_lines?: boolean }).allow_manual_lines ===
+              false &&
+              !(pushPreviewData?.items || []).some((row) => Number(row.max_push_quantity ?? 0) > 0)),
         }}
       >
         {pushPreviewLoading ? (
@@ -2259,9 +2274,9 @@ export const OutsourceWorkOrdersTable: React.FC = () => {
         ) : pushPreviewData ? (
           <div>
             <p style={{ marginBottom: 12, fontWeight: 500 }}>{pushPreviewData.summary}</p>
-            {pushPreviewData.has_blocking_issues && pushPreviewData.blocking_reason ? (
+            {pushPreviewData.blocking_reason ? (
               <Alert
-                type="warning"
+                type={pushPreviewData.has_blocking_issues ? 'warning' : 'info'}
                 showIcon
                 style={{ marginBottom: 12 }}
                 title={

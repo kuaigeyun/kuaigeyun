@@ -33,9 +33,10 @@ def _parse_date(value: Any) -> Optional[date]:
 
 
 class FaAssetService:
-    async def _apply_category_defaults(
+    async def _resolve_category_name(
         self, tenant_id: int, payload: dict[str, Any]
     ) -> dict[str, Any]:
+        """资产类别仅作分类；折旧参数在卡片上逐台维护，不从类别继承。"""
         category_id = payload.get("category_id")
         if not category_id:
             return payload
@@ -44,15 +45,7 @@ class FaAssetService:
         )
         if not cat:
             raise ValidationError("资产类别不存在")
-        payload.setdefault("category_name", cat.category_name)
-        payload.setdefault("depreciation_method", cat.depreciation_method)
-        payload.setdefault("useful_life_months", cat.useful_life_months)
-        payload.setdefault("residual_rate", cat.residual_rate)
-        payload.setdefault("asset_account_code", cat.asset_account_code)
-        payload.setdefault(
-            "accumulated_depreciation_account_code", cat.accumulated_depreciation_account_code
-        )
-        payload.setdefault("expense_account_code", cat.expense_account_code)
+        payload["category_name"] = cat.category_name
         return payload
 
     def _recalc_depreciation_fields(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -115,10 +108,40 @@ class FaAssetService:
         )
         return item
 
+    async def _resolve_category_id(
+        self, tenant_id: int, *, category_id: Any = None, category_name: Any = None
+    ) -> Optional[int]:
+        if category_id:
+            return int(category_id)
+        name = str(category_name or "").strip()
+        if not name:
+            return None
+        cat = await FaCategory.filter(
+            tenant_id=tenant_id,
+            category_name=name,
+            deleted_at__isnull=True,
+            is_active=True,
+        ).first()
+        if not cat:
+            cat = await FaCategory.filter(
+                tenant_id=tenant_id,
+                category_code=name,
+                deleted_at__isnull=True,
+                is_active=True,
+            ).first()
+        if not cat:
+            raise ValidationError(f"资产类别不存在: {name}")
+        return int(cat.id)
+
     async def create_asset(
         self, tenant_id: int, data: dict[str, Any], user: User | int
     ) -> dict[str, Any]:
         resolved_user = user if isinstance(user, User) else await User.get(id=int(user))
+        category_id = await self._resolve_category_id(
+            tenant_id,
+            category_id=data.get("category_id"),
+            category_name=data.get("category_name"),
+        )
         asset_code = (data.get("asset_code") or "").strip()
         if not asset_code:
             asset_code = await generate_daily_code(FaAsset, tenant_id, "FA", "asset_code")
@@ -135,7 +158,7 @@ class FaAssetService:
             "tenant_id": tenant_id,
             "asset_code": asset_code,
             "asset_name": asset_name,
-            "category_id": data.get("category_id"),
+            "category_id": category_id,
             "quantity": quantize_money(data.get("quantity") or 1),
             "unit": data.get("unit"),
             "change_method": data.get("change_method"),
@@ -166,7 +189,7 @@ class FaAssetService:
             "source_kuaioa_asset_id": data.get("source_kuaioa_asset_id"),
             "source_purchase_id": data.get("source_purchase_id"),
         }
-        payload = await self._apply_category_defaults(tenant_id, payload)
+        payload = await self._resolve_category_name(tenant_id, payload)
         payload["monthly_depreciation"] = compute_monthly_depreciation(
             payload["original_value"],
             payload["residual_rate"],
@@ -225,20 +248,11 @@ class FaAssetService:
             row.attachment_uuids = list(data["attachment_uuids"] or [])
 
         if "category_id" in data and data["category_id"]:
-            defaults = await self._apply_category_defaults(
+            resolved = await self._resolve_category_name(
                 tenant_id, {"category_id": data["category_id"]}
             )
-            for k in (
-                "category_name",
-                "depreciation_method",
-                "useful_life_months",
-                "residual_rate",
-                "asset_account_code",
-                "accumulated_depreciation_account_code",
-                "expense_account_code",
-            ):
-                if k in defaults:
-                    setattr(row, k, defaults[k])
+            if "category_name" in resolved:
+                row.category_name = resolved["category_name"]
 
         row.monthly_depreciation = compute_monthly_depreciation(
             quantize_money(row.original_value),
@@ -379,40 +393,47 @@ class FaAssetService:
         )
 
     async def export_excel(self, tenant_id: int) -> BytesIO:
+        from apps.kuaicaiwu.services.fa_asset_import_template import FA_ASSET_IMPORT_HEADERS
+
         result = await self.list_assets(tenant_id, skip=0, limit=10000)
         wb = Workbook()
         ws = wb.active
         ws.title = "资产清单"
-        headers = [
-            "资产编号",
-            "资产名称",
-            "类别",
-            "状态",
-            "原值",
-            "累计折旧",
-            "净值",
-            "月折旧",
-            "使用部门",
-            "使用人",
-            "存放地点",
-            "入账日期",
-        ]
-        ws.append(headers)
+        ws.append(FA_ASSET_IMPORT_HEADERS)
+        status_labels = {
+            "active": "在用",
+            "idle": "闲置",
+            "disposed": "已清理",
+            "scrapped": "已报废",
+        }
+        depr_labels = {"straight_line": "年限平均法"}
         for item in result["items"]:
             ws.append(
                 [
                     item.get("asset_code"),
                     item.get("asset_name"),
                     item.get("category_name"),
-                    item.get("status"),
-                    item.get("original_value"),
-                    item.get("accumulated_depreciation"),
-                    item.get("net_value"),
-                    item.get("monthly_depreciation"),
+                    item.get("change_method"),
+                    item.get("quantity"),
+                    item.get("unit"),
+                    item.get("useful_life_months"),
                     item.get("department_name"),
                     item.get("user_name"),
+                    status_labels.get(str(item.get("status") or ""), item.get("status")),
                     item.get("location"),
+                    item.get("start_use_date"),
                     item.get("entry_date"),
+                    item.get("specification"),
+                    item.get("notes"),
+                    depr_labels.get(str(item.get("depreciation_method") or ""), item.get("depreciation_method")),
+                    item.get("original_value"),
+                    item.get("impairment_value"),
+                    item.get("depreciated_periods"),
+                    item.get("accumulated_depreciation"),
+                    item.get("residual_rate"),
+                    item.get("accumulated_depreciation_account_code"),
+                    item.get("expense_account_code"),
+                    item.get("asset_account_code"),
                 ]
             )
         stream = BytesIO()
@@ -421,49 +442,39 @@ class FaAssetService:
         return stream
 
     async def import_excel(self, tenant_id: int, content: bytes, user: User) -> dict[str, Any]:
+        from apps.kuaicaiwu.services.fa_asset_import_template import (
+            resolve_header_index_map,
+            row_to_create_payload,
+        )
+
         wb = load_workbook(BytesIO(content), read_only=True, data_only=True)
         ws = wb.active
-        rows = list(ws.iter_rows(min_row=2, values_only=True))
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            return {"created": 0, "errors": ["文件为空"]}
+        header_row_idx = 0
+        for idx, row in enumerate(rows[:5]):
+            if row and any(str(cell or "").strip() for cell in row):
+                header_row_idx = idx
+                break
+        index_map = resolve_header_index_map(list(rows[header_row_idx]))
+        if "asset_name" not in index_map:
+            raise ValidationError("未识别导入表头，请使用系统提供的固定资产导入模板")
         created = 0
         errors: list[str] = []
-        for idx, row in enumerate(rows, start=2):
+        for idx, row in enumerate(rows[header_row_idx + 1 :], start=header_row_idx + 2):
             if not row or not any(row):
                 continue
-            asset_code = str(row[0]).strip() if row[0] else ""
-            asset_name = str(row[1]).strip() if row[1] else ""
-            category_name = str(row[2]).strip() if len(row) > 2 and row[2] else ""
-            original_value = row[4] if len(row) > 4 else 0
-            if not asset_name:
+            payload = row_to_create_payload(tuple(row), index_map)
+            if not payload.get("asset_name"):
                 errors.append(f"第{idx}行：资产名称不能为空")
                 continue
-            category_id = None
-            if category_name:
-                cat = await FaCategory.filter(
-                    tenant_id=tenant_id,
-                    category_name=category_name,
-                    deleted_at__isnull=True,
-                    is_active=True,
-                ).first()
-                if not cat:
-                    errors.append(f"第{idx}行：类别 {category_name} 不存在")
-                    continue
-                category_id = cat.id
+            if not payload.get("category_name"):
+                errors.append(f"第{idx}行：资产类别不能为空")
+                continue
+            payload["change_method"] = payload.get("change_method") or "import"
             try:
-                await self.create_asset(
-                    tenant_id,
-                    {
-                        "asset_code": asset_code or None,
-                        "asset_name": asset_name,
-                        "category_id": category_id,
-                        "original_value": original_value or 0,
-                        "entry_date": str(row[11])[:10] if len(row) > 11 and row[11] else None,
-                        "department_name": str(row[8]).strip() if len(row) > 8 and row[8] else None,
-                        "user_name": str(row[9]).strip() if len(row) > 9 and row[9] else None,
-                        "location": str(row[10]).strip() if len(row) > 10 and row[10] else None,
-                        "change_method": "import",
-                    },
-                    user,
-                )
+                await self.create_asset(tenant_id, payload, user)
                 created += 1
             except Exception as exc:
                 errors.append(f"第{idx}行：{exc}")

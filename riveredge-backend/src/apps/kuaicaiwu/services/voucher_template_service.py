@@ -29,9 +29,13 @@ class VoucherTemplateService:
         "RECEIPT_CONFIRMED": "receipt_confirmed",
         "receipt_confirmed": "receipt_confirmed",
         "SETTLEMENT_RECEIVABLE_COMPLETED": "receipt_confirmed",
+        "RECEIPT_REFUND_CONFIRMED": "receipt_refund",
+        "receipt_refund_confirmed": "receipt_refund",
         "PAYMENT_CONFIRMED": "payment_confirmed",
         "payment_confirmed": "payment_confirmed",
         "SETTLEMENT_PAYABLE_COMPLETED": "payment_confirmed",
+        "PAYMENT_REFUND_CONFIRMED": "payment_refund",
+        "payment_refund_confirmed": "payment_refund",
         "SALES_ORDER_TO_PREPAYMENT": "customer_prepayment",
         "PURCHASE_ORDER_TO_PREPAYMENT": "supplier_prepayment",
         # 存货出入库 / 成本结转（有事件时按模板生成）
@@ -75,9 +79,17 @@ class VoucherTemplateService:
             {"side": "debit", "account_code": "1002", "summary": "银行存款"},
             {"side": "credit", "account_code": "1122", "summary": "应收账款", "aux": "customer"},
         ],
+        "receipt_refund": [
+            {"side": "debit", "account_code": "1122", "summary": "应收账款退款", "aux": "customer"},
+            {"side": "credit", "account_code": "1002", "summary": "银行存款退款"},
+        ],
         "payment_confirmed": [
             {"side": "debit", "account_code": "2202", "summary": "应付账款", "aux": "supplier"},
             {"side": "credit", "account_code": "1002", "summary": "银行存款"},
+        ],
+        "payment_refund": [
+            {"side": "debit", "account_code": "1002", "summary": "银行存款退款"},
+            {"side": "credit", "account_code": "2202", "summary": "应付账款退款", "aux": "supplier"},
         ],
         "customer_prepayment": [
             {"side": "debit", "account_code": "1002", "summary": "银行存款"},

@@ -27,6 +27,28 @@
   font-size: 12px;
 }
 
+/* 资产负债表 8 列：左右各 项目+行次+期末+年初，列宽须合计 100% */
+.fs-print-table-balance {
+  table-layout: fixed;
+}
+
+.fs-print-table-balance col.col-item {
+  width: 23%;
+}
+
+.fs-print-table-balance col.col-line {
+  width: 5%;
+}
+
+.fs-print-table-balance col.col-amt {
+  width: 10.5%;
+}
+
+.fs-print-table-balance th.col-amt,
+.fs-print-table-balance td.col-amt {
+  white-space: nowrap;
+}
+
 .fs-print-table th,
 .fs-print-table td {
   border: 1px solid #111;
@@ -40,19 +62,26 @@
   background: #fafafa;
 }
 
-.fs-print-table .col-item {
-  width: 28%;
+.fs-print-table:not(.fs-print-table-balance) .col-item {
+  width: 52%;
+}
+
+.fs-print-table:not(.fs-print-table-balance) .col-line {
+  width: 10%;
+  text-align: center;
 }
 
 .fs-print-table .col-line {
-  width: 8%;
   text-align: center;
 }
 
 .fs-print-table .col-amt {
-  width: 14%;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.fs-print-table:not(.fs-print-table-balance) .col-amt {
+  width: 19%;
 }
 
 .fs-print-table .is-header td,

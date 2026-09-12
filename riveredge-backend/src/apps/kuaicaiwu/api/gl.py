@@ -108,6 +108,12 @@ class VoucherBody(BaseSchema):
     lines: List[VoucherLineBody]
 
 
+class VoucherReorganizeBody(BaseSchema):
+    organize_date: date
+    voucher_word: Optional[str] = None
+    method: Literal["shift_gaps", "by_date"] = "shift_gaps"
+
+
 class OpeningBalanceItem(BaseSchema):
     account_id: int
     opening_debit: float = 0
@@ -436,6 +442,22 @@ async def generate_from_events(
     )
 
 
+@router.post("/vouchers/reorganize")
+async def reorganize_vouchers(
+    body: VoucherReorganizeBody,
+    current_user: Any = Depends(get_current_user),
+):
+    try:
+        return await posting_service.reorganize_voucher_codes(
+            current_user.tenant_id,
+            organize_date=body.organize_date,
+            voucher_word=body.voucher_word,
+            method=body.method,
+        )
+    except (ValidationError, NotFoundError, BusinessLogicError) as exc:
+        raise _err(exc)
+
+
 @router.post("/vouchers/obsolete-from-events")
 async def obsolete_vouchers_from_events(
     body: ObsoleteEventVouchersBody,
@@ -524,6 +546,15 @@ async def obsolete_voucher(voucher_id: int, current_user: Any = Depends(get_curr
     try:
         voucher = await posting_service.cancel_voucher(current_user.tenant_id, voucher_id)
         return posting_service.voucher_to_dict(voucher)
+    except (ValidationError, NotFoundError) as exc:
+        raise _err(exc)
+
+
+@router.delete("/vouchers/{voucher_id}")
+async def delete_voucher(voucher_id: int, current_user: Any = Depends(get_current_user)):
+    try:
+        await posting_service.delete_draft_voucher(current_user.tenant_id, voucher_id)
+        return {"success": True}
     except (ValidationError, NotFoundError) as exc:
         raise _err(exc)
 
@@ -835,7 +866,7 @@ async def book_cash_flow(
     month: int = Query(..., ge=1, le=12),
     current_user: Any = Depends(get_current_user),
 ):
-    return await phase2_service.cash_flow_statement(current_user.tenant_id, year, month)
+    return await statement_service.cash_flow_statement(current_user.tenant_id, year, month)
 
 
 @router.get("/statements/balance-sheet")
@@ -868,7 +899,7 @@ async def statutory_cash_flow(
     month: int = Query(..., ge=1, le=12),
     current_user: Any = Depends(get_current_user),
 ):
-    return await phase2_service.cash_flow_statement(current_user.tenant_id, year, month)
+    return await statement_service.cash_flow_statement(current_user.tenant_id, year, month)
 
 
 @router.get("/accruals")

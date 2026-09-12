@@ -4,6 +4,7 @@ import type { SelectProps } from 'antd';
 import { useDebounceFn } from 'ahooks';
 import { Material } from '../../apps/master-data/types/material';
 import { materialApi } from '../../apps/master-data/services/material';
+import { apiRequest } from '../../services/api';
 import { UniDropdown } from '../uni-dropdown';
 import type { QuickCreateConfig } from '../uni-dropdown/types';
 import { NamePath } from 'antd/es/form/interface';
@@ -117,6 +118,8 @@ interface UniMaterialSelectProps {
   sourceType?: string;
   /** 按物料分组过滤（仅展示该分组及子分组内物料） */
   groupId?: number;
+  /** 限定为指定仓库内有库存的物料（即时库存汇总口径） */
+  warehouseId?: number;
   /** 多选；与 fieldProps.mode='multiple' 等价，显式传入更稳妥 */
   mode?: 'multiple';
   onChange?: (
@@ -158,6 +161,7 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
   fallbackOption,
   sourceType,
   groupId,
+  warehouseId,
   mode,
   onChange,
   formItemProps,
@@ -197,6 +201,12 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
     const n = Number(groupId);
     return Number.isFinite(n) && n > 0 ? n : undefined;
   }, [groupId]);
+
+  const resolvedWarehouseId = useMemo(() => {
+    if (warehouseId == null) return undefined;
+    const n = Number(warehouseId);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [warehouseId]);
 
   const isMultiple =
     mode === 'multiple' ||
@@ -242,17 +252,64 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
     listAbortRef.current = ac;
     setLoading(true);
     try {
-      const response: any = await materialApi.list({
-        keyword: searchText,
-        isActive: activeOnly ? true : undefined,
-        mastersOnly: mastersOnly ? true : undefined,
-        sourceType: sourceType || undefined,
-        groupId: resolvedGroupId,
-        limit: 200,
-      });
-      if (ac.signal.aborted) return;
-      const raw = response?.data || response?.items || response || [];
-      const rows = Array.isArray(raw) ? raw : [];
+      let rows: Material[] = [];
+      if (resolvedWarehouseId) {
+        const balanceRes: any = await apiRequest('/apps/kuaizhizao/reports/inventory/material-balances', {
+          method: 'GET',
+          params: {
+            warehouse_id: resolvedWarehouseId,
+            include_zero_stock: false,
+            keyword: searchText || undefined,
+            current: 1,
+            page_size: 200,
+          },
+          signal: ac.signal,
+        });
+        if (ac.signal.aborted) return;
+        const balanceRows = balanceRes?.items || balanceRes?.data || [];
+        const materialIds = [
+          ...new Set(
+            (Array.isArray(balanceRows) ? balanceRows : [])
+              .map((row: { material_id?: number }) => Number(row.material_id))
+              .filter((id: number) => Number.isFinite(id) && id > 0),
+          ),
+        ] as number[];
+        if (!materialIds.length) {
+          setData((prev) => {
+            const selectedIds = isMultiple
+              ? selectedIdsRef.current
+              : selectedIdRef.current
+                ? [selectedIdRef.current]
+                : [];
+            if (!selectedIds.length) return [];
+            return prev.filter((m) => selectedIds.includes(Number((m as any).id)));
+          });
+          return;
+        }
+        const matRes = await materialApi.list({
+          ids: materialIds,
+          keyword: searchText || undefined,
+          isActive: activeOnly ? true : undefined,
+          mastersOnly: mastersOnly ? true : undefined,
+          sourceType: sourceType || undefined,
+          groupId: resolvedGroupId,
+          limit: materialIds.length,
+        });
+        if (ac.signal.aborted) return;
+        rows = matRes.items ?? [];
+      } else {
+        const response: any = await materialApi.list({
+          keyword: searchText,
+          isActive: activeOnly ? true : undefined,
+          mastersOnly: mastersOnly ? true : undefined,
+          sourceType: sourceType || undefined,
+          groupId: resolvedGroupId,
+          limit: 200,
+        });
+        if (ac.signal.aborted) return;
+        const raw = response?.data || response?.items || response || [];
+        rows = Array.isArray(raw) ? raw : [];
+      }
       const next = filterSelectableMaterials(rows, mastersOnly);
       setData((prev) => {
         const selectedIds = isMultiple
@@ -290,7 +347,7 @@ export const UniMaterialSelect: React.FC<UniMaterialSelectProps> = ({
     };
     // fetchMaterials 闭包随 deps 更新；debounce 经 useLatest 取最新 fn
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅过滤条件变化时重拉
-  }, [activeOnly, mastersOnly, sourceType, resolvedGroupId]);
+  }, [activeOnly, mastersOnly, sourceType, resolvedGroupId, resolvedWarehouseId]);
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;

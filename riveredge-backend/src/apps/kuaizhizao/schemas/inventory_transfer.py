@@ -177,6 +177,8 @@ class InventoryTransferItemUpdate(BaseModel):
 
     quantity: Optional[Decimal] = Field(None, description="调拨数量")
     unit_price: Optional[Decimal] = Field(None, description="单价")
+    from_warehouse_id: Optional[int] = Field(None, description="调出仓库ID")
+    to_warehouse_id: Optional[int] = Field(None, description="调入仓库ID")
     from_storage_area_id: Optional[int] = Field(None, description="调出库区ID")
     from_storage_area_code: Optional[str] = Field(None, description="调出库区编码")
     from_location_id: Optional[int] = Field(None, description="调出库位ID")
@@ -185,6 +187,7 @@ class InventoryTransferItemUpdate(BaseModel):
     to_storage_area_code: Optional[str] = Field(None, description="调入库区编码")
     to_location_id: Optional[int] = Field(None, description="调入库位ID")
     to_location_code: Optional[str] = Field(None, description="调入库位编码")
+    batch_no: Optional[str] = Field(None, description="批次号")
     remarks: Optional[str] = Field(None, description="备注")
 
 

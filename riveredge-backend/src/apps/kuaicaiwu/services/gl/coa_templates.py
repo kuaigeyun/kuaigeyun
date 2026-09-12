@@ -78,6 +78,7 @@ _CAS_CORE: List[Dict[str, Any]] = [
     _a("4001", "实收资本", "equity", "credit"),
     _a("4002", "资本公积", "equity", "credit"),
     _a("4101", "盈余公积", "equity", "credit"),
+    _a("4102", "一般风险准备", "equity", "credit"),
     _a("4103", "本年利润", "equity", "credit"),
     _a("4104", "利润分配", "equity", "credit"),
     _a("6001", "主营业务收入", "profit_loss", "credit", aux_customer=True),
@@ -113,6 +114,9 @@ _CAS_COST_MFG: List[Dict[str, Any]] = [
     _a("5101", "制造费用", "cost", "debit", aux_department=True),
     _a("5201", "劳务成本", "cost", "debit"),
     _a("5301", "研发支出", "cost", "debit", aux_project=True),
+    _a("5401", "工程施工", "cost", "debit", aux_department=True),
+    _a("5402", "工程结算", "cost", "credit"),
+    _a("5403", "机械作业", "cost", "debit", aux_department=True),
 ]
 
 _CAS_INVENTORY_COMMERCE: List[Dict[str, Any]] = [

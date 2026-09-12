@@ -272,5 +272,6 @@ export function mapOutsourceIssueToOutbound(item: Record<string, unknown>): Outb
     updated_by: item.updated_by ?? item.updatedBy,
     updated_by_name: item.updated_by_name ?? item.updatedByName,
     notes: String(item.remarks ?? item.notes ?? ''),
+    lifecycle: item.lifecycle as OutboundHubOrder['lifecycle'],
   };
 }

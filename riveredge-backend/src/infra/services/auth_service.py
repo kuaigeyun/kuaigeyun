@@ -80,14 +80,10 @@ class AuthService:
 
     @staticmethod
     async def _active_tenant_id_set(tenant_ids: set[int]) -> set[int]:
-        """返回仍处于激活状态的组织 ID 集合。"""
-        if not tenant_ids:
-            return set()
-        active = await Tenant.filter(
-            id__in=tenant_ids,
-            status=TenantStatus.ACTIVE,
-        ).values_list("id", flat=True)
-        return set(active)
+        """返回仍可用（激活且未过期）的组织 ID 集合。"""
+        from infra.domain.tenant.tenant_access import filter_operational_tenant_ids
+
+        return await filter_operational_tenant_ids(tenant_ids)
 
     @staticmethod
     async def _filter_users_with_active_tenant(users: list[User]) -> list[User]:
@@ -182,7 +178,12 @@ class AuthService:
         tenant_ids = [u.tenant_id for u in users_with_same_account if u.tenant_id is not None]
         if not tenant_ids:
             return []
-        tenants = await Tenant.filter(id__in=tenant_ids, status=TenantStatus.ACTIVE).order_by("id").all()
+        from infra.domain.tenant.tenant_access import filter_operational_tenant_ids
+
+        operational_ids = await filter_operational_tenant_ids(set(tenant_ids))
+        if not operational_ids:
+            return []
+        tenants = await Tenant.filter(id__in=operational_ids).order_by("id").all()
         return [
             {
                 "id": tenant.id,
@@ -197,7 +198,11 @@ class AuthService:
     async def get_accessible_tenants(self, current_user: User) -> list[dict]:
         """获取当前登录账号可访问组织列表。"""
         if bool(getattr(current_user, "is_infra_admin", False)):
-            tenants = await Tenant.filter(status=TenantStatus.ACTIVE).order_by("id").all()
+            from infra.domain.tenant.tenant_access import filter_operational_tenant_ids
+
+            all_ids = await Tenant.all().values_list("id", flat=True)
+            operational_ids = await filter_operational_tenant_ids(set(all_ids))
+            tenants = await Tenant.filter(id__in=operational_ids).order_by("id").all()
             return [
                 {
                     "id": tenant.id,
@@ -277,20 +282,9 @@ class AuthService:
             ...     )
             ... )
         """
-        # 检查组织是否存在
-        tenant = await Tenant.get_or_none(id=data.tenant_id)
-        if not tenant:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="组织不存在"
-            )
-        
-        # 检查组织是否激活
-        if tenant.status != TenantStatus.ACTIVE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="组织未激活，无法注册"
-            )
+        from infra.domain.tenant.tenant_access import require_operational_tenant_by_id
+
+        tenant = await require_operational_tenant_by_id(data.tenant_id)
         
         # 检查组织内用户名是否已存在（排除已软删除的用户，允许复用被删用户的用户名）
         existing_username = await User.get_or_none(
@@ -499,20 +493,9 @@ class AuthService:
                 await tenant_service.initialize_tenant_data(default_tenant.id)
             tenant_id = default_tenant.id
         
-        # 检查组织是否存在
-        tenant = await Tenant.get_or_none(id=tenant_id)
-        if not tenant:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="组织不存在"
-            )
-        
-        # 检查组织是否激活
-        if tenant.status != TenantStatus.ACTIVE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="组织未激活，无法注册"
-            )
+        from infra.domain.tenant.tenant_access import require_operational_tenant_by_id
+
+        tenant = await require_operational_tenant_by_id(tenant_id)
         
         # 如果提供了邀请码，验证邀请码（这里简化处理，实际应该从组织设置中读取邀请码）
         # 注意：PersonalRegisterRequest 中暂未包含 invite_code 字段，后续需要添加
@@ -709,19 +692,11 @@ class AuthService:
 
         logger.info(f"开始登录: username_or_phone={data.username}, tenant_id={getattr(data, 'tenant_id', None)}")
 
-        # 若指定了 tenant_id，先校验组织状态
+        # 若指定了 tenant_id，先校验组织状态与到期时间
         if data.tenant_id is not None:
-            target_tenant = await Tenant.get_or_none(id=data.tenant_id)
-            if not target_tenant:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="组织不存在"
-                )
-            if target_tenant.status != TenantStatus.ACTIVE:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="组织已暂停或未激活，无法登录"
-                )
+            from infra.domain.tenant.tenant_access import require_operational_tenant_by_id
+
+            await require_operational_tenant_by_id(data.tenant_id)
 
         # 优先查找平台管理
         user = await User.get_or_none(
@@ -780,14 +755,9 @@ class AuthService:
         final_tenant_id = data.tenant_id if data.tenant_id is not None else user.tenant_id
 
         if not is_infra_admin and final_tenant_id is not None:
-            active_tenant = await Tenant.get_or_none(
-                id=final_tenant_id, status=TenantStatus.ACTIVE
-            )
-            if not active_tenant:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="所属组织不存在或已停用，无法登录",
-                )
+            from infra.domain.tenant.tenant_access import require_operational_tenant_by_id
+
+            await require_operational_tenant_by_id(final_tenant_id)
         
         # 6. 生成登录结果
         result = await self.generate_login_result(user, request, final_tenant_id)
@@ -871,9 +841,10 @@ class AuthService:
                 u.tenant_id for u in users_with_same_username if u.tenant_id is not None
             ]
             if tenant_ids:
-                tenants_queryset = await Tenant.filter(
-                    id__in=tenant_ids, status=TenantStatus.ACTIVE
-                ).all()
+                from infra.domain.tenant.tenant_access import filter_operational_tenant_ids
+
+                operational_ids = await filter_operational_tenant_ids(set(tenant_ids))
+                tenants_queryset = await Tenant.filter(id__in=operational_ids).all()
                 user_tenants_list = [
                     {
                         "id": tenant.id,
@@ -885,9 +856,12 @@ class AuthService:
                     for tenant in tenants_queryset
                 ]
             elif final_tenant_id:
-                tenant = await Tenant.get_or_none(
-                    id=final_tenant_id, status=TenantStatus.ACTIVE
-                )
+                from infra.domain.tenant.tenant_access import require_operational_tenant_by_id
+
+                try:
+                    tenant = await require_operational_tenant_by_id(final_tenant_id)
+                except HTTPException:
+                    tenant = None
                 if tenant:
                     user_tenants_list = [
                         {
@@ -905,9 +879,12 @@ class AuthService:
         tenant_plan = None
         tenant_expires_at = None
         if final_tenant_id is not None:
-            tenant = await Tenant.get_or_none(
-                id=final_tenant_id, status=TenantStatus.ACTIVE
-            )
+            from infra.domain.tenant.tenant_access import require_operational_tenant_by_id
+
+            if is_infra_admin:
+                tenant = await Tenant.get_or_none(id=final_tenant_id)
+            else:
+                tenant = await require_operational_tenant_by_id(final_tenant_id)
             if not tenant:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -1084,15 +1061,10 @@ class AuthService:
             tenant_id = user.tenant_id
 
         if tenant_id is not None:
-            from infra.models.tenant import Tenant, TenantStatus
+            from infra.domain.tenant.tenant_access import require_operational_tenant_for_session
 
             tid = int(tenant_id)
-            tenant = await Tenant.get_or_none(id=tid, status=TenantStatus.ACTIVE)
-            if not tenant:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="会话组织已失效，请重新登录",
-                )
+            await require_operational_tenant_for_session(tid)
             if user.tenant_id is not None and user.tenant_id != tid:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,

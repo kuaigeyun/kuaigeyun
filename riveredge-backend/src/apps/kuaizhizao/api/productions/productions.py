@@ -1827,6 +1827,34 @@ async def update_inventory_transfer_item(
         raise _http_exception_with_trace(400, str(e), "/inventory-transfers/{transfer_id}/items/{item_id}", tenant_id)
 
 
+@router.delete(
+    "/inventory-transfers/{transfer_id}/items/{item_id}",
+    status_code=http_status.HTTP_204_NO_CONTENT,
+    summary="Delete transfer line",
+)
+async def delete_inventory_transfer_item(
+    transfer_id: int,
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_current_tenant),
+):
+    """删除调拨明细（软删除，仅草稿单且明细待调拨可删）"""
+    try:
+        await inventory_transfer_service.delete_inventory_transfer_item(
+            tenant_id=tenant_id,
+            item_id=item_id,
+            deleted_by=current_user.id,
+        )
+    except NotFoundError as e:
+        raise _http_exception_with_trace(
+            404, str(e), "/inventory-transfers/{transfer_id}/items/{item_id}", tenant_id
+        )
+    except ValidationError as e:
+        raise _http_exception_with_trace(
+            400, str(e), "/inventory-transfers/{transfer_id}/items/{item_id}", tenant_id
+        )
+
+
 @router.post("/inventory-transfers/{transfer_id}/execute", response_model=InventoryTransferResponse, summary="Execute transfer")
 async def execute_inventory_transfer(
     transfer_id: int,

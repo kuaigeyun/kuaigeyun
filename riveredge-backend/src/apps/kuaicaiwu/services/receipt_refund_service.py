@@ -521,6 +521,31 @@ class ReceiptRefundService(AppBaseService[Receipt]):
                     operator_id=operator_id,
                 )
 
+            from apps.kuaicaiwu.services.accounting_event_service import AccountingEventService
+
+            user_name = await settlement_service.get_user_name(operator_id)
+            await AccountingEventService.record_event(
+                tenant_id=tenant_id,
+                event_type="RECEIPT_REFUND_CONFIRMED",
+                business_type="receipt_refund",
+                source_doc_type="receipt",
+                source_doc_id=int(allocations[0]["source_id"]),
+                source_doc_code=str(allocations[0].get("source_code") or allocations[0]["source_id"]),
+                target_doc_type="Receipt",
+                target_doc_id=refund_receipt_id,
+                target_doc_code=str(refund.receipt_code or refund_receipt_id),
+                amount=refund_amount,
+                operator_id=operator_id,
+                operator_name=user_name,
+                payload={
+                    "customer_id": refund.customer_id,
+                    "customer_name": refund.customer_name,
+                    "bank_account_id": refund.bank_account_id,
+                    "settlement_type": "refund",
+                },
+                notes=f"收款退款 {refund.receipt_code or refund_receipt_id} 确认",
+            )
+
         return await Receipt.get_or_none(tenant_id=tenant_id, id=refund_receipt_id)
 
     async def unconfirm_refund(

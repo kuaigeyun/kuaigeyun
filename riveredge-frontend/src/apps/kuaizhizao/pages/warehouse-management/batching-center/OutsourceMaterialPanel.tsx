@@ -118,6 +118,7 @@ const OutsourceMaterialPanel: React.FC<OutsourceMaterialPanelProps> = ({ mode, o
   const [issueLines, setIssueLines] = useState<OutsourceIssueLine[]>([]);
   const [issuePreviewLoading, setIssuePreviewLoading] = useState(false);
   const [issuePreviewMessage, setIssuePreviewMessage] = useState<string | null>(null);
+  const [issueAllowManualLines, setIssueAllowManualLines] = useState(true);
   const [receiptLine, setReceiptLine] = useState<OutsourceReceiptLine | null>(null);
   const [materialReturnLines, setMaterialReturnLines] = useState<any[]>([]);
   const [productReturnLines, setProductReturnLines] = useState<any[]>([]);
@@ -326,6 +327,7 @@ const OutsourceMaterialPanel: React.FC<OutsourceMaterialPanelProps> = ({ mode, o
     setSelectedOwo(null);
     setIssueLines([]);
     setIssuePreviewMessage(null);
+    setIssueAllowManualLines(true);
     setReceiptLine(null);
     setMaterialReturnLines([]);
     setProductReturnLines([]);
@@ -341,10 +343,14 @@ const OutsourceMaterialPanel: React.FC<OutsourceMaterialPanelProps> = ({ mode, o
     setIssuePreviewLoading(true);
     setIssueLines([]);
     setIssuePreviewMessage(null);
+    setIssueAllowManualLines(true);
     try {
       const preview = await outsourceMaterialIssueApi.issuePreview(owoId);
       const rawLines = preview?.lines ?? preview?.data?.lines ?? [];
       setIssuePreviewMessage(preview?.message ?? preview?.data?.message ?? null);
+      setIssueAllowManualLines(
+        (preview?.allow_manual_lines ?? preview?.data?.allow_manual_lines) !== false,
+      );
       setIssueLines(
         rawLines.map((l: any) => {
           const pending = Number(l.pendingQuantity ?? l.pending_quantity ?? 0);
@@ -580,6 +586,7 @@ const OutsourceMaterialPanel: React.FC<OutsourceMaterialPanelProps> = ({ mode, o
               onLinesChange={setIssueLines}
               loading={issuePreviewLoading}
               previewMessage={issuePreviewMessage}
+              allowManualLines={issueAllowManualLines}
             />
           </div>
         )}

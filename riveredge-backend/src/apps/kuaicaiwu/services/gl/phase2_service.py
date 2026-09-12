@@ -14,19 +14,11 @@ from apps.kuaicaiwu.models.gl_cheque import GlCheque
 from apps.kuaicaiwu.models.gl_project import GlProject
 from apps.kuaicaiwu.models.voucher import Voucher
 from apps.kuaicaiwu.models.voucher_line import VoucherLine
+from apps.kuaicaiwu.services.gl.cash_flow_statement_template import DEFAULT_CASH_FLOW_SEED
+from apps.kuaicaiwu.services.gl.statement_service import StatementService
 from apps.kuaicaiwu.services.posting_service import PostingService
 from core.utils.timezone_utils import resolve_business_datetime, to_site_date
 from infra.exceptions.exceptions import NotFoundError, ValidationError
-
-DEFAULT_CASH_FLOW_SEED = [
-    {"item_code": "OA01", "item_name": "销售商品提供劳务收到的现金", "category": "operating", "direction": "inflow", "sort_order": 10},
-    {"item_code": "OA02", "item_name": "购买商品接受劳务支付的现金", "category": "operating", "direction": "outflow", "sort_order": 20},
-    {"item_code": "OA03", "item_name": "支付给职工以及为职工支付的现金", "category": "operating", "direction": "outflow", "sort_order": 30},
-    {"item_code": "IA01", "item_name": "收回投资收到的现金", "category": "investing", "direction": "inflow", "sort_order": 40},
-    {"item_code": "IA02", "item_name": "购建固定资产无形资产支付的现金", "category": "investing", "direction": "outflow", "sort_order": 50},
-    {"item_code": "FA01", "item_name": "吸收投资收到的现金", "category": "financing", "direction": "inflow", "sort_order": 60},
-    {"item_code": "FA02", "item_name": "偿还债务支付的现金", "category": "financing", "direction": "outflow", "sort_order": 70},
-]
 
 
 class GlPhase2Service:
@@ -126,63 +118,8 @@ class GlPhase2Service:
     async def cash_flow_statement(
         self, tenant_id: int, year: int, month: int
     ) -> Dict[str, Any]:
-        """按已记账现金/银行分录的现金流量项目归集（U8 式标准表）。"""
-        items = await GlCashFlowItem.filter(
-            tenant_id=tenant_id, is_active=True, deleted_at__isnull=True
-        ).order_by("sort_order", "item_code").all()
-        by_id = {r.id: r for r in items}
-        totals: Dict[int, Decimal] = {r.id: Decimal("0") for r in items}
-
-        vouchers = await Voucher.filter(
-            tenant_id=tenant_id,
-            period_year=year,
-            period_month=month,
-            status="posted",
-            deleted_at__isnull=True,
-        ).all()
-        for v in vouchers:
-            lines = await VoucherLine.filter(tenant_id=tenant_id, voucher_id=v.id).all()
-            for line in lines:
-                account = await ChartOfAccount.get_or_none(
-                    tenant_id=tenant_id, id=line.account_id, deleted_at__isnull=True
-                )
-                if not account or not (account.is_cash_journal or account.is_bank_journal):
-                    continue
-                cf_id = int(line.cash_flow_item_id or 0)
-                if not cf_id or cf_id not in totals:
-                    continue
-                item = by_id[cf_id]
-                amt = Decimal(str(line.debit_amount or 0)) + Decimal(str(line.credit_amount or 0))
-                if item.direction == "outflow":
-                    # 流出取贷方（现金减少）为主；若借方则仍累计绝对值
-                    amt = Decimal(str(line.credit_amount or 0)) or Decimal(str(line.debit_amount or 0))
-                else:
-                    amt = Decimal(str(line.debit_amount or 0)) or Decimal(str(line.credit_amount or 0))
-                totals[cf_id] += amt
-
-        rows = []
-        cat_sums = {"operating": Decimal("0"), "investing": Decimal("0"), "financing": Decimal("0")}
-        for item in items:
-            amount = totals[item.id]
-            signed = amount if item.direction == "inflow" else -amount
-            cat_sums[item.category] = cat_sums.get(item.category, Decimal("0")) + signed
-            rows.append(
-                {
-                    **self._cf_dict(item),
-                    "amount": float(amount),
-                    "signed_amount": float(signed),
-                }
-            )
-        net = cat_sums["operating"] + cat_sums["investing"] + cat_sums["financing"]
-        return {
-            "year": year,
-            "month": month,
-            "rows": rows,
-            "operating_net": float(cat_sums["operating"]),
-            "investing_net": float(cat_sums["investing"]),
-            "financing_net": float(cat_sums["financing"]),
-            "net_increase": float(net),
-        }
+        """法定现金流量表（模板行次）。"""
+        return await StatementService().cash_flow_statement(tenant_id, year, month)
 
     # ---------- accrual ----------
     async def list_accruals(self, tenant_id: int) -> List[Dict[str, Any]]:

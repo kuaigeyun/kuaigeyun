@@ -64,6 +64,7 @@ def resolve_kuaicaiwu_module_action(
                 "/sync-enterprise",
                 "/match",
                 "/generate-from-events",
+                "/reorganize",
                 "/run",
                 "/apply",
                 "/batch-apply",

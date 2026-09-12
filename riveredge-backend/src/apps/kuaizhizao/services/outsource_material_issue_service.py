@@ -47,6 +47,19 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
     def __init__(self):
         super().__init__(OutsourceMaterialIssue)
 
+    @staticmethod
+    def _attach_lifecycle(
+        issue: OutsourceMaterialIssue,
+        resp: OutsourceMaterialIssueResponse,
+    ) -> OutsourceMaterialIssueResponse:
+        from apps.kuaizhizao.services.document_lifecycle_service import (
+            get_outsource_material_issue_lifecycle,
+        )
+
+        return resp.model_copy(
+            update={"lifecycle": get_outsource_material_issue_lifecycle(issue, milestones=[])}
+        )
+
     async def create_material_issue(
         self,
         tenant_id: int,
@@ -167,6 +180,11 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
                 "source_doc_code": code,
                 "movement_type": "outsource_issue",
                 "from_warehouse_id": issue_data.warehouse_id,
+                "from_warehouse_name": issue_data.warehouse_name,
+                "work_order_id": issue_data.outsource_work_order_id,
+                "work_order_code": issue_data.outsource_work_order_code,
+                "operator_id": created_by,
+                "operator_name": user_info["name"],
                 "idempotency_key": f"outsource_material_issue:{material_issue.id}:dec",
             }
 
@@ -176,6 +194,11 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
             await InventoryService.decrease_stock(**stock_payload)
         if response is None:
             raise BusinessLogicError("委外发料创建失败")
+        issue_row = await OutsourceMaterialIssue.get_or_none(
+            tenant_id=tenant_id, id=response.id, deleted_at__isnull=True
+        )
+        if issue_row:
+            response = self._attach_lifecycle(issue_row, response)
         return response
 
     @staticmethod
@@ -220,7 +243,7 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
             )
         except NotFoundError:
             reqs = []
-            message = "产品 BOM 不存在或未审核，请先在工程 BOM 中维护"
+            message = "未找到已审核的产品 BOM，可在发料页手动选择物料"
 
         issue_reqs = [
             r for r in reqs
@@ -266,7 +289,7 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
             )
 
         if not lines and not message:
-            message = "BOM 中无需要发料的子件（虚拟件/不发料项已排除）"
+            message = "BOM 中无需要发料的子件，可在发料页手动选择物料"
 
         return OutsourceMaterialIssuePreviewResponse(
             outsource_work_order_id=owo.id,
@@ -275,6 +298,7 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
             quantity=owo.quantity or Decimal("0"),
             lines=lines,
             message=message,
+            allow_manual_lines=True,
         )
 
     async def create_material_issues_batch(
@@ -373,16 +397,15 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
         for issue in issues:
             name = str(getattr(issue, "material_name", None) or "").strip()
             resp = OutsourceMaterialIssueResponse.model_validate(issue)
-            out.append(
-                resp.model_copy(
-                    update={
-                        "total_quantity": float(issue.quantity or 0),
-                        "total_items": 1,
-                        "quantity_unit": str(getattr(issue, "unit", None) or "").strip() or None,
-                        "items": [{"material_name": name}] if name else [],
-                    }
-                )
+            enriched = resp.model_copy(
+                update={
+                    "total_quantity": float(issue.quantity or 0),
+                    "total_items": 1,
+                    "quantity_unit": str(getattr(issue, "unit", None) or "").strip() or None,
+                    "items": [{"material_name": name}] if name else [],
+                }
             )
+            out.append(self._attach_lifecycle(issue, enriched))
         return out
 
     async def get_material_issue(
@@ -415,11 +438,14 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
         await self._normalize_legacy_draft_issues([issue])
 
         resp = OutsourceMaterialIssueResponse.model_validate(issue)
-        return resp.model_copy(
-            update={
-                "total_quantity": float(issue.quantity or 0),
-                "total_items": 1,
-            }
+        return self._attach_lifecycle(
+            issue,
+            resp.model_copy(
+                update={
+                    "total_quantity": float(issue.quantity or 0),
+                    "total_items": 1,
+                }
+            ),
         )
 
     async def complete_material_issue(
@@ -469,4 +495,7 @@ class OutsourceMaterialIssueService(AppBaseService[OutsourceMaterialIssue]):
         logger.info(f"完成委外发料单: {issue.code}")
 
         await issue.refresh_from_db()
-        return OutsourceMaterialIssueResponse.model_validate(issue)
+        return self._attach_lifecycle(
+            issue,
+            OutsourceMaterialIssueResponse.model_validate(issue),
+        )

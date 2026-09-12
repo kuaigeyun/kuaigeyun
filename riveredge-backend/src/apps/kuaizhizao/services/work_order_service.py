@@ -823,16 +823,10 @@ class WorkOrderService(AppBaseService[WorkOrder]):
     @staticmethod
     async def has_confirmed_picking_for_work_order(tenant_id: int, work_order_id: int) -> bool:
         """是否存在已确认的正式发料领料单（排除历史叫料备料转移型单据）。"""
-        from apps.kuaizhizao.utils.picking_posting import filter_gi_picking_ids
+        from apps.kuaizhizao.utils.picking_posting import list_work_order_cost_pickings
 
-        confirmed_statuses = ["已领料", "已确认", "confirmed", "picked"]
-        pickings = await ProductionPicking.filter(
-            tenant_id=tenant_id,
-            work_order_id=work_order_id,
-            status__in=confirmed_statuses,
-            deleted_at__isnull=True,
-        ).all()
-        return bool(filter_gi_picking_ids(pickings))
+        pickings = await list_work_order_cost_pickings(tenant_id, work_order_id)
+        return bool(pickings)
 
     @staticmethod
     async def assert_confirmed_picking_before_operation_start_if_required(

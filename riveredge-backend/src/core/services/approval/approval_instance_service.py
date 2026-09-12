@@ -2604,26 +2604,27 @@ class ApprovalInstanceService:
             approver_id = last_history.action_by if last_history else approval_instance.submitter_id
 
             async def _handle_sales_order() -> None:
-                from apps.kuaizhizao.models.sales_order import SalesOrder
-                order = await SalesOrder.filter(tenant_id=tenant_id, uuid=entity_uuid, deleted_at__isnull=True).first()
-                if not order:
+                if not entity_id:
                     return
                 from apps.kuaizhizao.services.sales_order_service import SalesOrderService
                 service = SalesOrderService()
+                sales_order_id = int(entity_id)
                 if approval_instance.status == "approved":
                     await service.approve_sales_order(
                         tenant_id=tenant_id,
-                        sales_order_id=order.id,
+                        sales_order_id=sales_order_id,
                         approved_by=approver_id,
+                        is_auto_approve=True,
                     )
                 elif approval_instance.status == "rejected":
                     await service.reject_sales_order(
                         tenant_id=tenant_id,
-                        sales_order_id=order.id,
+                        sales_order_id=sales_order_id,
                         approved_by=approver_id,
                         rejection_reason="审批驳回",
+                        is_auto_approve=True,
                     )
-                logger.info(f"销售订单 {order.id} 审批回调完成: {approval_instance.status}")
+                logger.info(f"销售订单 {sales_order_id} 审批回调完成: {approval_instance.status}")
 
             async def _handle_demand() -> None:
                 from apps.kuaizhizao.models.demand import Demand

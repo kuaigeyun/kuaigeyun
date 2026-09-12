@@ -70,7 +70,7 @@ const GlFinancialStatementsPage: React.FC = () => {
         res = (await glService.statutoryBalanceSheet(params)) as Row;
       }
       setSummary(res);
-      setRows(kind === 'income' ? ((res.rows as Row[]) ?? []) : asRows(res));
+      setRows(((res.rows as Row[]) ?? asRows(res)) as Row[]);
     } catch (error) {
       messageApi.error(getApiErrorMessage(error, t('common.loadFailed', { defaultValue: '加载失败' })));
       setSummary(null);
@@ -84,31 +84,35 @@ const GlFinancialStatementsPage: React.FC = () => {
     void load();
   }, [kind, year, month]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const categoryLabel = (value: unknown) => {
-    const key = String(value || '');
-    if (key === 'operating') return t(`${NS}.category.operating`, { defaultValue: '经营活动' });
-    if (key === 'investing') return t(`${NS}.category.investing`, { defaultValue: '投资活动' });
-    if (key === 'financing') return t(`${NS}.category.financing`, { defaultValue: '筹资活动' });
-    return key || '—';
-  };
-
   const columns = useMemo(() => {
     if (kind === 'cash-flow') {
       return [
-        { title: t(`${NS}.col.itemCode`, { defaultValue: '项目编码' }), dataIndex: 'item_code', width: 120 },
-        { title: t(`${NS}.col.label`, { defaultValue: '项目' }), dataIndex: 'item_name', ellipsis: true },
         {
-          title: t(`${NS}.col.category`, { defaultValue: '类别' }),
-          dataIndex: 'category',
-          width: 120,
-          render: (v: unknown) => categoryLabel(v),
+          title: t(`${NS}.col.label`, { defaultValue: '项目' }),
+          dataIndex: 'label',
+          ellipsis: true,
+          render: (v: unknown, r: Row) =>
+            r.indent ? `\u3000\u3000${String(v ?? '')}` : String(v ?? ''),
         },
         {
-          title: t(`${NS}.col.amount`, { defaultValue: '金额' }),
-          dataIndex: 'signed_amount',
+          title: t(`${NS}.print.lineNo`, { defaultValue: '行次' }),
+          dataIndex: 'line_no',
+          width: 72,
+          align: 'center' as const,
+        },
+        {
+          title: t(`${NS}.col.yearAmount`, { defaultValue: '本年累计金额' }),
+          dataIndex: 'year_amount',
           align: 'right' as const,
           width: 140,
-          render: (v: unknown, r: Row) => money(v ?? r.amount),
+          render: (v: unknown) => money(v),
+        },
+        {
+          title: t(`${NS}.col.monthAmount`, { defaultValue: '本月金额' }),
+          dataIndex: 'period_amount',
+          align: 'right' as const,
+          width: 140,
+          render: (v: unknown) => money(v),
         },
       ];
     }
@@ -144,14 +148,65 @@ const GlFinancialStatementsPage: React.FC = () => {
       ];
     }
     return [
-      { title: t(`${NS}.col.accountCode`, { defaultValue: '科目编码' }), dataIndex: 'account_code', width: 120 },
-      { title: t(`${NS}.col.label`, { defaultValue: '项目' }), dataIndex: 'label', ellipsis: true },
+      {
+        title: t(`${NS}.print.asset`, { defaultValue: '资产' }),
+        dataIndex: ['asset', 'label'],
+        ellipsis: true,
+        render: (_: unknown, r: Row) => {
+          const cell = r.asset as Row | undefined;
+          if (!cell?.label) return '';
+          return cell.indent ? `\u3000\u3000${String(cell.label)}` : String(cell.label);
+        },
+      },
+      {
+        title: t(`${NS}.print.lineNo`, { defaultValue: '行次' }),
+        dataIndex: ['asset', 'line_no'],
+        width: 56,
+        align: 'center' as const,
+      },
       {
         title: t(`${NS}.col.amount`, { defaultValue: '期末余额' }),
-        dataIndex: 'amount',
+        dataIndex: ['asset', 'ending_amount'],
         align: 'right' as const,
-        width: 160,
-        render: (v: unknown) => money(v),
+        width: 128,
+        render: (_: unknown, r: Row) => money((r.asset as Row | undefined)?.ending_amount),
+      },
+      {
+        title: t(`${NS}.col.openingAmount`, { defaultValue: '年初余额' }),
+        dataIndex: ['asset', 'opening_amount'],
+        align: 'right' as const,
+        width: 128,
+        render: (_: unknown, r: Row) => money((r.asset as Row | undefined)?.opening_amount),
+      },
+      {
+        title: t(`${NS}.print.liabEquity`, { defaultValue: '负债和所有者权益' }),
+        dataIndex: ['liability_equity', 'label'],
+        ellipsis: true,
+        render: (_: unknown, r: Row) => {
+          const cell = r.liability_equity as Row | undefined;
+          if (!cell?.label) return '';
+          return cell.indent ? `\u3000\u3000${String(cell.label)}` : String(cell.label);
+        },
+      },
+      {
+        title: t(`${NS}.print.lineNo`, { defaultValue: '行次' }),
+        dataIndex: ['liability_equity', 'line_no'],
+        width: 56,
+        align: 'center' as const,
+      },
+      {
+        title: t(`${NS}.col.amount`, { defaultValue: '期末余额' }),
+        dataIndex: ['liability_equity', 'ending_amount'],
+        align: 'right' as const,
+        width: 128,
+        render: (_: unknown, r: Row) => money((r.liability_equity as Row | undefined)?.ending_amount),
+      },
+      {
+        title: t(`${NS}.col.openingAmount`, { defaultValue: '年初余额' }),
+        dataIndex: ['liability_equity', 'opening_amount'],
+        align: 'right' as const,
+        width: 128,
+        render: (_: unknown, r: Row) => money((r.liability_equity as Row | undefined)?.opening_amount),
       },
     ];
   }, [kind, t]);
@@ -159,14 +214,35 @@ const GlFinancialStatementsPage: React.FC = () => {
   const exportCsv = () => {
     const header = columns.map((c) => c.title).join(',');
     const body = rows
-      .map((r) =>
-        columns
+      .map((r) => {
+        if (kind === 'balance-sheet') {
+          const asset = r.asset as Row | undefined;
+          const liab = r.liability_equity as Row | undefined;
+          return [
+            asset?.label ?? '',
+            asset?.line_no ?? '',
+            asset?.ending_amount ?? '',
+            asset?.opening_amount ?? '',
+            liab?.label ?? '',
+            liab?.line_no ?? '',
+            liab?.ending_amount ?? '',
+            liab?.opening_amount ?? '',
+          ]
+            .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+            .join(',');
+        }
+        return columns
           .map((c) => {
-            const key = (c as { dataIndex?: string }).dataIndex;
-            return `"${String(key ? r[key] ?? '' : '').replace(/"/g, '""')}"`;
+            const key = (c as { dataIndex?: string | string[] }).dataIndex;
+            const value = Array.isArray(key)
+              ? key.reduce<unknown>((acc, k) => (acc as Row)?.[k], r)
+              : key
+                ? r[key]
+                : '';
+            return `"${String(value ?? '').replace(/"/g, '""')}"`;
           })
-          .join(','),
-      )
+          .join(',');
+      })
       .join('\n');
     const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -278,11 +354,18 @@ const GlFinancialStatementsPage: React.FC = () => {
           size="medium"
           pagination={false}
           rowClassName={(r) => {
-            if (r.is_total) return 'ant-table-row-selected';
-            if (r.indent) return 'fs-income-indent-row';
+            if (r.is_total || (r.asset as Row | undefined)?.is_total || (r.liability_equity as Row | undefined)?.is_total) {
+              return 'ant-table-row-selected';
+            }
+            if (r.indent || (r.asset as Row | undefined)?.indent || (r.liability_equity as Row | undefined)?.indent) {
+              return 'fs-income-indent-row';
+            }
+            if (r.is_header || (r.asset as Row | undefined)?.is_header || (r.liability_equity as Row | undefined)?.is_header) {
+              return 'fs-income-indent-row';
+            }
             return '';
           }}
-          scroll={{ x: 720 }}
+          scroll={{ x: kind === 'balance-sheet' ? 1160 : 720 }}
         />
       </Space>
 

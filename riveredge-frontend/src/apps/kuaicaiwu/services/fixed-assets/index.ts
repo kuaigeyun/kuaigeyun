@@ -22,21 +22,32 @@ export interface FaAsset {
   asset_name: string;
   category_id?: number;
   category_name?: string;
-  status: string;
-  original_value: number;
-  accumulated_depreciation: number;
-  net_value?: number;
-  monthly_depreciation: number;
+  quantity?: number;
+  unit?: string;
+  change_method?: string;
+  department_id?: number;
   department_name?: string;
+  user_id?: number;
   user_name?: string;
+  status: string;
   location?: string;
+  start_use_date?: string;
   entry_date?: string;
+  specification?: string;
+  notes?: string;
+  attachment_uuids?: string[];
+  depreciation_method?: string;
+  original_value: number;
+  impairment_value?: number;
   useful_life_months: number;
   depreciated_periods: number;
+  accumulated_depreciation: number;
+  net_value?: number;
+  monthly_depreciation?: number;
   residual_rate: number;
-  expense_account_code: string;
+  asset_account_code?: string;
   accumulated_depreciation_account_code: string;
-  notes?: string;
+  expense_account_code: string;
 }
 
 export const fixedAssetService = {

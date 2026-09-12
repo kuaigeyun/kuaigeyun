@@ -57,6 +57,7 @@ LIFECYCLE_AUDIT_MODE: Dict[str, LifecycleAuditMode] = {
     "rework_order": "N",
     "outsource_work_order": "N",
     "outsource_order": "N",
+    "outsource_material_issue": "N",
 }
 from functools import wraps
 from decimal import Decimal
@@ -2634,6 +2635,50 @@ def get_other_outbound_lifecycle(
         "main_stages": _build_main_stages(OTHER_OUTBOUND_MAIN_STAGES, key, is_exception=(key == "cancelled")),
         "sub_stages": None,
         "next_step_suggestions": ["确认出库"] if key == "pending_outbound" else [],
+        "milestones": milestones,
+    }
+
+
+OUTSOURCE_MATERIAL_ISSUE_MAIN_STAGES = [
+    {"key": "draft", "label": "待发料"},
+    {"key": "completed", "label": "已发料"},
+    {"key": "cancelled", "label": "已取消"},
+]
+
+
+def get_outsource_material_issue_lifecycle(
+    record: Any,
+    milestones: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """委外发料单生命周期（草稿→已发料；创建即过账时为已发料）。"""
+    status = _norm(getattr(record, "status", None))
+    milestones = milestones or []
+    status_map = {
+        "draft": "draft",
+        "completed": "completed",
+        "cancelled": "cancelled",
+        "草稿": "draft",
+        "待发料": "draft",
+        "已发料": "completed",
+        "已完成": "completed",
+        "已取消": "cancelled",
+    }
+    key = status_map.get(status, "draft")
+    stage_name_map = {
+        "draft": "待发料",
+        "completed": "已发料",
+        "cancelled": "已取消",
+    }
+    stage_name = stage_name_map.get(key, status or "待发料")
+    return {
+        "current_stage_key": key,
+        "current_stage_name": stage_name,
+        "status": "exception" if key == "cancelled" else "success" if key == "completed" else "normal",
+        "main_stages": _build_main_stages(
+            OUTSOURCE_MATERIAL_ISSUE_MAIN_STAGES, key, is_exception=(key == "cancelled")
+        ),
+        "sub_stages": None,
+        "next_step_suggestions": ["发料"] if key == "draft" else [],
         "milestones": milestones,
     }
 

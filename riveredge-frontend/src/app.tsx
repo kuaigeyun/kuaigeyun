@@ -68,6 +68,10 @@ import { buildLoginRedirectPath, resolveTenantDomainFromUrl } from './utils/tena
 import { isPlatformAdminLoginPathname, isPlatformInfraPath, isPlatformInfraPublicPath } from './utils/platformScope';
 import { isKuaireportSharedBrowsePath } from './utils/kuaireportSharedPath';
 import { redirectAfterLogout } from './utils/loginEntry';
+import {
+  isTenantSubscriptionExpired,
+  TENANT_EXPIRED_MESSAGE,
+} from './utils/tenantAccess';
 // 使用 routes 中的路由配置
 import MainRoutes from './routes';
 import { AiContextProvider } from './contexts/AiContext';
@@ -221,6 +225,29 @@ const AuthGuard = React.memo<{ children: React.ReactNode }>(({ children }) => {
       initDocumentStatusCache().catch(() => {});
     }
   }, [currentUser, isPublicPath]);
+
+  const tenantExpiresAt = currentUser?.tenant_expires_at;
+
+  // 组织到期：本地墙钟检测 + 定时复检（避免到期后仍停留在已加载页面）
+  useEffect(() => {
+    if (isPublicPath || !tenantExpiresAt || resolveIsInfraSuperAdminSession()) {
+      return;
+    }
+
+    const enforceExpiry = () => {
+      if (!isTenantSubscriptionExpired(tenantExpiresAt)) {
+        return;
+      }
+      message.warning(TENANT_EXPIRED_MESSAGE);
+      clearAuth();
+      setCurrentUser(undefined);
+      redirectAfterLogout(navigate);
+    };
+
+    enforceExpiry();
+    const timerId = window.setInterval(enforceExpiry, 60_000);
+    return () => window.clearInterval(timerId);
+  }, [tenantExpiresAt, isPublicPath, navigate, message, setCurrentUser]);
 
   // 拉取当前用户失败：先尝试静默续期；网络失败保留会话；仅续期被拒或无缓存时才清认证
   useEffect(() => {

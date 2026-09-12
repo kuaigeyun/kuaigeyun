@@ -81,6 +81,10 @@ async def get_current_tenant(
             raise HTTPException(status_code=403, detail="租户上下文不匹配，禁止跨租户访问")
         tenant_id = authenticated_tenant_id
 
+    from infra.domain.tenant.tenant_access import require_operational_tenant_by_id
+
+    if not is_infra_superadmin:
+        await require_operational_tenant_by_id(tenant_id)
     set_current_tenant_id(tenant_id)
     return tenant_id
 

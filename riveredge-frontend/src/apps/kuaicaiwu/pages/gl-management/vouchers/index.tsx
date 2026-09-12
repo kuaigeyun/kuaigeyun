@@ -19,7 +19,7 @@ import {
   Table,
   Typography,
 } from 'antd';
-import { ThunderboltOutlined, DeleteOutlined } from '@ant-design/icons';
+import { ThunderboltOutlined, DeleteOutlined, OrderedListOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useNumericPrecisionPlaces } from '../../../../../hooks/useNumericPrecision';
@@ -39,6 +39,7 @@ import { glService, type GlAccount, type GlVoucher, type GlVoucherLine } from '.
 import { apiRequest } from '../../../../../services/api';
 import { buildDocumentListHelpViewConfig, DOCUMENT_LIST_HELP_KEYS } from '../../../../../components/page-help-wiki';
 import GenerateFromEventsModal from './GenerateFromEventsModal';
+import ReorganizeVouchersModal from './ReorganizeVouchersModal';
 
 const NS = 'app.kuaicaiwu.gl.vouchers';
 
@@ -86,6 +87,7 @@ const GlVouchersPage: React.FC = () => {
   const [accounts, setAccounts] = useState<GlAccount[]>([]);
   const [lines, setLines] = useState<DraftLine[]>([emptyLine(), emptyLine()]);
   const [genModalOpen, setGenModalOpen] = useState(false);
+  const [reorganizeModalOpen, setReorganizeModalOpen] = useState(false);
   const [customerOptions, setCustomerOptions] = useState<{ label: string; value: number }[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<{ label: string; value: number }[]>([]);
   const [departmentOptions, setDepartmentOptions] = useState<{ label: string; value: number }[]>([]);
@@ -413,6 +415,20 @@ const GlVouchersPage: React.FC = () => {
                   >
                     {t(`${NS}.action.review`)}
                   </Button>,
+                );
+                acts.push(
+                  <Popconfirm
+                    key="delete"
+                    title={t(`${NS}.confirmDelete`, { defaultValue: '确认删除该凭证？删除后不可恢复' })}
+                    onConfirm={() =>
+                      void runAction(
+                        () => glService.deleteVoucher(record.id),
+                        t('common.deleteSuccess', { defaultValue: '删除成功' }),
+                      )
+                    }
+                  >
+                    <Button {...rowActionKind('delete')} />
+                  </Popconfirm>,
                 );
                 acts.push(
                   <Popconfirm
@@ -869,6 +885,13 @@ const GlVouchersPage: React.FC = () => {
         onCreate={openCreate}
         toolBarActionsAfterCreate={[
           <Button
+            key="reorganize"
+            icon={<OrderedListOutlined />}
+            onClick={() => setReorganizeModalOpen(true)}
+          >
+            {t(`${NS}.reorganize.action`, { defaultValue: '整理凭证' })}
+          </Button>,
+          <Button
             key="gen"
             icon={<ThunderboltOutlined />}
             onClick={() => setGenModalOpen(true)}
@@ -1004,6 +1027,13 @@ const GlVouchersPage: React.FC = () => {
       <GenerateFromEventsModal
         open={genModalOpen}
         onClose={() => setGenModalOpen(false)}
+        onSuccess={() => reload()}
+      />
+
+      <ReorganizeVouchersModal
+        open={reorganizeModalOpen}
+        enableVoucherWords={enableVoucherWords}
+        onClose={() => setReorganizeModalOpen(false)}
         onSuccess={() => reload()}
       />
     </ListPageTemplate>

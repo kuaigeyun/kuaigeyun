@@ -11,12 +11,10 @@ import {
   Card,
   Col,
   Form,
-  InputNumber,
   Row,
   Select,
   Space,
   Spin,
-  Table,
   Typography,
 } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
@@ -24,12 +22,14 @@ import {
   DOCUMENT_DETAIL_PAGE_TITLE_STYLE,
   DocumentFormPageLayout,
   PAGE_SPACING,
-  WAREHOUSE_DETAIL_TABLE_STYLES,
 } from '../../../../../components/layout-templates';
 import { warehouseApi as masterWarehouseApi } from '../../../../master-data/services/warehouse';
 import { outsourceMaterialIssueApi, outsourceWorkOrderApi } from '../../../services/production';
 import { useInvalidateMenuBadgeCounts } from '../../../../../hooks/useInvalidateMenuBadgeCounts';
 import { setCustomPageTitle, removeCustomPageTitle } from '../../../../../utils/customPageTitle';
+import OutsourceIssueFormContent, {
+  type OutsourceIssueLine,
+} from '../../../components/OutsourceIssueFormContent';
 import {
   OutboundEntryRemarksSection,
   ReadOnlyFormValue,
@@ -44,18 +44,6 @@ import {
   usePullEntryFormDraft,
 } from '../shared/pullEntryFormDraft';
 import { navigateLeavingPullEntry, pullEntryTabKey } from '../shared/pullEntryCloseTab';
-
-type IssueLine = {
-  key: number;
-  materialId: number;
-  materialCode: string;
-  materialName: string;
-  unit: string;
-  requiredQuantity: number;
-  issuedQuantity: number;
-  pendingQuantity: number;
-  issueQuantity: number;
-};
 
 const OutboundOutsourcePullEntryPage: React.FC = () => {
   const { t } = useTranslation();
@@ -74,8 +62,9 @@ const OutboundOutsourcePullEntryPage: React.FC = () => {
   const [warehouseOptions, setWarehouseOptions] = useState<{ label: string; value: number; name: string }[]>([]);
   const [warehouseId, setWarehouseId] = useState<number | undefined>();
   const [notes, setNotes] = useState('');
-  const [issueLines, setIssueLines] = useState<IssueLine[]>([]);
+  const [issueLines, setIssueLines] = useState<OutsourceIssueLine[]>([]);
   const [previewMessage, setPreviewMessage] = useState<string | null>(null);
+  const [allowManualLines, setAllowManualLines] = useState(true);
   const { bindSnapshot, persistNow, clearDraft, applyDraftOnce } = usePullEntryFormDraft(
     'kuaizhizao:outbound-outsource-pull',
   );
@@ -89,54 +78,6 @@ const OutboundOutsourcePullEntryPage: React.FC = () => {
   const totalIssueQty = useMemo(
     () => issueLines.reduce((sum, line) => sum + Number(line.issueQuantity || 0), 0),
     [issueLines],
-  );
-
-  const lineColumns = useMemo(
-    () => [
-      { title: t('app.kuaizhizao.warehouseOutbound.col.materialCode'), dataIndex: 'materialCode', width: 120 },
-      { title: t('app.kuaizhizao.warehouseOutbound.col.materialName'), dataIndex: 'materialName', ellipsis: true },
-      {
-        title: t('app.kuaizhizao.warehouseOutbound.entry.requiredQty'),
-        dataIndex: 'requiredQuantity',
-        width: 100,
-        align: 'right' as const,
-      },
-      {
-        title: t('app.kuaizhizao.warehouseOutbound.pull.colIssuedQty'),
-        dataIndex: 'issuedQuantity',
-        width: 100,
-        align: 'right' as const,
-      },
-      {
-        title: t('app.kuaizhizao.warehouseOutbound.entry.pendingIssueQty'),
-        dataIndex: 'pendingQuantity',
-        width: 100,
-        align: 'right' as const,
-      },
-      {
-        title: t('app.kuaizhizao.warehouseOutbound.entry.thisIssue'),
-        key: 'issueQuantity',
-        width: 140,
-        render: (_: unknown, line: IssueLine) => (
-          <InputNumber
-            min={0}
-            max={line.pendingQuantity}
-            value={line.issueQuantity}
-            onChange={(v) => {
-              const qty = Number(v ?? 0);
-              setIssueLines((prev) =>
-                prev.map((row) =>
-                  row.key === line.key ? { ...row, issueQuantity: qty } : row,
-                ),
-              );
-            }}
-            style={{ width: '100%' }}
-          />
-        ),
-      },
-      { title: t('common.unit'), dataIndex: 'unit', width: 60 },
-    ],
-    [t],
   );
 
   const leavePage = useCallback(() => {
@@ -190,6 +131,9 @@ const OutboundOutsourcePullEntryPage: React.FC = () => {
         setWorkOrder(owo as Record<string, unknown>);
         setWarehouseOptions(mapWarehouseSelectOptions(whRes));
         setPreviewMessage(preview?.message ?? preview?.data?.message ?? null);
+        setAllowManualLines(
+          (preview?.allow_manual_lines ?? preview?.data?.allow_manual_lines) !== false,
+        );
         const rawLines = preview?.lines ?? preview?.data?.lines ?? [];
         setIssueLines(
           rawLines.map((line: Record<string, unknown>) => {
@@ -204,6 +148,7 @@ const OutboundOutsourcePullEntryPage: React.FC = () => {
               requiredQuantity: Number(line.requiredQuantity ?? line.required_quantity ?? 0),
               issuedQuantity: Number(line.issuedQuantity ?? line.issued_quantity ?? 0),
               pendingQuantity: pending,
+              availableQuantity: Number(line.availableQuantity ?? line.available_quantity ?? 0),
               issueQuantity: 0,
             };
           }),
@@ -334,25 +279,15 @@ const OutboundOutsourcePullEntryPage: React.FC = () => {
                   <OutboundEntryRemarksSection value={notes} onChange={setNotes} />
                 </Col>
               </Row>
-              {previewMessage ? (
-                <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-                  {previewMessage}
-                </Typography.Text>
-              ) : null}
-              <Typography.Text strong style={{ display: 'block', marginTop: 16, marginBottom: 8 }}>
-                {t('app.kuaizhizao.warehouseOutbound.entry.issueDetails')}
-                <Typography.Text type="secondary" style={{ marginLeft: 12, fontWeight: 'normal' }}>
-                  {t('app.kuaizhizao.warehouseOutbound.entry.totalIssueQty', { qty: totalIssueQty })}
-                </Typography.Text>
+              <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                {t('app.kuaizhizao.warehouseOutbound.entry.totalIssueQty', { qty: totalIssueQty })}
               </Typography.Text>
-              <style>{WAREHOUSE_DETAIL_TABLE_STYLES}</style>
-              <Table
-                className="warehouse-detail-table"
-                size="small"
-                rowKey="key"
-                pagination={false}
-                dataSource={issueLines}
-                columns={lineColumns}
+              <OutsourceIssueFormContent
+                workOrder={workOrder}
+                lines={issueLines}
+                onLinesChange={setIssueLines}
+                previewMessage={previewMessage}
+                allowManualLines={allowManualLines}
               />
             </Form>
           )}

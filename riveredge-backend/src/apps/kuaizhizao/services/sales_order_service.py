@@ -3101,6 +3101,7 @@ class SalesOrderService:
         )
         if force_approval:
             audit_required = True
+        approval_status: dict = {}
         if audit_required:
             from core.services.approval.approval_instance_service import ApprovalInstanceService
 
@@ -3113,8 +3114,12 @@ class SalesOrderService:
                 approval_status.get("has_instance")
                 and approval_status.get("status") == "pending"
             )
-            # is_auto_approve：空审批人 auto_pass 等已在提交链路内完成流程实例
-            if not has_pending_flow and not is_auto_approve:
+            flow_completed_approved = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "approved"
+            )
+            # is_auto_approve / flow_completed_approved：回调写回或流程已结束但单据仍待审
+            if not has_pending_flow and not is_auto_approve and not flow_completed_approved:
                 raise BusinessLogicError(
                     "销售订单审核已开启但无进行中的审批流程，请先提交审批后再审核"
                 )
@@ -3202,6 +3207,14 @@ class SalesOrderService:
                 logger.warning("销售订单审核消息提醒失败 tenant={} order={}: {}", tenant_id, sales_order_id, exc)
             return SalesOrderResponse(**out)
 
+        flow_completed_approved = bool(
+            audit_required
+            and approval_status.get("has_instance")
+            and approval_status.get("status") == "approved"
+        )
+        if is_auto_approve or flow_completed_approved:
+            return await _do_approve()
+
         result = await UniAuditService.approve_with_flow_fallback(
             tenant_id=tenant_id,
             entity_type="sales_order",
@@ -3218,6 +3231,8 @@ class SalesOrderService:
         sales_order_id: int,
         approved_by: int,
         rejection_reason: str,
+        *,
+        is_auto_approve: bool = False,
     ) -> SalesOrderResponse:
         """驳回销售订单"""
         order = await SalesOrder.get_or_none(
@@ -3241,6 +3256,7 @@ class SalesOrderService:
         )
         if force_approval:
             audit_required = True
+        approval_status: dict = {}
         if audit_required:
             from core.services.approval.approval_instance_service import ApprovalInstanceService
 
@@ -3253,7 +3269,11 @@ class SalesOrderService:
                 approval_status.get("has_instance")
                 and approval_status.get("status") == "pending"
             )
-            if not has_pending_flow:
+            flow_completed_rejected = bool(
+                approval_status.get("has_instance")
+                and approval_status.get("status") == "rejected"
+            )
+            if not has_pending_flow and not is_auto_approve and not flow_completed_rejected:
                 raise BusinessLogicError(
                     "销售订单审核已开启但无进行中的审批流程，请先提交审批后再驳回"
                 )
@@ -3281,6 +3301,14 @@ class SalesOrderService:
                     approved_by, approver_name, f"驳回: {reject_reason}",
                 )
             return await self.get_sales_order_by_id(tenant_id, sales_order_id)
+
+        flow_completed_rejected = bool(
+            audit_required
+            and approval_status.get("has_instance")
+            and approval_status.get("status") == "rejected"
+        )
+        if is_auto_approve or flow_completed_rejected:
+            return await _do_reject(rejection_reason)
 
         result = await UniAuditService.reject_with_flow_fallback(
             tenant_id=tenant_id,

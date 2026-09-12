@@ -16,6 +16,12 @@ from apps.kuaicaiwu.models.accounting_event import AccountingEvent
 from apps.kuaicaiwu.models.chart_of_account import ChartOfAccount
 from apps.kuaicaiwu.models.voucher import Voucher
 from apps.kuaicaiwu.models.voucher_line import VoucherLine
+from apps.kuaicaiwu.services.voucher_code_utils import (
+    build_voucher_code,
+    order_vouchers_for_reorganize,
+    parse_voucher_sequence,
+    voucher_code_prefix,
+)
 from apps.kuaicaiwu.services.voucher_template_service import VoucherTemplateService
 from apps.kuaicaiwu.services.gl.balance_service import BalanceService
 from apps.kuaicaiwu.services.gl.period_service import GlPeriodService
@@ -36,13 +42,16 @@ class PostingService:
         self.settings_service = GlSettingsService()
 
     async def _next_voucher_code(self, tenant_id: int, voucher_word: str, voucher_date: date) -> str:
-        prefix = f"{voucher_word or '记'}{voucher_date.strftime('%Y%m')}"
-        existing = await Voucher.filter(
+        prefix = voucher_code_prefix(voucher_word, voucher_date.year, voucher_date.month)
+        codes = await Voucher.filter(
             tenant_id=tenant_id,
             voucher_code__startswith=prefix,
             deleted_at__isnull=True,
-        ).count()
-        return f"{prefix}{existing + 1:04d}"
+        ).values_list("voucher_code", flat=True)
+        max_seq = 0
+        for code in codes:
+            max_seq = max(max_seq, parse_voucher_sequence(code, prefix))
+        return build_voucher_code(prefix, max_seq + 1)
 
     async def _validate_lines(
         self,
@@ -73,7 +82,12 @@ class PostingService:
             if not account.is_leaf:
                 raise ValidationError(f"仅末级科目可制单: {account.account_code}")
             if account.is_controlled and not allow_controlled:
-                raise ValidationError(f"受控科目禁止总账手工制单: {account.account_code}")
+                raise ValidationError(
+                    f"受控科目禁止总账手工制单: {account.account_code}。"
+                    "应收账款、应付账款等须通过收款单、收款退款或「从业务事件生成」入账；"
+                    "销售退货后的现金退款请先在销售退货单发起收款退款并确认，再生成第二笔凭证。"
+                    "若确需手工录入，请在总账设置中开启「受控科目允许总账制单」。"
+                )
             debit = _d(raw.get("debit_amount"))
             credit = _d(raw.get("credit_amount"))
             if debit < 0 or credit < 0:
@@ -387,6 +401,75 @@ class PostingService:
         voucher.status = "cancelled"
         await voucher.save()
         return voucher
+
+    async def delete_draft_voucher(self, tenant_id: int, voucher_id: int) -> None:
+        """软删除制单凭证（与作废不同：从列表移除，业务事件可重新生成）。"""
+        voucher = await self._get(tenant_id, voucher_id)
+        if voucher.status != "draft":
+            raise ValidationError("仅制单状态凭证可删除；已审核请反审核后作废")
+        async with in_transaction():
+            await VoucherLine.filter(tenant_id=tenant_id, voucher_id=voucher.id).delete()
+            voucher.deleted_at = resolve_business_datetime()
+            await voucher.save(update_fields=["deleted_at", "updated_at"])
+
+    async def reorganize_voucher_codes(
+        self,
+        tenant_id: int,
+        *,
+        organize_date: date,
+        voucher_word: Optional[str] = None,
+        method: str = "shift_gaps",
+    ) -> Dict[str, Any]:
+        """整理凭证号：补齐断号或按日期重编（作废凭证不参与）。"""
+        if method not in {"shift_gaps", "by_date"}:
+            raise ValidationError("整理方式无效")
+        year = organize_date.year
+        month = organize_date.month
+        await self.period_service.assert_period_open_for_posting(tenant_id, year, month)
+
+        word_filter = (voucher_word or "").strip()
+        q = Voucher.filter(
+            tenant_id=tenant_id,
+            deleted_at__isnull=True,
+            period_year=year,
+            period_month=month,
+        ).exclude(status="cancelled")
+        if word_filter and word_filter != "全部":
+            if word_filter not in {"记", "收", "付", "转"}:
+                raise ValidationError("凭证字仅支持：全部/记/收/付/转")
+            q = q.filter(voucher_word=word_filter)
+
+        vouchers = await q.all()
+        if not vouchers:
+            return {"updated_count": 0, "groups": []}
+
+        by_word: Dict[str, List[Voucher]] = defaultdict(list)
+        for voucher in vouchers:
+            by_word[voucher.voucher_word or "记"].append(voucher)
+
+        updated = 0
+        groups: List[Dict[str, Any]] = []
+        async with in_transaction():
+            for word, group in by_word.items():
+                prefix = voucher_code_prefix(word, year, month)
+                ordered = order_vouchers_for_reorganize(group, prefix=prefix, method=method)
+                assignments: List[tuple[Voucher, str]] = []
+                for idx, voucher in enumerate(ordered, start=1):
+                    new_code = build_voucher_code(prefix, idx)
+                    if voucher.voucher_code != new_code:
+                        assignments.append((voucher, new_code))
+                if not assignments:
+                    continue
+                for voucher, _ in assignments:
+                    voucher.voucher_code = f"__REORG_{voucher.id}_{uuid.uuid4().hex[:8]}__"
+                    await voucher.save(update_fields=["voucher_code", "updated_at"])
+                for voucher, new_code in assignments:
+                    voucher.voucher_code = new_code
+                    await voucher.save(update_fields=["voucher_code", "updated_at"])
+                updated += len(assignments)
+                groups.append({"voucher_word": word, "updated_count": len(assignments)})
+
+        return {"updated_count": updated, "groups": groups}
 
     async def list_vouchers(
         self,

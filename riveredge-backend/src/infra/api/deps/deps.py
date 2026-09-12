@@ -164,18 +164,12 @@ async def get_current_user(
             detail="用户未激活",
         )
 
-    # JWT 中的组织必须存在、激活，且与当前用户记录一致（防止组织删除后旧 Token/孤儿账号继续访问）
+    # JWT 中的组织必须可用（含到期时间），且与当前用户记录一致
     if tenant_id is not None and not getattr(user, "_is_infra_superadmin", False):
-        from infra.models.tenant import Tenant, TenantStatus
+        from infra.domain.tenant.tenant_access import require_operational_tenant_for_session
 
         tid = int(tenant_id)
-        tenant = await Tenant.get_or_none(id=tid, status=TenantStatus.ACTIVE)
-        if not tenant:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="会话组织已失效，请重新登录",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        await require_operational_tenant_for_session(tid)
         if user.tenant_id is not None and user.tenant_id != tid:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

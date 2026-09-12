@@ -45,6 +45,11 @@ export const inventoryTransferApi = {
     return apiRequest(`/apps/kuaizhizao/inventory-transfers/${transferId}/items/${itemId}`, { method: 'PUT', data });
   },
 
+  // 删除调拨明细
+  deleteItem: async (transferId: string, itemId: string) => {
+    return apiRequest(`/apps/kuaizhizao/inventory-transfers/${transferId}/items/${itemId}`, { method: 'DELETE' });
+  },
+
   // 执行调拨（更新库存）
   execute: async (id: string) => {
     return apiRequest(`/apps/kuaizhizao/inventory-transfers/${id}/execute`, { method: 'POST' });

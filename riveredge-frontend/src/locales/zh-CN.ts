@@ -3191,8 +3191,38 @@ export default {
   'app.kuaicaiwu.fixedAssets.assets.batchDeleted': '已删除 {{count}} 条固定资产',
   'app.kuaicaiwu.fixedAssets.assets.batchDeleteConfirm': '确认删除选中的 {{count}} 条固定资产？',
   'app.kuaicaiwu.fixedAssets.assets.importTemplateName': '固定资产导入模板',
+  'app.kuaicaiwu.fixedAssets.assets.importHeaderMissingName': '导入表缺少「资产名称」列，请下载最新模板',
   'app.kuaicaiwu.fixedAssets.assets.importRowNameRequired': '第 {{row}} 行：资产名称不能为空',
+  'app.kuaicaiwu.fixedAssets.assets.importRowCategoryRequired': '第 {{row}} 行：资产类别不能为空',
   'app.kuaicaiwu.fixedAssets.assets.importRowCategoryMissing': '第 {{row}} 行：未找到资产类别「{{name}}」',
+  'app.kuaicaiwu.fixedAssets.assets.import.assetCode': '资产编号',
+  'app.kuaicaiwu.fixedAssets.assets.import.assetName': '资产名称',
+  'app.kuaicaiwu.fixedAssets.assets.import.category': '资产类别',
+  'app.kuaicaiwu.fixedAssets.assets.import.changeMethod': '变动方式',
+  'app.kuaicaiwu.fixedAssets.assets.import.quantity': '数量',
+  'app.kuaicaiwu.fixedAssets.assets.import.unit': '计量单位',
+  'app.kuaicaiwu.fixedAssets.assets.import.usefulLifeMonths': '预计使用期间数',
+  'app.kuaicaiwu.fixedAssets.assets.import.department': '使用部门',
+  'app.kuaicaiwu.fixedAssets.assets.import.user': '使用人',
+  'app.kuaicaiwu.fixedAssets.assets.import.status': '使用状态',
+  'app.kuaicaiwu.fixedAssets.assets.import.location': '存放地点',
+  'app.kuaicaiwu.fixedAssets.assets.import.startUseDate': '开始使用日期',
+  'app.kuaicaiwu.fixedAssets.assets.import.entryDate': '入账日期',
+  'app.kuaicaiwu.fixedAssets.assets.import.specification': '规格型号',
+  'app.kuaicaiwu.fixedAssets.assets.import.notes': '备注',
+  'app.kuaicaiwu.fixedAssets.assets.import.depreciationMethod': '折旧方法',
+  'app.kuaicaiwu.fixedAssets.assets.import.originalValue': '原值',
+  'app.kuaicaiwu.fixedAssets.assets.import.impairmentValue': '减值准备',
+  'app.kuaicaiwu.fixedAssets.assets.import.depreciatedPeriods': '已折旧期间数',
+  'app.kuaicaiwu.fixedAssets.assets.import.accumulatedDepreciation': '累计折旧',
+  'app.kuaicaiwu.fixedAssets.assets.import.residualRate': '净残值率',
+  'app.kuaicaiwu.fixedAssets.assets.import.accumDeprAccount': '累计折旧科目',
+  'app.kuaicaiwu.fixedAssets.assets.import.expenseAccount': '折旧费用科目',
+  'app.kuaicaiwu.fixedAssets.assets.import.assetAccount': '固定资产科目',
+  'app.kuaicaiwu.fixedAssets.assets.import.exampleName': '示例办公电脑',
+  'app.kuaicaiwu.fixedAssets.assets.import.exampleDept': '行政部',
+  'app.kuaicaiwu.fixedAssets.assets.import.exampleUser': '张三',
+  'app.kuaicaiwu.fixedAssets.assets.import.exampleLocation': '1楼仓库',
   'app.kuaicaiwu.fixedAssets.assets.exportFileName': '固定资产清单',
   'app.kuaicaiwu.fixedAssets.assets.col.code': '资产编号',
   'app.kuaicaiwu.fixedAssets.assets.col.name': '资产名称',
@@ -3208,6 +3238,35 @@ export default {
   'app.kuaicaiwu.fixedAssets.assets.col.startUseDate': '开始使用日期',
   'app.kuaicaiwu.fixedAssets.assets.col.lifeMonths': '使用月数',
   'app.kuaicaiwu.fixedAssets.assets.col.residualRate': '残值率',
+  'app.kuaicaiwu.fixedAssets.assets.form.sectionBasic': '基础信息',
+  'app.kuaicaiwu.fixedAssets.assets.form.sectionDepreciation': '折旧信息',
+  'app.kuaicaiwu.fixedAssets.assets.form.sectionAccounts': '科目信息',
+  'app.kuaicaiwu.fixedAssets.assets.form.useSystemCode': '使用系统编号',
+  'app.kuaicaiwu.fixedAssets.assets.form.initializeAsset': '初始化资产',
+  'app.kuaicaiwu.fixedAssets.assets.form.initializeHint': '期初已有累计折旧时开启，可录入已折旧期间与累计折旧',
+  'app.kuaicaiwu.fixedAssets.assets.form.depreciationPerAssetHint':
+    '折旧方法、使用期间、原值、残值率与科目均在当前卡片上单独维护，不会从资产类别继承。',
+  'app.kuaicaiwu.fixedAssets.assets.form.depreciatedPeriodsHint': '期初建卡时填写；新购资产保持 0',
+  'app.kuaicaiwu.fixedAssets.assets.form.accumDeprHint': '期初建卡时填写已计提累计折旧；新购资产保持 0',
+  'app.kuaicaiwu.fixedAssets.masters.categoryClassificationHint':
+    '资产类别仅用于分类汇总，折旧参数请在各固定资产卡片上单独设置。',
+  'app.kuaicaiwu.fixedAssets.assets.form.changeMethod': '变动方式',
+  'app.kuaicaiwu.fixedAssets.assets.form.quantity': '数量',
+  'app.kuaicaiwu.fixedAssets.assets.form.unit': '计量单位',
+  'app.kuaicaiwu.fixedAssets.assets.form.usefulLifePeriods': '预计使用期间数',
+  'app.kuaicaiwu.fixedAssets.assets.form.usageStatus': '使用状态',
+  'app.kuaicaiwu.fixedAssets.assets.form.specification': '规格型号',
+  'app.kuaicaiwu.fixedAssets.assets.form.entryPeriod': '入账期间',
+  'app.kuaicaiwu.fixedAssets.assets.form.depreciationMethod': '折旧方法',
+  'app.kuaicaiwu.fixedAssets.assets.form.impairmentValue': '减值准备',
+  'app.kuaicaiwu.fixedAssets.assets.form.depreciatedPeriods': '已折旧期间数',
+  'app.kuaicaiwu.fixedAssets.assets.form.remainingPeriods': '剩余折旧期间数',
+  'app.kuaicaiwu.fixedAssets.assets.form.expectedResidual': '预计净残值',
+  'app.kuaicaiwu.fixedAssets.assets.form.monthlyDepreciation': '月折旧',
+  'app.kuaicaiwu.fixedAssets.assets.form.residualRateHint': '填写小数，如 0.05 表示 5%',
+  'app.kuaicaiwu.fixedAssets.assets.form.accumDeprAccount': '累计折旧科目',
+  'app.kuaicaiwu.fixedAssets.assets.form.expenseAccount': '折旧费用科目',
+  'app.kuaicaiwu.fixedAssets.assets.form.assetAccount': '固定资产科目',
   'app.kuaicaiwu.fixedAssets.changes.createButton': '新建资产变动',
   'app.kuaicaiwu.fixedAssets.changes.createTitle': '新建资产变动',
   'app.kuaicaiwu.fixedAssets.changes.confirm': '确认变动',
@@ -13698,6 +13757,15 @@ export default {
   'app.kuaizhizao.inventoryTransfer.formFromLocationPlaceholder': '请选择调出库位',
   'app.kuaizhizao.inventoryTransfer.formToStorageAreaPlaceholder': '请选择调入库区',
   'app.kuaizhizao.inventoryTransfer.formToLocationPlaceholder': '请选择调入库位',
+  'app.kuaizhizao.inventoryTransfer.modalEdit': '编辑调拨单',
+  'app.kuaizhizao.inventoryTransfer.formSelectFromWarehouseFirst': '请先选择调出仓库',
+  'app.kuaizhizao.inventoryTransfer.formBatchNoRequired': '请选择批号',
+  'app.kuaizhizao.inventoryTransfer.formBatchNoSelectPlaceholder': '请选择在库批号',
+  'app.kuaizhizao.inventoryTransfer.msgBatchRequired': '物料 {{material}} 须选择在库批号',
+  'app.kuaizhizao.inventoryTransfer.msgNoBatchInWarehouse': '该仓库暂无可用批号',
+  'app.kuaizhizao.inventoryTransfer.msgEditDraftOnly': '仅草稿状态调拨单可编辑',
+  'app.kuaizhizao.inventoryTransfer.msgUpdateSuccess': '调拨单更新成功',
+  'app.kuaizhizao.inventoryTransfer.msgUpdateFailed': '更新调拨单失败',
   // stocktaking
   'app.kuaizhizao.stocktaking.headerTitle': '成品盘点',
   'app.kuaizhizao.stocktaking.createButton': '新建盘点单',
@@ -14097,6 +14165,17 @@ export default {
   'app.kuaizhizao.warehouseOutbound.pull.osSelectLinesFirst': '请至少选择一条可发料明细',
   'app.kuaizhizao.warehouseOutbound.pull.osPreviewSummary': '委外工单 {{code}}：{{pushable}}/{{total}} 行可发料',
   'app.kuaizhizao.warehouseOutbound.pull.osPreviewTip': '确认后将进入委外发料录入页。',
+  'app.kuaizhizao.warehouseOutbound.pull.osPreviewManualTip':
+    '有 BOM 时可勾选待发物料；无 BOM 或未审核时可直接进入发料页手动添加物料。',
+  'app.kuaizhizao.warehouseOutbound.pull.osPreviewManualHint':
+    '未找到可发料 BOM 明细，可进入发料页手动选择物料。',
+  'app.kuaizhizao.outsourceWorkOrder.issueWorkOrderInfo': '工单委外信息',
+  'app.kuaizhizao.outsourceWorkOrder.issueLineSection': '发料明细',
+  'app.kuaizhizao.outsourceWorkOrder.issueAddManualLine': '添加物料',
+  'app.kuaizhizao.outsourceWorkOrder.issuePickMaterial': '选择发料物料',
+  'app.kuaizhizao.outsourceWorkOrder.issueLineEmpty': '暂无明细，可点击「添加物料」手工录入',
+  'app.kuaizhizao.outsourceWorkOrder.issueAvailableStock': '可用库存',
+  'app.kuaizhizao.outsourceWorkOrder.outsourceQty': '委外数量',
   'app.kuaizhizao.warehouseOutbound.entry.requiredQty': '需求数量',
   'app.kuaizhizao.warehouseOutbound.pull.linkedDelivery': '关联出库单',
   'app.kuaizhizao.warehouseOutbound.pull.loadShipmentNoticesFailed': '加载发货通知单失败',
@@ -28520,6 +28599,78 @@ export default {
     '发版后旧前端资源自动刷新',
   'pages.dashboard.updateLog.entries.stale-chunk-auto-reload.description':
     '发版后若浏览器仍引用已下线的 JS chunk，进入业务应用时会自动硬刷新一次；生产环境不再误提示 compose 或重启 Vite。',
+  'pages.dashboard.updateLog.entries.tenant-expires-at-enforcement.title':
+    '组织到期时间生效限制访问',
+  'pages.dashboard.updateLog.entries.tenant-expires-at-enforcement.description':
+    '到期后同步组织状态为已过期，登录、续期与业务 API 均拒绝访问；前端定时复检并提示续期。',
+  'pages.dashboard.updateLog.entries.inventory-transfer-edit-batch-warehouse-filter.title':
+    '调拨单支持草稿编辑、批号选择与仓库限定物料',
+  'pages.dashboard.updateLog.entries.inventory-transfer-edit-batch-warehouse-filter.description':
+    '草稿调拨单可二次编辑表头与明细；批号管理物料从调出仓库在库批号中选择；选定调出仓库后物料选择仅展示该仓有库存的物料。',
+  'pages.dashboard.updateLog.entries.menu-admin-disabled-hierarchy.title':
+    '修复菜单管理禁用项层级错乱',
+  'pages.dashboard.updateLog.entries.menu-admin-disabled-hierarchy.description':
+    '菜单树先按完整 parent_id 构建再按启用状态过滤，禁用子菜单仍挂在原分组下；按状态筛选时也保留祖先链，不再顶格显示。',
+  'pages.dashboard.updateLog.entries.sales-order-approval-callback-sync.title':
+    '修复销售订单审批通过后仍显示审核中',
+  'pages.dashboard.updateLog.entries.sales-order-approval-callback-sync.description':
+    '审批流节点已通过时，完成回调会正确写回销售订单为已审核；历史卡在待审核的单据可再次点审核完成同步，部署后迁移自动回填。',
+  'pages.dashboard.updateLog.entries.sales-delivery-edit-batch-picker.title':
+    '销售出库编辑可选在库批号',
+  'pages.dashboard.updateLog.entries.sales-delivery-edit-batch-picker.description':
+    '出库 Hub 编辑弹窗与确认出库一致：按出库仓库加载在库批号下拉，批次管理物料须从可选列表选择后再保存；切换仓库时同步刷新批号选项。',
+  'pages.dashboard.updateLog.entries.outsource-issue-outbound-lifecycle.title':
+    '出库 Hub 委外发料补齐生命周期',
+  'pages.dashboard.updateLog.entries.outsource-issue-outbound-lifecycle.description':
+    '委外发料列表与详情返回 lifecycle（待发料→已发料），出库管理聚合页不再显示「生命周期缺失」。',
+  'pages.dashboard.updateLog.entries.outsource-material-issue-operator.title':
+    '委外发料库存过账补传操作人',
+  'pages.dashboard.updateLog.entries.outsource-material-issue-operator.description':
+    '从委外工单创建委外发料单扣减库存时写入发料人，修复「单据库存过账必须指定操作人」导致批量发料失败的问题。',
+  'pages.dashboard.updateLog.entries.sales-return-refund-gl-event.title':
+    '销售退货退款可生成第二笔总账凭证',
+  'pages.dashboard.updateLog.entries.sales-return-refund-gl-event.description':
+    '收款退款、付款退款确认后写入会计事件，可在会计凭证「从业务事件生成」第二笔分录（借应收贷银行）；总账手工制单遇受控科目 1122 时提示走收款退款流程，避免与应收子账脱节。',
+  'pages.dashboard.updateLog.entries.outsource-issue-manual-lines.title':
+    '委外发料支持无 BOM 手工领料',
+  'pages.dashboard.updateLog.entries.outsource-issue-manual-lines.description':
+    '从委外工单创建发料单时，无已审核 BOM 不再阻断流程；可进入发料页手动添加物料，有 BOM 时仍按 BOM 带出待发明细。',
+  'pages.dashboard.updateLog.entries.fa-asset-depreciation-per-card.title':
+    '固定资产折旧改为逐台维护',
+  'pages.dashboard.updateLog.entries.fa-asset-depreciation-per-card.description':
+    '资产类别仅作分类，不再继承折旧参数；新建编辑弹窗在折旧信息区逐台填写方法、期间、原值、累计折旧与科目。',
+  'pages.dashboard.updateLog.entries.fa-asset-form-full-fields.title':
+    '新建固定资产表单补全字段',
+  'pages.dashboard.updateLog.entries.fa-asset-form-full-fields.description':
+    '新建与编辑固定资产弹窗对齐完整建卡字段：基础信息、折旧信息与科目信息；选类别自动带出默认折旧参数，支持初始化资产录入累计折旧。',
+  'pages.dashboard.updateLog.entries.fa-asset-import-template.title':
+    '固定资产清单支持导入',
+  'pages.dashboard.updateLog.entries.fa-asset-import-template.description':
+    '资产清单工具栏恢复导入按钮；模板含新增资产所需基础信息、折旧信息与科目字段，支持按表头列导入批量建卡。',
+  'pages.dashboard.updateLog.entries.gl-balance-cashflow-excel-template.title':
+    '资产负债表与现金流量表对齐标准模板',
+  'pages.dashboard.updateLog.entries.gl-balance-cashflow-excel-template.description':
+    '资产负债表改为左右对照 53 行标准格式（含行次、期末与年初余额）；现金流量表改为 22 行标准格式（含本年累计与本月金额），现金流量项目种子同步扩展。',
+  'pages.dashboard.updateLog.entries.gl-voucher-reorganize.title':
+    '会计凭证支持整理凭证号',
+  'pages.dashboard.updateLog.entries.gl-voucher-reorganize.description':
+    '删除凭证产生断号后，可按期间与凭证字整理凭证号：顺次前移补齐断号，或按凭证日期重新编号；已结账期间不可整理。',
+  'pages.dashboard.updateLog.entries.gl-voucher-draft-delete.title':
+    '会计凭证支持删除制单凭证',
+  'pages.dashboard.updateLog.entries.gl-voucher-draft-delete.description':
+    '制单状态凭证行操作新增删除（软删并从列表移除）；作废仍保留用于已审核凭证留痕。',
+  'pages.dashboard.updateLog.entries.purchase-order-milestone-created-by-column.title':
+    '修复采购订单保存报错',
+  'pages.dashboard.updateLog.entries.purchase-order-milestone-created-by-column.description':
+    '采购订单付款里程碑表补齐 created_by 等审计列，新建/保存采购订单不再因列缺失报服务器内部错误。',
+  'pages.dashboard.updateLog.entries.gl-coa-cost-accounts-gap-fix.title':
+    '补全成本类科目并修正权益跳号',
+  'pages.dashboard.updateLog.entries.gl-coa-cost-accounts-gap-fix.description':
+    '企业会计准则模板补 4102 一般风险准备（4101 与 4103 之间不再跳号），成本类补 5401 工程施工、5402 工程结算、5403 机械作业；已有账套迁移幂等补科目。',
+  'pages.dashboard.updateLog.entries.gl-chart-of-accounts-multi-level.title':
+    '会计科目支持多级新建',
+  'pages.dashboard.updateLog.entries.gl-chart-of-accounts-multi-level.description':
+    '科目列表改为树形展示，行内可新建下级科目并按账套 4-2-2-2 规则校验编码长度；后端支持按 parent_id 或编码前缀自动关联上级。',
   'pages.dashboard.updateLog.entries.custom-document-date-off-by-one-backfill.title':
     '回填报价单与销售单制单日期历史少一天',
   'pages.dashboard.updateLog.entries.custom-document-date-off-by-one-backfill.description':
@@ -31859,6 +32010,15 @@ export default {
   'app.kuaicaiwu.gl.chartOfAccounts.col.balanceDirection': '余额方向',
   'app.kuaicaiwu.gl.chartOfAccounts.col.flags': '属性',
   'app.kuaicaiwu.gl.chartOfAccounts.col.level': '级次',
+  'app.kuaicaiwu.gl.chartOfAccounts.col.parentAccount': '上级科目',
+  'app.kuaicaiwu.gl.chartOfAccounts.addChild': '新增',
+  'app.kuaicaiwu.gl.chartOfAccounts.createChildTitle': '新建下级科目',
+  'app.kuaicaiwu.gl.chartOfAccounts.expandAll': '全部展开',
+  'app.kuaicaiwu.gl.chartOfAccounts.collapseAll': '全部收起',
+  'app.kuaicaiwu.gl.chartOfAccounts.type.all': '全部',
+  'app.kuaicaiwu.gl.chartOfAccounts.field.accountCodeHint':
+    '规则 {{rule}}，第 {{level}} 级须 {{length}} 位{{prefix}}',
+  'app.kuaicaiwu.gl.chartOfAccounts.field.accountCodePrefix': '，以 {{code}} 开头',
   'app.kuaicaiwu.gl.chartOfAccounts.confirmDelete': '确认删除该科目？',
   'app.kuaicaiwu.gl.chartOfAccounts.create': '新建科目',
   'app.kuaicaiwu.gl.chartOfAccounts.createTitle': '新建科目',
@@ -32005,6 +32165,7 @@ export default {
   'app.kuaicaiwu.gl.statements.category.operating': '经营活动',
   'app.kuaicaiwu.gl.statements.col.accountCode': '科目编码',
   'app.kuaicaiwu.gl.statements.col.amount': '期末余额',
+  'app.kuaicaiwu.gl.statements.col.openingAmount': '年初余额',
   'app.kuaicaiwu.gl.statements.col.category': '类别',
   'app.kuaicaiwu.gl.statements.col.itemCode': '项目编码',
   'app.kuaicaiwu.gl.statements.col.label': '项目',
@@ -32049,6 +32210,7 @@ export default {
   'app.kuaicaiwu.gl.vouchers.col.summary': '摘要',
   'app.kuaicaiwu.gl.vouchers.col.voucherCode': '凭证号',
   'app.kuaicaiwu.gl.vouchers.col.voucherDate': '凭证日期',
+  'app.kuaicaiwu.gl.vouchers.confirmDelete': '确认删除该凭证？删除后不可恢复',
   'app.kuaicaiwu.gl.vouchers.confirmObsolete': '确认作废该凭证？',
   'app.kuaicaiwu.gl.vouchers.create': '填制凭证',
   'app.kuaicaiwu.gl.vouchers.createTitle': '填制凭证',
@@ -32058,6 +32220,16 @@ export default {
   'app.kuaicaiwu.gl.vouchers.field.voucherWord': '凭证字',
   'app.kuaicaiwu.gl.vouchers.generateFailed': '生成凭证失败',
   'app.kuaicaiwu.gl.vouchers.generateFromEvents': '从业务事件生成',
+  'app.kuaicaiwu.gl.vouchers.reorganize.action': '整理凭证',
+  'app.kuaicaiwu.gl.vouchers.reorganize.title': '整理凭证',
+  'app.kuaicaiwu.gl.vouchers.reorganize.field.date': '整理日期',
+  'app.kuaicaiwu.gl.vouchers.reorganize.field.method': '整理方式',
+  'app.kuaicaiwu.gl.vouchers.reorganize.method.shiftGaps': '按凭证号顺次前移补齐断号',
+  'app.kuaicaiwu.gl.vouchers.reorganize.method.byDate': '按凭证日期重新顺次编号',
+  'app.kuaicaiwu.gl.vouchers.reorganize.wordAll': '全部',
+  'app.kuaicaiwu.gl.vouchers.reorganize.success': '已整理 {{count}} 张凭证号',
+  'app.kuaicaiwu.gl.vouchers.reorganize.noChange': '当前期间凭证号已连续，无需整理',
+  'app.kuaicaiwu.gl.vouchers.reorganize.failed': '整理凭证失败',
   'app.kuaicaiwu.gl.vouchers.generateSuccess': '已生成 {{count}} 张凭证',
   'app.kuaicaiwu.gl.vouchers.eventsLoadFailed': '加载业务事件失败',
   'app.kuaicaiwu.gl.vouchers.events.selectFirst': '请先选择业务事件',

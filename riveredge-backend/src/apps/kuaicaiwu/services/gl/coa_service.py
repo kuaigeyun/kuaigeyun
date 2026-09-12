@@ -70,6 +70,45 @@ class CoaService:
             q = q.filter(account_type=account_type)
         return await q.order_by("account_code").all()
 
+    async def _resolve_parent_for_create(
+        self,
+        tenant_id: int,
+        *,
+        code: str,
+        parent_id: Optional[int],
+    ) -> tuple[Optional[int], int, Optional[ChartOfAccount]]:
+        """解析上级科目：显式 parent_id 优先；否则按编码长度与前缀匹配账套规则。"""
+        settings = await GlSettingsService().get_or_create(tenant_id)
+        lengths = self.code_lengths_from_rule(settings.account_code_rule or "4-2-2-2")
+
+        if parent_id:
+            parent = await ChartOfAccount.get_or_none(
+                tenant_id=tenant_id, id=int(parent_id), deleted_at__isnull=True
+            )
+            if not parent:
+                raise NotFoundError("上级科目不存在")
+            level = int(parent.level or 1) + 1
+            return int(parent.id), level, parent
+
+        matched_level: Optional[int] = None
+        for idx, total_len in enumerate(lengths):
+            if len(code) == total_len:
+                matched_level = idx + 1
+                break
+
+        if matched_level and matched_level > 1:
+            parent_code = code[: lengths[matched_level - 2]]
+            parent = await ChartOfAccount.filter(
+                tenant_id=tenant_id,
+                account_code=parent_code,
+                deleted_at__isnull=True,
+            ).first()
+            if not parent:
+                raise ValidationError(f"未找到上级科目 {parent_code}")
+            return int(parent.id), matched_level, parent
+
+        return None, matched_level or 1, None
+
     async def create_account(self, tenant_id: int, data: Dict[str, Any]) -> ChartOfAccount:
         code = str(data.get("account_code") or "").strip()
         if not code:
@@ -80,32 +119,33 @@ class CoaService:
         if exists:
             raise ValidationError(f"科目编码已存在: {code}")
 
-        parent_id = data.get("parent_id")
-        level = 1
-        parent = None
-        if parent_id:
-            parent = await ChartOfAccount.get_or_none(
-                tenant_id=tenant_id, id=parent_id, deleted_at__isnull=True
-            )
-            if not parent:
-                raise NotFoundError("上级科目不存在")
-            level = int(parent.level or 1) + 1
-            if parent.is_leaf:
-                parent.is_leaf = False
-                await parent.save()
+        parent_id, level, parent = await self._resolve_parent_for_create(
+            tenant_id, code=code, parent_id=data.get("parent_id")
+        )
+        if parent and parent.is_leaf:
+            parent.is_leaf = False
+            await parent.save()
 
         await self._assert_code_rule(tenant_id, account_code=code, level=level, parent=parent)
+
+        account_type = str(data.get("account_type") or (parent.account_type if parent else "asset"))
+        if parent and account_type != str(parent.account_type):
+            raise ValidationError("下级科目类型须与上级科目一致")
+
+        balance_direction = str(
+            data.get("balance_direction") or (parent.balance_direction if parent else "debit")
+        )
 
         row = await ChartOfAccount.create(
             tenant_id=tenant_id,
             uuid=str(uuid.uuid4()),
             account_code=code,
             account_name=str(data.get("account_name") or "").strip(),
-            account_type=str(data.get("account_type") or "asset"),
+            account_type=account_type,
             parent_id=parent_id,
             level=level,
             is_leaf=bool(data.get("is_leaf", True)),
-            balance_direction=str(data.get("balance_direction") or "debit"),
+            balance_direction=balance_direction,
             is_cash_journal=bool(data.get("is_cash_journal", False)),
             is_bank_journal=bool(data.get("is_bank_journal", False)),
             is_controlled=bool(data.get("is_controlled", False)),

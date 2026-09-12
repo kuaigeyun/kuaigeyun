@@ -1,7 +1,7 @@
 /**
- * 总账科目表
+ * 总账科目表（树形多级科目，编码规则默认 4-2-2-2）
  */
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import {
   ProFormCheckbox,
@@ -34,13 +34,84 @@ const asList = <T,>(res: unknown): T[] => {
   return obj?.data ?? obj?.items ?? [];
 };
 
+type GlAccountTree = GlAccount & { children?: GlAccountTree[] };
+
+const codeLengthsFromRule = (rule: string): number[] => {
+  const parts = String(rule || '4-2-2-2')
+    .split('-')
+    .map((x) => parseInt(x, 10))
+    .filter((n) => !Number.isNaN(n));
+  if (!parts.length) {
+    return [4, 6, 8, 10];
+  }
+  let acc = 0;
+  return parts.map((p) => {
+    acc += p;
+    return acc;
+  });
+};
+
+const maxAccountLevel = (rule: string): number => codeLengthsFromRule(rule).length;
+
+const expectedCodeLength = (rule: string, level: number): number => {
+  const lengths = codeLengthsFromRule(rule);
+  return lengths[level - 1] ?? lengths[lengths.length - 1] ?? 4;
+};
+
+const buildGlAccountTree = (flat: GlAccount[]): GlAccountTree[] => {
+  const byId = new Map<number, GlAccountTree>();
+  flat.forEach((row) => byId.set(row.id, { ...row, children: [] }));
+  const roots: GlAccountTree[] = [];
+  flat.forEach((row) => {
+    const node = byId.get(row.id);
+    if (!node) return;
+    const parentId = row.parent_id;
+    if (parentId != null && byId.has(parentId)) {
+      byId.get(parentId)!.children!.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  const prune = (nodes: GlAccountTree[]) => {
+    nodes.forEach((node) => {
+      if (node.children?.length) {
+        prune(node.children);
+      } else {
+        delete node.children;
+      }
+    });
+  };
+  prune(roots);
+  return roots;
+};
+
+const collectTreeKeys = (nodes: GlAccountTree[]): React.Key[] => {
+  const keys: React.Key[] = [];
+  const walk = (items: GlAccountTree[]) => {
+    items.forEach((item) => {
+      keys.push(item.id);
+      if (item.children?.length) {
+        walk(item.children);
+      }
+    });
+  };
+  walk(nodes);
+  return keys;
+};
+
 const ChartOfAccountsPage: React.FC = () => {
   const { t } = useTranslation();
   const { message: messageApi } = App.useApp();
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
+  const treeDataRef = useRef<GlAccountTree[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<GlAccount | null>(null);
+  const [parentAccount, setParentAccount] = useState<GlAccount | null>(null);
+  const [accountTypeTab, setAccountTypeTab] = useState<string>('');
+  const [accountCodeRule, setAccountCodeRule] = useState('4-2-2-2');
+  const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
+  const [accountNameById, setAccountNameById] = useState<Record<number, string>>({});
   const [seedLoading, setSeedLoading] = useState(false);
   const [seedModalOpen, setSeedModalOpen] = useState(false);
   const [seedTemplatesLoading, setSeedTemplatesLoading] = useState(false);
@@ -68,6 +139,49 @@ const ChartOfAccountsPage: React.FC = () => {
 
   const typeLabel = (type: string) =>
     accountTypeOptions.find((o) => o.value === type)?.label || type;
+
+  useEffect(() => {
+    void glService.getSettings().then((res) => {
+      const rule = String((res as { account_code_rule?: string })?.account_code_rule || '4-2-2-2');
+      setAccountCodeRule(rule);
+    });
+  }, []);
+
+  const openCreateModal = useCallback(
+    (parent?: GlAccount | null, presetType?: string) => {
+      setEditing(null);
+      setParentAccount(parent ?? null);
+      setModalOpen(true);
+      window.setTimeout(() => {
+        formRef.current?.setFieldsValue({
+          account_code: '',
+          account_name: '',
+          account_type: parent?.account_type || presetType || accountTypeTab || 'asset',
+          balance_direction: parent?.balance_direction || 'debit',
+          aux_customer: false,
+          aux_supplier: false,
+          aux_department: false,
+          aux_employee: false,
+          aux_project: false,
+          is_cash_journal: false,
+          is_bank_journal: false,
+          is_controlled: false,
+          notes: undefined,
+        });
+      }, 0);
+    },
+    [accountTypeTab],
+  );
+
+  const closeModal = useCallback(() => {
+    setModalOpen(false);
+    setEditing(null);
+    setParentAccount(null);
+  }, []);
+
+  const createLevel = parentAccount ? (parentAccount.level || 1) + 1 : 1;
+  const createCodeLength = expectedCodeLength(accountCodeRule, createLevel);
+  const canAddChild = (record: GlAccount) => (record.level || 1) < maxAccountLevel(accountCodeRule);
 
   const handleBatchDelete = async (keys: React.Key[]) => {
     for (const id of keys) {
@@ -103,6 +217,20 @@ const ChartOfAccountsPage: React.FC = () => {
             resizable: false,
             hideInSearch: true,
             ellipsis: true,
+          },
+          {
+            title: t(`${NS}.col.parentAccount`, { defaultValue: '上级科目' }),
+            dataIndex: 'parent_id',
+            width: 160,
+            minWidth: 160,
+            uniTableKeepWidth: true,
+            resizable: false,
+            hideInSearch: true,
+            ellipsis: true,
+            render: (_, r) => {
+              if (!r.parent_id) return '-';
+              return accountNameById[r.parent_id] || `#${r.parent_id}`;
+            },
           },
           {
             title: t(`${NS}.col.accountType`),
@@ -204,10 +332,20 @@ const ChartOfAccountsPage: React.FC = () => {
             fixed: 'right',
             hideInSearch: true,
             render: (_, record) => [
+              canAddChild(record) ? (
+                <Button
+                  key="add-child"
+                  {...rowActionKind('create')}
+                  onClick={() => openCreateModal(record)}
+                >
+                  {t(`${NS}.addChild`, { defaultValue: '新增' })}
+                </Button>
+              ) : null,
               <Button
                 key="edit"
                 {...rowActionKind('update')}
                 onClick={() => {
+                  setParentAccount(null);
                   setEditing(record);
                   setModalOpen(true);
                 }}
@@ -232,7 +370,7 @@ const ChartOfAccountsPage: React.FC = () => {
         ],
         GLOBAL_DOC_LIST_FIELD_RANK,
       ),
-    [accountTypeOptions, messageApi, t],
+    [accountNameById, accountTypeOptions, messageApi, openCreateModal, t],
   );
 
 
@@ -294,6 +432,8 @@ const ChartOfAccountsPage: React.FC = () => {
       aux_customer: Boolean(values.aux_customer),
       aux_supplier: Boolean(values.aux_supplier),
       aux_department: Boolean(values.aux_department),
+      aux_employee: Boolean(values.aux_employee),
+      aux_project: Boolean(values.aux_project),
       is_cash_journal: Boolean(values.is_cash_journal),
       is_bank_journal: Boolean(values.is_bank_journal),
       is_controlled: Boolean(values.is_controlled),
@@ -301,6 +441,11 @@ const ChartOfAccountsPage: React.FC = () => {
       is_active: true,
       is_leaf: true,
     };
+    if (parentAccount?.id) {
+      payload.parent_id = parentAccount.id;
+      payload.account_type = parentAccount.account_type;
+      payload.balance_direction = parentAccount.balance_direction || payload.balance_direction;
+    }
     try {
       if (editing?.id) {
         await glService.updateAccount(editing.id, payload);
@@ -308,9 +453,13 @@ const ChartOfAccountsPage: React.FC = () => {
       } else {
         await glService.createAccount(payload);
         messageApi.success(t('common.createSuccess', { defaultValue: '创建成功' }));
+        if (parentAccount?.id) {
+          setExpandedRowKeys((prev) =>
+            prev.includes(parentAccount.id) ? prev : [...prev, parentAccount.id],
+          );
+        }
       }
-      setModalOpen(false);
-      setEditing(null);
+      closeModal();
       actionRef.current?.reload();
     } catch (error) {
       messageApi.error(getApiErrorMessage(error, t('common.saveFailed', { defaultValue: '保存失败' })));
@@ -319,30 +468,38 @@ const ChartOfAccountsPage: React.FC = () => {
 
   return (
     <ListPageTemplate>
-      <UniTable<GlAccount>
+      <UniTable<GlAccountTree>
         actionRef={actionRef}
         rowKey="id"
-        columnPersistenceId="apps.kuaicaiwu.pages.gl-management.chart-of-accounts.list-v3"
+        columnPersistenceId="apps.kuaicaiwu.pages.gl-management.chart-of-accounts.list-v4"
         viewTypes={['table', 'help']}
-          helpViewConfig={buildListPageHelpViewConfig('kuaicaiwu.chartOfAccounts')}
+        helpViewConfig={buildListPageHelpViewConfig('kuaicaiwu.chartOfAccounts')}
         columns={columns}
         showAdvancedSearch
         skipFuzzyPinyinClientFilter
+        pagination={false}
         request={async (params) => {
           try {
+            const typeFilter =
+              accountTypeTab || (params.account_type ? String(params.account_type) : undefined);
             const res = await glService.listAccounts({
-              account_type: params.account_type || undefined,
+              account_type: typeFilter || undefined,
             });
-            let data = asList<GlAccount>(res);
+            let flat = asList<GlAccount>(res);
+            const nameMap: Record<number, string> = {};
+            flat.forEach((row) => {
+              nameMap[row.id] = `${row.account_code} ${row.account_name}`.trim();
+            });
+            setAccountNameById(nameMap);
             const codeKw = String(params.account_code || '').trim();
             if (codeKw) {
-              data = data.filter(
-                (r) =>
-                  r.account_code?.includes(codeKw) ||
-                  r.account_name?.includes(codeKw),
+              flat = flat.filter(
+                (r) => r.account_code?.includes(codeKw) || r.account_name?.includes(codeKw),
               );
             }
-            return { data, success: true, total: data.length };
+            const tree = buildGlAccountTree(flat);
+            treeDataRef.current = tree;
+            return { data: tree, success: true, total: flat.length };
           } catch (error) {
             messageApi.error(
               getApiErrorMessage(error, t('common.loadFailed', { defaultValue: '加载失败' })),
@@ -350,11 +507,13 @@ const ChartOfAccountsPage: React.FC = () => {
             return { data: [], success: false, total: 0 };
           }
         }}
+        params={{ accountTypeTab }}
         showCreateButton
         createButtonText={t(`${NS}.create`, { defaultValue: '新建科目' })}
-        onCreate={() => {
-          setEditing(null);
-          setModalOpen(true);
+        onCreate={() => openCreateModal(null, accountTypeTab || undefined)}
+        expandable={{
+          expandedRowKeys,
+          onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as React.Key[]),
         }}
         enableRowSelection
         showDeleteButton
@@ -364,6 +523,35 @@ const ChartOfAccountsPage: React.FC = () => {
         showImportButton={false}
         showExportButton={false}
         rightToolBarActionsBeforeExport={[
+          <Radio.Group
+            key="type-tabs"
+            value={accountTypeTab}
+            optionType="button"
+            buttonStyle="solid"
+            onChange={(e) => {
+              setAccountTypeTab(String(e.target.value));
+              actionRef.current?.reload();
+            }}
+            options={[
+              { label: t(`${NS}.type.all`, { defaultValue: '全部' }), value: '' },
+              ...accountTypeOptions,
+            ]}
+          />,
+          <Button
+            key="expand"
+            {...rowActionKind('skip')}
+            onClick={() => {
+              if (expandedRowKeys.length > 0) {
+                setExpandedRowKeys([]);
+              } else if (treeDataRef.current.length) {
+                setExpandedRowKeys(collectTreeKeys(treeDataRef.current));
+              }
+            }}
+          >
+            {expandedRowKeys.length > 0
+              ? t(`${NS}.collapseAll`, { defaultValue: '全部收起' })
+              : t(`${NS}.expandAll`, { defaultValue: '全部展开' })}
+          </Button>,
           <Button
             key="seed"
             icon={<ImportOutlined />}
@@ -378,13 +566,14 @@ const ChartOfAccountsPage: React.FC = () => {
         title={
           editing
             ? t(`${NS}.editTitle`, { defaultValue: '编辑科目' })
-            : t(`${NS}.createTitle`, { defaultValue: '新建科目' })
+            : parentAccount
+              ? t(`${NS}.createChildTitle`, {
+                  defaultValue: '新建下级科目',
+                })
+              : t(`${NS}.createTitle`, { defaultValue: '新建科目' })
         }
         open={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditing(null);
-        }}
+        onClose={closeModal}
         isEdit={Boolean(editing)}
         width={MODAL_CONFIG.STANDARD_WIDTH}
         formRef={formRef}
@@ -398,25 +587,58 @@ const ChartOfAccountsPage: React.FC = () => {
                 aux_customer: editing.aux_customer,
                 aux_supplier: editing.aux_supplier,
                 aux_department: editing.aux_department,
+                aux_employee: editing.aux_employee,
+                aux_project: editing.aux_project,
                 is_cash_journal: editing.is_cash_journal,
                 is_bank_journal: editing.is_bank_journal,
                 is_controlled: editing.is_controlled,
                 notes: editing.notes,
               }
             : {
-                balance_direction: 'debit',
-                account_type: 'asset',
+                balance_direction: parentAccount?.balance_direction || 'debit',
+                account_type: parentAccount?.account_type || accountTypeTab || 'asset',
               }
         }
         onFinish={handleSave}
         grid
       >
+        {parentAccount ? (
+          <ProFormText
+            label={t(`${NS}.col.parentAccount`, { defaultValue: '上级科目' })}
+            colProps={{ span: 24 }}
+            disabled
+            fieldProps={{
+              value: `${parentAccount.account_code} ${parentAccount.account_name}`,
+            }}
+          />
+        ) : null}
         <ProFormText
           name="account_code"
           label={t(`${NS}.field.accountCode`, { defaultValue: '科目编码' })}
           rules={[{ required: true, message: t('common.required', { defaultValue: '必填' }) }]}
           colProps={{ span: 12 }}
           disabled={Boolean(editing)}
+          extra={
+            editing
+              ? undefined
+              : t(`${NS}.field.accountCodeHint`, {
+                  defaultValue: '规则 {{rule}}，第 {{level}} 级须 {{length}} 位{{prefix}}',
+                  rule: accountCodeRule,
+                  level: createLevel,
+                  length: createCodeLength,
+                  prefix: parentAccount
+                    ? t(`${NS}.field.accountCodePrefix`, {
+                        defaultValue: '，以 {{code}} 开头',
+                        code: parentAccount.account_code,
+                      })
+                    : '',
+                })
+          }
+          fieldProps={{
+            placeholder: parentAccount
+              ? `${parentAccount.account_code}${'0'.repeat(Math.max(0, createCodeLength - parentAccount.account_code.length))}`
+              : `${'0'.repeat(createCodeLength)}`,
+          }}
         />
         <ProFormText
           name="account_name"
@@ -430,7 +652,7 @@ const ChartOfAccountsPage: React.FC = () => {
           options={accountTypeOptions}
           rules={[{ required: true, message: t('common.required', { defaultValue: '必填' }) }]}
           colProps={{ span: 12 }}
-          disabled={Boolean(editing)}
+          disabled={Boolean(editing || parentAccount)}
         />
         <ProFormSelect
           name="balance_direction"
@@ -438,6 +660,7 @@ const ChartOfAccountsPage: React.FC = () => {
           options={balanceDirectionOptions}
           rules={[{ required: true, message: t('common.required', { defaultValue: '必填' }) }]}
           colProps={{ span: 12 }}
+          disabled={Boolean(parentAccount)}
         />
         <ProFormCheckbox name="aux_customer" colProps={{ span: 8 }}>
           {t(`${NS}.aux.customer`, { defaultValue: '客户辅助' })}

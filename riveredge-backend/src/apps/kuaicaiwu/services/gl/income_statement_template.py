@@ -224,7 +224,9 @@ def build_income_statement_rows(
         total = _sum_codes(amounts, item.account_codes)
         if item.include_cost_accounts:
             for code, bucket in amounts.items():
-                if len(code) == 4 and code.startswith(("5001", "5101", "5201", "5301")):
+                if len(code) == 4 and code.startswith(
+                    ("5001", "5101", "5201", "5301", "5401", "5402", "5403")
+                ):
                     total["period"] += bucket["period"]
                     total["year"] += bucket["year"]
         if item.line_key == "line_1":

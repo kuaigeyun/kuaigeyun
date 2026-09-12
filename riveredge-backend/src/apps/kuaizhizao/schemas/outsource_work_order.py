@@ -178,6 +178,7 @@ class OutsourceMaterialIssueResponse(OutsourceMaterialIssueBase):
         description="明细单位一致时的单位；不一致或无明细为 null（列表展示种类数）",
     )
     items: Optional[List[dict]] = Field(None, description="明细物料名预览（列表「明细」列）")
+    lifecycle: Optional[dict] = Field(None, description="生命周期（后端计算，供出库 Hub UniLifecycle 展示）")
 
 
 class OutsourceMaterialIssuePreviewLine(BaseModel):
@@ -205,6 +206,10 @@ class OutsourceMaterialIssuePreviewResponse(BaseModel):
     quantity: Decimal = Field(..., description="委外数量")
     lines: List[OutsourceMaterialIssuePreviewLine] = Field(default_factory=list)
     message: Optional[str] = Field(None, description="提示信息")
+    allow_manual_lines: bool = Field(
+        True,
+        description="是否允许不依赖 BOM 在发料页手动添加物料",
+    )
 
 
 class OutsourceMaterialIssueLineCreate(BaseModel):

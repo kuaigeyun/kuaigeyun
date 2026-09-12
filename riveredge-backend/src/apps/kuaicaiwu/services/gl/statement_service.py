@@ -1,4 +1,4 @@
-"""法定三大报表：资产负债表 / 利润表。现金流量表仍走 GlPhase2Service。"""
+"""法定三大报表：资产负债表 / 利润表 / 现金流量表。"""
 
 from __future__ import annotations
 
@@ -6,7 +6,12 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from apps.kuaicaiwu.models.chart_of_account import ChartOfAccount
+from apps.kuaicaiwu.models.gl_cash_flow_item import GlCashFlowItem
+from apps.kuaicaiwu.models.voucher import Voucher
+from apps.kuaicaiwu.models.voucher_line import VoucherLine
 from apps.kuaicaiwu.services.gl.balance_service import BalanceService
+from apps.kuaicaiwu.services.gl.balance_sheet_template import build_balance_sheet_rows
+from apps.kuaicaiwu.services.gl.cash_flow_statement_template import build_cash_flow_rows
 from apps.kuaicaiwu.services.gl.income_statement_template import build_income_statement_rows
 
 BALANCE_FIELDS = (
@@ -121,119 +126,128 @@ class StatementService:
         *,
         include_unposted: bool = False,
     ) -> Dict[str, Any]:
-        rows = await self._period_balances(
+        balance_rows = await self._period_balances(
             tenant_id, year, month, include_unposted=include_unposted
         )
-        asset_lines: List[Dict[str, Any]] = []
-        liability_lines: List[Dict[str, Any]] = []
-        equity_lines: List[Dict[str, Any]] = []
-        unclosed = Decimal("0")
-
-        for row in rows:
-            account_type = str(row.get("account_type") or "")
-            direction = str(row.get("balance_direction") or "debit")
-            ending = signed_amount(row["ending_debit"], row["ending_credit"], direction)
-            if ending == 0:
-                continue
-            if account_type == "asset":
-                asset_lines.append(
-                    _line(
-                        line_key=f"asset-{row['account_id']}",
-                        label=str(row["account_name"]),
-                        section="asset",
-                        amount=ending,
-                        account_code=str(row.get("account_code") or ""),
-                        account_id=int(row["account_id"]),
-                    )
-                )
-            elif account_type == "liability":
-                liability_lines.append(
-                    _line(
-                        line_key=f"liability-{row['account_id']}",
-                        label=str(row["account_name"]),
-                        section="liability",
-                        amount=ending,
-                        account_code=str(row.get("account_code") or ""),
-                        account_id=int(row["account_id"]),
-                    )
-                )
-            elif account_type == "equity":
-                equity_lines.append(
-                    _line(
-                        line_key=f"equity-{row['account_id']}",
-                        label=str(row["account_name"]),
-                        section="equity",
-                        amount=ending,
-                        account_code=str(row.get("account_code") or ""),
-                        account_id=int(row["account_id"]),
-                    )
-                )
-            elif account_type in ("profit_loss", "cost"):
-                # 未结转损益按贷-借计入权益，与资产负债表恒等式一致
-                unclosed += _d(row["ending_credit"]) - _d(row["ending_debit"])
-
-        total_assets = sum((_d(line["amount"]) for line in asset_lines), Decimal("0"))
-        total_liabilities = sum((_d(line["amount"]) for line in liability_lines), Decimal("0"))
-        total_equity = sum((_d(line["amount"]) for line in equity_lines), Decimal("0"))
-        if unclosed != 0:
-            equity_lines.append(
-                _line(
-                    line_key="unclosed-pl",
-                    label="未结转损益",
-                    section="equity",
-                    amount=unclosed,
-                )
-            )
-            total_equity += unclosed
-        total_liab_equity = total_liabilities + total_equity
-
-        lines = [
-            _line(line_key="asset-header", label="资产", section="asset", amount=Decimal("0"), is_total=True),
-            *asset_lines,
-            _line(line_key="asset-total", label="资产合计", section="asset", amount=total_assets, is_total=True),
-            _line(
-                line_key="liability-header",
-                label="负债",
-                section="liability",
-                amount=Decimal("0"),
-                is_total=True,
-            ),
-            *liability_lines,
-            _line(
-                line_key="liability-total",
-                label="负债合计",
-                section="liability",
-                amount=total_liabilities,
-                is_total=True,
-            ),
-            _line(line_key="equity-header", label="所有者权益", section="equity", amount=Decimal("0"), is_total=True),
-            *equity_lines,
-            _line(
-                line_key="equity-total",
-                label="所有者权益合计",
-                section="equity",
-                amount=total_equity,
-                is_total=True,
-            ),
-            _line(
-                line_key="liab-equity-total",
-                label="负债和所有者权益合计",
-                section="equity",
-                amount=total_liab_equity,
-                is_total=True,
-            ),
-        ]
+        lines, totals = build_balance_sheet_rows(
+            balance_rows,
+            signed_amount_fn=signed_amount,
+        )
+        total_assets = totals["total_assets"]
+        total_liab_equity = totals["total_liabilities_and_equity"]
         return {
             "year": year,
             "month": month,
             "statement_type": "balance_sheet",
             "total_assets": float(total_assets),
-            "total_liabilities": float(total_liabilities),
-            "total_equity": float(total_equity),
+            "total_liabilities": float(totals["total_liabilities"]),
+            "total_equity": float(totals["total_equity"]),
             "total_liabilities_and_equity": float(total_liab_equity),
             "balanced": total_assets == total_liab_equity,
-            "unclosed_profit": float(unclosed),
+            "unclosed_profit": float(totals["unclosed_profit"]),
             "rows": lines,
+        }
+
+    async def _aggregate_cash_flow_by_item_code(
+        self,
+        tenant_id: int,
+        year: int,
+        month: int,
+    ) -> tuple[Dict[str, Decimal], Dict[str, Decimal]]:
+        items = await GlCashFlowItem.filter(
+            tenant_id=tenant_id, is_active=True, deleted_at__isnull=True
+        ).all()
+        code_by_id = {int(item.id): str(item.item_code) for item in items}
+        period_totals: Dict[str, Decimal] = {}
+        year_totals: Dict[str, Decimal] = {}
+
+        vouchers = await Voucher.filter(
+            tenant_id=tenant_id,
+            period_year=year,
+            period_month__lte=month,
+            status="posted",
+            deleted_at__isnull=True,
+        ).all()
+        for voucher in vouchers:
+            is_period = int(voucher.period_month) == int(month)
+            lines = await VoucherLine.filter(tenant_id=tenant_id, voucher_id=voucher.id).all()
+            for line in lines:
+                account = await ChartOfAccount.get_or_none(
+                    tenant_id=tenant_id, id=line.account_id, deleted_at__isnull=True
+                )
+                if not account or not (account.is_cash_journal or account.is_bank_journal):
+                    continue
+                cf_id = int(line.cash_flow_item_id or 0)
+                item_code = code_by_id.get(cf_id)
+                if not item_code:
+                    continue
+                item = next((row for row in items if row.id == cf_id), None)
+                if not item:
+                    continue
+                if item.direction == "outflow":
+                    amt = _d(line.credit_amount) or _d(line.debit_amount)
+                    signed = -amt
+                else:
+                    amt = _d(line.debit_amount) or _d(line.credit_amount)
+                    signed = amt
+                year_totals[item_code] = year_totals.get(item_code, Decimal("0")) + signed
+                if is_period:
+                    period_totals[item_code] = period_totals.get(item_code, Decimal("0")) + signed
+        return period_totals, year_totals
+
+    async def cash_flow_statement(
+        self,
+        tenant_id: int,
+        year: int,
+        month: int,
+    ) -> Dict[str, Any]:
+        cf_period, cf_year = await self._aggregate_cash_flow_by_item_code(tenant_id, year, month)
+        balance_rows = await self._period_balances(tenant_id, year, month, include_unposted=False)
+        jan_rows = (
+            balance_rows
+            if month == 1
+            else await self._period_balances(tenant_id, year, 1, include_unposted=False)
+        )
+        cash_codes = ("1001", "1002", "1012")
+
+        def _cash_balance(rows: List[Dict[str, Any]], *, measure: str) -> Decimal:
+            total = Decimal("0")
+            for row in rows:
+                code = str(row.get("account_code") or "")
+                if code not in cash_codes:
+                    continue
+                direction = str(row.get("balance_direction") or "debit")
+                if measure == "opening":
+                    total += signed_amount(row["opening_debit"], row["opening_credit"], direction)
+                else:
+                    total += signed_amount(row["ending_debit"], row["ending_credit"], direction)
+            return total
+
+        period_opening = _cash_balance(balance_rows, measure="opening")
+        year_opening = _cash_balance(jan_rows, measure="opening")
+        period_ending = _cash_balance(balance_rows, measure="ending")
+        year_ending = period_ending
+
+        rows = build_cash_flow_rows(
+            cf_period_by_code=cf_period,
+            cf_year_by_code=cf_year,
+            cash_opening={"period": period_opening, "year": year_opening},
+            cash_ending={"period": period_ending, "year": year_ending},
+        )
+        by_key = {row["line_key"]: row for row in rows}
+        operating_net = _d(by_key.get("cf_07", {}).get("period_amount"))
+        investing_net = _d(by_key.get("cf_13", {}).get("period_amount"))
+        financing_net = _d(by_key.get("cf_19", {}).get("period_amount"))
+        net_increase = _d(by_key.get("cf_20", {}).get("period_amount"))
+        return {
+            "year": year,
+            "month": month,
+            "statement_type": "cash_flow",
+            "rows": rows,
+            "operating_net": float(operating_net),
+            "investing_net": float(investing_net),
+            "financing_net": float(financing_net),
+            "net_increase": float(net_increase),
         }
 
     async def income_statement(

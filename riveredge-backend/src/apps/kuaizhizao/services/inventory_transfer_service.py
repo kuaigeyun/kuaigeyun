@@ -558,6 +558,16 @@ class InventoryTransferService(AppBaseService[InventoryTransfer]):
             if item.status != 'pending':
                 raise ValidationError(f"调拨明细状态为{item.status}，不能修改")
 
+            transfer = await InventoryTransfer.get_or_none(
+                id=item.transfer_id,
+                tenant_id=tenant_id,
+                deleted_at__isnull=True,
+            )
+            if not transfer:
+                raise NotFoundError(f"调拨单不存在: {item.transfer_id}")
+            if transfer.status != "draft":
+                raise ValidationError(f"调拨单状态为{transfer.status}，不能修改明细")
+
             # 获取更新人信息
             user_info = await self.get_user_info(updated_by)
 
@@ -566,6 +576,10 @@ class InventoryTransferService(AppBaseService[InventoryTransfer]):
                 item.quantity = item_data.quantity
             if item_data.unit_price is not None:
                 item.unit_price = item_data.unit_price
+            if item_data.from_warehouse_id is not None:
+                item.from_warehouse_id = item_data.from_warehouse_id
+            if item_data.to_warehouse_id is not None:
+                item.to_warehouse_id = item_data.to_warehouse_id
             if item_data.from_storage_area_id is not None:
                 item.from_storage_area_id = item_data.from_storage_area_id
             if item_data.from_storage_area_code is not None:
@@ -582,22 +596,18 @@ class InventoryTransferService(AppBaseService[InventoryTransfer]):
                 item.to_location_id = item_data.to_location_id
             if item_data.to_location_code is not None:
                 item.to_location_code = item_data.to_location_code
+            if item_data.batch_no is not None:
+                item.batch_no = item_data.batch_no or None
             if item_data.remarks is not None:
                 item.remarks = item_data.remarks
 
-            transfer = await InventoryTransfer.get_or_none(
-                id=item.transfer_id,
-                tenant_id=tenant_id,
-                deleted_at__isnull=True,
+            self._validate_transfer_item(
+                transfer,
+                from_storage_area_id=item.from_storage_area_id,
+                from_location_id=item.from_location_id,
+                to_storage_area_id=item.to_storage_area_id,
+                to_location_id=item.to_location_id,
             )
-            if transfer:
-                self._validate_transfer_item(
-                    transfer,
-                    from_storage_area_id=item.from_storage_area_id,
-                    from_location_id=item.from_location_id,
-                    to_storage_area_id=item.to_storage_area_id,
-                    to_location_id=item.to_location_id,
-                )
 
             # 重新计算金额
             item.amount = item.quantity * item.unit_price
@@ -611,6 +621,42 @@ class InventoryTransferService(AppBaseService[InventoryTransfer]):
             await self._update_transfer_statistics(tenant_id, item.transfer_id)
 
             return InventoryTransferItemResponse.model_validate(item)
+
+    async def delete_inventory_transfer_item(
+        self,
+        tenant_id: int,
+        item_id: int,
+        deleted_by: int,
+    ) -> None:
+        """删除调拨明细（软删除，仅草稿单且明细待调拨可删）"""
+        async with in_transaction():
+            item = await InventoryTransferItem.get_or_none(
+                id=item_id,
+                tenant_id=tenant_id,
+                deleted_at__isnull=True,
+            )
+            if not item:
+                raise NotFoundError(f"调拨明细不存在: {item_id}")
+            if item.status != "pending":
+                raise ValidationError(f"调拨明细状态为{item.status}，不能删除")
+
+            transfer = await InventoryTransfer.get_or_none(
+                id=item.transfer_id,
+                tenant_id=tenant_id,
+                deleted_at__isnull=True,
+            )
+            if not transfer:
+                raise NotFoundError(f"调拨单不存在: {item.transfer_id}")
+            if transfer.status != "draft":
+                raise ValidationError(f"调拨单状态为{transfer.status}，不能删除明细")
+
+            user_info = await self.get_user_info(deleted_by)
+            item.deleted_at = resolve_business_datetime()
+            item.updated_by = deleted_by
+            item.updated_by_name = user_info["name"]
+            await item.save()
+
+            await self._update_transfer_statistics(tenant_id, item.transfer_id)
 
     async def execute_inventory_transfer(
         self,
@@ -678,6 +724,23 @@ class InventoryTransferService(AppBaseService[InventoryTransfer]):
                 deleted_at__isnull=True,
             ).all() if material_ids else []
             material_by_id = {int(m.id): m for m in materials}
+
+            from apps.kuaizhizao.services.inventory_service import InventoryService
+
+            batch_management_enabled, _ = await InventoryService._get_warehouse_management_flags(tenant_id)
+
+            for item in items:
+                material = material_by_id.get(int(item.material_id))
+                if (
+                    batch_management_enabled
+                    and material
+                    and getattr(material, "batch_managed", False)
+                    and not str(getattr(item, "batch_no", "") or "").strip()
+                ):
+                    material_code = getattr(material, "main_code", None) or getattr(material, "code", "")
+                    raise ValidationError(
+                        f"物料 {material.name}（{material_code}）启用了批号管理，调拨须指定批号"
+                    )
 
             for item in items:
                 qty = Decimal(str(item.quantity or 0))

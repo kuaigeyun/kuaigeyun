@@ -926,6 +926,67 @@ class MenuService:
                 pass
         
         return result
+
+    @staticmethod
+    def _filter_menu_tree_by_is_active(
+        nodes: List[MenuTreeResponse],
+        is_active: bool,
+    ) -> List[MenuTreeResponse]:
+        """菜单管理：按启用状态过滤，保留匹配项及其祖先链，层级不丢失。"""
+        filtered: List[MenuTreeResponse] = []
+        for node in nodes:
+            child_filtered = MenuService._filter_menu_tree_by_is_active(
+                list(node.children or []), is_active
+            )
+            if node.is_active == is_active or child_filtered:
+                clone = node.model_copy(deep=True)
+                clone.children = child_filtered
+                filtered.append(clone)
+        return filtered
+
+    @staticmethod
+    def _filter_menu_tree_active_strict(
+        nodes: List[MenuTreeResponse],
+    ) -> List[MenuTreeResponse]:
+        """侧栏导航：仅保留启用节点，禁用父级整支隐藏。"""
+        filtered: List[MenuTreeResponse] = []
+        for node in nodes:
+            if not node.is_active:
+                continue
+            clone = node.model_copy(deep=True)
+            clone.children = MenuService._filter_menu_tree_active_strict(list(node.children or []))
+            filtered.append(clone)
+        return filtered
+
+    @staticmethod
+    def _attach_menu_tree_node(
+        *,
+        menu: Menu,
+        menu_response: MenuTreeResponse,
+        menu_map: Dict[int, MenuTreeResponse],
+        menu_by_id: Dict[int, Menu],
+        root_menus: List[MenuTreeResponse],
+        parent_uuid: Optional[str],
+    ) -> None:
+        """将菜单挂到父节点；父级不在可见集合时沿 parent_id 上溯至最近祖先。"""
+        if menu.parent_id:
+            cursor: Optional[int] = menu.parent_id
+            seen: set[int] = set()
+            while cursor is not None and cursor not in seen:
+                seen.add(cursor)
+                if cursor in menu_map:
+                    menu_map[cursor].children.append(menu_response)
+                    return
+                parent_row = menu_by_id.get(cursor)
+                cursor = parent_row.parent_id if parent_row else None
+            if parent_uuid is None:
+                root_menus.append(menu_response)
+            return
+
+        if parent_uuid is None:
+            root_menus.append(menu_response)
+        elif str(menu.uuid) == parent_uuid:
+            root_menus.append(menu_response)
     
     @staticmethod
     async def get_menu_tree(
@@ -954,14 +1015,14 @@ class MenuService:
             List[MenuTreeResponse]: 菜单树列表
         """
         # 生成缓存键（基于查询参数）
-        # v7：缓存命中直出（不再每请求重过滤/重排），键纳入 manifest 指纹，
-        #     使部署改动 manifest 后自动失效；改版本号使旧缓存失效
+        # v8：树构建不再在 SQL 层按 is_active 截断，避免禁用项失去父级导致层级错乱；
+        #     过滤在完整树成型后执行（菜单管理保留祖先链，侧栏导航严格启用）。
         suffix = f"_{cache_key_suffix}" if cache_key_suffix else ""
         manifest_fp = MenuService._get_manifest_fingerprint()
         overlay_tag = "o1" if overlay_manifest_sort else "o0"
         cache_key_value = (
             f"p{parent_uuid or 'root'}_a{application_uuid or 'all'}"
-            f"_i{is_active if is_active is not None else 'all'}_v7{suffix}_m{manifest_fp}_{overlay_tag}"
+            f"_i{is_active if is_active is not None else 'all'}_v8{suffix}_m{manifest_fp}_{overlay_tag}"
         )
         cache_key = MenuService._get_cache_key(tenant_id, "tree", cache_key_value)
         
@@ -1000,15 +1061,15 @@ class MenuService:
         
         if application_uuid:
             query = query.filter(application_uuid=application_uuid)
-        
-        if is_active is not None:
-            query = query.filter(is_active=is_active)
-        
-        # 注意：prefetch_related 对于自关联可能有问题，直接查询所有菜单，然后在内存中构建树
-        all_menus = await query.order_by("sort_order", "created_at").all()
+
+        # 注意：prefetch_related 对于自关联可能有问题，直接查询所有菜单，然后在内存中构建树。
+        # is_active 不在 SQL 层过滤，否则禁用子项会失去父级挂载点，菜单管理树层级错乱。
+        all_menus_raw = await query.order_by("sort_order", "created_at").all()
+        menu_by_id_full = {menu.id: menu for menu in all_menus_raw}
 
         # 过滤孤儿菜单：application_uuid 对应的应用已卸载/禁用/软删除/占位时不显示
         # 说明：平台/系统菜单（application_uuid 为 NULL）照常保留。
+        all_menus = list(all_menus_raw)
         try:
             visible_apps = await ApplicationService.get_installed_applications(tenant_id=tenant_id)
             visible_app_uuids = {str(a["uuid"]) for a in visible_apps}
@@ -1023,14 +1084,14 @@ class MenuService:
         # 构建菜单映射
         menu_map: Dict[int, MenuTreeResponse] = {}
         root_menus: List[MenuTreeResponse] = []
+        menu_by_id = {menu.id: menu for menu in all_menus}
         
         # 第一遍：创建所有菜单的响应对象
         # 构建 parent_id 到 parent_uuid 的映射
         parent_id_to_uuid = {}
         for menu in all_menus:
             if menu.parent_id:
-                # 查找父菜单的 UUID
-                parent_menu = next((m for m in all_menus if m.id == menu.parent_id), None)
+                parent_menu = menu_by_id_full.get(menu.parent_id)
                 if parent_menu:
                     parent_id_to_uuid[menu.parent_id] = parent_menu.uuid
         
@@ -1061,19 +1122,14 @@ class MenuService:
         # 第二遍：构建树形结构
         for menu in all_menus:
             menu_response = menu_map[menu.id]
-            
-            if menu.parent_id:
-                # 有父菜单，添加到父菜单的 children 中
-                if menu.parent_id in menu_map:
-                    menu_map[menu.parent_id].children.append(menu_response)
-            else:
-                # 根菜单
-                if parent_uuid is None:
-                    # 没有指定父菜单，添加所有根菜单
-                    root_menus.append(menu_response)
-                elif str(menu.uuid) == parent_uuid:
-                    # 指定的父菜单，只返回该菜单及其子菜单
-                    root_menus.append(menu_response)
+            MenuService._attach_menu_tree_node(
+                menu=menu,
+                menu_response=menu_response,
+                menu_map=menu_map,
+                menu_by_id=menu_by_id_full,
+                root_menus=root_menus,
+                parent_uuid=parent_uuid,
+            )
 
         app_uuids = {str(m.application_uuid) for m in all_menus if m.application_uuid}
         manifest_sort_indexes = await MenuService._load_manifest_sort_indexes_for_apps(
@@ -1113,6 +1169,12 @@ class MenuService:
             from apps.kuaioa.services.form_template_menu_extension import append_mounted_form_template_menus
 
             await append_mounted_form_template_menus(tenant_id, root_menus)
+
+        if is_active is not None:
+            if cache_key_suffix == "nav_v1":
+                root_menus = MenuService._filter_menu_tree_active_strict(root_menus)
+            else:
+                root_menus = MenuService._filter_menu_tree_by_is_active(root_menus, is_active)
         
         # 缓存结果（序列化为字典列表，包含树形结构）
         if use_cache:
